@@ -142,7 +142,7 @@ function requireTier(feature: keyof TierLimits) {
           message: `This feature requires ${getRequiredTierForFeature(feature)} tier or higher`,
           currentTier: tierNames[tier] || 'Free',
           requiredFeature: feature,
-          upgradeUrl: '/pricing'
+          upgradeUrl: '/?section=pricing'
         });
       }
       
@@ -1709,7 +1709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user.email,
         priceId,
         `${baseUrl}/settings?session_id={CHECKOUT_SESSION_ID}&success=true`,
-        `${baseUrl}/pricing?canceled=true`
+        `${baseUrl}/?section=pricing&canceled=true`
       );
 
       if (result.error) {
@@ -17273,6 +17273,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // /pricing is no longer a page — it is the landing's Pricing section. A real
+  // 301 for crawlers and old links; the client legacy table does the same hop.
+  app.get("/pricing", (req, res) => {
+    const qs = new URLSearchParams(req.query as Record<string, string>);
+    qs.set('section', 'pricing');
+    res.redirect(301, `/?${qs.toString()}#pricing`);
+  });
+
+  // ── PUBLIC landing showcase (no auth, read-only, 15 s server cache) ──
+  // Live quotes, SPY dealer levels, NEXUS ideas delayed ≥24 h, crypto movers,
+  // next catalysts and the Quantinum Bot record — server/public-showcase.ts.
+  app.get("/api/public/showcase", marketDataLimiter, async (_req, res) => {
+    try {
+      const { getPublicShowcase } = await import('./public-showcase');
+      res.set('Cache-Control', 'public, max-age=10');
+      res.json(await getPublicShowcase());
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/public/showcase' });
+      res.status(500).json({ error: "Showcase unavailable" });
+    }
+  });
+
   app.post("/api/watchlist/:id/grade", async (req, res) => {
     try {
       const { gradeAndUpdateWatchlistItem } = await import('./watchlist-grading-service');
@@ -21214,7 +21236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'No AI credits remaining',
             creditsRemaining: 0,
             cycleEnd: creditBalance.cycleEnd,
-            upgradeUrl: '/pricing',
+            upgradeUrl: '/?section=pricing',
             message: `You've used all ${creditBalance.creditsAllocated} AI credits for this month. Credits reset on ${new Date(creditBalance.cycleEnd).toLocaleDateString()}. Upgrade your plan for more credits.`
           });
         }

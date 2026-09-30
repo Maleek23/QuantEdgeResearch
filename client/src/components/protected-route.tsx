@@ -209,7 +209,7 @@ export function ProtectedRoute({
               </p>
               <Button
                 variant="outline"
-                onClick={() => setLocation("/pricing")}
+                onClick={() => setLocation("/?section=pricing")}
                 className="w-full"
               >
                 <Mail className="mr-2 h-4 w-4" />

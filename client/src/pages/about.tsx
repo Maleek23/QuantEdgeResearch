@@ -273,13 +273,13 @@ export default function About() {
           </p>
         </section>
 
-        {/* Creator Section */}
-        <section className="space-y-6">
+        {/* Founder — the Person entity in server/seo-metadata.ts points here (/about#founder). */}
+        <section className="space-y-6" id="founder" aria-labelledby="founder-title">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center">
               <Users className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-2xl font-semibold">Meet the Creator</h2>
+            <h2 className="text-2xl font-semibold" id="founder-title">Built by Abdulmalik Ajisegiri</h2>
           </div>
           <Card className="glass-card">
             <CardContent className="p-4">
@@ -304,13 +304,12 @@ export default function About() {
                         Abdulmalik Ajisegiri
                       </a>
                     </h3>
-                    <p className="text-sky-400 font-medium">Founder & Lead Developer</p>
+                    <p className="text-sky-400 font-medium">Founder</p>
                     <p className="text-sm text-muted-foreground">Model Risk Engineer @ DTCC</p>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Systems engineer specializing in AI/ML model validation, risk analytics, and quantitative methods.
-                    With expertise in stress testing, benchmarking, and model governance, Abdulmalik brings institutional-grade
-                    rigor to QuantEdge Labs. M.S. in Systems Engineering from University of Oklahoma, B.S. in Computer
+                    Abdulmalik founded QuantEdge Labs and builds the terminal — the data pipeline, the engines and the
+                    record that measures them. M.S. in Systems Engineering from University of Oklahoma, B.S. in Computer
                     Engineering from UT Arlington.
                   </p>
                   <div className="flex gap-3">

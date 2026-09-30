@@ -18,7 +18,6 @@ const STATIC_PAGES: SitemapUrl[] = [
   { loc: '/blog', changefreq: 'daily', priority: 0.8 },
   { loc: '/academy', changefreq: 'weekly', priority: 0.7 },
   { loc: '/how-to', changefreq: 'monthly', priority: 0.6 },
-  { loc: '/pricing', changefreq: 'monthly', priority: 0.8 },
   { loc: '/about', changefreq: 'monthly', priority: 0.6 },
   { loc: '/privacy', changefreq: 'yearly', priority: 0.3 },
   { loc: '/terms', changefreq: 'yearly', priority: 0.3 },

@@ -1,6 +1,6 @@
 {
-  "routes": 29,
-  "redirects": 87,
+  "routes": 28,
+  "redirects": 88,
   "tabs": 10,
   "linkTargets": 55,
   "N1_dead": {},
@@ -10,6 +10,7 @@
     "client/src/components/ai-chatbot-popup.tsx",
     "client/src/components/auto-lotto-dashboard.tsx",
     "client/src/components/expiry-pattern-insights.tsx",
+    "client/src/components/floating-bubbles-background.tsx",
     "client/src/components/flowdash/dashboard.tsx",
     "client/src/components/gex-big-gainers.tsx",
     "client/src/components/gex/EngineStatusFooter.tsx",
@@ -30,6 +31,7 @@
     "client/src/components/ui/qe-bar.tsx",
     "client/src/components/ui/qe-legend.tsx",
     "client/src/components/ui/qe-num.tsx",
+    "client/src/components/ui/switch.tsx",
     "client/src/components/win-rate-widget.tsx",
     "client/src/hooks/use-tab-state.ts",
     "client/src/lib/trade-desk-filters.ts"

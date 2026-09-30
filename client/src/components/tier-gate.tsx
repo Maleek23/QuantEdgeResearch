@@ -105,7 +105,7 @@ export function TierGate({ feature, children, fallback, blur = false }: TierGate
           <UpgradePrompt 
             feature={config.name} 
             requiredTier={config.requiredTier}
-            onUpgrade={() => setLocation('/pricing')}
+            onUpgrade={() => setLocation('/?section=pricing')}
           />
         </div>
       </div>
@@ -117,7 +117,7 @@ export function TierGate({ feature, children, fallback, blur = false }: TierGate
       feature={config.name} 
       requiredTier={config.requiredTier}
       currentTier={tier}
-      onUpgrade={() => setLocation('/pricing')}
+      onUpgrade={() => setLocation('/?section=pricing')}
     />
   );
 }

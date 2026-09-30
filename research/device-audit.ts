@@ -283,6 +283,41 @@ function mockJournalTrades() {
   return { trades, count: trades.length };
 }
 /** Every harness page says so, big: a watermark and a red strip (aria-hidden, pointer-events none). */
+/** GET /api/public/showcase — the landing's live panels (server/public-showcase.ts shape). */
+function mockShowcase() {
+  const now = Date.now(); const iso = (ms: number) => new Date(now - ms).toISOString();
+  const spot = 575.4;
+  const profile = Array.from({ length: 25 }, (_, i) => {
+    const strike = 563 + i; const d = strike - 571;
+    return { strike, netGex: +(d < 0 ? -0.9 * Math.exp(-((d + 3) ** 2) / 10) : 1.6 * Math.exp(-((d - 9) ** 2) / 18)).toFixed(3) };
+  });
+  return {
+    builtAt: iso(0),
+    quotes: { asOf: iso(0), data: [
+      { symbol: 'SPY', price: spot, changePct: 0.42, source: 'alpaca-iex', asOf: iso(2_000) },
+      { symbol: 'QQQ', price: 498.12, changePct: 0.61, source: 'alpaca-iex', asOf: iso(3_000) },
+      { symbol: 'BTC', price: 64210, changePct: -1.18, source: 'coinbase', asOf: iso(1_000) },
+    ] },
+    gex: { asOf: iso(70_000), data: { symbol: 'SPY', spot, callWall: 580, putWall: 565, zeroGamma: 571.2, maxGammaStrike: 580, regime: 'positive_gamma', netGexB: 2.41, source: 'tradier', chainAgeMs: 70_000, delayedFeed: false, profile } },
+    ideas: { asOf: iso(0), data: [
+      { symbol: 'NVDA', side: 'long', band: 'A', publishedAt: iso(2 * 86_400_000), outcome: 'hit_target', percentGain: 6.2, assetType: 'stock' },
+      { symbol: 'TSLA', side: 'short', band: 'B', publishedAt: iso(3 * 86_400_000), outcome: 'hit_stop', percentGain: -3.1, assetType: 'stock' },
+      { symbol: 'AMD', side: 'long', band: 'B', publishedAt: iso(1.2 * 86_400_000), outcome: null, percentGain: null, assetType: 'stock' },
+    ] },
+    crypto: { asOf: iso(20_000), data: [
+      { symbol: 'SOL', name: 'Solana', price: 148.2, change24h: -3.9 },
+      { symbol: 'ETH', name: 'Ethereum', price: 2510, change24h: -2.1 },
+      { symbol: 'BTC', name: 'Bitcoin', price: 64210, change24h: -1.2 },
+    ] },
+    catalysts: { asOf: iso(0), data: [
+      { symbol: 'NKE', date: '2026-10-01', estimate: '0.52' },
+      { symbol: 'MU', date: '2026-10-02', estimate: '1.74' },
+      { symbol: 'STZ', date: '2026-10-06', estimate: null },
+    ] },
+    bot: { asOf: iso(0), data: { closed: 18, open: 4, wins: 9, winRate: null, minSample: 30, netRealizedPnL: 412, avgWinPct: null, avgLossPct: null, profitFactor: null, since: '2026-09-24', runLabel: 'Run 3 · 100K · Sep 24–', startingCapital: 100000 } },
+  };
+}
+
 const HARNESS_BANNER = '<div aria-hidden="true" data-harness style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:grid;place-items:center;overflow:hidden"><div style="transform:rotate(-24deg);font:800 64px/1.1 system-ui,sans-serif;letter-spacing:.08em;color:rgba(255,64,64,.14);text-align:center;white-space:nowrap">TEST HARNESS<br><span style="font-size:22px;letter-spacing:.04em">synthetic fixtures · not market data</span></div></div><div aria-hidden="true" data-harness style="position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:2147483647;pointer-events:none;padding:2px 12px;border-radius:0 0 8px 8px;background:#b91c1c;color:#fff;font:700 11px/1.6 system-ui,sans-serif;letter-spacing:.06em">TEST HARNESS · SYNTHETIC FIXTURES · NOT MARKET DATA</div>';
 
 const TYPES: Record<string, string> = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
@@ -301,6 +336,7 @@ function serve(): Promise<http.Server> {
       if (p === '/api/weekly-path/SPY') return json(200, mockWeeklyPath());
       if (p === '/api/sector-rotation') return json(200, mockRotation());
       if (p === '/api/crypto/pulse') return json(200, mockPulse());
+      if (p === '/api/public/showcase') return json(200, mockShowcase());
       if (p === '/api/performance/model-record') return json(200, mockRecord());
       if (p === '/api/index-scalps') return json(200, mockIndexDesk());
       if (p.startsWith('/api/quotes/batch/')) return json(200, mockQuotes(decodeURIComponent(p.slice('/api/quotes/batch/'.length)).split(',').filter(Boolean)));

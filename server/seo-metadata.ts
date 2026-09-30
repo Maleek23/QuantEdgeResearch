@@ -7,6 +7,10 @@ type SeoRoute = {
   schema?: Record<string, unknown>[];
 };
 
+// Founder: Abdulmalik Ajisegiri (git config user.name). One Person entity,
+// referenced by @id from the Organization. No credentials asserted here.
+const FOUNDER_ID = `${SITE_URL}/about#founder`;
+
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
@@ -15,23 +19,21 @@ const organizationSchema = {
   alternateName: 'Quant Edge Labs',
   url: SITE_URL,
   logo: `${SITE_URL}/icon-512.png`,
-  founder: { '@id': 'https://abdulmalikajisegiri.com/#person' },
-  sameAs: ['https://abdulmalikajisegiri.com/'],
+  founder: { '@type': 'Person', '@id': FOUNDER_ID, name: 'Abdulmalik Ajisegiri', jobTitle: 'Founder', url: `${SITE_URL}/about` },
 };
 
 const founderSchema = {
   '@context': 'https://schema.org',
   '@type': 'Person',
-  '@id': 'https://abdulmalikajisegiri.com/#person',
+  '@id': FOUNDER_ID,
   name: 'Abdulmalik Ajisegiri',
-  url: 'https://abdulmalikajisegiri.com/',
-  jobTitle: 'Founder and Lead Developer',
-  founderOf: { '@id': `${SITE_URL}/#organization` },
-  knowsAbout: [
-    'Systems engineering',
-    'Model risk management',
-    'AI and machine learning governance',
-    'Quantitative market research',
+  jobTitle: 'Founder',
+  url: `${SITE_URL}/about`,
+  worksFor: { '@id': `${SITE_URL}/#organization` },
+  sameAs: [
+    'https://abdulmalikajisegiri.com/',
+    'https://www.linkedin.com/in/malikajisegiri',
+    'https://github.com/Maleek23',
   ],
 };
 
@@ -52,16 +54,12 @@ const PUBLIC_ROUTES: Record<string, SeoRoute> = {
     // docs/POSITIONING.md — this is what link previews (iMessage, X, Slack, Discord) read.
     title: 'QuantEdge Labs | Trading Research Terminal for Stocks, Options & Crypto',
     description: 'A trading research terminal for stocks, options and crypto: dealer positioning, options flow, evidence-ranked setups, a paper-trading bot and trading journals.',
-    schema: [organizationSchema, softwareSchema],
+    schema: [organizationSchema, founderSchema, softwareSchema],
   },
   '/about': {
-    title: 'About QuantEdge Labs | Research Method and Founder',
-    description: 'Learn how QuantEdge Labs combines systems engineering, model-risk discipline and quantitative market research. Founded by Abdulmalik Ajisegiri.',
+    title: 'About QuantEdge Labs | Built by Abdulmalik Ajisegiri',
+    description: 'QuantEdge Labs builds a trading research terminal for stocks, options and crypto where every number carries its source, age and record. Founded by Abdulmalik Ajisegiri.',
     schema: [organizationSchema, founderSchema],
-  },
-  '/pricing': {
-    title: 'QuantEdge Labs Pricing | Quantitative Research Tools',
-    description: 'Compare QuantEdge Labs plans for the trading research terminal: dealer positioning, options flow, evidence-ranked setups, the paper-trading bot and trading journals.',
   },
   '/blog': {
     title: 'QuantEdge Labs Research Library | Markets and Model Risk',
@@ -128,6 +126,7 @@ export function injectServerSeo(html: string, requestPath: string): string {
   const canonical = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
   const robots = seo.index === false ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
   const title = escapeAttribute(seo.title);
+  const author = 'Abdulmalik Ajisegiri';
   const description = escapeAttribute(seo.description);
 
   let output = html
@@ -135,6 +134,7 @@ export function injectServerSeo(html: string, requestPath: string): string {
     .replace(/<meta name="title" content="[^"]*"\s*\/>/, `<meta name="title" content="${title}" />`)
     .replace(/<meta name="description" content="[^"]*"\s*\/>/, `<meta name="description" content="${description}" />`)
     .replace(/<meta name="robots" content="[^"]*"\s*\/>/, `<meta name="robots" content="${robots}" />`)
+    .replace(/<meta name="author" content="[^"]*"\s*\/>/, `<meta name="author" content="${author}" />`)
     .replace(/<link rel="canonical" href="[^"]*"\s*\/>/, `<link rel="canonical" href="${canonical}" />`);
 
   const tags: Array<[RegExp, string]> = [
