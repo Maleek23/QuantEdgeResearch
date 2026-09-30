@@ -97,7 +97,25 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
     });
     if (!res.ok) return null;
     const j = await res.json();
-    return j?.chart?.result?.[0]?.meta ?? null;
+    const r = j?.chart?.result?.[0];
+    const meta = r?.meta ?? null;
+    if (!meta) return null;
+    // Yahoo no longer fills meta.preMarketPrice reliably (null on 2026-09-30),
+    // and meta.regularMarketPrice is stale before the open. The truth is the
+    // last 1-minute bar inside today's pre-market window.
+    try {
+      const pre = meta.currentTradingPeriod?.pre;
+      const ts: number[] = r?.timestamp ?? [];
+      const cl: Array<number | null> = r?.indicators?.quote?.[0]?.close ?? [];
+      if (pre?.start && pre?.end) {
+        for (let i = ts.length - 1; i >= 0; i--) {
+          if (ts[i] >= pre.start && ts[i] < pre.end && cl[i] != null && Number(cl[i]) > 0) {
+            meta.__pmLast = Number(cl[i]); meta.__pmLastAt = ts[i] * 1000; break;
+          }
+        }
+      }
+    } catch { /* bars optional */ }
+    return meta;
   } catch (err) {
     logger.debug(`[PRE-MARKET] Yahoo fetch failed for ${symbol}: ${(err as Error).message}`);
     return null;
@@ -111,7 +129,7 @@ function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSn
   const previousClose = Number(meta.previousClose ?? meta.chartPreviousClose);
   if (!Number.isFinite(previousClose) || previousClose <= 0) return null;
 
-  const preMarketPrice = Number(meta.preMarketPrice);
+  const preMarketPrice = Number(meta.preMarketPrice ?? meta.__pmLast);
   const regularOpen = Number(meta.regularMarketOpen);
   const regularPrice = Number(meta.regularMarketPrice);
   const postMarketPrice = Number(meta.postMarketPrice);
@@ -130,6 +148,9 @@ function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSn
   if (phase === "pre_market" && Number.isFinite(preMarketPrice) && preMarketPrice > 0) {
     price = preMarketPrice;
     activeGap = preMarketGapPct ?? 0;
+  } else if (phase === "pre_market") {
+    // No pre-market trade yet: never substitute a stale regular-session field.
+    return null;
   } else if (phase === "post_market" && Number.isFinite(postMarketPrice) && postMarketPrice > 0) {
     price = postMarketPrice;
     activeGap = ((postMarketPrice - (Number.isFinite(regularPrice) ? regularPrice : previousClose)) /
