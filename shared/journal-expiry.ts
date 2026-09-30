@@ -21,6 +21,8 @@
  *   • Exit time = expiry day 16:00 ET (when it settled, not when we noticed).
  */
 
+import { optionExpiryCloseMs } from './option-expiry';
+
 /** Broker values written by the CSV importer (server/broker-csv-parser.ts). */
 export const CSV_IMPORT_BROKERS: ReadonlySet<string> = new Set(['webull', 'robinhood', 'schwab', 'tda', 'ibkr', 'etrade', 'fidelity', 'tastytrade', 'csv']);
 
@@ -37,14 +39,9 @@ function etDayMinute(d: Date): { day: string; minute: number } {
 /** Marks a row the importer (or this module) settled at $0. */
 export const EXPIRED_NOTE_HEAD = 'Expired — no closing fill in the broker export';
 
-/** 16:00 New York on `day` (YYYY-MM-DD) as an ISO instant (EDT or EST). */
+/** 16:00 New York on `day` (YYYY-MM-DD) as an ISO instant (EDT or EST) — shared/option-expiry.ts. */
 export function expiryCloseIso(day: string): string {
-  for (const utcHour of [20, 21]) {
-    const iso = `${day}T${utcHour}:00:00.000Z`;
-    const p = etDayMinute(new Date(iso));
-    if (p.day === day && p.minute === 16 * 60) return iso;
-  }
-  return `${day}T20:00:00.000Z`;
+  return new Date(optionExpiryCloseMs(day)).toISOString();
 }
 
 /** Is the expiry session of `expiryDay` over at `nowMs`? */

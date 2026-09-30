@@ -16,6 +16,7 @@
 import { planExitTiming, appendNote, EXIT_TIME_TAG_RE, type TimedBar } from '@shared/exit-hit-time';
 import { PerformanceValidator } from '../performance-validator';
 import { toExitTimingIdea } from './exit-time-bars';
+import { optionExpiryCloseMs } from '@shared/option-expiry';
 
 export const DEFAULT_REPAIR_SINCE = '2026-09-30T12:40:00Z';
 const SAME_STAMP_MS = 120_000;
@@ -51,7 +52,7 @@ export function deadlineOf(row: RepairRow, resolvedMs: number): number | null {
   if (reason !== 'auto_expired') return null; // time stops were decided on the live quote
   if (row.assetType === 'future') return null;
   if (row.assetType === 'option' && row.expiryDate) {
-    const t = new Date(row.expiryDate).getTime();
+    const t = Math.max(optionExpiryCloseMs(row.expiryDate), created.getTime()); // 16:00 ET, never before publish
     if (Number.isFinite(t) && t <= resolvedMs) return t;
   }
   if (row.exitBy) {
@@ -86,7 +87,7 @@ export async function planRepairs(
       continue;
     }
     const missed = String(row.resolutionReason ?? '').startsWith('missed_entry');
-    const { bars, interval } = missed ? { bars: [], interval: null } : await getBars(row, tIdea.entryMs);
+    const { bars, interval } = missed ? { bars: [], interval: null } : await getBars(row, tIdea.touchFromMs ?? tIdea.entryMs);
     const plan = planExitTiming(
       tIdea,
       { outcomeStatus: String(row.outcomeStatus), resolutionReason: row.resolutionReason, exitPrice: row.exitPrice, deadlineMs },

@@ -188,6 +188,8 @@ export {
 // Import for use in this file
 import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
+import { isOptionExpired } from "@shared/option-expiry";
+import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
 import { logger } from "./logger";
 
 // ========================================
@@ -1466,8 +1468,7 @@ export class MemStorage implements IStorage {
 
       // Skip if expired (for options)
       if (idea.expiryDate) {
-        const expiryTime = new Date(idea.expiryDate).getTime();
-        if (expiryTime < now) continue; // Expired
+        if (isOptionExpired(idea.expiryDate, now)) continue; // Expired (16:00 ET on the expiry date)
       }
 
       recent.push(idea);
@@ -1579,7 +1580,8 @@ export class MemStorage implements IStorage {
     return this.tradeIdeas.get(id);
   }
 
-  async createTradeIdea(idea: InsertTradeIdea, _opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
+  async createTradeIdea(rawIdea: InsertTradeIdea, _opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
+    const idea = ensureScorableOptionIdea(rawIdea as any).idea as InsertTradeIdea;
     const id = randomUUID();
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedConfidence = idea.confidenceScore
@@ -2296,8 +2298,7 @@ export class MemStorage implements IStorage {
 
         // Skip expired options
         if (idea.expiryDate) {
-          const expiryTime = new Date(idea.expiryDate).getTime();
-          if (expiryTime < now) return false;
+          if (isOptionExpired(idea.expiryDate, now)) return false; // 16:00 ET on the expiry date
         }
 
         return true;
@@ -2642,9 +2643,20 @@ export class DatabaseStorage implements IStorage {
     // Canonicalize the source spelling (flow→options_flow, quant_signal→quant…)
     // so dedup keys and stored provenance stay consistent. Synonyms only —
     // never rewrites the engine identity. See normalizeIdeaSource().
-    const idea: InsertTradeIdea = (rawIdea as any).source
+    const sourced: InsertTradeIdea = (rawIdea as any).source
       ? ({ ...rawIdea, source: normalizeIdeaSource((rawIdea as any).source) } as InsertTradeIdea)
       : rawIdea;
+
+    // 💵 An option idea without an entry premium can never be scored — the
+    // journal drops it (SR 11-7 v6 F-4: all 142 spx_session ideas). Publish it
+    // as an underlying-only idea that says so. See shared/option-premium-guard.ts.
+    const guarded = ensureScorableOptionIdea(sourced as any);
+    if (guarded.converted) {
+      logger.warn(
+        `[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`,
+      );
+    }
+    const idea: InsertTradeIdea = guarded.idea as InsertTradeIdea;
 
     // 🛡️ Shared validation gate — blocks malformed scanner output BEFORE
     // it reaches the DB. Catches the entire class of bugs we kept fixing

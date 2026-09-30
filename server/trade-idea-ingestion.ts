@@ -376,38 +376,20 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
   // first half — cut the out-of-sample loss from −0.225R to −0.115R per idea
   // (total −74.8R → −38.1R, n=332). Day trades are excluded (a daily ATR is the
   // wrong yardstick intraday). The target is kept; R:R is restated honestly.
+  // Shared with every producer that bypasses this gate (server/lib/atr-stop-floor.ts).
   let stopLoss = input.stopLoss ?? input.suggestedStop;
   let stopNote = '';
-  const entryPx = input.currentPrice;
-  if (
-    typeof stopLoss === 'number' && typeof entryPx === 'number' && entryPx > 0 &&
-    input.holdingPeriod !== 'day' && input.assetType !== 'crypto'
-  ) {
-    try {
-      const { fetchCandles } = await import('./historical-candles');
-      const d = (await fetchCandles(symbol, '3mo', '1d')).slice(-16);
-      if (d.length >= 15) {
-        const tr = d.slice(1).map((b, i) => Math.max(b.high - b.low, Math.abs(b.high - d[i].close), Math.abs(b.low - d[i].close)));
-        const atr = tr.reduce((a, b) => a + b, 0) / tr.length;
-        const floor = 1.25 * atr;
-        const dist = Math.abs(entryPx - stopLoss);
-        const isLong = !/short|bear/i.test(String(input.direction));
-        if (atr > 0 && dist < floor) {
-          const widened = Number((isLong ? entryPx - floor : entryPx + floor).toFixed(2));
-          if (widened > 0) {
-            // Restate the trade on the widened stop: the producer's level stays
-            // the thesis line, but the stop and the R multiple are now different.
-            const tgt = input.targetPrice ?? input.suggestedTarget;
-            const newR = typeof tgt === 'number' ? Math.abs(tgt - entryPx) / Math.abs(entryPx - widened) : null;
-            stopNote = `Stop widened from $${stopLoss.toFixed(2)} to $${widened.toFixed(2)} (1.25× ATR $${atr.toFixed(2)}): stops inside a normal day's range were the #1 measured loss driver. ` +
-              `$${stopLoss.toFixed(2)} stays the thesis line (a close through it means the read was wrong); the hard stop is $${widened.toFixed(2)}` +
-              (newR != null && typeof tgt === 'number' ? `, so T1 $${tgt.toFixed(2)} is ${newR.toFixed(1)}R on this stop${newR < 1 ? ' — below 1R, size down or pass' : ''}.` : '.');
-            logger.info(`[INGESTION] ${symbol}: ${stopNote}`);
-            stopLoss = widened;
-          }
-        }
-      }
-    } catch { /* candles unavailable — publish the producer's stop unchanged */ }
+  {
+    const { applyAtrStopFloor } = await import('./lib/atr-stop-floor');
+    const floored = await applyAtrStopFloor({
+      symbol, entry: input.currentPrice, stop: stopLoss, target: input.targetPrice ?? input.suggestedTarget,
+      direction: String(input.direction), holdingPeriod: input.holdingPeriod, assetType: input.assetType,
+    });
+    if (floored.widened && typeof floored.stopLoss === 'number') {
+      stopNote = floored.note;
+      logger.info(`[INGESTION] ${symbol}: ${stopNote}`);
+      stopLoss = floored.stopLoss;
+    }
   }
 
   // All gates passed - create the idea

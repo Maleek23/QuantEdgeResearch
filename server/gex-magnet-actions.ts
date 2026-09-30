@@ -99,7 +99,16 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   const target = s.strike;
   // Risk half the distance to the strike (R:R 2): the thesis is "price is pulled
   // INTO the strike"; losing half that distance means the pull is not there.
-  const stop = long ? entry - (target - entry) / 2 : entry + (entry - target) / 2;
+  const rawStop = long ? entry - (target - entry) / 2 : entry + (entry - target) / 2;
+  // Hold label from the contract's DTE and the shared 1.25× ATR swing floor —
+  // this path writes through storage.createTradeIdea and bypassed the
+  // ingestion gate (SR 11-7 v6 F-7/F-8). Same helper as gex_scanner.
+  const { optionPublishPlan } = await import('./lib/option-publish-plan');
+  const plan = await optionPublishPlan({
+    symbol: s.symbol, direction: long ? 'long' : 'short', entry, stop: rawStop, target,
+    expiryDate: s.expiry, fallbackHolding: (s.dte ?? 99) <= 0 ? 'day' : 'swing',
+  });
+  const stop = plan.stopLoss;
   const premium = s.premium?.mid ?? s.premium?.last ?? null;
   const idea: Record<string, any> = {
     symbol: s.symbol,
@@ -108,20 +117,20 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     entryPrice: +entry.toFixed(2),
     targetPrice: +target.toFixed(2),
     stopLoss: +stop.toFixed(2),
-    riskRewardRatio: 2,
+    riskRewardRatio: plan.riskRewardRatio,
     ...(premium != null && premium > 0 ? { entryPremium: +premium.toFixed(2) } : {}),
     optionType: s.side,
     strikePrice: s.strike,
     expiryDate: s.expiry,
     catalyst: `GEX ${s.side} magnet — ${s.strike}${long ? 'C' : 'P'} exp ${s.expiry}, strike ${s.distPct >= 0 ? '+' : ''}${s.distPct.toFixed(1)}% ${long ? 'above' : 'below'} spot`,
-    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, target = strike, stop at half the distance.`,
+    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, target = strike, stop at half the distance.${plan.note ? ` ${plan.note}` : ''}`,
     source: 'gex_magnet',
     dataSourceUsed: `GEX_magnet_${s.side}_${r.dataSource}`,
     sessionContext: 'regular',
     timestamp: new Date().toISOString(),
     outcomeStatus: 'open',
     confidenceScore: Math.min(70, s.score),
-    holdingPeriod: (s.dte ?? 99) <= 1.5 ? 'day' : 'swing',
+    holdingPeriod: plan.holdingPeriod,
     qualitySignals: [
       `magnet_score:${s.score}`,
       'score_uncalibrated',

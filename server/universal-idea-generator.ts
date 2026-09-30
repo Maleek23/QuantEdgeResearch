@@ -24,6 +24,7 @@ import {
   type ContractCandidate,
 } from "./option-selection-engine";
 import { fetchCboeChain, findContractMid } from "./contract-analyzer/cboe-chain";
+import { holdingPeriodForDte } from "@shared/option-expiry";
 import { isApprovedTicker, isSkipTicker } from "@shared/approved-tickers";
 
 /**
@@ -295,6 +296,12 @@ export interface UniversalIdeaInput {
   
   // Holding period suggestion
   holdingPeriod?: 'day' | 'swing' | 'position';
+  /**
+   * Label the saved idea's holdingPeriod from the ATTACHED contract's DTE
+   * (shared/option-expiry.ts holdingPeriodForDte) instead of the suggestion
+   * above, which still picks the expiry tier. Set by the GEX→desk path.
+   */
+  holdingFromContractDte?: boolean;
 
   // Analysis text
   catalyst?: string;
@@ -1261,7 +1268,9 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
       confidenceScore: confidence,
       probabilityBand: grade,
-      holdingPeriod,
+      holdingPeriod: input.holdingFromContractDte && resolvedAssetType === 'option' && optionDte != null
+        ? holdingPeriodForDte(optionDte, { fallback: holdingPeriod })
+        : holdingPeriod,
       timestamp: input.signalTimestamp ?? new Date().toISOString(),
       sessionContext,
 

@@ -2,6 +2,8 @@ import { storage } from "./storage";
 import { PerformanceValidator, computeRealisedPnl } from "./performance-validator";
 import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
+import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pricing";
+import { expiryDay } from "@shared/option-expiry";
 import { readLossRulesStamp, progressR } from "@shared/loss-rules";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { fetchCboeChain, findContractMid, type CboeChain } from "./contract-analyzer/cboe-chain";
@@ -336,26 +338,40 @@ class PerformanceValidationService {
           result.outcomeStatus && result.outcomeStatus !== 'open' &&
           typeof ideaForResult.entryPremium === 'number' && ideaForResult.entryPremium > 0
         ) {
-          const livePremium = priceMap.get(`option_${ideaId}`);
-          if (typeof livePremium === 'number' && livePremium >= 0) {
+          const quoted = priceMap.get(`option_${ideaId}`);
+          const livePremium = typeof quoted === 'number' && quoted >= 0 ? quoted : null;
+          if (result.outcomeStatus === 'hit_target' || result.outcomeStatus === 'hit_stop') {
+            // 🎯 Barrier exit: price the contract at the TOUCH from its own bar
+            // (shared/option-exit-pricing.ts); the pass quote is only a
+            // labelled fallback, and a stop never books a gain it didn't earn.
+            const touch = await this.optionPremiumAtTouch(ideaForResult, result).catch(() => null);
+            const priced = priceOptionBarrierExit({
+              outcome: result.outcomeStatus,
+              direction: PerformanceValidator.getNormalizedDirection(ideaForResult),
+              entryPrice: Number(ideaForResult.entryPrice),
+              fillPrice: Number(result.exitPrice),
+              entryPremium: ideaForResult.entryPremium,
+              touchPremium: touch?.premium ?? null,
+              touchDetail: touch?.detail,
+              passPremium: livePremium,
+              strike: Number((ideaForResult as any).strikePrice),
+              optionType: (ideaForResult as any).optionType,
+            });
+            exitPremium = priced.exitPremium;
+            outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes, priced.note);
+            if (priced.stopGain === 'withheld') {
+              console.warn(`  🚩 [STOP-GAIN] ${ideaForResult.symbol} ${ideaId}: ${priced.note}`);
+            } else if (priced.stopGain === 'allowed') {
+              console.warn(`  🚩 [STOP-GAIN] ${ideaForResult.symbol} ${ideaId} (genuine fill in favour): ${priced.note}`);
+            }
+          } else if (livePremium != null) {
             /**
              * Floor the exit premium at intrinsic value.
              *
              * An option cannot be worth less than what it is worth if
              * exercised right now. When the quoted premium is below intrinsic,
-             * the quote is stale — not a bargain.
-             *
-             * This is not hypothetical. AFRM's $77 09/04 call was entered at
-             * $4.55, hit its target with the underlying at $88.92 (intrinsic
-             * $11.92, a 162% contract return), and was recorded as +14.95%.
-             * The validator had priced the exit at $5.22, which was the
-             * PRE-EARNINGS close from the previous session's chain: equity
-             * options stop trading at 16:15 ET, so an overnight gap leaves
-             * every quote in the chain stale while the underlying has moved.
-             *
-             * Reporting 15% on a 162% trade is worse than reporting nothing —
-             * it makes a working signal look mediocre and poisons every
-             * win-rate and expectancy number computed downstream.
+             * the quote is stale — not a bargain. (AFRM 77C 09/04: a 162%
+             * contract return was recorded as +14.95% off a pre-earnings quote.)
              */
             const strike = Number((ideaForResult as any).strikePrice);
             const isCall = String((ideaForResult as any).optionType ?? '').toLowerCase().startsWith('c');
@@ -375,14 +391,20 @@ class PerformanceValidationService {
                 effective = intrinsic;
               }
             }
-
             exitPremium = Math.round(effective * 100) / 100;
+          }
+          if (exitPremium != null) {
             const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
             // Calls and puts are bought. `direction` describes the underlying
             // thesis, not the side of the option contract.
             optionPercentGain = Math.round(rawPct * 100) / 100;
             console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
           }
+        }
+        // Underlying stop that books a gain: only a stop placed on the
+        // profitable side of entry does that — log every one for review.
+        if (result.outcomeStatus === 'hit_stop' && ideaForResult?.assetType !== 'option' && Number(result.percentGain) > 0) {
+          console.warn(`  🚩 [STOP-GAIN] ${ideaForResult?.symbol} ${ideaId}: stop exit at ${result.exitPrice} books +${Number(result.percentGain).toFixed(2)}% (stop on the profitable side of entry)`);
         }
 
         await storage.updateTradeIdeaPerformance(ideaId, {
@@ -483,14 +505,15 @@ class PerformanceValidationService {
     const needsBars = result.outcomeStatus === 'hit_target' || result.outcomeStatus === 'hit_stop'
       || (result.exitTimeSource === 'deadline' && !String(result.resolutionReason ?? '').startsWith('missed_entry'));
     const { bars, interval, extendedBars } = needsBars
-      ? await barsSinceEntry(idea.symbol, idea.assetType, tIdea.entryMs, now)
+      ? await barsSinceEntry(idea.symbol, idea.assetType, tIdea.touchFromMs ?? tIdea.entryMs, now)
       : { bars: [] as TimedBar[], interval: null, extendedBars: undefined };
     let plan = planExitTiming(tIdea, result, bars, now, { barInterval: interval ?? undefined });
+    let planIntraday = interval === '5m';
     // Not in the regular session — the polled extreme may have been a pre/post
     // market print. Look there before declaring the hit time unknown.
     if (plan.source === 'live' && extendedBars?.length && isHitTimeUnknown(result.outcomeStatus, 'live')) {
       const ext = planExitTiming(tIdea, result, extendedBars, now, { barInterval: '5m extended-hours' });
-      if (ext.source === 'bar_hit') plan = ext;
+      if (ext.source === 'bar_hit') { plan = ext; planIntraday = true; }
     }
     if (plan.source === 'live' && isHitTimeUnknown(result.outcomeStatus, 'live')) {
       console.warn(`  ⏱️  ${idea.symbol}: ${plan.note}`);
@@ -513,16 +536,51 @@ class PerformanceValidationService {
     result.exitTimeSource = plan.source;
     result.exitDate = plan.exitDate;
     result.actualHoldingTimeMinutes = plan.holdingMinutes;
+    if (plan.source === 'bar_hit') {
+      // For pricing the contract at the touch (validateSlice).
+      result.exitTouchMs = plan.exitMs;
+      result.exitFill = plan.fill;
+      result.exitTouchIntraday = planIntraday;
+    }
     if (plan.exitPrice != null && plan.percentGain != null) {
       result.exitPrice = plan.exitPrice;
       result.percentGain = plan.percentGain;
-      if (result.resolutionReason === 'auto_time_stop' && idea.assetType !== 'future') {
+      if ((result.resolutionReason === 'auto_time_stop' || plan.fill === 'gap_open') && idea.assetType !== 'future') {
         const r = computeRealisedPnl(idea, plan.exitPrice);
         if (r) result.realizedPnL = Math.round(r.pnl * 100) / 100;
       }
     }
     if (plan.source !== 'live') console.log(`  ⏱️  ${idea.symbol}: ${plan.note}`);
     return appendNote(idea.outcomeNotes, plan.note);
+  }
+
+  /**
+   * The contract's premium at the underlying's touch bar, from Alpaca option
+   * bars (5-minute trade prints). Only for intraday touches — a daily bar's
+   * start is not a touch time. Null when unavailable (caller labels the pass
+   * quote instead).
+   */
+  private async optionPremiumAtTouch(idea: TradeIdea, result: any): Promise<{ premium: number; detail: string } | null> {
+    const touchMs = Number(result.exitTouchMs);
+    if (result.exitTimeSource !== 'bar_hit' || !Number.isFinite(touchMs) || !result.exitTouchIntraday) return null;
+    const type = String((idea as any).optionType ?? '').toLowerCase().startsWith('p') ? 'put' : 'call';
+    const strike = Number((idea as any).strikePrice);
+    const day = expiryDay((idea as any).expiryDate);
+    if (!day || !(strike > 0)) return null;
+    const { getAlpacaOptionBars } = await import('./alpaca-options');
+    const { buildOccOptionSymbol } = await import('./option-minute-history');
+    const sym = idea.symbol.toUpperCase();
+    const roots = sym === 'SPX' ? ['SPXW', 'SPX'] : sym === 'NDX' ? ['NDXP', 'NDX'] : [sym];
+    for (const root of roots) {
+      let occ: string;
+      try { occ = buildOccOptionSymbol(root, day, type, strike); } catch { return null; }
+      const bars = await getAlpacaOptionBars(occ, touchMs - 10 * 60_000, touchMs + 45 * 60_000, '5Min');
+      const hit = premiumAtTouch(bars, touchMs, { barMs: 5 * 60_000, gap: result.exitFill === 'gap_open' });
+      if (hit) {
+        return { premium: hit.premium, detail: `${occ} 5m bar ${new Date(hit.barStartMs).toISOString().slice(0, 16)}Z ${hit.basis}, Alpaca indicative trade prints` };
+      }
+    }
+    return null;
   }
 
   /**

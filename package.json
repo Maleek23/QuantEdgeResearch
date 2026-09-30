@@ -18,6 +18,7 @@
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",
     "test:loss-rules": "tsx scripts/test-loss-rules.ts",
     "test:exit-dates": "tsx scripts/test-exit-dates.ts",
+    "test:outcome-pipeline": "tsx scripts/test-outcome-pipeline.ts",
     "test:run-up": "tsx scripts/test-run-up.ts",
     "test:premarket-ideas": "tsx scripts/test-premarket-ideas.ts",
     "test:crypto-ideas": "tsx scripts/test-crypto-ideas.ts",
