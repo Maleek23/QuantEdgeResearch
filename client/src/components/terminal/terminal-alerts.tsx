@@ -13,14 +13,26 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Bell, X, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
+import { undoToast } from '@/lib/undo-toast';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/design-tokens';
 import { AlertSounds } from '@/components/sound-alert-toggle';
 import type { ConvictionPick } from '@/lib/convictions';
 import {
-  detectAlerts, loadAlertPrefs, saveAlertPrefs, loadFeed, clearFeed,
+  detectAlerts, loadAlertPrefs, saveAlertPrefs, loadFeed, clearFeed, restoreFeed,
   ALERT_LABELS, type AlertEvent, type AlertPrefs, type AlertType,
 } from '@/lib/alerts/alert-engine';
+
+/** Clear the on-device alert feed now; the toast's Undo puts every alert back. */
+export function clearFeedWithUndo(feed: AlertEvent[], setFeed: (f: AlertEvent[]) => void) {
+  const snapshot = feed;
+  clearFeed();
+  setFeed([]);
+  undoToast({
+    title: `Cleared ${snapshot.length} alert${snapshot.length === 1 ? '' : 's'}`,
+    onUndo: () => setFeed(restoreFeed(snapshot)),
+  });
+}
 
 /** Watches the live picks and fires alerts on state changes. */
 export function useSignalAlerts(picks: ConvictionPick[] | undefined) {
@@ -227,7 +239,7 @@ export function TerminalAlerts({
 
             {feed.length > 0 && (
               <button
-                onClick={() => { clearFeed(); setFeed([]); }}
+                onClick={() => clearFeedWithUndo(feed, setFeed)}
                 className="flex cursor-pointer items-center justify-center gap-1.5 border-t border-border/40 py-2 text-label font-mono uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Trash2 className="h-3 w-3" /> Clear

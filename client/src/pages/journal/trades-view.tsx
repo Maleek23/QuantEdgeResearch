@@ -6,10 +6,6 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, OutcomeChip, Pnl, SideChip, useJournalPortalClass } from '@/components/journal/parts';
 import { OptionsSim } from '@/components/journal/options-sim';
@@ -45,9 +41,8 @@ export default function TradesView() {
   const [simOpen, setSimOpen] = useState(!!simSymbol || new URLSearchParams(window.location.search).get('jsim') === '1');
   useEffect(() => { if (simSymbol) setSimOpen(true); }, [simSymbol]);
   const portal = useJournalPortalClass();
-  const { remove } = useJournalMutations(data.key);
+  const { removeWithUndo } = useJournalMutations(data.key);
   const readOnly = !(data.meta?.canWrite ?? data.key === 'mine');
-  const [pendingDelete, setPendingDelete] = useState<JTrade | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
   const sorted = useMemo(() => {
@@ -149,7 +144,12 @@ export default function TradesView() {
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     {!readOnly && <button type="button" className="jr-icon-btn" aria-label={`Edit ${t.symbol} trade`} onClick={() => openEditor(t.row)}><Pencil className="h-3.5 w-3.5" /></button>}
-                    {!readOnly && <button type="button" className="jr-icon-btn danger" aria-label={`Delete ${t.symbol} trade (asks to confirm)`} onClick={() => { setDeleteError(''); setPendingDelete(t); }}><Trash2 className="h-3.5 w-3.5" /></button>}
+                    {!readOnly && <button type="button" className="jr-icon-btn danger" aria-label={`Delete ${t.symbol} trade (Undo for 6 seconds)`} onClick={() => {
+                      setDeleteError('');
+                      const row = data.allRows.find((r) => r.id === t.id);
+                      if (row) removeWithUndo(row, `${t.symbol} ${t.direction} · ${new Date(t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+                      else setDeleteError('That trade is no longer in this book — refresh and try again.');
+                    }}><Trash2 className="h-3.5 w-3.5" /></button>}
                     <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-mute)' }} aria-hidden />
                     </div>
                   </td>
@@ -210,31 +210,6 @@ export default function TradesView() {
         </details>
       </section>
 
-      <AlertDialog open={pendingDelete != null} onOpenChange={(o) => { if (!o) setPendingDelete(null); }}>
-        <AlertDialogContent className={portal} style={{ background: 'var(--bg-2)' }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this trade?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingDelete && `${pendingDelete.symbol} ${pendingDelete.direction} · ${new Date(pendingDelete.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. `}
-              This removes it from your journal and every metric built on it. It cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-[var(--jr-loss)] text-white hover:bg-[var(--jr-loss)]/90"
-              onClick={async () => {
-                const t = pendingDelete;
-                setPendingDelete(null);
-                if (!t) return;
-                try { await remove.mutateAsync(t.id); } catch (err) { setDeleteError(`Delete failed: ${await readApiError(err)}`); }
-              }}
-            >
-              Delete trade
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

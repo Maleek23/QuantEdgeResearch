@@ -365,6 +365,8 @@ function ConnectionsSection() {
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Not disconnected', description: e.message }),
   });
   const conn = alpaca.data?.connection;
+  // In-app two-step confirm (was window.confirm): deleting stored keys can't be undone.
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never');
 
   return (
@@ -377,8 +379,15 @@ function ConnectionsSection() {
           : conn ? (
             <span className="st-inline">
               <LuxTag tone="accent">CONNECTED</LuxTag>
-              <LuxButton variant="ghost" disabled={disconnect.isPending}
-                onClick={() => { if (window.confirm('Disconnect Alpaca? The saved keys are deleted; imported trades stay.')) disconnect.mutate(); }}>Disconnect</LuxButton>
+              {confirmDisconnect ? (
+                <span className="st-inline" role="alertdialog" aria-label="Confirm disconnect">
+                  <span className="st-warn-inline">Delete the saved keys? Imported trades stay.</span>
+                  <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => { setConfirmDisconnect(false); disconnect.mutate(); }}>Disconnect</LuxButton>
+                  <LuxButton variant="ghost" autoFocus onClick={() => setConfirmDisconnect(false)}>Keep</LuxButton>
+                </span>
+              ) : (
+                <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => setConfirmDisconnect(true)}>Disconnect</LuxButton>
+              )}
             </span>
           ) : (
             <span className="st-inline">

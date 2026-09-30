@@ -17,6 +17,8 @@ import {
 } from '@shared/journal-sources';
 import { settleExpiredRows } from '@shared/journal-expiry';
 import { apiRequest } from '@/lib/queryClient';
+import { deferCommit, inverseOf, patchWhere, removeWhere } from '@/lib/optimistic';
+import { failToast, undoToast } from '@/lib/undo-toast';
 import { computeMetrics, dailyStats, equityCurve, toTrade } from './metrics';
 import type { JournalAnalytics, JournalNoteRow, JournalTradeRow } from './types';
 
@@ -275,6 +277,10 @@ export function useJournalMutations(key: JournalKey = 'mine') {
   }, [qc]);
   const q = journalQs(key);
 
+  const tradesKey = useMemo(() => [...JOURNAL_TRADES_KEY, key] as const, [key]);
+
+  // Edits are optimistic: the row in the trades cache takes the new values at
+  // once (every metric recomputes from it) and is restored if the PATCH fails.
   const save = useMutation({
     mutationFn: async ({ id, input }: { id?: string; input: Partial<JournalTradeInput> }) => {
       const res = id
@@ -282,15 +288,62 @@ export function useJournalMutations(key: JournalKey = 'mine') {
         : await apiRequest('POST', withQs('/api/journal/trade', q), input);
       return (await res.json()) as { trade: JournalTradeRow };
     },
-    onSuccess: refresh,
+    onMutate: async ({ id, input }) => {
+      if (!id) return { prev: undefined as JournalTradeRow | undefined };
+      await qc.cancelQueries({ queryKey: tradesKey });
+      const prev = qc.getQueryData<JournalTradesPayload>(tradesKey)?.trades.find((t) => t.id === id);
+      qc.setQueryData<JournalTradesPayload>(tradesKey, (cur) => cur && ({ ...cur, trades: patchWhere(cur.trades, (t) => t.id === id, input as Partial<JournalTradeRow>) }));
+      return { prev };
+    },
+    onError: (_e, { id }, ctx) => {
+      if (!id || !ctx?.prev) return;
+      const prev = ctx.prev;
+      qc.setQueryData<JournalTradesPayload>(tradesKey, (cur) => cur && ({ ...cur, trades: cur.trades.map((t) => (t.id === id ? prev : t)) }));
+    },
+    onSettled: refresh,
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest('DELETE', withQs(`/api/journal/trade/${encodeURIComponent(id)}`, q));
+      await apiRequest('DELETE', withQs(`/api/journal/trade/${encodeURIComponent(id)}`, q), undefined, { keepalive: true });
     },
     onSuccess: refresh,
   });
+
+  /**
+   * Delete with Undo: the trade leaves the book (and every metric) at once; the
+   * DELETE is sent when the Undo window closes. Undo puts the same row back —
+   * nothing reached the server. A failed DELETE restores it and says why.
+   */
+  const removeWithUndo = useCallback((trade: JournalTradeRow, label?: string) => {
+    const handle = deferCommit({
+      apply: () => {
+        void qc.cancelQueries({ queryKey: tradesKey });
+        qc.setQueryData<JournalTradesPayload>(tradesKey, (cur) => cur && ({ ...cur, count: Math.max(0, cur.count - 1), trades: removeWhere(cur.trades, (t) => t.id === trade.id) }));
+        return () => qc.setQueryData<JournalTradesPayload>(tradesKey, (cur) => cur && (cur.trades.some((t) => t.id === trade.id) ? cur : { ...cur, count: cur.count + 1, trades: [...cur.trades, trade] }));
+      },
+      commit: () => remove.mutateAsync(trade.id),
+      onError: (err) => failToast(`Couldn't delete the ${trade.symbol} trade — it's back in your journal`, err),
+    });
+    undoToast({
+      title: `Deleted ${label ?? `${trade.symbol} ${trade.direction}`}`,
+      description: 'Removed from your journal and its metrics.',
+      onUndo: () => { handle.undo(); },
+    });
+    return handle;
+  }, [qc, tradesKey, remove]);
+
+  /** Patch fields and offer Undo (writes the previous values back). */
+  const patchWithUndo = useCallback(async (trade: JournalTradeRow, input: Partial<JournalTradeInput>, title: string) => {
+    const before = inverseOf(trade as unknown as Record<string, unknown>, input as Record<string, unknown>) as Partial<JournalTradeInput>;
+    await save.mutateAsync({ id: trade.id, input });
+    undoToast({
+      title,
+      onUndo: () => {
+        save.mutateAsync({ id: trade.id, input: before }).catch((e) => failToast(`Couldn't undo the change to ${trade.symbol}`, e));
+      },
+    });
+  }, [save]);
 
   const resetAll = useMutation({
     mutationFn: async () => {
@@ -300,7 +353,7 @@ export function useJournalMutations(key: JournalKey = 'mine') {
     onSuccess: refresh,
   });
 
-  return { save, remove, resetAll, refresh, qs: q };
+  return { save, remove, removeWithUndo, patchWithUndo, resetAll, refresh, qs: q };
 }
 
 // ─── Notes written from the journal (day note, notebook, missed, playbook) ─
@@ -327,10 +380,30 @@ export function useJournalNoteMutations(key: JournalKey) {
     onSuccess: refresh,
   });
   const remove = useMutation({
-    mutationFn: async (id: string) => { await apiRequest('DELETE', withQs(`/api/journal/notes/${encodeURIComponent(id)}`, q)); },
+    mutationFn: async (id: string) => { await apiRequest('DELETE', withQs(`/api/journal/notes/${encodeURIComponent(id)}`, q), undefined, { keepalive: true }); },
     onSuccess: refresh,
   });
-  return { save, remove };
+  const notesKey = useMemo(() => [JOURNAL_NOTES_KEY, key] as const, [key]);
+  /** Delete a note with Undo (hidden now, DELETE after the Undo window). */
+  const removeWithUndo = useCallback((id: string, title: string) => {
+    let removed: JournalNoteRow[] = [];
+    const handle = deferCommit({
+      apply: () => {
+        void qc.cancelQueries({ queryKey: notesKey });
+        qc.setQueryData<{ notes: JournalNoteRow[]; count: number }>(notesKey, (cur) => {
+          if (!cur) return cur;
+          removed = cur.notes.filter((n) => n.id === id);
+          return { ...cur, count: Math.max(0, cur.count - removed.length), notes: cur.notes.filter((n) => n.id !== id) };
+        });
+        return () => qc.setQueryData<{ notes: JournalNoteRow[]; count: number }>(notesKey, (cur) => cur && (cur.notes.some((n) => n.id === id) ? cur : { ...cur, count: cur.count + removed.length, notes: [...removed, ...cur.notes] }));
+      },
+      commit: () => remove.mutateAsync(id),
+      onError: (err) => failToast("Couldn't delete that — it's back", err),
+    });
+    undoToast({ title, onUndo: () => { handle.undo(); } });
+    return handle;
+  }, [qc, notesKey, remove]);
+  return { save, remove, removeWithUndo };
 }
 
 /** Notes the UI writes are kinds; everything else (Discord analysis, unmatched exits…) was imported. */

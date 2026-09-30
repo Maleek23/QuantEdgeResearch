@@ -12,6 +12,7 @@ import { fmtMoney } from '@/lib/journal/metrics';
 import { EMOTIONS, type JournalTradeRow } from '@/lib/journal/types';
 import { readApiError, useJournalMutations, type JournalTradeInput } from '@/lib/journal/use-journal';
 import { useJournal } from './journal-context';
+import { failToast, undoToast } from '@/lib/undo-toast';
 import { useJournalPortalClass } from './parts';
 
 interface FormState {
@@ -147,7 +148,7 @@ export function TradeEditor({ open, onOpenChange, trade, onSaved }: {
 }) {
   const portal = useJournalPortalClass();
   const { data: journalData } = useJournal();
-  const { save } = useJournalMutations(journalData.key);
+  const { save, remove, patchWithUndo } = useJournalMutations(journalData.key);
   const [form, setForm] = useState<FormState>(() => fromRow(trade));
   const [error, setError] = useState('');
   useEffect(() => { if (open) { setForm(fromRow(trade)); setError(''); } }, [open, trade]);
@@ -204,8 +205,21 @@ export function TradeEditor({ open, onOpenChange, trade, onSaved }: {
       }
     }
     try {
-      const res = await save.mutateAsync({ id: trade?.id, input: payload });
-      onSaved?.(res.trade);
+      if (trade) {
+        // optimistic in the book (useJournalMutations.save onMutate) + Undo writes the old values back
+        await patchWithUndo(trade, payload, `Saved ${trade.symbol} trade`);
+        onSaved?.({ ...trade, ...(payload as Partial<JournalTradeRow>) });
+      } else {
+        const res = await save.mutateAsync({ input: payload });
+        onSaved?.(res.trade);
+        const created = res.trade;
+        if (created?.id) {
+          undoToast({
+            title: `Logged ${created.symbol} ${created.direction}`,
+            onUndo: () => { remove.mutateAsync(created.id).catch((e) => failToast(`Couldn't remove the ${created.symbol} trade`, e)); },
+          });
+        }
+      }
       onOpenChange(false);
     } catch (err) {
       setError(await readApiError(err));

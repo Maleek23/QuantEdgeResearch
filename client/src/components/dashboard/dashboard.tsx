@@ -42,6 +42,7 @@ import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
 import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
 import { DashboardCtx, ReportCtx, ToolFrame, ToolInstanceCtx, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { materialize, useDashboards } from './use-dashboards';
+import { undoToast } from '@/lib/undo-toast';
 import { PAGES, inCatalog, skeletonTiles, type PageId, type PageSpec } from './pages';
 
 /** Phone page headers (PageSpec.phone.lead) — rendered above the one-column stack. */
@@ -331,6 +332,8 @@ function WorkspaceMenu({ spec, present, onAdd, onRestore, canRestore, onClear, c
 
 /* ── dashboard switcher ── */
 function DashSwitcher({ api }: { api: ReturnType<typeof useDashboards> }) {
+  const apiRef = useRef(api);
+  apiRef.current = api;
   const { open, setOpen, ref } = useMenu();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -357,7 +360,12 @@ function DashSwitcher({ api }: { api: ReturnType<typeof useDashboards> }) {
                   </button>
                   <button type="button" className="fd-icon-btn" aria-label={`Rename ${d.name}`} onClick={() => { setEditing(d.id); setDraft(d.name); }}><Pencil size={11} /></button>
                   {api.dashboards!.length > 1 && !api.isShipped(d.id) && (
-                    <button type="button" className="fd-icon-btn" aria-label={`Delete ${d.name}`} onClick={() => { if (window.confirm(`Delete "${d.name}"? This removes the saved layout.`)) void api.remove(d.id); }}><Trash2 size={11} /></button>
+                    <button type="button" className="fd-icon-btn" aria-label={`Delete ${d.name}`} onClick={() => {
+                      const idx = api.dashboards!.findIndex((x) => x.id === d.id);
+                      const copy = { ...d, tools: [...d.tools] };
+                      void api.remove(d.id);
+                      undoToast({ title: `Deleted dashboard "${d.name}"`, onUndo: () => apiRef.current.reinstate(copy, idx) });
+                    }}><Trash2 size={11} /></button>
                   )}
                 </>
               )}
@@ -820,7 +828,24 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
     tools.reduce((m, t) => Math.max(m, t.y + (resize?.i === t.i ? resize.h : t.h)), 0),
     ghost ? ghost.y + ghost.h : 0,
   );
-  const remove = (i: string) => api.updateActive((ts) => compact(ts.filter((x) => x.i !== i)));
+  // Layout changes are instant; each destructive one offers Undo instead of a
+  // confirm() (the snapshot is put back through the LATEST api, not the closure).
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const undoable = (title: string, change: () => void) => {
+    const a = apiRef.current.active;
+    if (!a) return;
+    const dashId = a.id;
+    const snapshot = a.tools;
+    change();
+    undoToast({ title, onUndo: () => apiRef.current.setTools(dashId, snapshot) });
+  };
+  const remove = (i: string) => {
+    const t = tools.find((x) => x.i === i);
+    undoable(`Removed ${t ? TOOL_BY_ID.get(t.type)?.title ?? 'tool' : 'tool'}`, () => api.updateActive((ts) => compact(ts.filter((x) => x.i !== i))));
+  };
+  const restore = () => undoable(`Restored "${api.active?.name}" to the ${spec.label} default`, () => { void api.restoreDefault(); });
+  const clear = () => undoable(`Cleared ${tools.length} tool${tools.length === 1 ? '' : 's'} from "${api.active?.name}"`, () => api.updateActive(() => []));
 
   return (
     <DashboardCtx.Provider value={ctx}>
@@ -835,9 +860,9 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
           <div className="fd-bar-actions">
             <WorkspaceMenu spec={spec} present={present} onAdd={addTool}
               canRestore={!!spec.defaults.length && !api.active?.pristine}
-              onRestore={() => { if (window.confirm(`Restore "${api.active?.name}" to the ${spec.label} default layout? Your changes to this dashboard are replaced.`)) void api.restoreDefault(); }}
+              onRestore={restore}
               canClear={!!tools.length}
-              onClear={() => { if (window.confirm(`Remove all ${tools.length} tools from "${api.active?.name}"?`)) api.updateActive(() => []); }} />
+              onClear={clear} />
           </div>
           ) : (
           <div className="fd-bar-actions">
@@ -848,11 +873,11 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
               <LayoutGrid size={13} /> Auto-arrange
             </button>}
             <button type="button" className="fd-btn" disabled={!spec.defaults.length || !!api.active?.pristine}
-              onClick={() => { if (window.confirm(`Restore "${api.active?.name}" to the ${spec.label} default layout? Your changes to this dashboard are replaced.`)) void api.restoreDefault(); }}
+              onClick={restore}
               title="Put this dashboard back to the page's shipped default layout">
               <RotateCcw size={13} /> Restore default
             </button>
-            <button type="button" className="fd-btn" disabled={!tools.length} onClick={() => { if (window.confirm(`Remove all ${tools.length} tools from "${api.active?.name}"?`)) api.updateActive(() => []); }}>
+            <button type="button" className="fd-btn" disabled={!tools.length} onClick={clear}>
               <Eraser size={13} /> Clear
             </button>
             <SaveBadge api={api} />

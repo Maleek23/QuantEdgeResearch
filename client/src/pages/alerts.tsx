@@ -17,10 +17,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell, Trash2, Loader2 } from 'lucide-react';
 import { LuxKpi, LuxKpiGrid, LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
 import { QEEmpty, QEError } from '@/components/ui/qe-states';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import {
@@ -28,8 +24,9 @@ import {
   AlertTypeToggles,
   AlertDeliveryRows,
   AlertFeedItem,
+  clearFeedWithUndo,
 } from '@/components/terminal/terminal-alerts';
-import { ALERT_LABELS, clearFeed, type AlertType } from '@/lib/alerts/alert-engine';
+import { ALERT_LABELS, type AlertType } from '@/lib/alerts/alert-engine';
 
 const FEED_CAP = 30;
 const DAY_MS = 24 * 3600_000;
@@ -155,31 +152,10 @@ export default function AlertsPage() {
         meta={feed.length > 0 ? (
           <>
             <LuxTag>n={feed.length}</LuxTag>
-            {/* Clearing the feed is irreversible — confirm first (SR 11-7 F7.9 / T8). */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button type="button" className="lx-btn" data-variant="ghost">
-                  <Trash2 aria-hidden /> Clear
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clear the alert feed?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This removes all {feed.length} alert{feed.length === 1 ? '' : 's'} stored on this device. It cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep them</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-[var(--trade-bearish)] text-white hover:bg-[var(--trade-bearish)]/90"
-                    onClick={() => { clearFeed(); setFeed([]); }}
-                  >
-                    Clear feed
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {/* Clearing is instant; the toast's Undo restores every alert (was a confirm dialog). */}
+            <button type="button" className="lx-btn" data-variant="ghost" onClick={() => clearFeedWithUndo(feed, setFeed)}>
+              <Trash2 aria-hidden /> Clear
+            </button>
           </>
         ) : undefined}
       >
