@@ -632,6 +632,15 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
   .today-page .td-index-head b{font-size:16px}
   .today-page .td-index-head span{font-size:12px}
   .today-page .td-index-desk .td-index-head a{min-height:44px;font-size:14px}
+  /* device pass: title, meta and link were squeezed into one row — "Index desk" and
+     "Sector ignition" broke over two lines beside a two-line link. The meta wraps under. */
+  .today-page .td-index-head{flex-wrap:wrap;gap:0 12px}
+  .today-page .td-index-head>div{flex-wrap:wrap;gap:2px 8px;min-width:0}
+  .today-page .td-index-head b,.today-page .td-index-head a{white-space:nowrap}
+  .today-page .td-index-head a{margin-left:auto}
+  /* the contract ("SPY 10/01 575C") was cut to "SPY 10/0…" beside the symbol — it wraps under it */
+  .today-page .td-index-row>div{flex-wrap:wrap;gap:2px 8px}
+  .today-page .tl-0dte-row>div small{white-space:normal;overflow:visible}
   .today-page .td-index-row{padding:12px 14px;min-height:44px}
   .today-page .td-index-row strong{font-size:18px}
   .today-page .td-index-row small,.today-page .td-index-row>span,.today-page .td-index-row>em{font-size:12px}
@@ -680,4 +689,10 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
 .today-page .lterminal-status .tl-map-info{margin:-8px -6px -8px 2px;color:var(--text-mute)}
 @media (max-width:767px){
   .today-page .tl-dup-phone{display:none!important}
+}
+
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .td-index-row>span{font-size:10px}
 }

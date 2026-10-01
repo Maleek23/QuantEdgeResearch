@@ -38,3 +38,22 @@
 .cxi-table td.cxi-why{white-space:normal;min-width:220px;margin:0}
 .cxi-note{margin:0;font-size:11px;color:var(--text-mute,#8b95a8)}
 @media (max-width:767px){.cxi-status{margin-left:0}}
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .cxi-mono,
+  .cxi-side,
+  .cxi-grade,
+  .cxi-status,
+  .cxi-levels,
+  .cxi-ev summary,
+  .cxi-done summary,
+  .cxi-scan summary,
+  .cxi-ev ul,
+  .cxi-rec h4,
+  .cxi-lown,
+  .cxi-kv,
+  .cxi-table,
+  .cxi-note{font-size:12px}
+}

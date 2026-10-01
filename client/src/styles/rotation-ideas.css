@@ -51,3 +51,20 @@
   .rti-levels{grid-template-columns:repeat(3,minmax(0,1fr))}
   .rti-row-open{margin-left:0}
 }
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .rti-record-k,
+  .rti-levels dt,
+  .rti-levels small,
+  .rti-rec-mini,
+  .rti-row-k,
+  .rti-row .sx-measuring{font-size:12px}
+}
+
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .rti-levels dt{font-size:10px}
+}

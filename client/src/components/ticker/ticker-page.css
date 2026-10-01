@@ -158,3 +158,11 @@
   .tk-stat-k { font-size: 12px; }
   .tk-quote .qp-stamp, .tk-dealer-h .qp-stamp { margin-left: auto; }
 }
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .tk-eyebrow,
+  .tk-stat-k,
+  .tk-table th{font-size:12px}
+}

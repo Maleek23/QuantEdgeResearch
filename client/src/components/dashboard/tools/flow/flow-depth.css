@@ -103,3 +103,50 @@
   .flowdash .fx-setup{grid-template-columns:48px 40px 1fr}
   .flowdash .fx-setup .tag{display:none}
 }
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .flowdash .fx-ctl .of-seg button,
+  .flowdash .fx-sum,
+  .flowdash .fx-subhead,
+  .flowdash .fx-link,
+  .flowdash .fx-drill,
+  .flowdash .fx-lhead,
+  .flowdash .fx-lrow,
+  .flowdash .fx-spot span,
+  .flowdash table.fx-heat,
+  .flowdash .fx-kbtn,
+  .flowdash .fx-cell,
+  .flowdash .fx-spotrow th,
+  .flowdash .fx-spotrow td span,
+  .flowdash .fx-axis,
+  .flowdash .fx-print,
+  .flowdash .fx-print .n,
+  .flowdash .fx-dprow,
+  .flowdash .fx-setup,
+  .flowdash .fx-setup .tag,
+  .flowdash .fx-setup .ev,
+  .flowdash .fx-ctx-grid,
+  .flowdash .fx-ctx-last,
+  .flowdash .fx-ctx-empty,
+  .flowdash .fx-ctx-foot{font-size:12px}
+}
+
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .flowdash .fx-subhead,
+  .flowdash .fx-lhead,
+  .flowdash .fx-spot span,
+  .flowdash table.fx-heat,
+  .flowdash .fx-kbtn,
+  .flowdash .fx-cell,
+  .flowdash .fx-spotrow th,
+  .flowdash .fx-spotrow td span,
+  .flowdash .fx-axis,
+  .flowdash .fx-print .n,
+  .flowdash .fx-setup .tag,
+  .flowdash .fx-setup .ev,
+  .flowdash .fx-ctx-foot{font-size:10px}
+}

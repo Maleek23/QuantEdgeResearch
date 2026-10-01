@@ -119,7 +119,8 @@
 .zi-kv{display:flex;gap:8px;align-items:baseline;min-width:0;padding:2px 0;border-bottom:1px dashed color-mix(in srgb,var(--zd-line,#1b2a44) 70%,transparent)}
 .zi-kv>span{flex:none;width:86px;font-size:11px;color:var(--text-mute,#7f889a)}
 .zi-kv strong{font:600 11.5px var(--zd-mono,monospace);min-width:0;overflow-wrap:anywhere}
-.zi-kv small{font-weight:500;color:var(--text-mute,#7f889a)}
+.zi-kv small{font-weight:500;color:var(--text-mute,#7f889a);font-size:10.5px} /* was the UA "smaller" (9.2px) */
+@media (max-width:599px){.zi-kv small{font-size:12px}}
 .zi-why{grid-column:1/-1;margin:4px 0 0;font-size:12px;color:var(--text-dim,#b5bdcc)}
 .zi-note{grid-column:1/-1;margin:2px 0 0;font-size:10.5px;color:var(--text-mute,#7f889a)}
 .zi-empty{margin:0;font-size:12px;color:var(--text-dim,#b5bdcc)}
@@ -132,4 +133,38 @@
 @media (max-width:767px){
   .zi-drawer{grid-template-columns:1fr}
   .zi-age{margin-left:0}
+}
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .zd-clock-head .zd-mono,
+  .zd-chip,
+  .zd-phases li span,
+  .zd-card-head h3 small,
+  .zd-sub,
+  .zd-exp,
+  .zd-state ul,
+  .zd-state-badge,
+  .zd-foot,
+  .zd-kv span,
+  .zd-kv strong,
+  .zd-note,
+  .zd-ideas,
+  .zd-err,
+  .zd-table,
+  .zd-table th,
+  .zd-lown,
+  .zd-prov,
+  .nx-views button,
+  .zi-rec,
+  .zi-more,
+  .zi-stage,
+  .zi-side,
+  .zi-kind,
+  .zi-age,
+  .zi-kv>span,
+  .zi-kv strong,
+  .zi-note,
+  .zi-lab-head{font-size:12px}
 }
