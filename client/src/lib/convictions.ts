@@ -91,6 +91,9 @@ export interface ConvictionPick {
   /** Exact time price traded through the trigger (ISO). */
   triggeredAt?: string | null;
 
+  /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record. */
+  boardRank?: number;
+
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
 }
@@ -118,6 +121,8 @@ export interface ConvictionsResponse {
   geopolitical: { risk: string; activeScenarios: string[] };
   totalCandidatesScanned: number;
   picks: ConvictionPick[];
+  /** Board order chosen by env BOARD_SORT; absent = evidence score (shared/board-sort.ts). */
+  boardSort?: 'score' | 'recency' | 'engine_record';
 }
 
 // ─── Tier mapping: band + direction → MOMO-style tier word + tone ───────────

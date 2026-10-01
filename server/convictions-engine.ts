@@ -29,6 +29,7 @@ import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/ora
 import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
+import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -156,6 +157,8 @@ export interface ConvictionPick {
   calledAt?: string | null;
   /** When price first traded through the trigger (exact ISO), if it has. */
   triggeredAt?: string | null;
+  /** Server board position (0 = top) — set only when BOARD_SORT is not 'score'. */
+  boardRank?: number;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -186,6 +189,11 @@ export interface ConvictionsResponse {
   };
   totalCandidatesScanned: number;
   picks: ConvictionPick[];
+  /**
+   * Board order (env BOARD_SORT, shared/board-sort.ts). Absent = 'score' (unchanged).
+   * When 'recency' / 'engine_record', each pick carries `boardRank` and the client keeps it.
+   */
+  boardSort?: BoardSort;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2078,7 +2086,10 @@ function deriveViewSync(base: ConvictionsResponse, m: BuildConvictionsOptions, w
       return { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
     });
     if (m.weeklyOnly) picks = picks.filter((p) => weekly.has(String(p.symbol).toUpperCase()));
-    picks = [...picks].sort((a, b) => b.convictionScore - a.convictionScore);
+    const mode = base.boardSort ?? "score";
+    picks = mode === "score"
+      ? [...picks].sort((a, b) => b.convictionScore - a.convictionScore)
+      : [...picks].sort(boardComparator(mode)).map((p, i) => ({ ...p, boardRank: i }));
   }
   picks = picks.filter((p) => p.convictionScore >= minScore).slice(0, limit);
   return { ...base, picks };
@@ -2992,9 +3003,14 @@ bandFor(p.convictionScore);
   }
   const deconflicted = Array.from(horizonWinners.values());
 
-  // Final sort + minScore floor + limit
-  deconflicted.sort((a, b) => b.convictionScore - a.convictionScore);
-  const filtered = deconflicted.filter((p) => p.convictionScore >= minScore).slice(0, limit);
+  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record stops ranking
+  // by the evidence score, which did not rank outcomes on the honest record
+  // (docs/SCORE_V2_STUDY.md); unset keeps the score order.
+  const boardSort = readBoardSort(process.env);
+  const ordered: ConvictionPick[] = boardSort === "score"
+    ? deconflicted.sort((a, b) => b.convictionScore - a.convictionScore)
+    : orderBoard(deconflicted, boardSort);
+  const filtered = ordered.filter((p) => p.convictionScore >= minScore).slice(0, limit);
 
   // 🧪 Persist the scoring breakdown for the surfaced picks so resolved ideas can
   // be attributed back to the layers that fired (grade-calibration + reweighting).
@@ -3035,5 +3051,6 @@ bandFor(p.convictionScore);
     geopolitical: geo,
     totalCandidatesScanned: candidates.length,
     picks: filtered,
+    ...(boardSort === "score" ? {} : { boardSort }),
   };
 }

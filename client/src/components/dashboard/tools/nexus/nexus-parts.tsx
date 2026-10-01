@@ -24,6 +24,7 @@ import { useQuotes } from '@/components/ticker/ticker-data';
 import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { compareBoardRows } from '@shared/board-sort';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -119,7 +120,7 @@ export function withSpxRow(picks: ConvictionPick[] | undefined, spySource: Convi
   return sourceRows;
 }
 
-/** Setups ranked by conviction (or held positions by live P&L), then side / search / rank filtered. */
+/** Setups in the server's board order when it set one, else by evidence score (held positions by live P&L), then side / search / rank filtered. */
 export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }): ConvictionPick[] {
   const needle = f.query.trim().toUpperCase();
   const ranked = sourceRows
@@ -128,7 +129,9 @@ export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope
     .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle))
     .sort((a, b) => f.scope === 'positions'
       ? (b.unrealizedPnlPercent ?? -Infinity) - (a.unrealizedPnlPercent ?? -Infinity)
-      : b.convictionScore - a.convictionScore);
+      // BOARD_SORT (server): when the server stamped an order, keep it — the evidence
+      // score did not rank outcomes on the honest record (docs/SCORE_V2_STUDY.md).
+      : compareBoardRows(a, b));
   if (f.scope === 'positions' || f.rank === 'all') return ranked;
   if (f.rank === 'new') {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -506,22 +509,23 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
 
 /**
  * Evidence score as a ring gauge: arc = score / 100, colour by band, with the
- * count of layers for and against underneath. The number stays the headline;
- * the ring is how fast you read it across setups.
+ * count of layers for and against underneath. Labelled UNVALIDATED: on the
+ * bar-verified record (2026-08-26 → 09-30) a higher score did not mean a better
+ * outcome — docs/SCORE_V2_STUDY.md. It is a count of evidence, not a ranking.
  */
 function EvidenceRing({ score, band, support, against }: { score: number; band: string; support: number; against: number }) {
   const r = 30, c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, score)) / 100;
   const tone = band === 'S' || band === 'A' ? 'var(--p)' : band === 'B' ? 'var(--accent, #6aa9ff)' : 'var(--text-mute)';
   return (
-    <div className="nxp-score nxp-ring" role="img" aria-label={`Evidence ${score} out of 100, band ${band}, ${support} layers for, ${against} against`}>
+    <div className="nxp-score nxp-ring" role="img" title="Unvalidated: on the bar-verified record a higher evidence score did not mean a better outcome. A count of evidence, not a ranking." aria-label={`Evidence (unvalidated) ${score} out of 100, band ${band}, ${support} layers for, ${against} against`}>
       <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden>
         <circle cx="38" cy="38" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="6" />
         <circle cx="38" cy="38" r={r} fill="none" stroke={tone} strokeWidth="6" strokeLinecap="round"
           strokeDasharray={`${c * pct} ${c}`} transform="rotate(-90 38 38)" />
         <text x="38" y="43" textAnchor="middle" className="nxp-ring-n">{score}</text>
       </svg>
-      <span>evidence / 100 · {band}</span>
+      <span>evidence (unvalidated) · {band}</span>
       <span className="nxp-ring-split"><b className="bull">{support}</b> for · <b className="bear">{against}</b> against</span>
     </div>
   );
