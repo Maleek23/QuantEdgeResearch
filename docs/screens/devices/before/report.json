@@ -1,0 +1,3114 @@
+{
+ "today-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"2 igniting · 3 stirring of 8 g\" 10px",
+   "span \"read 2m old\" 10px",
+   "span.si-chip.igniting.long \"igniting ▲\" 10px",
+   "span.si-syms \"leadersNVDA +3.7%AMD +2.7%AVGO\" 10px",
+   "a.si-sym \"NVDA +3.7%\" 10px",
+   "span.up \"+3.7%\" 10px",
+   "a.si-sym \"AMD +2.7%\" 10px",
+   "span.up \"+2.7%\" 10px",
+   "a.si-sym \"AVGO +1.5%\" 10px",
+   "span.up \"+1.5%\" 10px",
+   "span.si-syms \"laggardsMRVL -1.1%ARM -4.0%\" 10px",
+   "a.si-sym.lag \"MRVL -1.1%\" 10px",
+   "span.dn \"-1.1%\" 10px",
+   "a.si-sym.lag \"ARM -4.0%\" 10px",
+   "span.dn \"-4.0%\" 10px"
+  ],
+  "tinyCount": 79,
+  "notFound": false,
+  "errors": []
+ },
+ "today-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"2 igniting · 3 stirring of 8 g\" 10px",
+   "span \"read 2m old\" 10px",
+   "span.si-chip.igniting.long \"igniting ▲\" 10px",
+   "span.si-syms \"leadersNVDA +3.7%AMD +2.7%AVGO\" 10px",
+   "a.si-sym \"NVDA +3.7%\" 10px",
+   "span.up \"+3.7%\" 10px",
+   "a.si-sym \"AMD +2.7%\" 10px",
+   "span.up \"+2.7%\" 10px",
+   "a.si-sym \"AVGO +1.5%\" 10px",
+   "span.up \"+1.5%\" 10px",
+   "span.si-syms \"laggardsMRVL -1.1%ARM -4.0%\" 10px",
+   "a.si-sym.lag \"MRVL -1.1%\" 10px",
+   "span.dn \"-1.1%\" 10px",
+   "a.si-sym.lag \"ARM -4.0%\" 10px",
+   "span.dn \"-4.0%\" 10px"
+  ],
+  "tinyCount": 79,
+  "notFound": false,
+  "errors": []
+ },
+ "today-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"2 igniting · 3 stirring of 8 g\" 10px",
+   "span \"read 2m old\" 10px",
+   "span.si-chip.igniting.long \"igniting ▲\" 10px",
+   "span.si-syms \"leadersNVDA +3.7%AMD +2.7%AVGO\" 10px",
+   "a.si-sym \"NVDA +3.7%\" 10px",
+   "span.up \"+3.7%\" 10px",
+   "a.si-sym \"AMD +2.7%\" 10px",
+   "span.up \"+2.7%\" 10px",
+   "a.si-sym \"AVGO +1.5%\" 10px",
+   "span.up \"+1.5%\" 10px",
+   "span.si-syms \"laggardsMRVL -1.1%ARM -4.0%\" 10px",
+   "a.si-sym.lag \"MRVL -1.1%\" 10px",
+   "span.dn \"-1.1%\" 10px",
+   "a.si-sym.lag \"ARM -4.0%\" 10px",
+   "span.dn \"-4.0%\" 10px"
+  ],
+  "tinyCount": 79,
+  "notFound": false,
+  "errors": []
+ },
+ "today-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"2 igniting · 3 stirring of 8 g\" 10px",
+   "span \"read 2m old\" 10px",
+   "span.si-chip.igniting.long \"igniting ▲\" 10px",
+   "span.si-syms \"leadersNVDA +3.7%AMD +2.7%AVGO\" 10px",
+   "a.si-sym \"NVDA +3.7%\" 10px",
+   "span.up \"+3.7%\" 10px",
+   "a.si-sym \"AMD +2.7%\" 10px",
+   "span.up \"+2.7%\" 10px",
+   "a.si-sym \"AVGO +1.5%\" 10px",
+   "span.up \"+1.5%\" 10px",
+   "span.si-syms \"laggardsMRVL -1.1%ARM -4.0%\" 10px",
+   "a.si-sym.lag \"MRVL -1.1%\" 10px",
+   "span.dn \"-1.1%\" 10px",
+   "a.si-sym.lag \"ARM -4.0%\" 10px",
+   "span.dn \"-4.0%\" 10px"
+  ],
+  "tinyCount": 79,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-detail-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×44",
+   "a \"ARM\" 27×44",
+   "a \"ANET\" 32×44",
+   "a \"GEV\" 24×44"
+  ],
+  "smallCount": 4,
+  "tiny": [
+   "span.ig-strip-k \"Rotation · Daily\" 10px",
+   "span.ig-strip-age \"2m old · measuring\" 10px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan"
+  ]
+ },
+ "nexus-detail-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×44",
+   "a \"ARM\" 27×44",
+   "a \"ANET\" 32×44",
+   "a \"GEV\" 24×44"
+  ],
+  "smallCount": 4,
+  "tiny": [
+   "span.ig-strip-k \"Rotation · Daily\" 10px",
+   "span.ig-strip-age \"2m old · measuring\" 10px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan"
+  ]
+ },
+ "nexus-detail-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×44",
+   "a \"ARM\" 27×44",
+   "a \"ANET\" 32×44",
+   "a \"GEV\" 24×44"
+  ],
+  "smallCount": 4,
+  "tiny": [
+   "span.ig-strip-k \"Rotation · Daily\" 10px",
+   "span.ig-strip-age \"2m old · measuring\" 10px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan"
+  ]
+ },
+ "nexus-detail-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×44",
+   "a \"ARM\" 27×44",
+   "a \"ANET\" 32×44",
+   "a \"GEV\" 24×44"
+  ],
+  "smallCount": 4,
+  "tiny": [
+   "span.ig-strip-k \"Rotation · Daily\" 10px",
+   "span.ig-strip-age \"2m old · measuring\" 10px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan"
+  ]
+ },
+ "nexus-0dte-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 30×22",
+   "a.zd-sym-link \"QQQ\" 30×22",
+   "a.zd-sym-link \"IWM\" 30×22",
+   "a.zd-sym-link \"SPY\" 20×15",
+   "a.zd-sym-link \"QQQ\" 20×15",
+   "a.zd-sym-link \"IWM\" 20×15"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "span.zd-chip.on \"1 triggered\" 10.5px",
+   "span.zd-chip \"0 in play\" 10.5px",
+   "span.zd-chip \"1 watch\" 10.5px",
+   "span.zi-rec \"measuring · n=10 decided (LOW \" 10.5px",
+   "span.zi-stage.st-triggered \"TRIGGERED\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zi-stage.st-watch \"WATCH\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zd-chip.on \"A open\" 10.5px",
+   "span.zd-chip \"B off\" 10.5px",
+   "span.zd-chip.on \"entries open\" 10.5px",
+   "span \"09:30–10:00\" 10.5px",
+   "span \"10:00–15:00\" 10.5px",
+   "span \"15:00–16:00\" 10.5px",
+   "span.zd-lown \"MEASURING\" 10px"
+  ],
+  "tinyCount": 113,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "nexus-0dte-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 30×22",
+   "a.zd-sym-link \"QQQ\" 30×22",
+   "a.zd-sym-link \"IWM\" 30×22",
+   "a.zd-sym-link \"SPY\" 20×15",
+   "a.zd-sym-link \"QQQ\" 20×15",
+   "a.zd-sym-link \"IWM\" 20×15"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "span.zd-chip.on \"1 triggered\" 10.5px",
+   "span.zd-chip \"0 in play\" 10.5px",
+   "span.zd-chip \"1 watch\" 10.5px",
+   "span.zi-rec \"measuring · n=10 decided (LOW \" 10.5px",
+   "span.zi-stage.st-triggered \"TRIGGERED\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zi-stage.st-watch \"WATCH\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zd-chip.on \"A open\" 10.5px",
+   "span.zd-chip \"B off\" 10.5px",
+   "span.zd-chip.on \"entries open\" 10.5px",
+   "span \"09:30–10:00\" 10.5px",
+   "span \"10:00–15:00\" 10.5px",
+   "span \"15:00–16:00\" 10.5px",
+   "span.zd-lown \"MEASURING\" 10px"
+  ],
+  "tinyCount": 113,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "nexus-0dte-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 30×22",
+   "a.zd-sym-link \"QQQ\" 30×22",
+   "a.zd-sym-link \"IWM\" 30×22",
+   "a.zd-sym-link \"SPY\" 20×15",
+   "a.zd-sym-link \"QQQ\" 20×15",
+   "a.zd-sym-link \"IWM\" 20×15"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "span.zd-chip.on \"1 triggered\" 10.5px",
+   "span.zd-chip \"0 in play\" 10.5px",
+   "span.zd-chip \"1 watch\" 10.5px",
+   "span.zi-rec \"measuring · n=10 decided (LOW \" 10.5px",
+   "span.zi-stage.st-triggered \"TRIGGERED\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zi-stage.st-watch \"WATCH\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zd-chip.on \"A open\" 10.5px",
+   "span.zd-chip \"B off\" 10.5px",
+   "span.zd-chip.on \"entries open\" 10.5px",
+   "span \"09:30–10:00\" 10.5px",
+   "span \"10:00–15:00\" 10.5px",
+   "span \"15:00–16:00\" 10.5px",
+   "span.zd-lown \"MEASURING\" 10px"
+  ],
+  "tinyCount": 113,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "nexus-0dte-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 30×22",
+   "a.zd-sym-link \"QQQ\" 30×22",
+   "a.zd-sym-link \"IWM\" 30×22",
+   "a.zd-sym-link \"SPY\" 20×15",
+   "a.zd-sym-link \"QQQ\" 20×15",
+   "a.zd-sym-link \"IWM\" 20×15"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "span.zd-chip.on \"1 triggered\" 10.5px",
+   "span.zd-chip \"0 in play\" 10.5px",
+   "span.zd-chip \"1 watch\" 10.5px",
+   "span.zi-rec \"measuring · n=10 decided (LOW \" 10.5px",
+   "span.zi-stage.st-triggered \"TRIGGERED\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zi-stage.st-watch \"WATCH\" 10px",
+   "span.zi-age \"1m\" 10.5px",
+   "span.zd-chip.on \"A open\" 10.5px",
+   "span.zd-chip \"B off\" 10.5px",
+   "span.zd-chip.on \"entries open\" 10.5px",
+   "span \"09:30–10:00\" 10.5px",
+   "span \"10:00–15:00\" 10.5px",
+   "span \"15:00–16:00\" 10.5px",
+   "span.zd-lown \"MEASURING\" 10px"
+  ],
+  "tinyCount": 113,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "flow-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "flow-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "flow-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "flow-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "ticker-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "sectors-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×44",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×44",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×44",
+   "a.sx-sym \"NVDA\" 30×44",
+   "a.sx-sym \"TSLA\" 30×44"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "span.sx-measuring \"MEASURING\" 10.5px",
+   "div.sx-stat-k \"Leading now\" 10.5px",
+   "div.sx-stat-k \"Biggest climb\" 10.5px",
+   "div.sx-stat-k \"Biggest slide\" 10.5px",
+   "div.sx-stat-k \"Overnight vs rotation\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px",
+   "i \"10D\" 10.5px",
+   "i \"20D\" 10.5px",
+   "i \"Breadth\" 10.5px",
+   "i \"RS\" 10.5px",
+   "i \"Stretch\" 10.5px",
+   "i \"Overnight\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px"
+  ],
+  "tinyCount": 103,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×44",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×44",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×44",
+   "a.sx-sym \"NVDA\" 30×44",
+   "a.sx-sym \"TSLA\" 30×44"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "span.sx-measuring \"MEASURING\" 10.5px",
+   "div.sx-stat-k \"Leading now\" 10.5px",
+   "div.sx-stat-k \"Biggest climb\" 10.5px",
+   "div.sx-stat-k \"Biggest slide\" 10.5px",
+   "div.sx-stat-k \"Overnight vs rotation\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px",
+   "i \"10D\" 10.5px",
+   "i \"20D\" 10.5px",
+   "i \"Breadth\" 10.5px",
+   "i \"RS\" 10.5px",
+   "i \"Stretch\" 10.5px",
+   "i \"Overnight\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px"
+  ],
+  "tinyCount": 103,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×44",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×44",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×44",
+   "a.sx-sym \"NVDA\" 30×44",
+   "a.sx-sym \"TSLA\" 30×44"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "span.sx-measuring \"MEASURING\" 10.5px",
+   "div.sx-stat-k \"Leading now\" 10.5px",
+   "div.sx-stat-k \"Biggest climb\" 10.5px",
+   "div.sx-stat-k \"Biggest slide\" 10.5px",
+   "div.sx-stat-k \"Overnight vs rotation\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px",
+   "i \"10D\" 10.5px",
+   "i \"20D\" 10.5px",
+   "i \"Breadth\" 10.5px",
+   "i \"RS\" 10.5px",
+   "i \"Stretch\" 10.5px",
+   "i \"Overnight\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px"
+  ],
+  "tinyCount": 103,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×44",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×44",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×44",
+   "a.sx-sym \"NVDA\" 30×44",
+   "a.sx-sym \"TSLA\" 30×44"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "span.sx-measuring \"MEASURING\" 10.5px",
+   "div.sx-stat-k \"Leading now\" 10.5px",
+   "div.sx-stat-k \"Biggest climb\" 10.5px",
+   "div.sx-stat-k \"Biggest slide\" 10.5px",
+   "div.sx-stat-k \"Overnight vs rotation\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px",
+   "i \"10D\" 10.5px",
+   "i \"20D\" 10.5px",
+   "i \"Breadth\" 10.5px",
+   "i \"RS\" 10.5px",
+   "i \"Stretch\" 10.5px",
+   "i \"Overnight\" 10.5px",
+   "i \"1D\" 10.5px",
+   "i \"3D\" 10.5px"
+  ],
+  "tinyCount": 103,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "crypto-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.cxi-grade \"A 78/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 73/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"A 68/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 53/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-lown \"LOW N\" 10px",
+   "span.cxi-grade \"C 63/10\" 10.5px",
+   "span.cxi-status.s-hit_target \"TARGET +4.00%\" 10.5px",
+   "span.cxi-grade \"B 58/10\" 10.5px",
+   "span.cxi-status.s-hit_stop \"STOP -3.00%\" 10.5px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.cxi-grade \"A 78/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 73/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"A 68/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 53/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-lown \"LOW N\" 10px",
+   "span.cxi-grade \"C 63/10\" 10.5px",
+   "span.cxi-status.s-hit_target \"TARGET +4.00%\" 10.5px",
+   "span.cxi-grade \"B 58/10\" 10.5px",
+   "span.cxi-status.s-hit_stop \"STOP -3.00%\" 10.5px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.cxi-grade \"A 78/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 73/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"A 68/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 53/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-lown \"LOW N\" 10px",
+   "span.cxi-grade \"C 63/10\" 10.5px",
+   "span.cxi-status.s-hit_target \"TARGET +4.00%\" 10.5px",
+   "span.cxi-grade \"B 58/10\" 10.5px",
+   "span.cxi-status.s-hit_stop \"STOP -3.00%\" 10.5px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.cxi-grade \"A 78/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 73/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"A 68/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-grade \"B 53/10\" 10.5px",
+   "span.cxi-status.s-open \"OPEN\" 10.5px",
+   "span.cxi-lown \"LOW N\" 10px",
+   "span.cxi-grade \"C 63/10\" 10.5px",
+   "span.cxi-status.s-hit_target \"TARGET +4.00%\" 10.5px",
+   "span.cxi-grade \"B 58/10\" 10.5px",
+   "span.cxi-status.s-hit_stop \"STOP -3.00%\" 10.5px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Relative drawdown\" 10px",
+   "span.jr-loss \"balance required\" 10px",
+   "span.jr-n \"/100\" 10.5px",
+   "div.jr-cal-wd \"Mon\" 10.5px",
+   "div.jr-cal-wd \"Tue\" 10.5px",
+   "div.jr-cal-wd \"Wed\" 10.5px",
+   "div.jr-cal-wd \"Thu\" 10.5px",
+   "div.jr-cal-wd \"Fri\" 10.5px",
+   "span.jr-cal-d \"1\" 10.5px",
+   "span.jr-cal-d \"2\" 10.5px",
+   "span.jr-cal-d \"3\" 10.5px",
+   "span.jr-cal-d \"4\" 10.5px",
+   "span.jr-cal-d \"7\" 10.5px",
+   "span.jr-cal-d \"8\" 10.5px",
+   "span.jr-cal-d \"9\" 10.5px"
+  ],
+  "tinyCount": 86,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Relative drawdown\" 10px",
+   "span.jr-loss \"balance required\" 10px",
+   "span.jr-n \"/100\" 10.5px",
+   "div.jr-cal-wd \"Mon\" 10.5px",
+   "div.jr-cal-wd \"Tue\" 10.5px",
+   "div.jr-cal-wd \"Wed\" 10.5px",
+   "div.jr-cal-wd \"Thu\" 10.5px",
+   "div.jr-cal-wd \"Fri\" 10.5px",
+   "span.jr-cal-d \"1\" 10.5px",
+   "span.jr-cal-d \"2\" 10.5px",
+   "span.jr-cal-d \"3\" 10.5px",
+   "span.jr-cal-d \"4\" 10.5px",
+   "span.jr-cal-d \"7\" 10.5px",
+   "span.jr-cal-d \"8\" 10.5px",
+   "span.jr-cal-d \"9\" 10.5px"
+  ],
+  "tinyCount": 86,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Relative drawdown\" 10px",
+   "span.jr-loss \"balance required\" 10px",
+   "span.jr-n \"/100\" 10.5px",
+   "div.jr-cal-wd \"Mon\" 10.5px",
+   "div.jr-cal-wd \"Tue\" 10.5px",
+   "div.jr-cal-wd \"Wed\" 10.5px",
+   "div.jr-cal-wd \"Thu\" 10.5px",
+   "div.jr-cal-wd \"Fri\" 10.5px",
+   "span.jr-cal-d \"1\" 10.5px",
+   "span.jr-cal-d \"2\" 10.5px",
+   "span.jr-cal-d \"3\" 10.5px",
+   "span.jr-cal-d \"4\" 10.5px",
+   "span.jr-cal-d \"7\" 10.5px",
+   "span.jr-cal-d \"8\" 10.5px",
+   "span.jr-cal-d \"9\" 10.5px"
+  ],
+  "tinyCount": 86,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Relative drawdown\" 10px",
+   "span.jr-loss \"balance required\" 10px",
+   "span.jr-n \"/100\" 10.5px",
+   "div.jr-cal-wd \"Mon\" 10.5px",
+   "div.jr-cal-wd \"Tue\" 10.5px",
+   "div.jr-cal-wd \"Wed\" 10.5px",
+   "div.jr-cal-wd \"Thu\" 10.5px",
+   "div.jr-cal-wd \"Fri\" 10.5px",
+   "span.jr-cal-d \"1\" 10.5px",
+   "span.jr-cal-d \"2\" 10.5px",
+   "span.jr-cal-d \"3\" 10.5px",
+   "span.jr-cal-d \"4\" 10.5px",
+   "span.jr-cal-d \"7\" 10.5px",
+   "span.jr-cal-d \"8\" 10.5px",
+   "span.jr-cal-d \"9\" 10.5px"
+  ],
+  "tinyCount": 86,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-n \"12 days in view\" 10.5px",
+   "span.jr-n \"won $0.00 · lost −$276.00 · 2 \" 10.5px",
+   "span.jr-gain \"$0.00\" 10.5px",
+   "span.jr-loss \"−$276.00\" 10.5px",
+   "span.jr-n \"won +$282.00 · lost −$50.00 · \" 10.5px",
+   "span.jr-gain \"+$282.00\" 10.5px",
+   "span.jr-loss \"−$50.00\" 10.5px",
+   "span.jr-n \"won +$1,345.00 · lost −$424.00\" 10.5px",
+   "span.jr-gain \"+$1,345.00\" 10.5px",
+   "span.jr-loss \"−$424.00\" 10.5px",
+   "span.jr-n \"won +$283.00 · lost $0.00 · 2 \" 10.5px",
+   "span.jr-gain \"+$283.00\" 10.5px",
+   "span.jr-loss \"$0.00\" 10.5px",
+   "span.jr-n \"won +$220.00 · lost −$476.00 ·\" 10.5px",
+   "span.jr-gain \"+$220.00\" 10.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-n \"12 days in view\" 10.5px",
+   "span.jr-n \"won $0.00 · lost −$276.00 · 2 \" 10.5px",
+   "span.jr-gain \"$0.00\" 10.5px",
+   "span.jr-loss \"−$276.00\" 10.5px",
+   "span.jr-n \"won +$282.00 · lost −$50.00 · \" 10.5px",
+   "span.jr-gain \"+$282.00\" 10.5px",
+   "span.jr-loss \"−$50.00\" 10.5px",
+   "span.jr-n \"won +$1,345.00 · lost −$424.00\" 10.5px",
+   "span.jr-gain \"+$1,345.00\" 10.5px",
+   "span.jr-loss \"−$424.00\" 10.5px",
+   "span.jr-n \"won +$283.00 · lost $0.00 · 2 \" 10.5px",
+   "span.jr-gain \"+$283.00\" 10.5px",
+   "span.jr-loss \"$0.00\" 10.5px",
+   "span.jr-n \"won +$220.00 · lost −$476.00 ·\" 10.5px",
+   "span.jr-gain \"+$220.00\" 10.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-n \"12 days in view\" 10.5px",
+   "span.jr-n \"won $0.00 · lost −$276.00 · 2 \" 10.5px",
+   "span.jr-gain \"$0.00\" 10.5px",
+   "span.jr-loss \"−$276.00\" 10.5px",
+   "span.jr-n \"won +$282.00 · lost −$50.00 · \" 10.5px",
+   "span.jr-gain \"+$282.00\" 10.5px",
+   "span.jr-loss \"−$50.00\" 10.5px",
+   "span.jr-n \"won +$1,345.00 · lost −$424.00\" 10.5px",
+   "span.jr-gain \"+$1,345.00\" 10.5px",
+   "span.jr-loss \"−$424.00\" 10.5px",
+   "span.jr-n \"won +$283.00 · lost $0.00 · 2 \" 10.5px",
+   "span.jr-gain \"+$283.00\" 10.5px",
+   "span.jr-loss \"$0.00\" 10.5px",
+   "span.jr-n \"won +$220.00 · lost −$476.00 ·\" 10.5px",
+   "span.jr-gain \"+$220.00\" 10.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-n \"12 days in view\" 10.5px",
+   "span.jr-n \"won $0.00 · lost −$276.00 · 2 \" 10.5px",
+   "span.jr-gain \"$0.00\" 10.5px",
+   "span.jr-loss \"−$276.00\" 10.5px",
+   "span.jr-n \"won +$282.00 · lost −$50.00 · \" 10.5px",
+   "span.jr-gain \"+$282.00\" 10.5px",
+   "span.jr-loss \"−$50.00\" 10.5px",
+   "span.jr-n \"won +$1,345.00 · lost −$424.00\" 10.5px",
+   "span.jr-gain \"+$1,345.00\" 10.5px",
+   "span.jr-loss \"−$424.00\" 10.5px",
+   "span.jr-n \"won +$283.00 · lost $0.00 · 2 \" 10.5px",
+   "span.jr-gain \"+$283.00\" 10.5px",
+   "span.jr-loss \"$0.00\" 10.5px",
+   "span.jr-n \"won +$220.00 · lost −$476.00 ·\" 10.5px",
+   "span.jr-gain \"+$220.00\" 10.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": []
+ },
+ "settings-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "settings-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "settings-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "settings-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "admin-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "admin-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "admin-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "admin-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "landing-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Blog\" 29×44",
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 2,
+  "tiny": [
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px",
+   "span.lp-tag \"Sample data\" 10px"
+  ],
+  "tinyCount": 7,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-375-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-375-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44",
+   "a.lx-tag \"/t\" 31×44"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "today-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×17",
+   "a.si-sym \"AMD +2.7%\" 67×17",
+   "a.si-sym \"AVGO +1.5%\" 73×17",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×17",
+   "a.si-sym.lag \"ARM -4.0%\" 67×17",
+   "a.si-sym \"MU +0.7%\" 61×17",
+   "a.si-sym \"WDC +3.5%\" 67×17",
+   "a.si-sym \"STX +3.6%\" 67×17",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×17",
+   "a.si-sym \"COHR +1.1%\" 73×17",
+   "a.si-sym \"LITE +1.7%\" 73×17",
+   "a.si-sym \"CIEN +2.0%\" 73×17",
+   "a.si-sym.lag \"ANET -4.0%\" 73×17",
+   "a.si-sym \"CRWD -3.0%\" 73×17",
+   "a.si-sym \"PANW -2.1%\" 73×17",
+   "a.si-sym \"ZS -3.7%\" 61×17",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×17",
+   "a.si-sym \"VRT +3.6%\" 67×17",
+   "a.si-sym \"ETN +0.4%\" 67×17",
+   "a.si-sym \"PWR +1.8%\" 67×17"
+  ],
+  "smallCount": 26,
+  "tiny": [
+   "span \"watch\" 9px",
+   "span.up \"▲ bullish\" 9px",
+   "span \"watch\" 9px",
+   "span.down \"▼ bearish\" 9px",
+   "span.up \"▲ calls · triggered\" 9px",
+   "span.down \"▼ puts · watch\" 9px"
+  ],
+  "tinyCount": 6,
+  "notFound": false,
+  "errors": []
+ },
+ "today-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×17",
+   "a.si-sym \"AMD +2.7%\" 67×17",
+   "a.si-sym \"AVGO +1.5%\" 73×17",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×17",
+   "a.si-sym.lag \"ARM -4.0%\" 67×17",
+   "a.si-sym \"MU +0.7%\" 61×17",
+   "a.si-sym \"WDC +3.5%\" 67×17",
+   "a.si-sym \"STX +3.6%\" 67×17",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×17",
+   "a.si-sym \"COHR +1.1%\" 73×17",
+   "a.si-sym \"LITE +1.7%\" 73×17",
+   "a.si-sym \"CIEN +2.0%\" 73×17",
+   "a.si-sym.lag \"ANET -4.0%\" 73×17",
+   "a.si-sym \"CRWD -3.0%\" 73×17",
+   "a.si-sym \"PANW -2.1%\" 73×17",
+   "a.si-sym \"ZS -3.7%\" 61×17",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×17",
+   "a.si-sym \"VRT +3.6%\" 67×17",
+   "a.si-sym \"ETN +0.4%\" 67×17",
+   "a.si-sym \"PWR +1.8%\" 67×17"
+  ],
+  "smallCount": 26,
+  "tiny": [
+   "span \"watch\" 9px",
+   "span.up \"▲ bullish\" 9px",
+   "span \"watch\" 9px",
+   "span.down \"▼ bearish\" 9px",
+   "span.up \"▲ calls · triggered\" 9px",
+   "span.down \"▼ puts · watch\" 9px"
+  ],
+  "tinyCount": 6,
+  "notFound": false,
+  "errors": []
+ },
+ "today-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×17",
+   "a.si-sym \"AMD +2.7%\" 67×17",
+   "a.si-sym \"AVGO +1.5%\" 73×17",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×17",
+   "a.si-sym.lag \"ARM -4.0%\" 67×17",
+   "a.si-sym \"MU +0.7%\" 61×17",
+   "a.si-sym \"WDC +3.5%\" 67×17",
+   "a.si-sym \"STX +3.6%\" 67×17",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×17",
+   "a.si-sym \"COHR +1.1%\" 73×17",
+   "a.si-sym \"LITE +1.7%\" 73×17",
+   "a.si-sym \"CIEN +2.0%\" 73×17",
+   "a.si-sym.lag \"ANET -4.0%\" 73×17",
+   "a.si-sym \"CRWD -3.0%\" 73×17",
+   "a.si-sym \"PANW -2.1%\" 73×17",
+   "a.si-sym \"ZS -3.7%\" 61×17",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×17",
+   "a.si-sym \"VRT +3.6%\" 67×17",
+   "a.si-sym \"ETN +0.4%\" 67×17",
+   "a.si-sym \"PWR +1.8%\" 67×17"
+  ],
+  "smallCount": 26,
+  "tiny": [
+   "span \"watch\" 9px",
+   "span.up \"▲ bullish\" 9px",
+   "span \"watch\" 9px",
+   "span.down \"▼ bearish\" 9px",
+   "span.up \"▲ calls · triggered\" 9px",
+   "span.down \"▼ puts · watch\" 9px"
+  ],
+  "tinyCount": 6,
+  "notFound": false,
+  "errors": []
+ },
+ "today-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×17",
+   "a.si-sym \"AMD +2.7%\" 67×17",
+   "a.si-sym \"AVGO +1.5%\" 73×17",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×17",
+   "a.si-sym.lag \"ARM -4.0%\" 67×17",
+   "a.si-sym \"MU +0.7%\" 61×17",
+   "a.si-sym \"WDC +3.5%\" 67×17",
+   "a.si-sym \"STX +3.6%\" 67×17",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×17",
+   "a.si-sym \"COHR +1.1%\" 73×17",
+   "a.si-sym \"LITE +1.7%\" 73×17",
+   "a.si-sym \"CIEN +2.0%\" 73×17",
+   "a.si-sym.lag \"ANET -4.0%\" 73×17",
+   "a.si-sym \"CRWD -3.0%\" 73×17",
+   "a.si-sym \"PANW -2.1%\" 73×17",
+   "a.si-sym \"ZS -3.7%\" 61×17",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×17",
+   "a.si-sym \"VRT +3.6%\" 67×17",
+   "a.si-sym \"ETN +0.4%\" 67×17",
+   "a.si-sym \"PWR +1.8%\" 67×17"
+  ],
+  "smallCount": 26,
+  "tiny": [
+   "span \"watch\" 9px",
+   "span.up \"▲ bullish\" 9px",
+   "span \"watch\" 9px",
+   "span.down \"▼ bearish\" 9px",
+   "span.up \"▲ calls · triggered\" 9px",
+   "span.down \"▼ puts · watch\" 9px"
+  ],
+  "tinyCount": 6,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:49 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:49 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 39,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan",
+   "Cannot read properties of undefined (reading 'length')"
+  ]
+ },
+ "nexus-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:49 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:49 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 39,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan",
+   "Cannot read properties of undefined (reading 'length')"
+  ]
+ },
+ "nexus-detail-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:50 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:50 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 39,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan",
+   "Cannot read properties of undefined (reading 'length')"
+  ]
+ },
+ "nexus-detail-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:50 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:50 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 39,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/patterns/scan",
+   "Cannot read properties of undefined (reading 'length')"
+  ]
+ },
+ "nexus-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:49 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:49 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:49 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:49 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:49 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-0dte-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×16",
+   "a.si-sym \"AMD +2.7%\" 67×16",
+   "a.si-sym \"AVGO +1.5%\" 73×16",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×16",
+   "a.si-sym.lag \"ARM -4.0%\" 67×16",
+   "a.si-sym \"MU +0.7%\" 61×16",
+   "a.si-sym \"WDC +3.5%\" 67×16",
+   "a.si-sym \"STX +3.6%\" 67×16",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×16",
+   "a.si-sym \"COHR +1.1%\" 73×16",
+   "a.si-sym \"LITE +1.7%\" 73×16",
+   "a.si-sym \"CIEN +2.0%\" 73×16",
+   "a.si-sym.lag \"ANET -4.0%\" 73×16",
+   "a.si-sym \"CRWD -3.0%\" 73×16",
+   "a.si-sym \"PANW -2.1%\" 73×16",
+   "a.si-sym \"ZS -3.7%\" 61×16",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×16",
+   "a.si-sym \"VRT +3.6%\" 67×16",
+   "a.si-sym \"ETN +0.4%\" 67×16",
+   "a.si-sym \"PWR +1.8%\" 67×16"
+  ],
+  "smallCount": 46,
+  "tiny": [
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close above VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close below VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"positive γ\" 9.2px"
+  ],
+  "tinyCount": 20,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "nexus-0dte-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×16",
+   "a.si-sym \"AMD +2.7%\" 67×16",
+   "a.si-sym \"AVGO +1.5%\" 73×16",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×16",
+   "a.si-sym.lag \"ARM -4.0%\" 67×16",
+   "a.si-sym \"MU +0.7%\" 61×16",
+   "a.si-sym \"WDC +3.5%\" 67×16",
+   "a.si-sym \"STX +3.6%\" 67×16",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×16",
+   "a.si-sym \"COHR +1.1%\" 73×16",
+   "a.si-sym \"LITE +1.7%\" 73×16",
+   "a.si-sym \"CIEN +2.0%\" 73×16",
+   "a.si-sym.lag \"ANET -4.0%\" 73×16",
+   "a.si-sym \"CRWD -3.0%\" 73×16",
+   "a.si-sym \"PANW -2.1%\" 73×16",
+   "a.si-sym \"ZS -3.7%\" 61×16",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×16",
+   "a.si-sym \"VRT +3.6%\" 67×16",
+   "a.si-sym \"ETN +0.4%\" 67×16",
+   "a.si-sym \"PWR +1.8%\" 67×16"
+  ],
+  "smallCount": 46,
+  "tiny": [
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close above VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close below VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"positive γ\" 9.2px"
+  ],
+  "tinyCount": 20,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "flow-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "div.of-lbl \"Premium tide today · calls vs \" 9.5px",
+   "div.of-lbl \"Flow trades\" 9.5px",
+   "div.of-lbl \"Sweep %\" 9.5px",
+   "div.of-lbl \"Puts\" 9.5px",
+   "div.of-lbl \"P/C $\" 9.5px",
+   "div.of-lbl \"Calls\" 9.5px",
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px"
+  ],
+  "tinyCount": 30,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "flow-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "div.of-lbl \"Premium tide today · calls vs \" 9.5px",
+   "div.of-lbl \"Flow trades\" 9.5px",
+   "div.of-lbl \"Sweep %\" 9.5px",
+   "div.of-lbl \"Puts\" 9.5px",
+   "div.of-lbl \"P/C $\" 9.5px",
+   "div.of-lbl \"Calls\" 9.5px",
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px"
+  ],
+  "tinyCount": 30,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "ticker-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "nexus-detail-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:50 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:50 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-detail-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"MRVL\" 33×15",
+   "a \"ARM\" 27×15",
+   "a \"ANET\" 32×15",
+   "a \"GEV\" 24×15",
+   "a.ig-strip-open \"Open Sectors →\" 99×22"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "small.dn \"-2.2%\" 9.6px",
+   "small.dn \"-3.8%\" 9.6px",
+   "small.dn \"-2.7%\" 9.6px",
+   "small.dn \"-2.5%\" 9.6px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 7:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 6:50 AM\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 5:50 AM\" 9.5px",
+   "span.nxp-rot.with \"↗ with rotation\" 9.5px",
+   "small \"tech\" 9.5px",
+   "small \"In play · 4:50 AM\" 9.5px",
+   "small \"tech\" 9.5px"
+  ],
+  "tinyCount": 37,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "sectors-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×20",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×20",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×20",
+   "a.sx-sym \"NVDA\" 30×17",
+   "a.sx-sym \"TSLA\" 30×17"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×20",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×20",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×20",
+   "a.sx-sym \"NVDA\" 30×17",
+   "a.sx-sym \"TSLA\" 30×17"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "nexus-0dte-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×16",
+   "a.si-sym \"AMD +2.7%\" 67×16",
+   "a.si-sym \"AVGO +1.5%\" 73×16",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×16",
+   "a.si-sym.lag \"ARM -4.0%\" 67×16",
+   "a.si-sym \"MU +0.7%\" 61×16",
+   "a.si-sym \"WDC +3.5%\" 67×16",
+   "a.si-sym \"STX +3.6%\" 67×16",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×16",
+   "a.si-sym \"COHR +1.1%\" 73×16",
+   "a.si-sym \"LITE +1.7%\" 73×16",
+   "a.si-sym \"CIEN +2.0%\" 73×16",
+   "a.si-sym.lag \"ANET -4.0%\" 73×16",
+   "a.si-sym \"CRWD -3.0%\" 73×16",
+   "a.si-sym \"PANW -2.1%\" 73×16",
+   "a.si-sym \"ZS -3.7%\" 61×16",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×16",
+   "a.si-sym \"VRT +3.6%\" 67×16",
+   "a.si-sym \"ETN +0.4%\" 67×16",
+   "a.si-sym \"PWR +1.8%\" 67×16"
+  ],
+  "smallCount": 46,
+  "tiny": [
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close above VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close below VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"positive γ\" 9.2px"
+  ],
+  "tinyCount": 20,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "nexus-0dte-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.si-sym \"NVDA +3.7%\" 73×16",
+   "a.si-sym \"AMD +2.7%\" 67×16",
+   "a.si-sym \"AVGO +1.5%\" 73×16",
+   "a.si-sym.lag \"MRVL -1.1%\" 73×16",
+   "a.si-sym.lag \"ARM -4.0%\" 67×16",
+   "a.si-sym \"MU +0.7%\" 61×16",
+   "a.si-sym \"WDC +3.5%\" 67×16",
+   "a.si-sym \"STX +3.6%\" 67×16",
+   "a.si-sym.lag \"SNDK -1.6%\" 73×16",
+   "a.si-sym \"COHR +1.1%\" 73×16",
+   "a.si-sym \"LITE +1.7%\" 73×16",
+   "a.si-sym \"CIEN +2.0%\" 73×16",
+   "a.si-sym.lag \"ANET -4.0%\" 73×16",
+   "a.si-sym \"CRWD -3.0%\" 73×16",
+   "a.si-sym \"PANW -2.1%\" 73×16",
+   "a.si-sym \"ZS -3.7%\" 61×16",
+   "a.si-sym.lag \"FTNT +3.3%\" 73×16",
+   "a.si-sym \"VRT +3.6%\" 67×16",
+   "a.si-sym \"ETN +0.4%\" 67×16",
+   "a.si-sym \"PWR +1.8%\" 67×16"
+  ],
+  "smallCount": 46,
+  "tiny": [
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close above VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"bid $2.05 / ask $2.15 · 40s ol\" 9.2px",
+   "small \"5-min close below VWAP (fixtur\" 9.2px",
+   "small \"· premium ≈ $1.20\" 9.2px",
+   "small \"Call wall · ≈ $3.40\" 9.2px",
+   "small \"· 2.1R\" 9.2px",
+   "small \"time stop\" 9.2px",
+   "small \"· Δ 0.42 · OI 12,000 · spread \" 9.2px",
+   "small \"positive γ\" 9.2px"
+  ],
+  "tinyCount": 20,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/zero-dte/sniper"
+  ]
+ },
+ "flow-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "div.of-lbl \"Premium tide today · calls vs \" 9.5px",
+   "div.of-lbl \"Flow trades\" 9.5px",
+   "div.of-lbl \"Sweep %\" 9.5px",
+   "div.of-lbl \"Puts\" 9.5px",
+   "div.of-lbl \"P/C $\" 9.5px",
+   "div.of-lbl \"Calls\" 9.5px",
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px"
+  ],
+  "tinyCount": 30,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "flow-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "div.of-lbl \"Premium tide today · calls vs \" 9.5px",
+   "div.of-lbl \"Flow trades\" 9.5px",
+   "div.of-lbl \"Sweep %\" 9.5px",
+   "div.of-lbl \"Puts\" 9.5px",
+   "div.of-lbl \"P/C $\" 9.5px",
+   "div.of-lbl \"Calls\" 9.5px",
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px"
+  ],
+  "tinyCount": 30,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "ticker-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "sectors-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×20",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×20",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×20",
+   "a.sx-sym \"NVDA\" 30×17",
+   "a.sx-sym \"TSLA\" 30×17"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"NVDA\" 35×20",
+   "a.sx-sym.sx-sym-lg \"MU\" 18×20",
+   "a.sx-sym.sx-sym-lg \"NEE\" 27×20",
+   "a.sx-sym \"NVDA\" 30×17",
+   "a.sx-sym \"TSLA\" 30×17"
+  ],
+  "smallCount": 5,
+  "tiny": [
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px",
+   "dt \"T2\" 9.5px",
+   "dt \"R:R\" 9.5px",
+   "dt \"Last\" 9.5px",
+   "dt \"Entry\" 9.5px",
+   "dt \"Stop\" 9.5px",
+   "dt \"T1\" 9.5px"
+  ],
+  "tinyCount": 18,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "crypto-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.cxi-main \"BTCLONGtrend pullback · 1–3dA \" 648×22",
+   "a.cxi-main \"ETHSHORTrange fade · 1–3dB 73/\" 648×22",
+   "a.cxi-main \"SOLLONGbreakout · 1–3dA 68/10O\" 648×22",
+   "a.cxi-main \"AVAXLONGbreakout · 1–3dB 53/10\" 648×22",
+   "a.cxi-main \"XRPLONGtrend pullback · 1–3dC \" 648×22",
+   "a.cxi-main \"DOGESHORTrange fade · 1–3dB 58\" 648×22"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "small \"zone $63,889–$64,531\" 9.2px",
+   "small \"zone $2,468–$2,492\" 9.2px",
+   "small \"zone $147.26–$148.74\" 9.2px",
+   "small \"zone $27.26–$27.54\" 9.2px",
+   "small \"zone $0.57710–$0.58290\" 9.2px",
+   "small \"zone $0.11940–$0.12060\" 9.2px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px",
+   "button \"SOL\" 9px",
+   "button \"XRP\" 9px",
+   "button \"QNT\" 9px",
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 12,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.cxi-main \"BTCLONGtrend pullback · 1–3dA \" 648×22",
+   "a.cxi-main \"ETHSHORTrange fade · 1–3dB 73/\" 648×22",
+   "a.cxi-main \"SOLLONGbreakout · 1–3dA 68/10O\" 648×22",
+   "a.cxi-main \"AVAXLONGbreakout · 1–3dB 53/10\" 648×22",
+   "a.cxi-main \"XRPLONGtrend pullback · 1–3dC \" 648×22",
+   "a.cxi-main \"DOGESHORTrange fade · 1–3dB 58\" 648×22"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "small \"zone $63,889–$64,531\" 9.2px",
+   "small \"zone $2,468–$2,492\" 9.2px",
+   "small \"zone $147.26–$148.74\" 9.2px",
+   "small \"zone $27.26–$27.54\" 9.2px",
+   "small \"zone $0.57710–$0.58290\" 9.2px",
+   "small \"zone $0.11940–$0.12060\" 9.2px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px",
+   "button \"SOL\" 9px",
+   "button \"XRP\" 9px",
+   "button \"QNT\" 9px",
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 12,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "settings-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "settings-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "crypto-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.cxi-main \"BTCLONGtrend pullback · 1–3dA \" 1050×22",
+   "a.cxi-main \"ETHSHORTrange fade · 1–3dB 73/\" 1050×22",
+   "a.cxi-main \"SOLLONGbreakout · 1–3dA 68/10O\" 1050×22",
+   "a.cxi-main \"AVAXLONGbreakout · 1–3dB 53/10\" 1050×22",
+   "a.cxi-main \"XRPLONGtrend pullback · 1–3dC \" 1050×22",
+   "a.cxi-main \"DOGESHORTrange fade · 1–3dB 58\" 1050×22"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "small \"zone $63,889–$64,531\" 9.2px",
+   "small \"zone $2,468–$2,492\" 9.2px",
+   "small \"zone $147.26–$148.74\" 9.2px",
+   "small \"zone $27.26–$27.54\" 9.2px",
+   "small \"zone $0.57710–$0.58290\" 9.2px",
+   "small \"zone $0.11940–$0.12060\" 9.2px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px",
+   "button \"SOL\" 9px",
+   "button \"XRP\" 9px",
+   "button \"QNT\" 9px",
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 12,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.cxi-main \"BTCLONGtrend pullback · 1–3dA \" 1050×22",
+   "a.cxi-main \"ETHSHORTrange fade · 1–3dB 73/\" 1050×22",
+   "a.cxi-main \"SOLLONGbreakout · 1–3dA 68/10O\" 1050×22",
+   "a.cxi-main \"AVAXLONGbreakout · 1–3dB 53/10\" 1050×22",
+   "a.cxi-main \"XRPLONGtrend pullback · 1–3dC \" 1050×22",
+   "a.cxi-main \"DOGESHORTrange fade · 1–3dB 58\" 1050×22"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "small \"zone $63,889–$64,531\" 9.2px",
+   "small \"zone $2,468–$2,492\" 9.2px",
+   "small \"zone $147.26–$148.74\" 9.2px",
+   "small \"zone $27.26–$27.54\" 9.2px",
+   "small \"zone $0.57710–$0.58290\" 9.2px",
+   "small \"zone $0.11940–$0.12060\" 9.2px",
+   "button.active \"BTC\" 9px",
+   "button \"ETH\" 9px",
+   "button \"SOL\" 9px",
+   "button \"XRP\" 9px",
+   "button \"QNT\" 9px",
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 12,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "admin-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "landing-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "settings-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "settings-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca",
+   "Cannot read properties of undefined (reading 'discordBot')"
+  ]
+ },
+ "signup-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "admin-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": [
+   "((intermediate value) ?? []).filter is not a function"
+  ]
+ },
+ "login-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-768-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/r/QCOM\" 63×20",
+   "a.lx-tag \"/t?tab=gex\" 83×20",
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t?tab=catalyst\" 117×20",
+   "a.lx-tag \"/t?tab=crypto\" 103×20",
+   "a.lx-tag \"/t?tab=positions\" 124×20",
+   "a.lx-tag \"/t?tab=journal&jtab=record\" 191×20",
+   "a.lx-tag \"/t\" 29×20"
+  ],
+  "smallCount": 11,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-768-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/r/QCOM\" 63×20",
+   "a.lx-tag \"/t?tab=gex\" 83×20",
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t?tab=catalyst\" 117×20",
+   "a.lx-tag \"/t?tab=crypto\" 103×20",
+   "a.lx-tag \"/t?tab=positions\" 124×20",
+   "a.lx-tag \"/t?tab=journal&jtab=record\" 191×20",
+   "a.lx-tag \"/t\" 29×20"
+  ],
+  "smallCount": 11,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/r/QCOM\" 63×20",
+   "a.lx-tag \"/t?tab=gex\" 83×20",
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t?tab=catalyst\" 117×20",
+   "a.lx-tag \"/t?tab=crypto\" 103×20",
+   "a.lx-tag \"/t?tab=positions\" 124×20",
+   "a.lx-tag \"/t?tab=journal&jtab=record\" 191×20",
+   "a.lx-tag \"/t\" 29×20"
+  ],
+  "smallCount": 11,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/t\" 29×20",
+   "a.lx-tag \"/r/QCOM\" 63×20",
+   "a.lx-tag \"/t?tab=gex\" 83×20",
+   "a.lx-tag \"/today\" 56×20",
+   "a.lx-tag \"/t?tab=catalyst\" 117×20",
+   "a.lx-tag \"/t?tab=crypto\" 103×20",
+   "a.lx-tag \"/t?tab=positions\" 124×20",
+   "a.lx-tag \"/t?tab=journal&jtab=record\" 191×20",
+   "a.lx-tag \"/t\" 29×20"
+  ],
+  "smallCount": 11,
+  "tiny": [],
+  "tinyCount": 0,
+  "notFound": false,
+  "errors": []
+ }
+}
