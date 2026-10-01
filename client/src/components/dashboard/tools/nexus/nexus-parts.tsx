@@ -25,6 +25,7 @@ import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { compareBoardRows } from '@shared/board-sort';
+import { boardLivePrice, liveMark } from '@shared/live-mark';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -357,16 +358,20 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   // currentPrice, which is only refreshed when the board rebuilds. When neither
   // exists the ladder says the quote is unavailable instead of showing entry as live.
   const lq = quotesQ.data?.[selected.symbol.toUpperCase()];
-  // The board's currentPrice is only a live read when it differs from the entry —
-  // a copy of the entry (stale board) is never shown as the market.
-  const boardPx = selected.currentPrice && selected.currentPrice > 0 && Math.abs(selected.currentPrice - selected.entryPrice) > 1e-9 ? selected.currentPrice : 0;
-  const liveQuote = lq?.price && lq.price > 0 ? lq.price : boardPx;
-  const live = liveQuote || selected.entryPrice;
-  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
+  // shared/live-mark.ts: a fresh quote, else the board price only when the server
+  // flags it live — never the publish-time entry (audit 2026-10-01 P0 #7).
+  const boardPx = boardLivePrice(selected);
+  const live = liveMark(selected, lq?.price);
+  const checkedAt = quotesQ.dataUpdatedAt || quotesQ.errorUpdatedAt;
+  const checkedStamp = checkedAt ? `checked ${new Date(checkedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null;
+  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.stale ? 'stale' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ')
+    : boardPx ? 'board price'
+    : quotesQ.isLoading ? 'reading live quote…'
+    : ['quote unavailable', checkedStamp].filter(Boolean).join(' · ');
   const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
-  const progress = selected.targetPrice !== selected.entryPrice
+  const progress = live != null && selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
-    : 0;
+    : null;
   const support = selected.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points);
   const challenge = selected.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points);
   const pendingEntry = selected.lifecycleState === 'pending_trigger' || selected.lifecycleState === 'coverage' || selected.lifecycleState === 'thesis';
@@ -403,7 +408,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-levels">
-        <div title={liveStamp ?? undefined}><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
+        <div title={liveStamp ?? undefined}><span>Live</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small></div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
@@ -411,7 +416,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
 
-      <LevelsList symbol={selected.symbol} live={live} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
+      <LevelsList symbol={selected.symbol} live={live ?? 0} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}
@@ -435,8 +440,8 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         </div>}
         {tab === 'overview' && <TraderCallEvidence symbol={selected.symbol} />}
         {tab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
-        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={liveQuote} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live} /></div>}
-        {tab === 'risk' && <RiskPanel pick={selected} live={live} />}
+        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live ?? 0} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live ?? 0} /></div>}
+        {tab === 'risk' && <RiskPanel pick={selected} live={live ?? 0} />}
         {tab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
       </div>
       <p className="nxp-disclaimer text-muted-foreground" style={{ margin: '10px 2px 0', fontSize: 11, lineHeight: 1.45 }}>

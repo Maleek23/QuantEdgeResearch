@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
+import { convictionDisplayPercent } from '@shared/conviction-display';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
@@ -506,8 +507,16 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
   const open = rows.filter((r) => r.outcome === 'open').length;
   const decided = won + lost;
 
-  const band = pick?.publishedConvictionBand ?? pick?.convictionBand ?? null;
-  const score = pick?.publishedConvictionScore ?? pick?.convictionScore ?? null;
+  // One scale everywhere (audit 2026-10-01 P0 #9): the LIVE evidence score on the
+  // 0–100 display index NEXUS and Today show; the publish-time grade is stamped
+  // separately as "at publish HH:MM", never mixed in unlabelled.
+  const band = pick?.convictionBand ?? pick?.publishedConvictionBand ?? null;
+  const score = pick?.convictionScore != null ? convictionDisplayPercent(pick.convictionScore) : null;
+  const pubScore = pick?.publishedConvictionScore != null ? convictionDisplayPercent(pick.publishedConvictionScore) : null;
+  const pubAt = pick?.calledAt ?? pick?.generatedAt ?? null;
+  const pubStamp = pubScore != null
+    ? `${pick?.publishedConvictionBand ?? ''} · ${pubScore}/100 at publish${pubAt ? ` ${new Date(pubAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}`.replace(/^ · /, '')
+    : null;
   const short = (pick?.direction ?? '').toLowerCase().includes('short') || (pick?.direction ?? '').toLowerCase().includes('bear');
 
   const rules: { name: string; state: string; tone: 'gain' | 'loss' | 'caution' | 'mute' }[] = [];
@@ -523,7 +532,8 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
           <div className="tk-idea-h">
             <LuxTag tone={short ? 'loss' : 'gain'}>{short ? '▼ SHORT' : '▲ LONG'}</LuxTag>
             <span className="tk-idea-type">{pick.tradeType ?? pick.holdingPeriod ?? 'idea'}</span>
-            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${Math.round(score)}` : ''}</LuxTag>}
+            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${score}/100 live` : ''}</LuxTag>}
+            {pubStamp && <LuxTag tone="mute">{pubStamp}</LuxTag>}
           </div>
           <div className="tk-stats tk-stats-4">
             <Stat k={pick.levelBasis === 'contract' ? 'Entry (premium)' : 'Entry'} v={fmtPx(pick.entryPrice)} tone="accent" />
