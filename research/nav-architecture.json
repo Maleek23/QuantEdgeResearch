@@ -1,8 +1,8 @@
 {
   "routes": 28,
   "redirects": 88,
-  "tabs": 10,
-  "linkTargets": 55,
+  "tabs": 11,
+  "linkTargets": 56,
   "N1_dead": {},
   "N2_viaRedirect": {},
   "N3_orphanPageFiles": [],
@@ -21,6 +21,7 @@
       "FLOW",
       "GEX",
       "CHART",
+      "SECTORS",
       "LEAPS",
       "CRYPTO",
       "CATALYST",
@@ -44,6 +45,7 @@
       "/t NEXUS board"
     ],
     "Sector rotation": [
+      "/t?tab=sectors (rank flow, rankings, leaders)",
       "/today RotQuad",
       "RotationMap (terminal overlay, unreachable)",
       "landing RotQuad"
@@ -159,6 +161,7 @@
   ],
   "N14_researchTabs": [
     "chart",
+    "sectors",
     "leaps",
     "crypto",
     "catalyst"

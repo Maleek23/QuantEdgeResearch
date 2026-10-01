@@ -59,7 +59,7 @@ export function LuxSortHead({
   className,
   align = 'left',
   ...props
-}: Omit<ThHTMLAttributes<HTMLTableCellElement>, 'onClick'> & {
+}: Omit<ThHTMLAttributes<HTMLTableCellElement>, 'onClick' | 'dir'> & {
   dir: LuxSortDir;
   onSort: () => void;
   align?: 'left' | 'right';

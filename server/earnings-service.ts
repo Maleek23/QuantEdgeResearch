@@ -118,6 +118,12 @@ async function getEarningsData(): Promise<EarningsEvent[]> {
 const symbolEarningsCache = new Map<string, { date: Date | null; fetchedAt: number }>();
 const SYMBOL_EARNINGS_TTL_MS = 6 * 60 * 60 * 1000;
 
+/** Read-only: the cached per-symbol earnings date (never fetches); undefined when not read in this process. */
+export function peekEarningsDate(symbol: string): Date | null | undefined {
+  const c = symbolEarningsCache.get(symbol.toUpperCase());
+  return c && Date.now() - c.fetchedAt < SYMBOL_EARNINGS_TTL_MS ? c.date : undefined;
+}
+
 export async function getEarningsDate(symbol: string): Promise<Date | null> {
   const key = symbol.toUpperCase();
   const cached = symbolEarningsCache.get(key);

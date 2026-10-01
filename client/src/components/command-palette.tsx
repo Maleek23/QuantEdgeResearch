@@ -63,6 +63,7 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/t?tab=leaps',    label: 'LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
   { href: '/t?tab=crypto',   label: 'Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
   { href: '/t?tab=catalyst', label: 'Catalysts', icon: Home, keywords: ['events','earnings','calendar'] },
+  { href: '/t?tab=sectors', label: 'Sectors', icon: Home, keywords: ['sector','rotation','rank flow','leaders','semis','overnight','gappers'] },
   { href: '/t?tab=bot',      label: 'Quantinum Bot', icon: Home, keywords: ['bot','automation','paper','quantinum'] },
   // Ticker page (the per-ticker home — search a ticker → lands here; docs/TICKER_PAGE.md)
   { href: '/r/SPY?tab=chart',    label: 'Ticker page → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },

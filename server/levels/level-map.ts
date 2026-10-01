@@ -109,6 +109,16 @@ async function computeLevelMap(symbol: string): Promise<LevelMap | null> {
   });
 }
 
+/**
+ * Read-only: the level map already computed for `symbol` in this process (any
+ * age up to the cache's 10-min TTL), with its computation time — NEVER fetches
+ * bars. The sector board reads levels only where a producer already paid.
+ */
+export function peekLevelMap(symbolRaw: string): { at: number; map: LevelMap } | null {
+  const hit = mapCache.get(symbolRaw.toUpperCase());
+  return hit && hit.map ? { at: hit.at, map: hit.map } : null;
+}
+
 /** Level map for one symbol (60 s cache, shared in-flight). Null when no bars. */
 export async function getLevelMap(symbolRaw: string): Promise<LevelMap | null> {
   const symbol = symbolRaw.toUpperCase();

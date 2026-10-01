@@ -158,7 +158,7 @@ FUNCTIONS = {
     "Discover forming setups":          {"owner": "ideas.forming",       "current": ["NEXUS developing candidates"]},
     "Pre-market gap read":              {"owner": "ideas.gappers",       "current": []},  # /slate retired 2026-09-29; gap read to be re-homed on Today
     "Market regime + weekly path":      {"owner": "markets.weekly-path", "current": ["/today dealer map"]},
-    "Sector rotation":                  {"owner": "markets.rotation",    "current": ["/today RotQuad", "RotationMap (terminal overlay, unreachable)", "landing RotQuad"]},
+    "Sector rotation":                  {"owner": "markets.rotation",    "current": ["/t?tab=sectors (rank flow, rankings, leaders)", "/today RotQuad", "RotationMap (terminal overlay, unreachable)", "landing RotQuad"]},
     "Market pulse / leadership":        {"owner": "markets.pulse",       "current": ["OracleMarketField (overlay, unreachable)", "SessionBrief (overlay, unreachable)"]},
     "Options flow tape":                {"owner": "flow.options-flow",   "current": ["/t?tab=flow flowdash", "ticker workup flow block"]},
     "Dealer positioning (GEX)":         {"owner": "gex.hub",             "current": ["/t?tab=gex GexHub", "/r/:s GEX surface", "flowdash GEX Chart"]},
