@@ -15,7 +15,6 @@ import { PEER_GROUPS } from '@shared/sector-peers';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useToolReport } from '@/components/dashboard/frame';
-import { usePhone } from '@/components/ui/qe-phone';
 import './sector-ignition.css';
 
 export type Horizon = 'intraday' | 'daily' | 'swing' | 'weekly';
@@ -178,7 +177,6 @@ export function SectorIgnitionTool() {
 export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const daily = useSectorIgnition('daily');
   const swing = useSectorIgnition('swing');
-  const phone = usePhone();
   const [open, setOpen] = useState<string | null>(null);
   const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
   if (!pick) {
@@ -219,9 +217,10 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
     </div>
   );
   return (
-    // compact (NEXUS board) on a phone: ONE summary line, the full read one tap away —
-    // the per-row with/against tags and the Sector Ignition section carry the same read
-    compact && phone ? (
+    // compact (NEXUS board): ONE summary line, the full read one tap away — the per-row
+    // with/against tags carry the same read. Was phone-only; in the ≈240px Ranked Setups
+    // column at 1366×768 the full strip wrapped to 8 lines above the first setup.
+    compact ? (
       <details className="ig-strip compact ig-strip-phone" aria-label="Sector rotation">
         <summary><span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span> <b className="up">Into</b> {into[0] ? `${into[0].label}${into.length > 1 ? ` +${into.length - 1}` : ''}` : 'nothing'} · <b className="dn">Out</b> {out[0] ? `${out[0].label}${out.length > 1 ? ` +${out.length - 1}` : ''}` : 'nothing'}</summary>
         <span><b className="up">Into</b> {list(into, 'nothing igniting long')}</span>
@@ -229,6 +228,7 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
         {lagLine}
         {ranked}
         <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
+        <Link href="/t?tab=sectors" className="ig-strip-open">Open Sectors →</Link>
       </details>
     ) :
     <div className={`ig-strip${compact ? ' compact' : ''}`} aria-label="Sector rotation">

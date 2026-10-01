@@ -47,6 +47,8 @@
 .ig-strip-open:hover,.ig-strip-open:focus-visible{text-decoration:underline}
 /* phone NEXUS board: one summary line, the full read on tap */
 details.ig-strip-phone{display:block;padding:0 10px}
+@media (min-width:768px) and (pointer:fine){details.ig-strip-phone>summary{min-height:32px;line-height:32px}}
+@media (max-width:599px){.ig-strip-k,.ig-strip-age,.ig-strip-open{font-size:12px}}
 details.ig-strip-phone[open]{padding-bottom:8px}
 details.ig-strip-phone>summary{display:block;min-height:44px;line-height:44px;padding:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style:none}
 details.ig-strip-phone>summary::-webkit-details-marker{display:none}
@@ -64,3 +66,22 @@ details.ig-strip-phone>span{display:block;margin-top:4px}
 .ig-tag{font:700 9px 'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;padding:1px 4px;border-radius:4px;border:1px solid var(--border-subtle)}
 .ig-tag.leader{color:var(--p)}.ig-tag.laggard{color:var(--text-dim)}
 @media (max-width:640px){.ig-strip-ranked ol{columns:1}}
+
+/* Device pass 2026-10-01 — phone type floor (DESIGN_SYSTEM §10: no text under 12px on
+   phones): tabs, meta, chips, names, numbers, member chips, why, levels and foot were
+   10–11px (130 runs on Today at 375). */
+@media (max-width:599px){
+  .si-tab,.si-meta,.si-chip,.si-name small,.si-num,.si-syms,.si-why,.si-lv,.si-foot{font-size:12px}
+  .si-name b{font-size:13px}
+  .si-tab{min-height:44px}
+}
+/* Light: the igniting chip's dark ink on a light-ground mint was 3.5:1 — print it on the
+   darker light-mode gain/loss fill with white ink instead. */
+html[data-mode=light] .si-chip.igniting{color:#fff;background:#047857;border-color:#047857}
+html[data-mode=light] .si-chip.igniting.short{background:#b23c0b;border-color:#b23c0b}
+
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .ig-tag{font-size:10px}
+}

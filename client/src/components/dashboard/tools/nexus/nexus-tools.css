@@ -102,3 +102,9 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
   .flowdash .nxd-board table tbody tr{height:48px}
   .flowdash .nxd .nxp-detail-head p{font-size:14px}
 }
+
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .flowdash .nxd .nxp-row small{font-size:10px}
+}

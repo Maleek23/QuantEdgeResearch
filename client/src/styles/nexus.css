@@ -1942,6 +1942,7 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .nexus-vars .crypto-chart-tabs{display:flex;gap:4px;flex-wrap:wrap}
 .nexus-vars .crypto-chart-tabs button{border:1px solid var(--nx-border);border-radius:4px;background:transparent;color:var(--text-mute);padding:4px 8px;font:700 9px 'JetBrains Mono',monospace;cursor:pointer}
 .nexus-vars .crypto-chart-tabs button.active{border-color:var(--brand-cyan);background:color-mix(in srgb,var(--brand-cyan) 12%,transparent);color:var(--brand-cyan)}
+.nexus-vars .crypto-chart-tabs button{font-size:var(--fs-11,11px)} /* was 9px, under every floor (phones remap --fs-11 to 13px) */
 .nexus-vars .crypto-level-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--nx-border)}
 .nexus-vars .crypto-level-strip>div{padding:9px 12px;border-right:1px solid var(--nx-border);display:flex;flex-direction:column;gap:3px}
 .nexus-vars .crypto-level-strip>div:last-child{border-right:0}
@@ -3200,7 +3201,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing.lp .lp-frame-bar{height:22px;padding:0 10px}
   .landing.lp .lp-dots i{width:7px;height:7px}
   .landing.lp .lp-url{display:none}
-  .landing.lp .lp-tag{left:8px;bottom:8px;font-size:10px;padding:2px 6px}
+  .landing.lp .lp-tag{left:8px;bottom:8px;font-size:12px;padding:2px 6px}
   .landing.lp .lp-tour{padding:56px 0 8px}
   .landing.lp .lp-h2{font-size:25px}
   .landing.lp .lp-row{margin-top:56px;gap:20px}
@@ -3365,6 +3366,27 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .nxp-dir.bull{color:var(--green,#34d399);background:color-mix(in srgb,var(--green,#34d399) 14%,transparent)}
 .nxp-dir.bear{color:var(--red,#f87171);background:color-mix(in srgb,var(--red,#f87171) 14%,transparent)}
 @media (max-width:767px){.nxp-dir{font-size:12px}}
+/* Device pass 2026-10-01: in a narrow Ranked Setups column (≈240px at 1366) the tags were
+   nowrap inline runs wider than the name column and painted over "In play · 7:59 AM".
+   The tags now wrap inside their own column and clip instead of spilling. */
+.nxp-row{grid-template-columns:28px minmax(0,1fr) auto 14px}
+.nxp-row-main strong{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;min-width:0}
+.nxp-row-main strong>:is(.nxp-dir,.nxp-rot){margin-left:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.nxp-row-status small{white-space:nowrap}
+.nxp-row .nxp-rot{font-size:10px} /* was 9.5px (nexus-prototype.css) */
+@media (max-width:767px){.nxp-row .nxp-rot{font-size:12px}}
+/* A narrow Ranked Setups column (≈240px at 1366×768) stacked the filters four rows deep,
+   leaving one setup above the fold. Narrow board → the filters are one row that scrolls
+   sideways (the phone pattern, .qp-row), with a thin visible scrollbar for mouse users. */
+@media (min-width:768px){
+  .nxd-board{container-type:inline-size}
+  @container (max-width:420px){
+    .flowdash .nxd-board .nxd-controls.of-controls{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;padding-right:24px;
+      -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 24px),transparent)}
+    .flowdash .nxd-board .nxd-controls.of-controls>*{flex:none}
+    .flowdash .nxd-board .nxd-controls .nxd-search{width:120px}
+  }
+}
 .nxp-times{margin:6px 0 2px;font-size:12px;color:var(--text-dim,#8a93a6);font-variant-numeric:tabular-nums}
 .nxp-times strong{color:var(--text,#e8ecf3);font-weight:600}
 
@@ -3591,6 +3613,11 @@ html[data-mode=light] .landing :is(.lnav-status .dot,.lterminal-status .dot,.sec
   .landing.lp .lnav-inner .btn{padding:0 10px;font-size:13px}
   .landing.lp .lnav-theme{gap:0;padding:1px}
   .landing.lp .lnav-theme .qe-theme-opt{min-width:30px;min-height:30px}
+}
+/* footer: "Blog" / "About" were 29–39px wide and the founder link 15px tall on touch */
+@media (max-width:767px),(pointer:coarse){
+  .landing .lfooter-links a{display:inline-flex;align-items:center;justify-content:center;min-width:44px}
+  .landing .lfooter-bottom a{display:inline-flex;align-items:center;min-height:44px}
 }
 /* Recessed cells the mock washed with rgba(0,0,0,.2–.3): on the light ground
    that wash greys the cell and pulls its text under AA (crypto perf 2.9:1). */
