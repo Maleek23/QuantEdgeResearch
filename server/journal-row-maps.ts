@@ -5,6 +5,7 @@
 import type { JournalTrade } from '@shared/schema';
 import { isUnmeasuredExpiry } from '@shared/constants';
 import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
+import { captureRatio } from '@shared/exit-policy';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -24,6 +25,11 @@ export type JournalWireRow = Pick<JournalTrade,
    * graded it, not the bar that touched — "resolved at 11:40 ET (hit time unknown)".
    */
   exitTimeNote?: string | null;
+  /**
+   * Desk rows, closed: realized underlying move ÷ the best favourable underlying
+   * move while open (shared/exit-policy.ts captureRatio; docs/EXIT_RULE_REPLAY.md).
+   */
+  captureRatio?: number | null;
 };
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -69,6 +75,9 @@ export interface DeskIdea {
   genConvictionBand: string | null;
   /** The [exit-time:…] tag from outcomeNotes (bar_hit | deadline | live), when present. */
   exitTimeSource?: string | null;
+  /** Tracker's peak / trough of the UNDERLYING while the idea was open. */
+  highestPriceReached?: number | null;
+  lowestPriceReached?: number | null;
 }
 
 export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
@@ -124,6 +133,12 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     i.catalyst ? `catalyst: ${i.catalyst}` : null,
   ].filter(Boolean).join('\n');
   const rp = pnl == null ? null : r2(pnl);
+  // Capture on the underlying (options too: exitPrice is the underlying at exit).
+  const capRaw = resolved ? captureRatio({
+    direction: short ? 'short' : 'long', entry: i.entryPrice, exit: i.exitPrice,
+    high: i.highestPriceReached ?? null, low: i.lowestPriceReached ?? null,
+  }) : null;
+  const capture = capRaw == null ? null : r2(capRaw);
   return {
     row: {
       id: `desk:${i.id}`,
@@ -155,6 +170,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       importBatchId: null,
       broker: 'trade-desk',
       ...(exitTimeNote ? { exitTimeNote } : {}),
+      ...(capture != null ? { captureRatio: capture } : {}),
     },
   };
 }

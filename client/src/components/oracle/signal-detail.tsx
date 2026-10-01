@@ -23,6 +23,7 @@ import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Readout } from '@/components/templates/kit';
 import { sizingFor } from '@shared/sizing';
+import { manageSignal, type ExitPolicyPlan } from '@shared/exit-policy';
 import { LiveValue } from '@/components/viz';
 import { GapMagnets } from './gap-magnets';
 import { SignalTrajectory } from '@/components/hunt/cockpit/signal-trajectory';
@@ -596,16 +597,33 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
   const ladderQ = useQuery<{
     rungs: Array<{ rung: string; price: number; source: string; rMultiple: number; probTouch: number; structural: boolean }>;
     expectedRange: number; horizonDays: number; publishedTargetNote: string | null; note: string;
+    /** EXIT_POLICY manage schedule (null under the default published plan). */
+    exitPolicy?: ExitPolicyPlan | null;
   }>({
-    queryKey: [`/api/target-ladder/${pick.symbol}?direction=${pick.direction}&entry=${pick.entryPrice}&stop=${pick.stopLoss}&hp=${pick.holdingPeriod ?? ''}&target=${pick.targetPrice ?? ''}`],
+    queryKey: [`/api/target-ladder/${pick.symbol}?direction=${pick.direction}&entry=${pick.entryPrice}&stop=${pick.stopLoss}&hp=${pick.holdingPeriod ?? ''}&target=${pick.targetPrice ?? ''}&pub=${encodeURIComponent(pick.generatedAt ?? '')}&exp=${pick.expiryDate ? String(pick.expiryDate).slice(0, 10) : ''}`],
     enabled: !!(pick.entryPrice && pick.stopLoss) && (pick as any).levelBasis !== 'contract',
     staleTime: 5 * 60_000,
     retry: 0,
   });
   const lad = ladderQ.data;
   const hitIdx = lad ? lad.rungs.filter((r) => (pick.direction === 'long' ? live >= r.price : live <= r.price)).length : 0;
+  // Manage signal for the replay-validated exit policy (shared/exit-policy.ts),
+  // recomputed from the live underlying on every render; absent under the default.
+  const manage = lad?.exitPolicy ? manageSignal(lad.exitPolicy, {
+    direction: pick.direction, entry: pick.entryPrice, stop: pick.stopLoss, target: pick.targetPrice ?? null,
+    live: live || pick.currentPrice || null, nowMs: Date.now(),
+  }) : null;
+  const manageColor = manage?.state === 'time_exit' || manage?.state === 'stopped' ? 'var(--bear, #e5484d)'
+    : manage?.state === 'target' || manage?.state === 'kept' ? BULL : 'var(--foreground)';
   return (
     <Card title="Model exit plan" meta={lad ? `levels from structure · ±$${lad.expectedRange.toFixed(2)} range over ${lad.horizonDays}d` : undefined} className={className}>
+      {manage && (
+        <div className="border-b border-border/30 px-4 py-2.5" data-testid="exit-policy-manage">
+          <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">Manage · {lad?.exitPolicy?.label}</div>
+          <div className="mt-0.5 text-value font-mono font-bold" style={{ color: manageColor }}>{manage.headline}</div>
+          <div className="text-label font-mono text-muted-foreground">{manage.detail}</div>
+        </div>
+      )}
       {lad && lad.rungs.length > 0 ? (
         <div className="divide-y divide-border/30">
           {lad.rungs.map((r, i) => (
