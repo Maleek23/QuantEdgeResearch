@@ -136,5 +136,36 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   ok('row' in closed && closed.row.status === 'closed', 'resolved ideas are unaffected');
 }
 
+// ── #17/#18/#75 Fabricated numbers ───────────────────────────────────────────
+{
+  const { completeCandles, finitePoints } = await import('../client/src/lib/chart-sanitize');
+  const { integrityCheckValues, sampleTradeClass } = await import('../client/src/lib/integrity-checks');
+  const { performanceStartDate, clampToBaseline, isClampedToBaseline } = await import('../client/src/lib/performance-range');
+  const { OUTCOME_BASELINE_DATE } = await import('../shared/constants');
+
+  const bars = completeCandles([
+    { time: 1, open: 10, high: 11, low: 9, close: 10.5 },
+    { time: 2, open: null, high: 11, low: 9, close: 10 },
+    { time: 3, open: 10, high: undefined, low: 9, close: 10 },
+    null,
+    { time: null, open: 1, high: 1, low: 1, close: 1 },
+  ]);
+  ok(bars.length === 1 && bars[0].time === 1, 'bars with a missing price are dropped (no $100 candles)');
+  ok(!bars.some((b) => b.open === 100 || b.close === 100), 'no fabricated $100 values');
+  const bb = finitePoints([{ time: 1, upper: 12 }, { time: 2, upper: null }, { time: 3, upper: NaN }], 'upper');
+  ok(bb.length === 1 && bb[0].value === 12, 'band points with missing values are dropped');
+
+  ok(integrityCheckValues({ checkName: 'Win', status: 'pass', independent: 12, reported: 12 }) === '12 counted / 12 reported', 'reconciliation checks read independent/reported');
+  ok(integrityCheckValues({ checkName: 'n', status: 'warning', actual: 48, threshold: 100 }) === '48 / 100 needed', 'sample-size check reads actual/threshold');
+  ok(!/undefined/.test(integrityCheckValues({ checkName: 'x', status: 'fail' })), 'never prints "undefined / undefined"');
+  ok(sampleTradeClass({ countedAsWin: true }) === 'WIN' && sampleTradeClass({ countedAsLoss: true }) === 'LOSS' && sampleTradeClass({}) === 'EXCL', 'sample trades read countedAsWin/Loss');
+
+  const now = new Date('2026-10-01T15:00:00Z');
+  ok(performanceStartDate('3m', now) === OUTCOME_BASELINE_DATE, '"3 Months" is clamped to the outcome baseline');
+  ok(isClampedToBaseline('3m', now) && !isClampedToBaseline('7d', now), 'clamp is reported for the label');
+  ok(performanceStartDate('7d', now) === '2026-09-24', 'short windows unchanged');
+  ok(clampToBaseline('2026-07-01') === OUTCOME_BASELINE_DATE && clampToBaseline(null) === null, 'clamp helper');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);

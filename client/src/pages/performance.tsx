@@ -16,6 +16,8 @@ import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
+import { clampToBaseline, isClampedToBaseline, BASELINE_LABEL } from "@/lib/performance-range";
+import { integrityCheckValues, sampleTradeClass, type IntegrityCheckWire } from "@/lib/integrity-checks";
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -70,13 +72,7 @@ interface PerformanceStats {
   bySignalType: Array<{ signal: string; totalIdeas: number; wonIdeas: number; lostIdeas: number; winRate: number; avgPercentGain: number; }>;
 }
 
-interface DataIntegrityCheck {
-  checkName: string;
-  status: 'pass' | 'fail' | 'warning';
-  expected: number;
-  actual: number;
-  details?: string;
-}
+type DataIntegrityCheck = IntegrityCheckWire;
 
 // ============================================================
 // DATA INTEGRITY PANEL - SQL-backed verification
@@ -91,8 +87,8 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       outcomeStatus: string;
       percentGain: number | null;
       source: string;
-      isWin: boolean;
-      isRealLoss: boolean;
+      countedAsWin?: boolean;
+      countedAsLoss?: boolean;
     }>;
     methodology: {
       winDefinition: string;
@@ -173,7 +169,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                     <span>{check.checkName}</span>
                   </div>
                   <span className="font-mono text-muted-foreground">
-                    {check.actual} / {check.expected}
+                    {integrityCheckValues(check)}
                   </span>
                 </div>
               ))}
@@ -218,9 +214,9 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                         {trade.percentGain !== null ? `${safeToFixed(trade.percentGain, 1)}%` : '—'}
                       </td>
                       <td className="py-1.5 px-2 text-center">
-                        {trade.isWin ? (
+                        {sampleTradeClass(trade) === 'WIN' ? (
                           <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] text-[10px]">WIN</Badge>
-                        ) : trade.isRealLoss ? (
+                        ) : sampleTradeClass(trade) === 'LOSS' ? (
                           <Badge className="bg-red-500/20 text-[var(--trade-bearish)] text-[10px]">LOSS</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px]">EXCL</Badge>
@@ -282,6 +278,8 @@ export default function PerformancePage() {
       case '30d': startDate = format(subDays(now, 30), 'yyyy-MM-dd'); break;
       case '3m': startDate = format(subMonths(now, 3), 'yyyy-MM-dd'); break;
     }
+    // Never reach before the outcome-v2 baseline (pre-baseline outcomes are invalid).
+    startDate = clampToBaseline(startDate);
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (engineFilter !== 'all') params.append('source', engineFilter);
@@ -377,8 +375,8 @@ export default function PerformancePage() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="7d">7 Days</SelectItem>
               <SelectItem value="30d">30 Days</SelectItem>
-              <SelectItem value="3m">3 Months</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="3m">{isClampedToBaseline('3m') ? `3 Months (from ${BASELINE_LABEL})` : '3 Months'}</SelectItem>
+              <SelectItem value="all">{`Since ${BASELINE_LABEL} (v2)`}</SelectItem>
             </SelectContent>
           </Select>
 
