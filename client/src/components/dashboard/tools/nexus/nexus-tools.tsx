@@ -34,6 +34,7 @@ import {
   RANKS, SIDES, type DetailTab, type PatternHit, type Rank, type Side,
 } from './nexus-parts';
 import { TraderCallLine } from './trader-calls';
+import { TrackedRow } from './tracked-row';
 import { useTraderCalls } from '@/lib/trader-calls';
 import './nexus-tools.css';
 
@@ -199,6 +200,7 @@ export function NexusBoardTool() {
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   return (
     <div className="fd-fill nxd nxd-board">
+      <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); }} />
       <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
         <div className="of-seg" role="group" aria-label="Asset">

@@ -181,7 +181,10 @@ export async function runBullflowTapeScan(): Promise<number> {
   // 3-min cached in the service (~2 uncached calls/min across the day). The
   // same publish bars apply — favorites earn cards, they don't get them.
   const onLeaderboard = new Set(rows.map((r: any) => String(r.ticker).toUpperCase()));
-  for (const fav of FAVORITE_TICKERS) {
+  // NEXUS tracked symbols (source 'tracked') get the same per-symbol read.
+  const { getTrackedSymbols } = await import('./nexus-tracked');
+  const favorites = Array.from(new Set([...getTrackedSymbols(), ...FAVORITE_TICKERS]));
+  for (const fav of favorites) {
     if (onLeaderboard.has(fav)) continue;
     if (dayDecisions.get(fav)?.date === today) continue;
     try {

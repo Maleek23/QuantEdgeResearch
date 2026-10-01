@@ -442,6 +442,11 @@ export async function scanBullFlagPullbacks(): Promise<BullFlagSetup[]> {
     });
     universe = Array.from(new Set([...BULL_FLAG_UNIVERSE, ...liquid, ...buckets].map((s) => s.toUpperCase())));
   } catch { /* universe cold — the static list still scans */ }
+  try {
+    // NEXUS tracked symbols (source 'tracked') — scanned even when outside the liquidity cut.
+    const { getTrackedSymbols } = await import('./nexus-tracked');
+    universe = Array.from(new Set([...universe, ...getTrackedSymbols()]));
+  } catch { /* tracked list unreadable — scan without it */ }
   logger.info(`[BULL-FLAG] 🚩 Scanning ${universe.length} tickers (${universe.length - BULL_FLAG_UNIVERSE.length} beyond the hand-list) for bull flag pullbacks...`);
 
   const results: BullFlagSetup[] = [];

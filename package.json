@@ -36,6 +36,7 @@
     "test:sector-rotation-ideas": "tsx scripts/test-sector-rotation-ideas.ts",
     "test:holy-grail": "tsx scripts/test-holy-grail.ts",
     "test:wall-touch": "tsx scripts/test-wall-touch.ts",
+    "test:nexus-tracked": "tsx scripts/test-nexus-tracked.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
     "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",
     "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",

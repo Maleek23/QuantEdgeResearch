@@ -27,6 +27,8 @@
 import { storage } from "./storage";
 import { getAllApprovedSymbols } from "@shared/approved-tickers";
 import { logger } from "./logger";
+import { getTrackedSymbols } from "./nexus-tracked";
+import { withTracked } from "@shared/nexus-tracked";
 
 // Cache the merged universe for 5 minutes to avoid DB hits on every scan cycle
 let _cachedUniverse: { symbols: string[]; watchlistSymbols: Set<string>; expiresAt: number } | null = null;
@@ -44,7 +46,7 @@ export async function getScannerUniverse(): Promise<{
 }> {
   const now = Date.now();
   if (_cachedUniverse && _cachedUniverse.expiresAt > now) {
-    return _cachedUniverse;
+    return withTrackedFirst(_cachedUniverse);
   }
 
   // Fetch all watchlist items (across all users)
@@ -115,7 +117,16 @@ export async function getScannerUniverse(): Promise<{
   );
 
   _cachedUniverse = { symbols, watchlistSymbols, expiresAt: now + CACHE_TTL_MS };
-  return _cachedUniverse;
+  return withTrackedFirst(_cachedUniverse);
+}
+
+/**
+ * NEXUS tracked symbols (server/nexus-tracked.ts, source 'tracked') go ahead of
+ * everything — read per call (mtime-cached), not frozen into the 5-min cache.
+ */
+function withTrackedFirst(u: { symbols: string[]; watchlistSymbols: Set<string> }) {
+  const tracked = getTrackedSymbols();
+  return tracked.length ? { symbols: withTracked(tracked, u.symbols), watchlistSymbols: u.watchlistSymbols } : u;
 }
 
 /** Force-refresh the cached universe (call after watchlist changes). */

@@ -301,7 +301,8 @@ export async function computeWallMap(phase: string, nowMs = Date.now(), opts: { 
   mapInflight = (async () => {
     const dateKey = etDateKey(nowMs);
     const startedAt = new Date().toISOString();
-    const universe = opts.universe ?? buildWallUniverse({ board: await boardSymbols(), watch: parseWatch(process.env.ZERO_DTE_WATCH), cap: WALL_LIVE_CFG.UNIVERSE_CAP, boardTop: WALL_LIVE_CFG.BOARD_TOP });
+    // NEXUS tracked symbols (source 'tracked') lead the board slice so the cap never drops them.
+    const universe = opts.universe ?? buildWallUniverse({ board: [...(await import('./nexus-tracked')).getTrackedSymbols(), ...await boardSymbols()], watch: parseWatch(process.env.ZERO_DTE_WATCH), cap: WALL_LIVE_CFG.UNIVERSE_CAP, boardTop: WALL_LIVE_CFG.BOARD_TOP });
     const prev = loadMap(dateKey);
     const m: WallMap = prev ? { ...prev, entries: { ...prev.entries }, levels: { ...prev.levels }, passes: [...prev.passes], universe: Array.from(new Set([...prev.universe, ...universe])) }
       : { dateKey, passes: [], entries: {}, levels: {}, spxPerSpy: null, universe, label: 'measuring' };

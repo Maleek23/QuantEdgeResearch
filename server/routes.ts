@@ -32576,6 +32576,33 @@ Use this checklist before entering any trade:
     }
   });
 
+  /**
+   * NEXUS tracked symbols (server/nexus-tracked.ts): a time-boxed list the idea
+   * producers scan first (source 'tracked'); publish gates are unchanged.
+   * GET is member data (the NEXUS board shows the row); POST / DELETE are
+   * operator-only via server/route-guards.ts.
+   */
+  app.get("/api/nexus/tracked", requireBetaAccess, async (_req, res) => {
+    const { listTracked } = await import('./nexus-tracked');
+    res.json({ tracked: listTracked(), asOf: new Date().toISOString() });
+  });
+  app.post("/api/nexus/tracked", async (req, res) => {
+    const { addTracked, TrackedInputError } = await import('./nexus-tracked');
+    try {
+      res.json({ tracked: addTracked(req.body ?? {}), asOf: new Date().toISOString() });
+    } catch (e: any) {
+      res.status(e instanceof TrackedInputError ? 400 : 500).json({ error: e?.message ?? 'tracked update failed' });
+    }
+  });
+  app.delete("/api/nexus/tracked/:symbol", async (req, res) => {
+    const { removeTracked, TrackedInputError } = await import('./nexus-tracked');
+    try {
+      res.json({ tracked: removeTracked(req.params.symbol), asOf: new Date().toISOString() });
+    } catch (e: any) {
+      res.status(e instanceof TrackedInputError ? 400 : 500).json({ error: e?.message ?? 'tracked update failed' });
+    }
+  });
+
   app.get("/api/journal/marks", requireBetaAccess, async (req, res) => {
     try {
       const { journalActor, resolveJournal, JournalAccessError } = await import('./journal-sources');
