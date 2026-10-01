@@ -2843,6 +2843,19 @@ button:not([disabled]):active,
   :is(button,[role=button],[role=tab],[role=menuitem],summary):not(.gx-cell):not([role=switch]):not([data-page=gex] *){min-width:44px!important}
   a[href]:not(p a):not(.sr-only):not([data-page=gex] *){min-height:44px!important}
 }
+/* Bare ticker links (SPY, MU, GEV…) were as narrow as the word — 18–35px — and inline
+   in tables, so the min-height above never applied. On touch they are 44×44 boxes. */
+@media (max-width:767px),(pointer:coarse){
+  :is(.sx-sym,.zd-sym-link,.st-link.st-mono,a.lx-tag){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  /* bordered chips keep their compact look; the 44px hit area is an invisible ::after */
+  :is(.si-sym,.ig-strip a){position:relative}
+  :is(.si-sym,.ig-strip a)::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+}
+/* Mouse: the same links were 15–22px tall — below WCAG 2.5.8's 24px target minimum. */
+@media (min-width:768px) and (pointer:fine){
+  :is(.sx-sym,.zd-sym-link,.ig-strip a,.si-sym,a.lx-tag){display:inline-flex;align-items:center;min-height:24px}
+  :is(.st-link,.cxi-main){min-height:24px}
+}
 /* Switches keep their 36×20 track (a 44×44 floor turned the pill into a circle with
    the knob outside it); the 44px hit area is an invisible ::after around the track. */
 @media (max-width:767px),(pointer:coarse){

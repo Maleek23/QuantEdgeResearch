@@ -46,7 +46,7 @@ export default function ForgotPassword() {
             <div className="mx-auto w-12 h-12 rounded-full bg-[var(--trade-bullish)]/10 flex items-center justify-center mb-4">
               <CheckCircle className="h-6 w-6 text-[var(--trade-bullish)]" />
             </div>
-            <CardTitle>Check Your Email</CardTitle>
+            <CardTitle role="heading" aria-level={1}>Check Your Email</CardTitle>
             <CardDescription>
               If an account exists with that email address, you will receive a password reset link shortly.
             </CardDescription>
@@ -79,7 +79,7 @@ export default function ForgotPassword() {
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Mail className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Forgot Password?</CardTitle>
+          <CardTitle role="heading" aria-level={1}>Forgot Password?</CardTitle>
           <CardDescription>
             Enter your email address and we'll send you a link to reset your password.
           </CardDescription>
@@ -116,7 +116,7 @@ export default function ForgotPassword() {
             </Button>
           </form>
           <div className="mt-4 text-center">
-            <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link href="/login" className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-3 w-3 inline mr-1" />
               Back to Login
             </Link>

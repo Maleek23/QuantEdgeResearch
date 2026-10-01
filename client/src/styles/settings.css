@@ -117,6 +117,7 @@
 .st-watch-row { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 4px; border-radius: 4px; }
 .st-watch-row:hover { background: color-mix(in srgb, var(--text, #e6e9ef) 5%, transparent); }
 .st-watch-n { width: 22px; text-align: right; color: var(--text-mute, #8a93a6); font-size: var(--fs-10, 10px); }
+.st-watch-sym { flex: 1; min-width: 44px; align-self: stretch; } /* the row is the ticker's tap target (was 22–29px wide) */
 .st-watch-actions { margin-left: auto; display: inline-flex; gap: 2px; }
 .st-watch-actions .st-linkbtn { display: inline-grid; place-items: center; min-width: 26px; min-height: 26px; }
 .st-watch-actions .st-linkbtn:disabled { opacity: .35; cursor: default; }

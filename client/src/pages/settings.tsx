@@ -571,11 +571,11 @@ function WatchlistManager() {
       {rows.map((r, i) => (
         <li key={r.id} className="st-watch-row">
           <span className="st-mono st-watch-n" aria-hidden>{i + 1}</span>
-          <Link href={`/r/${encodeURIComponent(r.symbol)}`} className="st-link st-mono">{r.symbol.toUpperCase()}</Link>
+          <Link href={`/r/${encodeURIComponent(r.symbol)}`} className="st-link st-mono st-watch-sym">{r.symbol.toUpperCase()}</Link>
           <span className="st-watch-actions">
-            <button type="button" className="st-linkbtn" disabled={i === 0 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} up`} onClick={() => void reorderWatch(i, i - 1)}><ArrowUp size={12} aria-hidden /></button>
-            <button type="button" className="st-linkbtn" disabled={i === rows.length - 1 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} down`} onClick={() => void reorderWatch(i, i + 1)}><ArrowDown size={12} aria-hidden /></button>
-            <button type="button" className="st-linkbtn" disabled={r.id.startsWith('tmp-')} aria-label={`Remove ${r.symbol} from watchlist`} onClick={() => removeWatch(r.symbol)}><X size={12} aria-hidden /></button>
+            <button type="button" className="st-linkbtn" disabled={i === 0 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} up`} title={`Move ${r.symbol} up`} onClick={() => void reorderWatch(i, i - 1)}><ArrowUp size={12} aria-hidden /></button>
+            <button type="button" className="st-linkbtn" disabled={i === rows.length - 1 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} down`} title={`Move ${r.symbol} down`} onClick={() => void reorderWatch(i, i + 1)}><ArrowDown size={12} aria-hidden /></button>
+            <button type="button" className="st-linkbtn" disabled={r.id.startsWith('tmp-')} aria-label={`Remove ${r.symbol} from watchlist`} title={`Remove ${r.symbol} from watchlist`} onClick={() => removeWatch(r.symbol)}><X size={12} aria-hidden /></button>
           </span>
         </li>
       ))}
