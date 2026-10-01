@@ -354,9 +354,12 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   // currentPrice, which is only refreshed when the board rebuilds. When neither
   // exists the ladder says the quote is unavailable instead of showing entry as live.
   const lq = quotesQ.data?.[selected.symbol.toUpperCase()];
-  const liveQuote = lq?.price && lq.price > 0 ? lq.price : (selected.currentPrice && selected.currentPrice > 0 ? selected.currentPrice : 0);
+  // The board's currentPrice is only a live read when it differs from the entry —
+  // a copy of the entry (stale board) is never shown as the market.
+  const boardPx = selected.currentPrice && selected.currentPrice > 0 && Math.abs(selected.currentPrice - selected.entryPrice) > 1e-9 ? selected.currentPrice : 0;
+  const liveQuote = lq?.price && lq.price > 0 ? lq.price : boardPx;
   const live = liveQuote || selected.entryPrice;
-  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : selected.currentPrice ? 'board price' : null;
+  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
   const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
   const progress = selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))

@@ -250,7 +250,7 @@ export function PriceLadder({ pick, live, className, liveStamp }: { pick: Convic
         })}
       </div>
 
-      <TradeVector pick={pick} live={live || pick.entryPrice} />
+      {live ? <TradeVector pick={pick} live={live} /> : <div className="border-t border-border/30 px-4 py-3 font-mono text-[10px] text-muted-foreground">Live trade vector — waiting for a live quote (entry is not the market)</div>}
 
       {/* Market structure, kept below the plan levels rather than mixed into them.
           See gap-magnets.tsx for why they are not rungs. */}
