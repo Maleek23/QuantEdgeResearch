@@ -40,7 +40,20 @@ import {
   authLimiter,
   passwordResetLimiter,
   trackingLimiter,
+  signupLimiters,
+  waitlistLimiters,
 } from "./rate-limiter";
+import {
+  safeSecretEqual,
+  establishSession,
+  GENERIC_INVITE_ERROR,
+  normalizeInviteCode,
+  normalizeEmail,
+  optionalName,
+  parseWaitlistInput,
+  signupInviteAttempts,
+} from "./auth-hardening";
+import { validatePassword } from "@shared/password-policy";
 import { RELEASE_LABEL } from "@shared/release";
 // LAZY-LOADED: auto-idea-generator — imported via await import() in handlers
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
@@ -735,110 +748,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication Routes - Email/Password Auth
   
   // Signup - Create new user account
-  app.post("/api/auth/signup", async (req: Request, res: Response) => {
+  // signupLimiters: 5 per 15 min + 20 per day per IP (it had no limiter, so invite
+  // codes could be guessed and accounts mass-created). Invite codes are also counted
+  // per code (signupInviteAttempts) and every code failure gets one generic answer.
+  app.post("/api/auth/signup", ...signupLimiters, async (req: Request, res: Response) => {
     try {
-      const { email, password, firstName, lastName, inviteCode } = req.body;
-      
+      const { email, password, firstName, lastName, inviteCode } = req.body ?? {};
+
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
       }
-      
+
       // Normalize email to lowercase to prevent duplicate accounts
-      const emailLower = email.toLowerCase().trim();
-      
-      if (password.length < 6) {
-        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      const emailLower = normalizeEmail(email);
+      if (!emailLower) {
+        return res.status(400).json({ error: "Enter a valid email address" });
       }
-      
+
+      // One shared rule for every path that sets a password (shared/password-policy.ts).
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+      }
+
+      const first = optionalName(firstName);
+      const last = optionalName(lastName);
+      if (first === null || last === null) {
+        return res.status(400).json({ error: "Names must be text of at most 100 characters" });
+      }
+
       // Validate invite code for invite-only beta.
       // IMPORTANT: validate (non-destructively) BEFORE creating the user, and only
       // redeem the invite AFTER the user is successfully created. Otherwise a failed
       // signup (e.g. email already exists) would permanently burn a valid invite.
-      const adminCode = process.env.ADMIN_ACCESS_CODE;
-      let candidateInvite: Awaited<ReturnType<typeof storage.getBetaInviteByToken>> = null;
-      let usingAdminCode = false;
-
+      // Invite codes come only from the beta_invites table — the ADMIN access code
+      // is NOT an invite code (it used to be accepted here, compared with ===).
       if (!inviteCode) {
         return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
       }
 
       // Normalize invite code to lowercase for case-insensitive matching
-      const normalizedInviteCode = inviteCode.trim().toLowerCase();
-      candidateInvite = await storage.getBetaInviteByToken(normalizedInviteCode);
+      const normalizedInviteCode = normalizeInviteCode(inviteCode);
+      if (!normalizedInviteCode || !signupInviteAttempts.attempt(normalizedInviteCode)) {
+        logger.warn('Signup rejected: malformed or over-budget invite code', { ip: req.ip });
+        return res.status(403).json({ error: GENERIC_INVITE_ERROR });
+      }
+      const candidateInvite = await storage.getBetaInviteByToken(normalizedInviteCode);
 
-      if (candidateInvite) {
-        // Validate the invite is still usable (mirror the checks in redeemBetaInvite)
-        if (candidateInvite.status === 'redeemed') {
-          return res.status(403).json({ error: "This invite code has already been used." });
-        }
-        if (candidateInvite.status === 'revoked') {
-          return res.status(403).json({ error: "This invite code has been revoked." });
-        }
-        if (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date()) {
-          return res.status(403).json({ error: "This invite code has expired." });
-        }
-      } else if (adminCode && inviteCode === adminCode) {
-        usingAdminCode = true;
-      } else {
-        return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
+      // Unknown, used, revoked and expired codes all get the same answer, so the
+      // response never tells a guesser that a code exists.
+      if (
+        !candidateInvite ||
+        candidateInvite.status === 'redeemed' ||
+        candidateInvite.status === 'revoked' ||
+        candidateInvite.status === 'expired' ||
+        (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date())
+      ) {
+        logger.warn('Signup rejected: invite code not usable', { ip: req.ip, found: !!candidateInvite });
+        return res.status(403).json({ error: GENERIC_INVITE_ERROR });
       }
 
-      const user = await createUser(emailLower, password, firstName, lastName);
+      const user = await createUser(emailLower, password, first, last);
 
       if (!user) {
         // User creation failed — do NOT redeem the invite, so it stays usable.
         return res.status(409).json({ error: "An account with this email already exists" });
       }
 
-      // User created — now atomically redeem the invite (if a real token was used).
-      let validatedInvite = null;
-      if (candidateInvite) {
-        validatedInvite = await storage.redeemBetaInvite(normalizedInviteCode);
-        // Edge case: invite was redeemed by a concurrent request between validation and now.
-        // The account already exists; grant beta via the admin path is not appropriate here,
-        // but we still let the user in with beta access tied to the (now-redeemed) invite.
-        if (!validatedInvite) {
-          validatedInvite = candidateInvite;
-        }
-      }
+      // User created — now atomically redeem the invite.
+      // Edge case: invite was redeemed by a concurrent request between validation and now.
+      // The account already exists, so we still let the user in with beta access tied
+      // to the (now-redeemed) invite.
+      const validatedInvite = (await storage.redeemBetaInvite(normalizedInviteCode)) || candidateInvite;
 
       // Determine subscription tier (use invite's tier override if available)
-      const tierOverride = validatedInvite?.tierOverride || 'free';
+      const tierOverride = validatedInvite.tierOverride || 'free';
 
       // Update user with beta access and tier if invite had a tier override
-      const hasBetaAccess = !!validatedInvite || usingAdminCode;
-      await storage.updateUser(user.id, { 
+      const hasBetaAccess = true;
+      await storage.updateUser(user.id, {
         hasBetaAccess,
-        betaInviteId: validatedInvite?.id || null,
-        ...(validatedInvite?.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
+        betaInviteId: validatedInvite.id || null,
+        ...(validatedInvite.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
       });
-      
+
       // Update waitlist entry status if exists
-      const waitlistEntry = await storage.getWaitlistEntry(email.toLowerCase());
+      const waitlistEntry = await storage.getWaitlistEntry(emailLower);
       if (waitlistEntry) {
         await storage.updateWaitlistStatus(waitlistEntry.id, 'joined');
       }
-      
-      // Store userId in session
-      (req.session as any).userId = user.id;
 
-      // Explicitly persist the session before responding so the immediate
-      // follow-up /api/auth/me (triggered by the client on success) sees it.
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => (err ? reject(err) : resolve()));
-      });
+      // Sign in on a NEW session id (session fixation) and persist it before
+      // responding so the immediate follow-up /api/auth/me sees it.
+      await establishSession(req, user.id);
 
       // Fetch the updated user to return with hasBetaAccess properly set
       const updatedUser = await storage.getUser(user.id);
-      
-      logger.info('User signed up via invite', { 
-        userId: user.id, 
-        email,
+
+      logger.info('User signed up via invite', {
+        userId: user.id,
+        email: emailLower,
         hasBetaAccess,
-        inviteToken: validatedInvite ? 'token' : 'admin_code',
-        tierOverride 
+        tierOverride
       });
-      res.json({ user: updatedUser });
+      res.json({ user: updatedUser ? sanitizeUser(updatedUser) : user });
     } catch (error) {
       logError(error as Error, { context: 'auth/signup' });
       res.status(500).json({ error: "Failed to create account" });
@@ -848,34 +861,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login - Authenticate existing user (with brute force protection)
   app.post("/api/auth/login", authLimiter, async (req: Request, res: Response) => {
     try {
-      const { email, password, rememberMe } = req.body;
-      
-      if (!email || !password) {
+      const { email, password, rememberMe } = req.body ?? {};
+
+      if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
         return res.status(400).json({ error: "Email and password are required" });
       }
-      
+
       // Normalize email to lowercase for consistent lookup
       const emailLower = email.toLowerCase().trim();
-      
-      const user = await authenticateUser(emailLower, password);
-      
+
+      // No length minimum here (older accounts may have 6-character passwords);
+      // the max only bounds bcrypt work.
+      const user = password.length <= 1024 ? await authenticateUser(emailLower, password) : null;
+
       if (!user) {
         return res.status(401).json({ error: "Invalid email or password" });
       }
-      
-      // Store userId in session
-      (req.session as any).userId = user.id;
 
-      // Extend session to 30 days if "Remember Me" is checked
-      if (rememberMe) {
-        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
-      }
-
-      // Explicitly persist the session before responding so the immediate
-      // follow-up /api/auth/me (triggered by the client on success) sees it.
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => (err ? reject(err) : resolve()));
-      });
+      // Sign in on a NEW session id (session fixation); extend to 30 days if
+      // "Remember Me" is checked; persisted before responding.
+      await establishSession(req, user.id, rememberMe ? { maxAgeMs: 30 * 24 * 60 * 60 * 1000 } : {});
 
       // Track login for analytics
       const userAgent = req.headers['user-agent'] || '';
@@ -889,7 +894,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.createLoginRecord({
         userId: user.id,
-        ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || undefined,
+        // req.ip honours 'trust proxy'; the leftmost X-Forwarded-For is client-controlled.
+        ipAddress: req.ip || undefined,
         userAgent,
         browser,
         device: isTablet ? 'tablet' : (isMobile ? 'mobile' : 'desktop'),
@@ -965,14 +971,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Password Reset - Reset password with token (no rate limit - token uniqueness prevents abuse)
   app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
     try {
-      const { token, password } = req.body;
-      
-      if (!token || !password) {
+      const { token, password } = req.body ?? {};
+
+      if (!token || !password || typeof token !== 'string' || token.length > 256) {
         return res.status(400).json({ error: "Token and new password are required" });
       }
       
-      if (password.length < 6) {
-        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
       }
       
       // Find and validate the token
@@ -1005,36 +1012,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== BETA WAITLIST ==========
   // Join waitlist - Public endpoint, notifies Discord
-  app.post("/api/waitlist/join", async (req: Request, res: Response) => {
+  // waitlistLimiters: 5 per 15 min + 20 per day per IP — each new email posts to
+  // the operator's Discord webhook, and the endpoint had no limit at all.
+  app.post("/api/waitlist/join", ...waitlistLimiters, async (req: Request, res: Response) => {
     try {
-      const { email, source, referralCode } = req.body;
-      
-      if (!email || typeof email !== 'string') {
-        return res.status(400).json({ error: "Email is required" });
+      // Email ≤ 254 chars, source [a-z0-9_-]{1,32}, referral [a-z0-9_-]{1,64}.
+      const parsed = parseWaitlistInput(req.body);
+      if (!parsed.ok) {
+        return res.status(400).json({ error: parsed.error });
       }
-      
-      const emailLower = email.toLowerCase().trim();
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(emailLower)) {
-        return res.status(400).json({ error: "Invalid email format" });
-      }
-      
-      // Check if already on waitlist
+      const { email: emailLower, source, referralCode } = parsed.value;
+      const alreadyOnList = () => res.status(200).json({
+        success: true,
+        message: "You're already on the waitlist!",
+        alreadyExists: true,
+      });
+
+      // Dedupe by (normalised) email
       const existing = await storage.getWaitlistEntry(emailLower);
       if (existing) {
-        return res.status(200).json({ 
-          success: true, 
-          message: "You're already on the waitlist!",
-          alreadyExists: true 
-        });
+        return alreadyOnList();
       }
-      
-      // Add to waitlist
-      const entry = await storage.createWaitlistEntry({
-        email: emailLower,
-        source: source || 'landing',
-        referralCode: referralCode || null,
-      });
+
+      // Add to waitlist. The email column is UNIQUE, so a concurrent duplicate
+      // lands here as a unique violation: answer it as a duplicate, not a 500.
+      let entry;
+      try {
+        entry = await storage.createWaitlistEntry({
+          email: emailLower,
+          source,
+          referralCode,
+        });
+      } catch (insertError) {
+        if ((insertError as any)?.code === '23505') return alreadyOnList();
+        throw insertError;
+      }
       
       // Discord notification — dedicated operator webhook only, email redacted to
       // its domain by default (server/privacy-redact.ts; docs/PRIVACY_IMPACT_ASSESSMENT.md).
@@ -1051,7 +1063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 color: 0x06B6D4,
                 fields: [
                   { name: "Email", value: waitlistEmailForDiscord(emailLower, detail), inline: true },
-                  { name: "Source", value: source || 'landing', inline: true },
+                  { name: "Source", value: source, inline: true },
                   { name: "Referral", value: referralCode || 'None', inline: true },
                 ],
                 timestamp: new Date().toISOString(),
@@ -1136,25 +1148,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const invite = await storage.redeemBetaInvite(sanitizedToken);
       
       if (!invite) {
-        // Check admin access code as fallback (must be set via env var, no default)
-        const adminCode = process.env.ADMIN_ACCESS_CODE;
-        if (!adminCode || sanitizedToken !== adminCode) {
-          logger.warn('Failed invite code redemption attempt', { userId, email: user.email });
-          return res.status(400).json({ error: "Invalid or expired invite code" });
-        }
-        
-        // Admin code grants beta access + pro tier
-        await storage.updateUser(userId, { hasBetaAccess: true, subscriptionTier: 'pro' });
-        logger.info('User redeemed beta access via admin code', { userId, email: user.email });
-        
-        // Fetch updated user to return
-        const updatedUser = await storage.getUser(userId);
-        
-        return res.json({ 
-          success: true, 
-          message: "Beta access granted!",
-          user: updatedUser
-        });
+        // Invite codes come only from the beta_invites table. The ADMIN access code
+        // used to be accepted here as a fallback (plain ===) granting beta + pro.
+        logger.warn('Failed invite code redemption attempt', { userId, email: user.email });
+        return res.status(400).json({ error: "Invalid or expired invite code" });
       }
       
       // Update user with beta access + pro tier (or invite's tier override)
@@ -1178,7 +1175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         message: "Beta access granted!",
         tierUpgrade: invite.tierOverride || null,
-        user: updatedUserWithInvite
+        user: updatedUserWithInvite ? sanitizeUser(updatedUserWithInvite) : null
       });
     } catch (error) {
       logError(error as Error, { context: 'beta/redeem' });
@@ -1300,8 +1297,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "First name and last name are required" });
       }
       
-      if (!password || password.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
       }
       
       if (!tradingExperienceLevel || !investmentGoals || !riskTolerance) {
@@ -1318,8 +1316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         // User exists, update them with beta access instead of creating new
-        const bcrypt = await import('bcrypt');
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await hashPassword(password);
         
         await storage.updateUser(existingUser.id, {
           passwordHash,
@@ -1345,9 +1342,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateWaitlistStatus(waitlistEntry.id, 'joined', betaVerified.inviteId);
         }
         
-        // Log the user in
-        (req.session as any).userId = existingUser.id;
-        delete (req.session as any).betaVerified;
+        // Log the user in on a NEW session id (session fixation). The fresh session
+        // does not carry betaVerified, so the verification is consumed.
+        await establishSession(req, existingUser.id);
         
         const updatedUser = await storage.getUser(existingUser.id);
         
@@ -1365,8 +1362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create new user with beta access
-      const bcrypt = await import('bcrypt');
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await hashPassword(password);
       
       const newUser = await storage.upsertUser({
         email,
@@ -1394,9 +1390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateWaitlistStatus(waitlistEntry.id, 'joined', betaVerified.inviteId);
       }
       
-      // Log the new user in
-      (req.session as any).userId = newUser.id;
-      delete (req.session as any).betaVerified;
+      // Log the new user in on a NEW session id (session fixation); drops betaVerified.
+      await establishSession(req, newUser.id);
       
       logger.info('New user completed beta onboarding', { 
         userId: newUser.id, 
@@ -1457,7 +1452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // brute-force budget as the password login (it had none — CSRF-exempt too).
   app.post("/api/auth/dev-login", authLimiter, async (req: Request, res: Response) => {
     try {
-      const accessCode = req.body.accessCode;
+      const accessCode = req.body?.accessCode;
       const adminCode = process.env.ADMIN_ACCESS_CODE;
 
       logger.info('[DEV-LOGIN] Attempting login', { accessCode: accessCode ? '***' : 'missing' });
@@ -1467,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: "Admin login is not configured" });
       }
 
-      if (accessCode !== adminCode) {
+      if (!safeSecretEqual(accessCode, adminCode)) { // constant-time
         logger.warn('[DEV-LOGIN] Invalid access code');
         return res.status(401).json({ error: "Invalid access code" });
       }
@@ -1512,20 +1507,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.info('[DEV-LOGIN] Admin user logged in via dev access', { userId: user.id, email: user.email });
 
-      // Store userId in session
-      (req.session as any).userId = user.id;
-
-      // Save session explicitly
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            logger.error('[DEV-LOGIN] Session save failed', { error: err.message });
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      });
+      // Sign in on a NEW session id (session fixation) and save before responding.
+      await establishSession(req, user.id);
 
       logger.info('[DEV-LOGIN] Session saved successfully', { userId: user.id });
       res.json({ user: sanitizeUser(user) });
@@ -1537,7 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: err.name
       });
       logError(err, { context: 'auth/dev-login' });
-      res.status(500).json({ error: "Failed to log in", details: err.message });
+      res.status(500).json({ error: "Failed to log in" }); // no internal error text to the client
     }
   });
 
@@ -1940,7 +1923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.error('CRITICAL: ADMIN_ACCESS_CODE environment variable not set');
         return res.status(503).json({ error: 'Admin login is not configured' });
       }
-      if (req.body.code === adminCode) {
+      if (safeSecretEqual(req.body?.code, adminCode)) { // constant-time
         logger.info('Admin access code verified', { ip: req.ip });
         res.json({ success: true });
       } else {
@@ -1975,7 +1958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.error('CRITICAL: ADMIN_PASSWORD environment variable not set');
         return res.status(500).json({ error: 'Server configuration error' });
       }
-      if (req.body.password === adminPassword) {
+      if (safeSecretEqual(req.body?.password, adminPassword)) { // constant-time
         // Clear failed attempts on successful login
         recordSuccessfulLogin(clientIp);
         

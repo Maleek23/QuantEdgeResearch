@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_TOO_SHORT_MESSAGE, PASSWORD_TOO_LONG_MESSAGE, PASSWORD_RULE_TEXT } from "@shared/password-policy";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -30,7 +31,7 @@ const onboardingSchema = z.object({
   investmentGoals: z.enum(["income", "growth", "speculation", "hedging"]),
   riskTolerance: z.enum(["conservative", "moderate", "aggressive", "very_aggressive"]),
   referralSource: z.string().optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE).max(PASSWORD_MAX_LENGTH, PASSWORD_TOO_LONG_MESSAGE),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -491,7 +492,7 @@ export default function JoinBeta() {
                           {...onboardingForm.register("password")}
                         />
                       </div>
-                      <p id="jb-pw-rule" className="text-neutral-500 text-xs mt-1">At least 8 characters.</p>
+                      <p id="jb-pw-rule" className="text-neutral-500 text-xs mt-1">{PASSWORD_RULE_TEXT}</p>
                       {onboardingForm.formState.errors.password && (
                         <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
                       )}

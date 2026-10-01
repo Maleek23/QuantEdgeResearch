@@ -29,6 +29,7 @@
     "test:zero-dte-sniper": "tsx scripts/test-zero-dte-sniper.ts",
     "test:spx-fast-moves": "tsx scripts/test-spx-fast-moves.ts",
     "test:roles": "tsx scripts/test-roles.ts",
+    "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",
     "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",

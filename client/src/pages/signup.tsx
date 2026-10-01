@@ -6,8 +6,7 @@
  *   • I have an invite code → POST /api/auth/signup (unchanged contract:
  *     inviteCode, email, password, firstName?, lastName?). Code prefilled from
  *     ?code= / ?invite=. Password rule shown up front and checked live — the
- *     rule is the server's (≥ 6 characters, server/routes.ts); this page does
- *     not change it.
+ *     rule is shared/password-policy.ts, the same constant the server enforces.
  *   • Join the waitlist → POST /api/waitlist/join (email). Before this, "Don't
  *     have a code? Join the waitlist" linked back to the landing, which had no
  *     waitlist form — a dead loop.
@@ -33,16 +32,17 @@ import NextSteps from '@/components/landing/next-steps';
 import { DISCORD_INVITE_URL } from '@/lib/public-config';
 import { ThemePicker } from '@/components/landing/theme-picker';
 import { useTheme } from '@/components/theme-provider';
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '@shared/password-policy';
 
-/** The server's rule (server/routes.ts /api/auth/signup) — shown, not changed. */
-const MIN_PASSWORD = 6;
+/** The server's rule — one shared constant (shared/password-policy.ts). */
+const MIN_PASSWORD = PASSWORD_MIN_LENGTH;
 
 const signupSchema = z.object({
   inviteCode: z.string().trim().min(1, 'Enter the invite code from your email.'),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   email: z.string().trim().email('Enter a valid email address, like you@example.com.'),
-  password: z.string().min(MIN_PASSWORD, `Use at least ${MIN_PASSWORD} characters.`),
+  password: z.string().min(MIN_PASSWORD, `Use at least ${MIN_PASSWORD} characters.`).max(PASSWORD_MAX_LENGTH, `Use at most ${PASSWORD_MAX_LENGTH} characters.`),
   confirmPassword: z.string().min(1, 'Type the password again to confirm it.'),
 }).refine((d) => d.password === d.confirmPassword, {
   message: 'The two passwords don’t match.',
@@ -56,6 +56,7 @@ type WaitlistData = z.infer<typeof waitlistSchema>;
 /** Server messages → what to do next. Unknown messages pass through (reasonOf). */
 function signupError(err: unknown): string {
   const r = reasonOf(err);
+  if (/too many/i.test(r)) return 'Too many sign-up attempts from this network. Wait 15 minutes and try again.';
   if (/already exists/i.test(r)) return 'An account with this email already exists. Sign in instead, or reset your password from the sign-in page.';
   if (/already been used/i.test(r)) return 'This invite code has already been used. If it was you, sign in; otherwise ask for a new code.';
   if (/expired|revoked|invalid/i.test(r)) return `${r.replace(/\.$/, '')}. Check the code in your invite email — it isn’t case-sensitive — or join the waitlist for a new one.`;
