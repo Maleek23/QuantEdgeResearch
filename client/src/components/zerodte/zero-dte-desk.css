@@ -128,3 +128,5 @@
   .zi-drawer{grid-template-columns:1fr}
   .zi-age{margin-left:0}
 }
+.zi-spx{color:#3b8cff;font-weight:700}
+.zi-spx-mirror{display:grid;gap:2px;margin:6px 0;padding:8px;border:1px solid rgba(59,140,255,.25);border-radius:6px;font:600 10px 'JetBrains Mono',monospace;color:var(--text-mute,#8a96a8)}.zi-spx-mirror.live{border-color:rgba(66,213,177,.3)}.zi-spx-mirror strong{color:var(--text-primary,#e6edf5);font-size:11.5px}.zi-spx-mirror em{font-style:normal;opacity:.8}

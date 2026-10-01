@@ -22,6 +22,8 @@ import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
 import { useZeroDteDesk, type DeskPayload } from './zero-dte-desk';
 import './zero-dte-desk.css';
+import type { SpxMirror } from '@shared/spx-mirror';
+import { SpxMirrorBlock, spxMirrorChipTitle } from '@/components/ideas/spx-mirror-block';
 
 const QEChart = lazy(() => import('@/components/charting/qe-chart').then((m) => ({ default: m.QEChart })));
 const ContractAnalyzer = lazy(() => import('@/components/contract-analyzer').then((m) => ({ default: m.ContractAnalyzer })));
@@ -43,6 +45,8 @@ export interface DeskIdea {
   loggedPremium: number | null; contractNote: string | null; vehicle: string;
   entryBy: string | null; exitBy: string; why: string; grade: 'A' | 'B' | 'C' | null; gradeWhy: string[];
   at: string; ideaId: string | null; logged: boolean; loggedNote: string | null;
+  /** SPXW mirror of an SPY contract (display only; tracked as the SPY idea). */
+  spxMirror?: SpxMirror | null;
 }
 export interface IdeasInfo {
   evaluated: { [sym: string]: { at: string | null; eligibility: string; notes: string[] } };
@@ -80,7 +84,7 @@ function IdeaCard({ x, open, onToggle }: { x: DeskIdea; open: boolean; onToggle:
         <span className={`zi-stage st-${x.stage}`}>{STAGE[x.stage]}</span>
         <span className="zi-sym">{x.symbol}</span>
         <span className={`zi-side ${up ? 'zd-up' : 'zd-dn'}`}>{x.side}</span>
-        <span className="zi-contract">{c ? contractLabel(c) : x.expiryLabel}</span>
+        <span className="zi-contract">{c ? contractLabel(c) : x.expiryLabel}{x.spxMirror && <b className="zi-spx" title={spxMirrorChipTitle(x.spxMirror)}> SPX</b>}</span>
         <span className="zi-kind">{x.kindLabel}{x.grade ? <b title={`Structure grade (not a probability): ${x.gradeWhy.join(' · ') || 'no confluence'}`}> · {x.grade}</b> : null}</span>
         <span className="zi-age" title={x.stage === 'watch' ? 'first seen' : 'logged'}>{sinceOf(x.at)}</span>
       </button>
@@ -94,6 +98,7 @@ function IdeaCard({ x, open, onToggle }: { x: DeskIdea; open: boolean; onToggle:
         <div className="zi-kv"><span>Targets</span><strong className="zd-up">T1 {px(x.target.price)} <small>{x.target.name}{c?.premiumT1 != null ? ` · ≈ ${prem(c.premiumT1)}` : ''}</small>{x.target2 && <> · T2 {px(x.target2.price)} <small>{x.target2.name}{c?.premiumT2 != null ? ` · ≈ ${prem(c.premiumT2)}` : ''}</small></>}{x.rr != null && <small> · {x.rr.toFixed(1)}R</small>}</strong></div>
         <div className="zi-kv"><span>Window</span><strong>{x.entryBy ? `entry window to ${x.entryBy}` : 'entry window passed'} · exit by {x.exitBy} ET <small>time stop</small></strong></div>
         <div className="zi-kv"><span>Model size</span><strong>{c?.qty ? `${c.qty}× · risk ≈ ${px(c.riskDollars, 0)} · debit ≈ ${px(c.debitDollars, 0)}` : '—'}{c?.delta != null && <small> · Δ {c.delta.toFixed(2)} · OI {c.openInterest?.toLocaleString() ?? '—'} · spread {c.spreadPct != null ? `${Math.round(c.spreadPct * 100)}%` : '—'}</small>}</strong></div>
+        {x.spxMirror && <SpxMirrorBlock mirror={x.spxMirror} className="zi-spx-mirror" />}
         <p className="zi-why">{x.why}</p>
         {(x.doneReason || x.contractNote || x.loggedNote) && <p className="zi-note">{[x.doneReason, x.contractNote, x.loggedNote].filter(Boolean).join(' · ')}</p>}
         <p className="zi-note">{x.symbol} {px(x.price)} · {ageOf(x.priceAt)}{c?.basis ? ` · ${c.basis}` : ''}</p>

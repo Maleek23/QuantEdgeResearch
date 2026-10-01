@@ -7815,6 +7815,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data = { ...data, picks: data.picks.map((p) => ({ ...p, horizon: classifyIdeaHorizon(p, now) })) };
       }
 
+      // SPX mirror (SPX_MIRROR, default on): open SPY 0–2 DTE option ideas carry
+      // their SPXW expression. Display only — no rows, the outcome stays on SPY.
+      // Bounded budgets inside; a slow chain ships the mirror without premium.
+      {
+        const { attachSpxMirrors } = await import("./spx-mirror");
+        data = { ...data, picks: await attachSpxMirrors(data.picks) };
+      }
+
       const meta = {
         _meta: {
           dataSource: "convictions_engine",
