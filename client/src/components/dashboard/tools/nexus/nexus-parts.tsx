@@ -28,6 +28,7 @@ import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
+import { gradeFromLife, gradePick, whyRankedHere, NEXUS_GRADE_POINTS, type NexusGrade } from '@shared/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -242,13 +243,22 @@ export function publishStamp(iso: string, now: number): string {
   return etDay(d.getTime()) === etDay(now) ? time : `${d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' })} ${time}`;
 }
 
+/** NEXUS grade chip text + tooltip (BOARD_SORT=grade only). */
+export function gradeTitle(g: NexusGrade): string {
+  return `NEXUS grade ${g.letter} · ${g.score}/100 (unvalidated — an actionability order, not a predicted outcome). Why ranked here: ${whyRankedHere(g)}. Sector-rotation +${NEXUS_GRADE_POINTS.rotation} is an operator prior, not validated.`;
+}
+
 export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
-  const line = life ? lifecycleLine(pick, life, now ?? Date.now()) : null;
+  const t = now ?? Date.now();
+  const line = life ? lifecycleLine(pick, life, t) : null;
+  // Live re-grade on the same lifecycle read the board order uses (lib/setup-lifecycle.ts boardOrder).
+  const grade = pick.nexusGrade && !pick.isBotHeld ? (life ? gradeFromLife(life.life, pick, t) : pick.nexusGrade) : null;
+  const title = [line?.title, grade ? gradeTitle(grade) : null].filter(Boolean).join('\n');
   return (
-    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={line?.title}>
+    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
-      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}</span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
+      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && <small className="nxp-why">why here: {whyRankedHere(grade)}</small>}</span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} of 100, unvalidated`}>{grade.letter} <b>{Math.round(grade.score)}</b></span> : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -411,6 +421,8 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   const challenge = selected.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points);
   const pendingEntry = selected.lifecycleState === 'pending_trigger' || selected.lifecycleState === 'coverage' || selected.lifecycleState === 'thesis';
   const spx = selected.symbol === 'SPY' ? spxExpression : undefined;
+  // BOARD_SORT=grade: the same grade the board orders by, re-read on the live quote.
+  const grade = selected.nexusGrade ? gradePick({ ...selected, currentPrice: liveQuote > 0 ? liveQuote : selected.currentPrice ?? null }, Date.now()) : null;
   return (
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
@@ -427,7 +439,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         </div>
         {selected.isBotHeld
           ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
-          : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
+          : grade
+            ? <div className="nxp-head-scores"><GradeBox grade={grade} /><EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} /></div>
+            : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
       </div>
 
       <div className="nxp-chart-card">
@@ -548,6 +562,24 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
       {v.trigger && <span> · trigger bar <strong>{fmtX(v.trigger.rvol)}</strong></span>}
       {age && <span> · as of {age} ET</span>}
     </p>
+  );
+}
+
+/**
+ * NEXUS grade box (BOARD_SORT=grade): the letter the board ranks by and its top three
+ * contributors — "why ranked here". UNVALIDATED (shared/nexus-grade.ts): it orders by
+ * whether the plan is still takeable as published and how much window is left, plus the
+ * operator's bounded with-rotation prior; it does not predict which setup wins.
+ */
+function GradeBox({ grade }: { grade: NexusGrade }) {
+  return (
+    <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} out of 100, unvalidated. Why ranked here: ${whyRankedHere(grade)}`}>
+      <strong className="nxp-grade-letter">{grade.letter}</strong>
+      <span>NEXUS grade (unvalidated) · {grade.score}/100</span>
+      <ul className="nxp-grade-why" aria-label="Why ranked here">
+        {grade.top.map((f) => <li key={f.key}>{f.label}{f.basis === 'operator prior' && f.points > 0 ? ' *' : ''} <b>+{f.points}</b></li>)}
+      </ul>
+    </div>
   );
 }
 

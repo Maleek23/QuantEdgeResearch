@@ -168,9 +168,9 @@ function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, co
   );
 }
 const RANK_HELP: Record<Rank, string> = {
-  all: 'Every published setup, highest conviction first',
+  all: 'Every published setup, in the board order (BOARD_SORT)',
   new: 'Published in the last 24 hours',
-  best: 'Top 10 by conviction',
+  best: 'Top 10 in the board order',
   conviction: 'S and A evidence bands only',
 };
 

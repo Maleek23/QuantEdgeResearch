@@ -10661,6 +10661,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * TRACK RECORD (Journal › Track record) — every card on the page from ONE
+   * computeTrackRecord() call (shared/track-record.ts): headline, engines, assets,
+   * options disclosure and run-up all share one filtered post-baseline population,
+   * so Total Ideas / Hit Rate / engine rows can no longer disagree.
+   */
+  const trackRecordCache = new Map<string, { at: number; data: any }>();
+  app.get("/api/performance/track-record", async (req, res) => {
+    try {
+      const { computeTrackRecord, trackPopulation } = await import('@shared/track-record');
+      const { MIN_REPORTABLE_SAMPLE: FLOOR } = await import('@shared/constants');
+      const w = String(req.query.window ?? 'all');
+      const window = (['today', '7d', '30d', '3m', 'all'].includes(w) ? w : 'all') as any;
+      const a = String(req.query.asset ?? 'all');
+      const asset = (['all', 'stock', 'option', 'crypto', 'future'].includes(a) ? a : 'all') as any;
+      const engine = String(req.query.engine ?? 'all').trim().toLowerCase().slice(0, 64) || 'all';
+      const key = `${window}|${engine}|${asset}`;
+      const hit = trackRecordCache.get(key);
+      if (hit && Date.now() - hit.at < 120_000) return res.json(hit.data);
+      const all = (await storage.getAllTradeIdeas()) as any[];
+      const filters = { window, engine, asset };
+      const rec = computeTrackRecord(all, filters);
+      let runUp: any = null;
+      try {
+        const { getRunUpSummary } = await import('./lib/run-up-tracker');
+        const s = getRunUpSummary(trackPopulation(all, filters) as any[]);
+        // A run-up rate from a handful of triggered ideas is not a finding — same
+        // sample floor as the win rate; the counts are always shown.
+        runUp = { ...s, reportableRate: s.triggered >= FLOOR ? s.rate : null, sampleFloor: FLOOR, observerSince: rec.triggerObserverSince };
+      } catch (e) { logger.warn('track-record run-up unavailable', e); }
+      const data = { ...rec, runUp, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
+      trackRecordCache.set(key, { at: Date.now(), data });
+      res.json(data);
+    } catch (error) {
+      logger.error('track-record error', error);
+      res.status(500).json({ error: 'Failed to compute the track record' });
+    }
+  });
+
+  /**
    * Run-up after trigger for ONE idea (NEXUS setup detail): best underlying move
    * since the trigger and whether +3/+5/+10% came before the stop. Not a win —
    * see shared/run-up.ts. Cached; open ideas refresh every 10 minutes.
@@ -13859,7 +13898,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate unrealized P&L
       const totalUnrealizedPnL = openPositions.reduce((sum: number, p: any) => sum + (p.unrealizedPnL || 0), 0);
       
+      // Paper bot: these are simulated fills in paper_positions, never broker
+      // orders. The date range rides along so the card can say which period it covers.
+      const closeTimes = closedPositions
+        .map((p: any) => Date.parse(String(p.exitTime ?? p.entryTime ?? '')))
+        .filter((t: number) => Number.isFinite(t));
+      const firstTradeAt = closeTimes.length ? new Date(Math.min(...closeTimes)).toISOString() : null;
+      const lastTradeAt = closeTimes.length ? new Date(Math.max(...closeTimes)).toISOString() : null;
+
       res.json({
+        mode: 'paper',
+        range: { firstClosedAt: firstTradeAt, lastClosedAt: lastTradeAt },
         overall: {
           totalTrades: closedPositions.length,
           wins: wins.length,
@@ -32777,6 +32826,9 @@ Use this checklist before entering any trade:
     // Holy Grail (Raschke ADX/EMA20) — last cycle + per-symbol active setups (server/holy-grail.ts; engine off unless HOLY_GRAIL=true)
     const { registerHolyGrailRoutes } = await import('./holy-grail');
     registerHolyGrailRoutes(app, requireBetaAccess);
+    // 0DTE flow ignition — fired/watch rows + forward-log report (server/zero-dte-flow.ts; publishes only with ZERO_DTE_FLOW=true)
+    const { registerZeroDteFlowRoutes } = await import('./zero-dte-flow');
+    registerZeroDteFlowRoutes(app, requireBetaAccess);
     // GEX wall-touch — walls, live touch rows, forward-log report (server/wall-touch.ts; engine off unless WALL_TOUCH=true)
     const { registerWallTouchRoutes } = await import('./wall-touch');
     registerWallTouchRoutes(app, requireBetaAccess);
