@@ -29,14 +29,18 @@ interface PTrade {
 interface PThread {
   threadId: string; name: string; archived: boolean; source: string;
   messages: number; posts: number; alreadyImported: number; newPosts: number; firstAt: string | null; lastAt: string | null;
-  primary: { authorId: string; authorName: string } | null;
-  authors: { authorId: string; authorName: string; messages: number }[];
+  /** The main author resolved for the mapped book (stored id, name match, most posts; the creator only breaks ties). */
+  primary: { authorId: string; authorName: string; via: string; share: number; creatorId: string | null } | null;
+  /** Top authors, each with what Import would read/parse if picked as the main author. */
+  authors: PAuthor[];
   match: { slug: string; name: string; existing: boolean; via: string; book: 'mine' | 'trader'; confirm: boolean } | null;
   images: number; imagesCached: number;
   parse: { entries: number; exits: number; trims: number; closed: number; open: number; review: number; avgConfidence: number | null };
   trades: PTrade[];
   review: { messageId: string; at: string; reason: string; label: string; excerpt: string; link: string | null }[];
 }
+interface PParse { entries: number; exits: number; trims: number; closed: number; open: number; review: number; avgConfidence: number | null }
+interface PAuthor { authorId: string; authorName: string; messages: number; images: number; imagesCached: number; parse: PParse }
 interface Preview {
   token: string; expiresAt: string; forum: { id: string | null; name: string | null };
   skipped: { reason: string; count: number }[];
@@ -48,9 +52,11 @@ interface Preview {
   };
   threads: PThread[];
 }
-interface Choice { slug: string | null; createName: string; confirmed: boolean }
+/** authorId null = the server's resolved main author (preview `primary`). */
+interface Choice { slug: string | null; createName: string; confirmed: boolean; authorId: string | null }
 interface ThreadResult {
   threadId: string; name: string; book: 'mine' | 'trader'; trader: string; created: boolean; posts: number;
+  author: { id: string; name: string; via: string } | null; handleChange: { from: string | null; to: string } | null;
   tradesNew: number; tradesUpdated: number; tradesUnchanged: number; tradesRemoved: number; tradesLinked: number; tradesFlagged: number;
   fromScreenshots: number; review: number; watchlist: { added: number; updated: number } | null;
 }
@@ -63,6 +69,15 @@ interface Job {
 
 const MAX_TOTAL = 38_000_000;
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const VIA_LABEL: Record<string, string> = {
+  override: 'your pick', stored_id: "matches the trader's saved Discord id", name: 'name matches the trader',
+  dominant: 'wrote the most messages', creator_tiebreak: 'tied on messages, thread creator', only: 'only author',
+};
+/** The author whose messages are the journal for this thread (the operator's pick, else the server's). */
+const chosenAuthor = (t: PThread, c: Choice | undefined): PAuthor | null => {
+  const id = c?.authorId ?? t.primary?.authorId ?? null;
+  return t.authors.find((a) => a.authorId === id) ?? null;
+};
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—');
 const px = (n: number | null) => (n == null ? '—' : n >= 100 ? n.toFixed(2) : String(Math.round(n * 1000) / 1000));
 
@@ -89,8 +104,8 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
         // Pre-selected; confirmed only where the mapping is certain (Mine, existing traders, Ayo…).
         // Tommi/Teejay and any NEW trader wait for the operator's tick.
         init[t.threadId] = t.posts === 0 || !t.match
-          ? { slug: null, createName: '', confirmed: false }
-          : { slug: t.match.slug, createName: t.match.existing ? '' : t.match.name, confirmed: !t.match.confirm };
+          ? { slug: null, createName: '', confirmed: false, authorId: null }
+          : { slug: t.match.slug, createName: t.match.existing ? '' : t.match.name, confirmed: !t.match.confirm, authorId: null };
       }
       setChoices(init);
     } catch (e) {
@@ -139,7 +154,12 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
     if (needsTick(t, c) && !c.confirmed) return [`${t.name}: confirm it goes to ${t.match!.name}'s book (or pick another / skip)`];
     return [];
   });
-  const selectedImages = rows.filter((t) => choices[t.threadId]?.slug).reduce((s, t) => ({ images: s.images + t.images, cached: s.cached + t.imagesCached }), { images: 0, cached: 0 });
+  // Exact screenshots Import would read: the CHOSEN main author's images in each selected thread.
+  const imagesFor = (t: PThread) => {
+    const a = chosenAuthor(t, choices[t.threadId]);
+    return a ? { images: a.images, cached: a.imagesCached } : { images: t.images, cached: t.imagesCached };
+  };
+  const selectedImages = rows.filter((t) => choices[t.threadId]?.slug).reduce((s, t) => { const i = imagesFor(t); return { images: s.images + i.images, cached: s.cached + i.cached }; }, { images: 0, cached: 0 });
   const est = preview ? (() => {
     const billable = Math.min(Math.max(0, selectedImages.images - selectedImages.cached), preview.vision.cap);
     return { billable, usd: Math.round(billable * preview.vision.estimate.perImageUsd * 100) / 100 };
@@ -170,7 +190,9 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
     try {
       const threads = rows.map((t) => {
         const c = choices[t.threadId];
-        return { threadId: t.threadId, slug: c?.slug ?? null, createName: c?.slug && !known.has(c.slug) ? c.createName.trim() : null };
+        // authorId only when the operator changed it; otherwise the server resolves it for the chosen book.
+        const authorId = c?.authorId && c.authorId !== t.primary?.authorId ? c.authorId : null;
+        return { threadId: t.threadId, slug: c?.slug ?? null, createName: c?.slug && !known.has(c.slug) ? c.createName.trim() : null, ...(authorId ? { authorId } : {}) };
       });
       const res = await apiRequest('POST', '/api/journal/discord/forum/commit', { token: preview.token, threads });
       const body: { jobId: string; job: Job } = await res.json();
@@ -251,7 +273,11 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
               </tr></thead>
               <tbody>
                 {rows.map((t) => {
-                  const c = choices[t.threadId] ?? { slug: null, createName: '', confirmed: false };
+                  const c = choices[t.threadId] ?? { slug: null, createName: '', confirmed: false, authorId: null };
+                  const author = chosenAuthor(t, c);
+                  const img = imagesFor(t);
+                  const parse = author?.parse ?? t.parse;
+                  const overridden = !!c.authorId && c.authorId !== t.primary?.authorId;
                   const isNew = !!c.slug && !known.has(c.slug);
                   const open = expanded === t.threadId;
                   return (
@@ -263,8 +289,26 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
                         </td>
                         <td style={{ whiteSpace: 'normal', minWidth: 180 }}>
                           <div style={{ fontWeight: 600, color: 'var(--text)' }}>{t.name}</div>
-                          <div className="jr-n">{t.primary ? `by ${t.primary.authorName}` : 'no author'} · {day(t.firstAt)} → {day(t.lastAt)}{t.archived ? ' · archived' : ''}</div>
-                          {t.images > 0 && <div className="jr-n">{t.images} screenshot{t.images === 1 ? '' : 's'}{t.imagesCached ? ` (${t.imagesCached} already read)` : ''}</div>}
+                          <div className="jr-n">{day(t.firstAt)} → {day(t.lastAt)}{t.archived ? ' · archived' : ''}</div>
+                          {t.authors.length > 0 && (
+                            <label className="jr-n" style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginTop: 2 }}>
+                              Journal author
+                              <select className="jr-select" style={{ maxWidth: 220 }} aria-label={`Main author of ${t.name} (their messages are the journal; others are comments)`}
+                                value={author?.authorId ?? ''} onChange={(e) => set(t.threadId, { authorId: e.target.value || null })}>
+                                {t.authors.map((a) => (
+                                  <option key={a.authorId} value={a.authorId}>{a.authorName} — {a.messages} msg{a.messages === 1 ? '' : 's'} · {a.images} img</option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+                          {t.primary && (
+                            <div className="jr-n">
+                              {overridden ? 'your pick' : VIA_LABEL[t.primary.via] ?? t.primary.via}
+                              {!overridden && t.primary.creatorId
+                                ? ` · thread created by ${t.authors.find((a) => a.authorId === t.primary!.creatorId)?.authorName ?? 'someone else'} (not the journal author)` : ''}
+                            </div>
+                          )}
+                          {img.images > 0 && <div className="jr-n">{img.images} screenshot{img.images === 1 ? '' : 's'} by {author?.authorName ?? 'the author'}{img.cached ? ` (${img.cached} already read)` : ''}{preview.vision.provider ? ` · ~$${(Math.min(Math.max(0, img.images - img.cached), preview.vision.cap) * preview.vision.estimate.perImageUsd).toFixed(2)}` : ''}</div>}
                         </td>
                         <td style={{ minWidth: 200 }}>
                           <select className="jr-select" aria-label={`Trader book for ${t.name}`} value={c.slug == null ? '' : known.has(c.slug) ? c.slug : '__new'}
@@ -303,14 +347,15 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
                           {!isNew && c.slug && t.match?.slug === c.slug && t.match.book === 'trader' && <div className="jr-n">matched by {t.match.via}</div>}
                         </td>
                         <td className="num">{t.posts}<div className="jr-n">{t.alreadyImported ? `${t.newPosts} new` : 'all new'}</div></td>
-                        <td className="num">{t.parse.closed + t.parse.open}<div className="jr-n">{t.parse.closed} closed · {t.parse.open} open</div></td>
-                        <td className="num">{t.parse.review}</td>
-                        <td className="num">{t.parse.avgConfidence == null ? '—' : `${Math.round(t.parse.avgConfidence * 100)}%`}</td>
+                        <td className="num">{parse.closed + parse.open}<div className="jr-n">{parse.closed} closed · {parse.open} open</div></td>
+                        <td className="num">{parse.review}</td>
+                        <td className="num">{parse.avgConfidence == null ? '—' : `${Math.round(parse.avgConfidence * 100)}%`}</td>
                       </tr>
                       {open && (
                         <tr style={{ cursor: 'default' }}>
                           <td />
                           <td colSpan={6} style={{ whiteSpace: 'normal' }}>
+                            {overridden && <p className="jr-note" style={{ margin: '0 0 4px' }}>The trades listed below were parsed for {t.primary?.authorName}. Import re-parses for {author?.authorName}: {parse.closed + parse.open} trade{parse.closed + parse.open === 1 ? '' : 's'} from text, {img.images} screenshot{img.images === 1 ? '' : 's'}.</p>}
                             {t.trades.length ? (
                               <table className="jr-table" style={{ fontSize: 12 }}>
                                 <thead><tr><th scope="col">Posted</th><th scope="col">Call</th><th scope="col" className="num">Entry</th><th scope="col" className="num">Exit</th><th scope="col" className="num">Stop / target</th><th scope="col">Status</th><th scope="col" className="num">Conf.</th></tr></thead>
@@ -395,7 +440,8 @@ function JobPanel({ job }: { job: Job }) {
         <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
           {job.results.map((t) => (
             <li key={t.threadId}>
-              <b>{t.book === 'mine' ? 'My journal' : t.trader}</b>{t.created ? ' (new trader)' : ''} — {t.posts} posts in the Notebook ·{' '}
+              <b>{t.book === 'mine' ? 'My journal' : t.trader}</b>{t.created ? ' (new trader)' : ''}{t.author ? ` · author ${t.author.name}` : ''}
+              {t.handleChange ? ` · handle ${t.handleChange.from ?? '(none)'} → ${t.handleChange.to}` : ''} — {t.posts} posts in the Notebook ·{' '}
               {t.tradesNew} new / {t.tradesUpdated} updated trades{t.tradesRemoved ? ` · ${t.tradesRemoved} re-paired` : ''}
               {t.book === 'mine' ? ` · ${t.tradesLinked} matched to your broker rows (not added) · ${t.tradesFlagged} flagged from Discord` : ''}
               {t.fromScreenshots ? ` · ${t.fromScreenshots} from screenshots` : ''}{t.review ? ` · ${t.review} for review` : ''}

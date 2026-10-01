@@ -42,9 +42,11 @@ import { logger } from './logger';
 import { journalNotes, journalTrades, traders, type Trader } from '@shared/schema';
 import { normalizeDiscordExport, type DiscordMsg } from '@shared/discord-journal-parser';
 import {
-  KNOWN_TRADERS, MINE_SLUG, REVIEW_LABEL, buildThreadImport, imageAttachments, isMineSlug, mapThreadToBook, readExportMeta,
-  type BookMatch, type ForumThreadInfo, type ThreadImport,
+  KNOWN_TRADERS, MINE_SLUG, REVIEW_LABEL, authorTargetFor, buildThreadImport, imageAttachments, isMineSlug, mapThreadToBook, readExportMeta,
+  resolvePrimaryAuthor, resolveThreadAuthor, traderPatchFor, type BookMatch, type ForumThreadInfo, type ResolvedAuthor, type ThreadImport,
 } from '@shared/discord-forum';
+import type { TickerUniverse } from '@shared/ticker-stoplist';
+import { loadKnownTickers } from './known-tickers';
 import { TRADER_SLUG_RE, traderOwnerId } from '@shared/journal-sources';
 import { attachmentIdOf, estimateVisionCost, visionMaxImages, type VisionImageRecord } from '@shared/forum-vision';
 import { matchBrokerRows, type ForumTrade } from '@shared/forum-pairing';
@@ -147,9 +149,15 @@ export async function buildForumPreview(input: { actorId: string; source: ForumS
   sweep();
   const { forum, threads, skipped } = await readSource(input.source);
   const traderRows = await db.select().from(traders);
+  const universe = await loadKnownTickers();
   const held: HeldThread[] = threads.map(({ info, msgs, source }) => {
-    const imp = buildThreadImport(info, msgs);
-    const match = mapThreadToBook({ name: info.name, authorNames: imp.primary ? [imp.primary.authorName] : [] }, traderRows);
+    // Book first (title words; the dominant author's name only when the title says nothing),
+    // then the main author FOR that book — never simply the thread creator.
+    const dominant = resolvePrimaryAuthor(msgs, { ownerId: info.ownerId });
+    let match = mapThreadToBook({ name: info.name }, traderRows);
+    if ((!match || !match.existing) && dominant) match = mapThreadToBook({ name: info.name, authorNames: [dominant.authorName] }, traderRows) ?? match;
+    const target = authorTargetFor(match?.slug, traderRows.find((t) => t.slug === match?.slug) ?? null);
+    const imp = buildThreadImport(info, msgs, { target, universe });
     return { info, msgs, imp, match, source };
   }).sort((a, b) => b.imp.stats.posts - a.imp.stats.posts);
 
@@ -173,11 +181,27 @@ export async function buildForumPreview(input: { actorId: string; source: ForumS
   const cached = await cachedAttachmentIds();
   const provider = visionCallerFromEnv();
   const cap = visionMaxImages(process.env);
-  const imagesOf = (h: HeldThread) => {
-    const own = h.imp.primary ? h.msgs.filter((m) => m.authorId === h.imp.primary!.authorId) : [];
+  const imagesBy = (h: HeldThread, authorId: string | null | undefined) => {
+    const own = authorId ? h.msgs.filter((m) => m.authorId === authorId) : [];
     const all = own.flatMap((m) => imageAttachments(m));
     return { images: all.length, cached: all.filter((a) => { const id = attachmentIdOf(a.url); return !!id && cached.has(id); }).length };
   };
+  const imagesOf = (h: HeldThread) => imagesBy(h, h.imp.primary?.authorId);
+  /**
+   * Per author (top 6): what Import would read and parse if the operator picks
+   * them as the main author — images (exact count), already-read images, trades.
+   */
+  const authorRows = (h: HeldThread) => h.imp.authors.slice(0, 6).map((a) => {
+    const img = imagesBy(h, a.authorId);
+    const alt = a.authorId === h.imp.primary?.authorId ? h.imp : buildThreadImport(h.info, h.msgs, { authorId: a.authorId, universe });
+    return {
+      ...a, images: img.images, imagesCached: img.cached,
+      parse: {
+        entries: alt.stats.entries, exits: alt.stats.exits, trims: alt.stats.trims,
+        closed: alt.stats.closedTrades, open: alt.stats.openTrades, review: alt.stats.review, avgConfidence: alt.stats.avgConfidence,
+      },
+    };
+  });
 
   const token = randomBytes(18).toString('base64url');
   previews.set(token, { token, actorId: input.actorId, expires: Date.now() + TTL_MS, threads: held });
@@ -200,7 +224,7 @@ export async function buildForumPreview(input: { actorId: string; source: ForumS
       firstAt: imp.stats.firstAt,
       lastAt: imp.stats.lastAt,
       primary: imp.primary,
-      authors: imp.authors.slice(0, 6),
+      authors: authorRows(h),
       match,
       images: img.images,
       imagesCached: img.cached,
@@ -231,7 +255,7 @@ export async function buildForumPreview(input: { actorId: string; source: ForumS
       provider: provider.provider,
       model: provider.model,
       cap,
-      /** Estimated for every image on the main authors' posts; per thread in threads[].images. */
+      /** Estimated for every image on the RESOLVED main authors' posts; per thread in threads[].images, per author in threads[].authors[].images. */
       estimate: estimateVisionCost(totalImages, { cached: totalCached, cap }),
       note: provider.provider
         ? 'Screenshots are read on Import (not now): broker fills, positions, P&L and charts → trades and chart notes. Already-read images are reused, never billed twice.'
@@ -241,41 +265,57 @@ export async function buildForumPreview(input: { actorId: string; source: ForumS
   };
 }
 
-export interface ForumMapping { threadId: string; slug: string | null; createName?: string | null }
+export interface ForumMapping {
+  threadId: string;
+  slug: string | null;
+  createName?: string | null;
+  /** The operator's main-author pick (preview dropdown). null = resolve (stored id, name, dominant). */
+  authorId?: string | null;
+}
 
-async function ensureTrader(m: ForumMapping, h: HeldThread, actorId: string, existing: Map<string, Trader>): Promise<Trader> {
+/** The main author Import uses for a mapped thread (override, stored id, name, dominant, creator tie-break). */
+export const primaryForMapping = (
+  h: { info: ForumThreadInfo; msgs: DiscordMsg[] },
+  m: ForumMapping,
+  trader: Pick<Trader, 'slug' | 'name' | 'discordAuthorId'> | null,
+): ResolvedAuthor | null => resolveThreadAuthor(h.info, h.msgs, m.slug, trader, m.authorId ?? null);
+
+async function ensureTrader(
+  m: ForumMapping, h: HeldThread, primary: ResolvedAuthor | null, actorId: string, existing: Map<string, Trader>,
+): Promise<{ trader: Trader; handleChange: { from: string | null; to: string } | null }> {
   const slug = m.slug!;
   if (isMineSlug(slug)) throw Object.assign(new Error(`"${slug}" is your own journal (Mine) — it is never created as a trader`), { status: 400 });
   const have = existing.get(slug);
-  const handle = h.imp.primary?.authorName ?? null;
+  const handle = primary?.authorName ?? null;
   if (have) {
-    // Fill in what is unknown; never overwrite what an admin set.
-    const patch: Partial<Trader> = {};
-    if (!have.source) patch.source = 'discord';
-    if (!have.handle && handle) patch.handle = handle;
-    if (!have.discordChannelId && /^\d{15,22}$/.test(h.info.id)) patch.discordChannelId = h.info.id;
+    const patch = traderPatchFor(have, primary, h.info.id, h.imp.authors.map((a) => a.authorName));
     if (Object.keys(patch).length) {
       const [u] = await db.update(traders).set(patch).where(eq(traders.id, have.id)).returning();
       existing.set(slug, u);
-      return u;
+      if (patch.handle) logger.info(`[DISCORD-FORUM] ${slug}: handle "${have.handle ?? ''}" -> "${patch.handle}" (main author ${primary?.authorId})`);
+      return { trader: u, handleChange: patch.handle ? { from: have.handle ?? null, to: patch.handle } : null };
     }
-    return have;
+    return { trader: have, handleChange: null };
   }
   const name = (m.createName ?? '').trim() || KNOWN_TRADERS.find((k) => k.slug === slug)?.name || '';
   if (!name) throw Object.assign(new Error(`"${slug}" is a new trader — confirm it (give it a name) in the preview`), { status: 400 });
   const [t] = await db.insert(traders).values({
     slug, name: name.slice(0, 60), handle, source: 'discord',
-    discordChannelId: /^\d{15,22}$/.test(h.info.id) ? h.info.id : null, createdBy: actorId,
+    discordChannelId: /^\d{15,22}$/.test(h.info.id) ? h.info.id : null,
+    discordAuthorId: primary?.authorId ?? null, createdBy: actorId,
   }).onConflictDoNothing().returning();
   const row = t ?? (await db.select().from(traders).where(eq(traders.slug, slug)).limit(1))[0];
   existing.set(slug, row);
-  return row;
+  return { trader: row, handleChange: null };
 }
 
 // ─── Import job (background; the HTTP request returns a job id at once) ─────
 
 export interface ThreadResult {
   threadId: string; name: string; book: 'mine' | 'trader'; trader: string; created: boolean;
+  /** The main author used (their messages are the journal; everyone else's are comments). */
+  author: { id: string; name: string; via: string } | null;
+  handleChange: { from: string | null; to: string } | null;
   posts: number; tradesNew: number; tradesUpdated: number; tradesUnchanged: number; tradesRemoved: number;
   /** Mine only: Discord trades matched to an existing broker row (annotated, not inserted). */
   tradesLinked: number;
@@ -325,6 +365,9 @@ export function startForumImport(token: string, actorId: string, mapping: ForumM
   for (const m of mapping) {
     if (!byId.has(m.threadId)) throw Object.assign(new Error(`Thread ${m.threadId} is not in this preview`), { status: 400 });
     if (m.slug != null && !TRADER_SLUG_RE.test(m.slug)) throw Object.assign(new Error(`"${m.slug}" is not a valid trader slug`), { status: 400 });
+    if (m.authorId && !byId.get(m.threadId)!.msgs.some((x) => x.authorId === m.authorId)) {
+      throw Object.assign(new Error(`Author ${m.authorId} did not post in "${byId.get(m.threadId)!.info.name}"`), { status: 400 });
+    }
   }
   if (mapping.filter((m) => m.slug && isMineSlug(m.slug)).length > 3) throw Object.assign(new Error('More than 3 threads mapped to Mine — check the mapping'), { status: 400 });
   previews.delete(token);
@@ -369,8 +412,14 @@ async function runForumImport(
 ) {
   const { upsertTraderWatchlist } = await import('./discord-journal-import');
   const existing = new Map((await db.select().from(traders)).map((t) => [t.slug, t]));
+  const universe: TickerUniverse = await loadKnownTickers();
   const batchId = `discord_forum_${Date.now()}`;
-  const chosen = mapping.filter((m) => m.slug).map((m) => ({ m, h: byId.get(m.threadId)! }));
+  // The main author per thread is resolved ONCE, for the book it is mapped to, before
+  // anything is read: vision, trades and byTrader flags all follow it.
+  const chosen = mapping.filter((m) => m.slug).map((m) => {
+    const h = byId.get(m.threadId)!;
+    return { m, h, primary: primaryForMapping(h, m, existing.get(m.slug!) ?? null) };
+  });
 
   // 1 · Screenshots (all threads, one budget). Cache = every stored reading.
   job.phase = 'reading screenshots';
@@ -384,13 +433,12 @@ async function runForumImport(
   });
   const items: VisionItem[] = [];
   const fresh = new Map<string, Map<string, DiscordMsg['attachments']> | null>();
-  for (const { h } of chosen) {
+  for (const { h, primary } of chosen) {
     let f: Map<string, DiscordMsg['attachments']> | null = null;
     try { f = await freshAttachments(h); } catch (e) {
       logger.warn('[DISCORD-FORUM] fresh attachment read failed — using the preview links', { thread: h.info.id, error: (e as Error).message });
     }
     fresh.set(h.info.id, f);
-    const primary = h.imp.primary;
     if (!primary) continue;
     for (const msg of h.msgs) {
       if (msg.authorId !== primary.authorId) continue;
@@ -403,15 +451,16 @@ async function runForumImport(
   logger.info(`[DISCORD-FORUM] vision: ${items.length} images · ${job.vision.cached} cached · ${job.vision.called} read · ${job.vision.failed} failed · ${job.vision.skippedBudget} over cap · ${job.vision.tradesFound} trades · ~$${job.vision.usd}`);
 
   // 2 · Per thread: posts, trades, watchlist.
-  for (const { m, h } of chosen) {
+  for (const { m, h, primary } of chosen) {
     job.phase = `writing ${h.info.name}`;
     const mine = isMineSlug(m.slug);
     const wasNew = !mine && !existing.has(m.slug!);
-    const trader = mine ? null : await ensureTrader(m, h, job.actorId, existing);
+    const ensured = mine ? null : await ensureTrader(m, h, primary, job.actorId, existing);
+    const trader = ensured?.trader ?? null;
     const owner = mine ? job.actorId : traderOwnerId(trader!.id);
     const f = fresh.get(h.info.id);
     const msgs = f ? h.msgs.map((x) => ({ ...x, attachments: f.get(x.id) ?? x.attachments })) : h.msgs;
-    const imp = buildThreadImport(h.info, msgs, { vision });
+    const imp = buildThreadImport(h.info, msgs, { vision, authorId: primary?.authorId ?? null, universe });
 
     // Mine: match against the operator's broker rows BEFORE writing (matched trades are not inserted).
     let linked = new Map<string, string>();
@@ -460,9 +509,11 @@ async function runForumImport(
     const w = await writeTrades(owner, h, imp, batchId, mine ? linked : null);
 
     // 2c · Watchlist fold (trader books only — Mine has no trader watchlist).
-    const wl = trader ? await upsertTraderWatchlist(trader.id, imp.trades as any, imp.notes, job.actorId) : null;
+    const wl = trader ? await upsertTraderWatchlist(trader.id, imp.trades as any, imp.notes, job.actorId, universe) : null;
     job.results.push({
       threadId: h.info.id, name: h.info.name, book: mine ? 'mine' : 'trader', trader: mine ? MINE_SLUG : trader!.slug, created: wasNew,
+      author: imp.primary ? { id: imp.primary.authorId, name: imp.primary.authorName, via: primary?.via ?? imp.primary.via } : null,
+      handleChange: ensured?.handleChange ?? null,
       posts: rows.length, ...w, fromScreenshots: imp.stats.fromScreenshots, review: imp.stats.review,
       watchlist: wl ? { added: wl.added, updated: wl.updated } : null,
     });
@@ -500,7 +551,7 @@ async function writeTrades(owner: string, h: HeldThread, imp: ThreadImport, batc
       notes: [mineFlag, t.notes, '', `Source: ${link ?? `Discord message ${t.key}`} (${h.info.name}) · ${t.evidence === 'text' ? 'post text' : t.evidence === 'vision' ? 'screenshot' : 'post text + screenshot'} · parse confidence ${Math.round(t.confidence * 100)}%`,
         t.stop != null || t.target != null ? `Stated plan: stop ${t.stop ?? '—'} · target ${t.target ?? '—'}` : null].filter((x) => x != null).join('\n'),
       rawCsvRow: {
-        source: 'discord-forum', link, threadId: h.info.id, threadName: h.info.name, authorName: h.imp.primary?.authorName ?? null,
+        source: 'discord-forum', link, threadId: h.info.id, threadName: h.info.name, authorName: imp.primary?.authorName ?? null,
         confidence: t.confidence, stop: t.stop, target: t.target, exitVia: t.exitVia, qtyStated: t.qtyStated,
         exitDerivedFromPct: t.exitDerivedFromPct, messageIds: t.messageIds, evidence: t.evidence, statedPnl: t.statedPnl,
         legIds: t.legIds, flags: t.flags, ...(linked ? { mineUnmatched: true } : {}),
