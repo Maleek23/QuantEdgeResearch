@@ -405,6 +405,8 @@ export interface DeskIdea {
   ideaId: string | null;
   logged: boolean;
   loggedNote: string | null;
+  /** SPX mirror of an SPY contract (display only — the record stays on the SPY idea). */
+  spxMirror?: import('@shared/spx-mirror').SpxMirror | null;
 }
 
 export interface IdeasInfo {
@@ -540,6 +542,23 @@ async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[]
     const q = await repriceContract(x.contract!, priority);
     if (q && (q.bid != null || q.ask != null)) x.quote = q;
   }));
+
+  // SPX mirror for SPY contracts (logged index ideas + SPY WATCH): SPXW strike,
+  // CBOE-delayed premium, levels × live ratio. Bounded; never fails the desk.
+  try {
+    const { spxMirrorEnabled, computeSpxMirrors } = await import('./spx-mirror');
+    const live = out.filter((x) => x.stage !== 'done' && x.contract?.root === 'SPY' && x.contract.dte != null && x.contract.dte >= 0 && x.contract.dte <= 2);
+    // Logged rows carry their vehicle's (SPY) units; WATCH rows carry the name's own (an SPX WATCH is already in SPX).
+    const inSpy = (x: DeskIdea) => (x.logged ? x.vehicle === 'SPY' : x.symbol === 'SPY');
+    if (spxMirrorEnabled() && live.length) {
+      const m = await computeSpxMirrors(live.map((x) => ({
+        key: `desk|${x.key}|${x.contract!.strike}|${x.contract!.expiry}`, optionType: x.contract!.optionType, strike: x.contract!.strike, expiry: x.contract!.expiry,
+        dte: x.contract!.dte, entry: inSpy(x) ? (x.trigger?.price ?? x.entry) : null, stop: inSpy(x) ? x.stop : null,
+        targets: inSpy(x) ? [x.target.price, x.target2?.price] : [],
+      })));
+      for (const x of live) x.spxMirror = m.get(`desk|${x.key}|${x.contract!.strike}|${x.contract!.expiry}`) ?? null;
+    }
+  } catch (e) { logger.warn(`[0DTE-DESK] SPX mirror skipped: ${(e as Error).message}`); }
   return { ideas: sortIdeas(out), info };
 }
 

@@ -61,3 +61,4 @@
 .nxp-chart-key .nxp-sw{margin-left:6px}
 @media(max-width:767px){.nxp-chart-key{font-size:12px}}
 .nxp-chart-meta{flex-wrap:wrap;gap:2px 12px}.nxp-chart-meta>span{white-space:nowrap}
+.nxp-spx-chip{margin-left:6px;padding:1px 6px;border-radius:4px;font:700 9.5px 'JetBrains Mono',monospace;letter-spacing:.04em;color:#3b8cff;background:rgba(59,140,255,.14)}.nxp-spx-chip.omitted{opacity:.55}.nxp-spx-expression em{font-style:normal;opacity:.8}

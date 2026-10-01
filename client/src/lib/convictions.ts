@@ -96,6 +96,9 @@ export interface ConvictionPick {
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
+
+  /** SPXW mirror of an open SPY 0–2 DTE option idea (display only; tracked as the SPY idea). */
+  spxMirror?: import('@shared/spx-mirror').SpxMirror;
 }
 
 export interface ConvictionsResponse {
