@@ -68,6 +68,7 @@ const META: Record<string, { short: string; label: string; tone: IdeaSourceTone 
   gex_scanner: { short: "GEX", label: "GEX Scanner", tone: "flow" },
   zero_dte_desk: { short: "0DTE", label: "0DTE Desk", tone: "scanner" },
   zero_dte_sniper: { short: "SNIPE", label: "0DTE Sniper", tone: "lotto" },
+  zero_dte_flow: { short: "0FLOW", label: "0DTE Flow Ignition", tone: "flow" },
   spx_fast_move: { short: "FAST", label: "SPX Fast Move", tone: "lotto" },
   holy_grail: { short: "GRAIL", label: "Holy Grail (ADX)", tone: "scanner" },
   crypto_engine: { short: "CRYPTO", label: "Crypto Engine", tone: "scanner" },
