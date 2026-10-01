@@ -37,10 +37,14 @@ export interface LivePosition {
   assetType: string;
   entry: number;
   spot: number | null;
+  /** What P&L is measured on: the underlying for stock, the contract's own mark for options. */
+  mark?: number | null;
+  markSource?: string | null;
   target: number;
   stop: number;
-  pnlPct: number;
-  pnlAbs: number;
+  /** null = no mark (shown as "—", never +0.00%). */
+  pnlPct: number | null;
+  pnlAbs: number | null;
   daysActive: number;
   source: string;
   status: string;
@@ -49,15 +53,24 @@ export interface LivePosition {
   strikePrice?: number | null;
   optionType?: string | null;
   heatScore: number;
-  heatRank: 'fire' | 'hot' | 'warm' | 'cool' | 'frozen' | 'red';
+  heatRank: 'fire' | 'hot' | 'warm' | 'cool' | 'frozen' | 'red' | 'nomark';
 }
+
+/** Tone for a P&L that may be missing — a missing mark is neutral, not a gain. */
+export const pnlTone = (v: number | null | undefined) =>
+  v == null ? 'text-muted-foreground' : v >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]';
+export const fmtPnlAbs = (v: number | null | undefined) => (v == null ? '—' : `$${v >= 0 ? '+' : ''}${v}`);
 
 export interface Summary {
   total: number;
   winners: number;
   losers: number;
-  totalPnLPct: number;
-  totalPnLAbs: number;
+  /** Equal-weight mean return of marked positions (null = nothing marked). */
+  totalPnLPct: number | null;
+  totalPnLAbs: number | null;
+  pnlBasis?: string;
+  marked?: number;
+  unmarked?: number;
   hotCount: number;
   coldCount: number;
   bestPosition: LivePosition | null;
@@ -78,7 +91,8 @@ const HEAT_BG: Record<LivePosition['heatRank'], string> = {
   warm: 'bg-[var(--brand-cyan)]/10 border-[var(--brand-cyan)]/30',
   cool: 'bg-muted/30 border-border/50',
   frozen: 'bg-[var(--trade-neutral)]/15 border-[var(--trade-neutral)]/40',
-  red: 'bg-[var(--trade-bearish)]/30 border-[var(--trade-bearish)]/60'
+  red: 'bg-[var(--trade-bearish)]/30 border-[var(--trade-bearish)]/60',
+  nomark: 'bg-transparent border-dashed border-border/60'
 };
 
 export const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
@@ -87,7 +101,8 @@ export const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
   warm: '↑ WARM',
   cool: '— COOL',
   frozen: '↓ COLD',
-  red: '🛑 RED'
+  red: '🛑 RED',
+  nomark: 'NO MARK'
 };
 
 export type PositionSort = 'pnl' | 'days' | 'expiry';
@@ -195,19 +210,19 @@ export default function PositionsHeatmapPage() {
         {/* Hero — the single decision number: total open P&L. Winner/loser
             counts are folded into win rate below; nothing is shown twice. */}
         <div className={`${componentStyles.card.default} p-5 mb-3`}>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net open P&L</div>
-          <div className={`text-4xl font-bold font-mono tabular-nums ${data.summary.totalPnLPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net open P&L · {data.summary.pnlBasis ?? 'average per position'}</div>
+          <div className={`text-4xl font-bold font-mono tabular-nums ${pnlTone(data.summary.totalPnLPct)}`}>
             {fmtPct(data.summary.totalPnLPct, { signed: true, decimals: 2 })}
           </div>
           <div className="text-xs text-muted-foreground mt-1 font-mono tabular-nums">
-            {data.summary.totalPnLAbs >= 0 ? '+' : ''}${data.summary.totalPnLAbs} absolute
+            {fmtPnlAbs(data.summary.totalPnLAbs)} per unit, summed{data.summary.unmarked ? ` · ${data.summary.unmarked} without a mark (excluded)` : ''}
           </div>
         </div>
 
         {/* Supporting strip — compact, secondary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <KPI label="POSITIONS" value={data.summary.total.toString()} accent="cyan" />
-          <KPI label="WIN RATE" value={`${Math.round((data.summary.winners / data.summary.total) * 100)}%`} accent={data.summary.winners / data.summary.total >= 0.5 ? 'emerald' : 'amber'} />
+          <KPI label="IN PROFIT" value={(data.summary.marked ?? data.summary.total) ? `${Math.round((data.summary.winners / (data.summary.marked ?? data.summary.total)) * 100)}%` : '—'} accent={data.summary.winners / Math.max(1, data.summary.marked ?? data.summary.total) >= 0.5 ? 'emerald' : 'amber'} />
           <KPI label="🔥 HOT" value={data.summary.hotCount.toString()} accent="emerald" />
           <KPI label="🛑 COLD" value={data.summary.coldCount.toString()} accent="red" />
         </div>
@@ -217,7 +232,7 @@ export default function PositionsHeatmapPage() {
           <ExpandableCard
             title="Best vs Worst"
             subtitle={`🏆 ${data.summary.bestPosition.symbol} ${fmtPct(data.summary.bestPosition.pnlPct, { signed: true, decimals: 2 })} · ⚠️ ${data.summary.worstPosition.symbol} ${fmtPct(data.summary.worstPosition.pnlPct, { signed: true, decimals: 2 })}`}
-            defaultOpen={Math.abs(data.summary.bestPosition.pnlPct) > 30 || Math.abs(data.summary.worstPosition.pnlPct) > 20}
+            defaultOpen={Math.abs(data.summary.bestPosition.pnlPct ?? 0) > 30 || Math.abs(data.summary.worstPosition.pnlPct ?? 0) > 20}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <BestWorstCard position={data.summary.bestPosition} type="best" />
@@ -289,7 +304,7 @@ export function DetailTable({ positions, sortBy, setSortBy, onSelect }: { positi
               <th className="py-2 pr-3">Type</th>
               <th className="py-2 pr-3" title="Direction: long or short">Dir</th>
               <th className="py-2 pr-3 text-right">Entry</th>
-              <th className="py-2 pr-3 text-right">Spot</th>
+              <th className="py-2 pr-3 text-right" title="Stock: underlying price. Option: the contract's own mark.">Mark</th>
               <th className="py-2 pr-3 text-right">Target</th>
               <th className="py-2 pr-3 text-right">Stop</th>
               <th className="py-2 pr-3 text-right">P&L %</th>
@@ -347,6 +362,7 @@ const HEAT_RANK_TIP: Record<LivePosition['heatRank'], string> = {
   cool: 'COOL — flat / neutral',
   frozen: 'COLD — negative momentum',
   red: 'RED — strongest negative momentum',
+  nomark: 'NO MARK — the price fetch failed (or no option quote); no P&L is shown and it is left out of the totals',
 };
 
 export function HeatLegend() {
@@ -379,7 +395,7 @@ export function HeatTile({ position }: { position: LivePosition }) {
           <span className="font-bold">{position.symbol}</span>
           <span className="text-[9px] opacity-70">{HEAT_LABEL[position.heatRank]}</span>
         </div>
-        <div className={`text-xl font-bold font-mono ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+        <div className={`text-xl font-bold font-mono ${pnlTone(position.pnlPct)}`}>
           {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
         </div>
         <div className="text-[10px] opacity-60 mt-1">
@@ -404,11 +420,11 @@ export function BestWorstCard({ position, type }: { position: LivePosition; type
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-3xl font-bold ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+          <div className={`text-3xl font-bold ${pnlTone(position.pnlPct)}`}>
             {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
           </div>
           <div className="text-xs text-muted-foreground">
-            ${position.pnlAbs >= 0 ? '+' : ''}{position.pnlAbs}
+            {fmtPnlAbs(position.pnlAbs)}
           </div>
         </div>
       </div>
@@ -423,6 +439,7 @@ export function PositionRow({ position, onSelect }: { position: LivePosition; on
     position.heatRank === 'warm' ? 'text-[var(--brand-cyan)]' :
     position.heatRank === 'cool' ? 'text-muted-foreground' :
     position.heatRank === 'frozen' ? 'text-[var(--trade-neutral)]' :
+    position.heatRank === 'nomark' ? 'text-muted-foreground' :
     'text-[var(--trade-bearish)]';
 
   return (
@@ -439,14 +456,14 @@ export function PositionRow({ position, onSelect }: { position: LivePosition; on
         {position.direction === 'long' ? '▲' : '▼'}
       </td>
       <td className="py-2 pr-3 text-right font-mono">${position.entry.toFixed(2)}</td>
-      <td className="py-2 pr-3 text-right font-mono">{position.spot ? `$${position.spot.toFixed(2)}` : '—'}</td>
+      <td className="py-2 pr-3 text-right font-mono" title={position.markSource ? `Mark source: ${position.markSource}${position.isOption && position.spot ? ` · underlying $${position.spot.toFixed(2)}` : ''}` : 'No mark'}>{position.mark != null ? `$${position.mark.toFixed(2)}` : '—'}</td>
       <td className="py-2 pr-3 text-right font-mono text-[var(--trade-bullish)]">${position.target.toFixed(2)}</td>
       <td className="py-2 pr-3 text-right font-mono text-[var(--trade-bearish)]">${position.stop.toFixed(2)}</td>
-      <td className={`py-2 pr-3 text-right font-mono font-bold ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+      <td className={`py-2 pr-3 text-right font-mono font-bold ${pnlTone(position.pnlPct)}`}>
         {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
       </td>
-      <td className={`py-2 pr-3 text-right font-mono ${position.pnlAbs >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-        ${position.pnlAbs >= 0 ? '+' : ''}{position.pnlAbs}
+      <td className={`py-2 pr-3 text-right font-mono ${pnlTone(position.pnlAbs)}`}>
+        {fmtPnlAbs(position.pnlAbs)}
       </td>
       <td className="py-2 pr-3 text-center text-muted-foreground">{position.daysActive}d</td>
       <td className="py-2 pr-3 text-center text-muted-foreground">{position.daysToExpiry !== null && position.daysToExpiry !== undefined ? `${position.daysToExpiry}d` : '—'}</td>
@@ -458,7 +475,7 @@ export function PositionRow({ position, onSelect }: { position: LivePosition; on
 
 export function sortPositions(positions: LivePosition[], by: 'pnl' | 'days' | 'expiry'): LivePosition[] {
   const sorted = [...positions];
-  if (by === 'pnl') sorted.sort((a, b) => b.pnlPct - a.pnlPct);
+  if (by === 'pnl') sorted.sort((a, b) => (b.pnlPct ?? -Infinity) - (a.pnlPct ?? -Infinity));
   else if (by === 'days') sorted.sort((a, b) => b.daysActive - a.daysActive);
   else if (by === 'expiry') sorted.sort((a, b) => (a.daysToExpiry ?? 9999) - (b.daysToExpiry ?? 9999));
   return sorted;

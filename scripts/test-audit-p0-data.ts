@@ -97,5 +97,25 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   ok(cboeDataTime(undefined, fetched) === new Date(fetched).toISOString(), 'no payload time → download time, not now');
 }
 
+// ── #4/#5/#6 Positions math ──────────────────────────────────────────────────
+{
+  const { markPnl, computePositionsSummary } = await import('../server/positions-live');
+  const opt = { direction: 'long', entryPrice: 2.5, assetType: 'option' };
+  ok(markPnl(opt, 600, null).pnlPct === null, 'an option without a contract mark has no P&L (not the underlying)');
+  const om = markPnl(opt, 600, 3.0);
+  ok(om.mark === 3 && om.pnlPct === 20, 'an option is marked on its own premium (+20%), not $600 underlying');
+  ok(markPnl({ direction: 'short', entryPrice: 2, assetType: 'option' }, 600, 1).pnlPct === -50, 'a bought put loses when its premium halves');
+  ok(markPnl({ direction: 'long', entryPrice: 100, assetType: 'stock' }, null, null).pnlPct === null, 'failed spot → null, not 0%');
+  ok(markPnl({ direction: 'short', entryPrice: 100, assetType: 'stock' }, 95, null).pnlPct === 5, 'short stock P&L');
+  const pos = (id: string, pnlPct: number | null, pnlAbs: number | null): any => ({ id, symbol: id, pnlPct, pnlAbs, heatRank: pnlPct == null ? 'nomark' : 'warm', source: 's', assetType: 'stock' });
+  const ten = Array.from({ length: 10 }, (_, i) => pos(`S${i}`, 5, 5));
+  const sum = computePositionsSummary(ten);
+  ok(sum.totalPnLPct === 5, '10 × +5% reads +5% (was +50%)');
+  const mixed = computePositionsSummary([pos('A', 10, 10), pos('B', -4, -4), pos('C', null, null)]);
+  ok(mixed.totalPnLPct === 3 && mixed.marked === 2 && mixed.unmarked === 1, 'unmarked positions are excluded from the headline');
+  ok(mixed.bestPosition?.id === 'A' && mixed.worstPosition?.id === 'B', 'best/worst ignore unmarked rows');
+  ok(computePositionsSummary([pos('C', null, null)]).totalPnLPct === null, 'nothing marked → null headline');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);
