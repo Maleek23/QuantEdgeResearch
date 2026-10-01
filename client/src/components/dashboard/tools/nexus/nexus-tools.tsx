@@ -13,6 +13,7 @@
  * selected last.
  */
 import { usePhone } from '@/components/ui/qe-phone';
+import { RotationStrip } from '@/components/sector-ignition/sector-ignition';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Link, useSearch } from 'wouter';
 import { NEXUS_IDEA_PARAM, NEXUS_SYM_PARAM, readNexusTarget } from '@/lib/nexus-link';
@@ -195,6 +196,7 @@ export function NexusBoardTool() {
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   return (
     <div className="fd-fill nxd nxd-board">
+      <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
         <div className="of-seg" role="group" aria-label="Asset">
           <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>

@@ -161,3 +161,32 @@ export function SectorIgnitionTool() {
   });
   return <div className="fd-pad"><SectorIgnitionPanel dense /></div>;
 }
+
+/**
+ * One-line rotation read for the top of Today and the NEXUS header: where money
+ * is moving IN (groups igniting/extended long), OUT (igniting/extended short),
+ * and the laggards in the leading groups that haven't moved yet. Uses the daily
+ * horizon in session, the swing read otherwise; always stamped with its age.
+ */
+export function RotationStrip({ compact = false }: { compact?: boolean }) {
+  const daily = useSectorIgnition('daily');
+  const swing = useSectorIgnition('swing');
+  const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
+  if (!pick) {
+    return <div className="ig-strip" role="status">{daily.isLoading || swing.isLoading ? 'Reading sector rotation…' : 'Sector rotation unavailable right now'}</div>;
+  }
+  const hot = pick.groups.filter((g) => g.stage === 'igniting' || g.stage === 'extended');
+  const into = hot.filter((g) => g.side === 'long').sort((a, b) => b.points - a.points).slice(0, 3);
+  const out = hot.filter((g) => g.side === 'short').sort((a, b) => b.points - a.points).slice(0, 3);
+  const lag = into.flatMap((g) => g.laggards.slice(0, 2).map((c) => c.symbol)).slice(0, 4);
+  const fmt = (g: Group) => `${g.label} (${g.etf} ${sp(g.etfMovePct, 1)}${g.stage === 'igniting' ? ' · igniting' : ''})`;
+  return (
+    <div className={`ig-strip${compact ? ' compact' : ''}`} aria-label="Sector rotation">
+      <span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span>
+      <span><b className="up">Into</b> {into.length ? into.map(fmt).join(', ') : 'nothing igniting long'}</span>
+      <span><b className="dn">Out of</b> {out.length ? out.map(fmt).join(', ') : 'nothing igniting short'}</span>
+      {lag.length > 0 && <span><b>Laggards to watch</b> {lag.join(' · ')}</span>}
+      <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
+    </div>
+  );
+}

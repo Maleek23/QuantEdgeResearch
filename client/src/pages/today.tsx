@@ -39,7 +39,7 @@ import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, 
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
-import { SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
+import { RotationStrip, SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
 import {
   Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
@@ -391,6 +391,9 @@ export default function TodayPage() {
       {/* PRE-MARKET — the leading direction read before the open */}
       <PremarketStrip dirOf={dirOf} now={now} />
 
+      {/* ROTATION — where money is moving, one line (sector ignition, measuring). */}
+      <div className="container" style={{ marginTop: 12 }}><RotationStrip /></div>
+
       {/* INDEX DESK — the same four instruments the intraday engine monitors. */}
       <section className="td-index-desk" aria-label="Index desk">
         <div className="container">
@@ -428,6 +431,9 @@ export default function TodayPage() {
       <ZeroDteBand now={now} />
 
       {/* STATS — measured */}
+      {/* SECTOR IGNITION — four horizons, measuring (server/sector-ignition.ts) */}
+      <SectorIgnitionBand />
+
       <section className="stats-bar-l">
         <div className="container">
           <div className="stats-grid">
@@ -575,8 +581,6 @@ export default function TodayPage() {
         </div>
       </section>
 
-      {/* SECTOR IGNITION — four horizons, measuring (server/sector-ignition.ts) */}
-      <SectorIgnitionBand />
 
       {/* CTA — the honest record */}
       <section>
