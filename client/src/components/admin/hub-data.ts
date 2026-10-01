@@ -40,3 +40,49 @@ export interface HealthResponse {
 // Green and vermilion mean gain and loss only (DESIGN_SYSTEM §02) — health is accent / caution, with the word printed.
 export const STATE_TONE = { ok: 'accent', degraded: 'caution', down: 'caution', idle: 'mute', not_configured: 'mute' } as const;
 export const STATE_LABEL = { ok: 'OK', degraded: 'DEGRADED', down: 'DOWN', idle: 'IDLE', not_configured: 'NOT CONFIGURED' } as const;
+
+/** CSRF-protected write for the admin hub; throws an Error carrying the server's own message. */
+export async function adminWrite<T = unknown>(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, body?: unknown): Promise<T> {
+  const m = document.cookie.match(/csrf_token=([^;]+)/);
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (m) headers['x-csrf-token'] = m[1];
+  const r = await fetch(url, { method, headers, credentials: 'include', body: body !== undefined ? JSON.stringify(body) : undefined });
+  const text = await r.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+  if (!r.ok) throw new Error(data?.error || data?.message || `HTTP ${r.status}`);
+  return data as T;
+}
+
+export function fmtDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+}
+
+export type AdminTier = 'free' | 'advanced' | 'pro' | 'admin';
+
+export interface AdminUserRow {
+  id: string; email: string; name: string | null; tier: AdminTier; hasBetaAccess: boolean; disabled: boolean; isAdmin: boolean;
+  createdAt: string | null; lastLoginAt: string | null; authMethod: 'password' | 'google' | 'other';
+}
+
+export interface AdminInviteRow {
+  id: string; code: string; link: string; email: string | null; status: 'unused' | 'used' | 'expired' | 'revoked'; rawStatus: string | null;
+  tierOverride: string | null; note: string | null; createdAt: string | null; expiresAt: string | null; sentAt: string | null; redeemedAt: string | null;
+  redeemedBy: { id: string; email: string } | null;
+}
+
+export interface AdminAuditRow { at: string; action: string; actor: string; target: string | null; detail: Record<string, unknown>; ip: string | null }
+
+export const AUDIT_LABEL: Record<string, string> = {
+  'invite.generate': 'Generated invite codes', 'invite.revoke': 'Revoked invite', 'invite.create': 'Created invite (email)', 'invite.send': 'Sent invite email',
+  'waitlist.approve': 'Approved waitlist', 'waitlist.reject': 'Rejected waitlist', 'waitlist.invite': 'Invited from waitlist',
+  'user.tier': 'Changed tier', 'user.beta': 'Changed beta access', 'user.disable': 'Disabled account', 'user.enable': 'Enabled account',
+  'user.delete': 'Deleted account', 'user.password_reset': 'Sent password reset', 'trader.passcode_set': 'Set book passcode', 'trader.passcode_clear': 'Cleared book passcode',
+};

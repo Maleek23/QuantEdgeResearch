@@ -1,492 +1,186 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { AdminLayout } from "@/components/admin/admin-layout";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import {
-  Mail,
-  Plus,
-  Copy,
-  Link2,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Send,
-  Trash2,
-  RefreshCw,
-  ExternalLink,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+/**
+ * Admin hub › Users & access › Invite codes (docs/ADMIN_TAB.md §Invite codes).
+ *
+ *   generate   POST /api/admin/ops/invites/generate { count, email?, tierOverride, expiryDays, note }
+ *              codes come from crypto.randomBytes on the server (qe-xxxxx-xxxxx-xxxxx-xxxxx)
+ *   list       GET  /api/admin/ops/invites  — unused / used / expired / revoked, who redeemed, when
+ *   revoke     POST /api/admin/ops/invites/:id/revoke
+ *   copy       the code, or the invite link /signup?code=… (the sign-up page prefills it)
+ *   email      POST /api/admin/invites/:id/resend (only for email-locked codes, needs RESEND_API_KEY)
+ *
+ * beta_invites.token is stored in plaintext (every redemption path looks it
+ * up by equality), so a code can be copied again later from this list.
+ */
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AdminLayout } from '@/components/admin/admin-layout';
+import { LuxButton, LuxKpi, LuxKpiGrid, LuxPanel, LuxTag, type LuxTone } from '@/components/lux';
+import { QEError } from '@/components/ui/qe-states';
+import { useToast } from '@/hooks/use-toast';
+import { toCsv, downloadCsv } from '@/lib/journal/metrics-extra';
+import { adminWrite, copyText, fmtAgo, fmtDate, getJson, useAdminJson, type AdminInviteRow } from '@/components/admin/hub-data';
 
-function getCSRFToken(): string | null {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : null;
-}
-
-interface Invite {
-  id: string;
-  email: string;
-  token: string;
-  status: 'pending' | 'sent' | 'redeemed' | 'expired' | 'revoked';
-  tierOverride?: string;
-  notes?: string;
-  sentAt?: string;
-  redeemedAt?: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-function AdminInvitesContent() {
-  const { toast } = useToast();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [newTier, setNewTier] = useState<string>("free");
-  const [newNotes, setNewNotes] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const { data: invitesData, isLoading, refetch } = useQuery<{ invites: Invite[] }>({
-    queryKey: ['/api/admin/invites'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/invites', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch invites');
-      return res.json();
-    }
-  });
-
-  const createInviteMutation = useMutation({
-    mutationFn: async ({ email, tier, notes }: { email: string; tier: string; notes: string }) => {
-      const csrfToken = getCSRFToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      const res = await fetch('/api/admin/invites', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ email, tierOverride: tier, notes }),
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to create invite');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
-      toast({ title: "Invite created successfully" });
-      setShowCreateDialog(false);
-      setNewEmail("");
-      setNewTier("free");
-      setNewNotes("");
-    },
-    onError: () => {
-      toast({ title: "Failed to create invite", variant: "destructive" });
-    }
-  });
-
-  const sendInviteMutation = useMutation({
-    mutationFn: async (inviteId: string) => {
-      const csrfToken = getCSRFToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      // There is no /send route: /resend emails any pending or sent invite and marks it sent.
-      const res = await fetch(`/api/admin/invites/${inviteId}/resend`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to send invite');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
-      toast({ title: "Invite email sent" });
-    },
-    onError: () => {
-      toast({ title: "Failed to send invite email", variant: "destructive" });
-    }
-  });
-
-  const resendInviteMutation = useMutation({
-    mutationFn: async (inviteId: string) => {
-      const csrfToken = getCSRFToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      const res = await fetch(`/api/admin/invites/${inviteId}/resend`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to resend invite');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
-      toast({ title: "Invite email resent successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to resend invite email", variant: "destructive" });
-    }
-  });
-
-  const revokeInviteMutation = useMutation({
-    mutationFn: async (inviteId: string) => {
-      const csrfToken = getCSRFToken();
-      const headers: Record<string, string> = {};
-      if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      // The server revokes with POST /:id/revoke (there is no DELETE route).
-      const res = await fetch(`/api/admin/invites/${inviteId}/revoke`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to revoke invite');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
-      toast({ title: "Invite revoked" });
-    },
-    onError: () => {
-      toast({ title: "Failed to revoke invite", variant: "destructive" });
-    }
-  });
-
-  const invites = invitesData?.invites || [];
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      pending: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20",
-      sent: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-      redeemed: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20",
-      expired: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
-      revoked: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
-    };
-    const icons = {
-      pending: <Clock className="h-3 w-3" />,
-      sent: <Send className="h-3 w-3" />,
-      redeemed: <CheckCircle2 className="h-3 w-3" />,
-      expired: <Clock className="h-3 w-3" />,
-      revoked: <XCircle className="h-3 w-3" />,
-    };
-    return (
-      <Badge variant="outline" className={cn("flex items-center gap-1", styles[status as keyof typeof styles] || styles.pending)}>
-        {icons[status as keyof typeof icons] || icons.pending}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
-
-  const copyInviteLink = (token: string, id: string) => {
-    const link = `${window.location.origin}/join-beta?invite=${token}`;
-    navigator.clipboard.writeText(link);
-    setCopiedId(id);
-    toast({ title: "Invite link copied to clipboard" });
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const pendingCount = invites.filter(i => i.status === 'pending').length;
-  const sentCount = invites.filter(i => i.status === 'sent').length;
-  const redeemedCount = invites.filter(i => i.status === 'redeemed').length;
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-[var(--trade-neutral)]">{pendingCount}</p>
-              </div>
-              <Clock className="h-8 w-8 text-[var(--trade-neutral)]/20" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Sent</p>
-                <p className="text-2xl font-bold text-sky-400">{sentCount}</p>
-              </div>
-              <Send className="h-8 w-8 text-sky-400/20" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Redeemed</p>
-                <p className="text-2xl font-bold text-[var(--trade-bullish)]">{redeemedCount}</p>
-              </div>
-              <CheckCircle2 className="h-8 w-8 text-[var(--trade-bullish)]/20" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <Mail className="h-5 w-5 text-sky-400" />
-                Beta Invites
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Manage invite codes and track redemptions
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                className="border-border text-foreground/80"
-                data-testid="button-refresh-invites"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="bg-sky-600 hover:bg-sky-700" data-testid="button-create-invite">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Invite
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-card border-border">
-                  <DialogHeader>
-                    <DialogTitle className="text-foreground">Create New Invite</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                      Generate a new invite code for beta access
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">Email Address</label>
-                      <Input
-                        placeholder="user@example.com"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        className="bg-muted border-border text-foreground"
-                        data-testid="input-invite-email"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">Subscription Tier</label>
-                      <Select value={newTier} onValueChange={setNewTier}>
-                        <SelectTrigger className="bg-muted border-border text-foreground" data-testid="select-invite-tier">
-                          <SelectValue placeholder="Select tier" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-muted border-border">
-                          <SelectItem value="free">Free</SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                          <SelectItem value="pro">Pro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">Notes (optional)</label>
-                      <Textarea
-                        placeholder="Internal notes about this invite..."
-                        value={newNotes}
-                        onChange={(e) => setNewNotes(e.target.value)}
-                        className="bg-muted border-border text-foreground resize-none"
-                        rows={3}
-                        data-testid="input-invite-notes"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter className="gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowCreateDialog(false)}
-                      className="border-border text-foreground/80"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={() => createInviteMutation.mutate({ email: newEmail, tier: newTier, notes: newNotes })}
-                      disabled={!newEmail || createInviteMutation.isPending}
-                      className="bg-sky-600 hover:bg-sky-700"
-                      data-testid="button-submit-invite"
-                    >
-                      {createInviteMutation.isPending ? "Creating..." : "Create Invite"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-16 bg-muted" />
-              ))}
-            </div>
-          ) : invites.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Mail className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Create an invite to get started</p>
-              <p className="text-sm mt-1">Click "Create Invite" to get started</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">Email</TableHead>
-                    <TableHead className="text-muted-foreground">Access Code</TableHead>
-                    <TableHead className="text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-muted-foreground">Tier</TableHead>
-                    <TableHead className="text-muted-foreground">Expires</TableHead>
-                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invites.map((invite) => (
-                    <TableRow key={invite.id} className="border-border" data-testid={`row-invite-${invite.id}`}>
-                      <TableCell>
-                        <p className="font-medium text-foreground">{invite.email}</p>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <code className="text-xs text-sky-400 font-mono bg-muted/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
-                            {invite.token}
-                          </code>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 text-muted-foreground hover:text-sky-400"
-                            onClick={() => {
-                              navigator.clipboard.writeText(invite.token);
-                              setCopiedId(invite.id + '-code');
-                              toast({ title: "Access code copied!" });
-                              setTimeout(() => setCopiedId(null), 2000);
-                            }}
-                            data-testid={`button-copy-code-${invite.id}`}
-                            title="Copy access code"
-                          >
-                            {copiedId === invite.id + '-code' ? (
-                              <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invite.status)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-foreground/80 border-border">
-                          {invite.tierOverride || 'free'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(invite.expiresAt), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => copyInviteLink(invite.token, invite.id)}
-                            data-testid={`button-copy-${invite.id}`}
-                          >
-                            {copiedId === invite.id ? (
-                              <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)]" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {invite.status === 'pending' && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-sky-400 hover:text-sky-300"
-                              onClick={() => sendInviteMutation.mutate(invite.id)}
-                              disabled={sendInviteMutation.isPending}
-                              data-testid={`button-send-${invite.id}`}
-                              title="Send invite email"
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {invite.status === 'sent' && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-[var(--trade-neutral)] hover:text-amber-300"
-                              onClick={() => resendInviteMutation.mutate(invite.id)}
-                              disabled={resendInviteMutation.isPending}
-                              data-testid={`button-resend-${invite.id}`}
-                              title="Resend invite email"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {['pending', 'sent'].includes(invite.status) && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)]"
-                              onClick={() => revokeInviteMutation.mutate(invite.id)}
-                              data-testid={`button-revoke-${invite.id}`}
-                              title="Revoke invite"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+const KEY = '/api/admin/ops/invites';
+const STATUS_TONE: Record<AdminInviteRow['status'], LuxTone> = { unused: 'accent', used: 'mute', expired: 'caution', revoked: 'caution' };
+type Fresh = { id: string; code: string; link: string }[];
 
 export default function AdminInvites() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const q = useQuery<{ invites: AdminInviteRow[] }>({ queryKey: [KEY], queryFn: () => getJson(KEY) });
+  const email = useAdminJson<{ configured: boolean }>('/api/admin/email-status');
+  const [count, setCount] = useState('1');
+  const [lockEmail, setLockEmail] = useState('');
+  const [tier, setTier] = useState('none');
+  const [days, setDays] = useState('14');
+  const [note, setNote] = useState('');
+  const [fresh, setFresh] = useState<Fresh>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<'all' | AdminInviteRow['status']>('all');
+  const [search, setSearch] = useState('');
+
+  const all = q.data?.invites ?? [];
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return all.filter((i) => (status === 'all' || i.status === status)
+      && (!needle || `${i.code} ${i.email ?? ''} ${i.note ?? ''} ${i.redeemedBy?.email ?? ''}`.toLowerCase().includes(needle)));
+  }, [all, status, search]);
+  const n = (s: AdminInviteRow['status']) => all.filter((i) => i.status === s).length;
+
+  const refresh = async () => {
+    await qc.invalidateQueries({ queryKey: [KEY] });
+    void qc.invalidateQueries({ queryKey: ['/api/admin/ops/overview'] });
+  };
+
+  const generate = async () => {
+    setBusy('generate');
+    try {
+      const r = await adminWrite<{ invites: Fresh }>('POST', '/api/admin/ops/invites/generate', {
+        count: Number(count), email: lockEmail.trim() || null, tierOverride: tier, expiryDays: Number(days), note: note.trim() || null,
+      });
+      setFresh(r.invites);
+      toast({ title: `${r.invites.length} code${r.invites.length === 1 ? '' : 's'} generated` });
+      setLockEmail(''); setNote('');
+      await refresh();
+    } catch (e) {
+      toast({ title: 'Not generated', description: (e as Error).message, variant: 'destructive' });
+    } finally { setBusy(null); }
+  };
+
+  const act = async (id: string, label: string, fn: () => Promise<unknown>) => {
+    setBusy(id);
+    try { await fn(); toast({ title: label }); await refresh(); }
+    catch (e) { toast({ title: 'Not done', description: (e as Error).message, variant: 'destructive' }); }
+    finally { setBusy(null); }
+  };
+
+  const copy = async (text: string, what: string) => {
+    toast({ title: (await copyText(text)) ? `${what} copied` : `Copy failed — select it by hand` });
+  };
+
+  const exportCsv = () => {
+    downloadCsv(`quantedge-invites-${new Date().toISOString().slice(0, 10)}.csv`, toCsv([
+      ['code', 'link', 'status', 'email_lock', 'tier_override', 'created', 'expires', 'redeemed_at', 'redeemed_by', 'note'],
+      ...rows.map((i) => [i.code, i.link, i.status, i.email ?? '', i.tierOverride ?? '', i.createdAt ?? '', i.expiresAt ?? '', i.redeemedAt ?? '', i.redeemedBy?.email ?? '', i.note ?? '']),
+    ]));
+  };
+
   return (
     <AdminLayout>
-      <AdminInvitesContent />
+      <div className="ah-stack">
+        <LuxKpiGrid cols={4}>
+          <LuxKpi label="Unused" value={q.data ? n('unused') : '—'} sub="valid, not yet redeemed" />
+          <LuxKpi label="Used" value={q.data ? n('used') : '—'} sub="redeemed into an account" />
+          <LuxKpi label="Expired" value={q.data ? n('expired') : '—'} sub="past their expiry date" />
+          <LuxKpi label="Revoked" value={q.data ? n('revoked') : '—'} sub="cancelled by an operator" />
+        </LuxKpiGrid>
+
+        <LuxPanel title="Generate codes" sub="Codes are random (server crypto.randomBytes). An email lock makes the code work only for that address (one code). Every account starts on Free unless you pick a tier override; admin can't be granted by a code.">
+          <div className="ah-form">
+            <label className="ah-field">How many
+              <input className="ah-input" type="number" min={1} max={100} value={count} disabled={!!lockEmail.trim()} onChange={(e) => setCount(e.target.value)} data-testid="input-invite-count" />
+            </label>
+            <label className="ah-field">Email lock (optional)
+              <input className="ah-input" type="email" placeholder="person@example.com" value={lockEmail} onChange={(e) => { setLockEmail(e.target.value); if (e.target.value.trim()) setCount('1'); }} data-testid="input-invite-email" />
+            </label>
+            <label className="ah-field">Tier override
+              <select className="ah-select" value={tier} onChange={(e) => setTier(e.target.value)} data-testid="select-invite-tier">
+                <option value="none">None (Free)</option><option value="free">Free</option><option value="advanced">Advanced</option><option value="pro">Pro</option>
+              </select>
+            </label>
+            <label className="ah-field">Expires in (days)
+              <input className="ah-input" type="number" min={1} max={365} value={days} onChange={(e) => setDays(e.target.value)} />
+            </label>
+            <label className="ah-field" style={{ gridColumn: '1 / -1' }}>Note (internal)
+              <input className="ah-input" maxLength={500} placeholder="e.g. Discord giveaway, Femi's friends" value={note} onChange={(e) => setNote(e.target.value)} />
+            </label>
+            <div><LuxButton variant="primary" disabled={busy === 'generate'} onClick={() => void generate()} data-testid="button-generate-invites">{busy === 'generate' ? 'Generating…' : 'Generate'}</LuxButton></div>
+          </div>
+          {fresh.length > 0 && (
+            <div className="ah-fresh" aria-live="polite">
+              <div className="ah-bar">
+                <b style={{ fontSize: 13 }}>New codes</b>
+                <LuxButton onClick={() => void copy(fresh.map((f) => f.code).join('\n'), 'Codes')}>Copy all codes</LuxButton>
+                <LuxButton onClick={() => void copy(fresh.map((f) => f.link).join('\n'), 'Links')}>Copy all links</LuxButton>
+                <LuxButton variant="ghost" onClick={() => setFresh([])}>Dismiss</LuxButton>
+              </div>
+              {fresh.map((f) => (
+                <div key={f.id} className="ah-fresh-row">
+                  <span className="ah-code">{f.code}</span>
+                  <div className="ah-acts">
+                    <LuxButton onClick={() => void copy(f.code, 'Code')}>Copy code</LuxButton>
+                    <LuxButton onClick={() => void copy(f.link, 'Invite link')}>Copy link</LuxButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </LuxPanel>
+
+        <LuxPanel title="All codes" meta={q.data ? <LuxTag tone="mute">{rows.length} of {all.length}</LuxTag> : undefined}
+          sub={`Invite link = /signup?code=…, which prefills the code. Email sending is ${email.data?.configured ? 'configured' : 'not configured (no RESEND_API_KEY) — copy codes and links instead'}.`}>
+          <div className="ah-bar" style={{ marginBottom: 10 }}>
+            <input className="ah-input ah-grow" type="search" placeholder="Search code, email, note" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search codes" />
+            <select className="ah-select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filter by status">
+              <option value="all">All</option><option value="unused">Unused</option><option value="used">Used</option><option value="expired">Expired</option><option value="revoked">Revoked</option>
+            </select>
+            <LuxButton onClick={exportCsv} disabled={!rows.length}>Export CSV</LuxButton>
+          </div>
+          {q.isError && <QEError title="Codes didn't load" message={(q.error as Error)?.message ?? ''} onRetry={() => void q.refetch()} />}
+          {q.isLoading && <p className="ah-note">Loading…</p>}
+          {!!rows.length && (
+            <div className="ah-scroll">
+              <table className="ah-table ah-rows">
+                <thead><tr><th>Code</th><th>Status</th><th>Lock · tier</th><th>Created · expires</th><th>Redeemed by</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+                <tbody>
+                  {rows.map((i) => (
+                    <tr key={i.id} data-off={i.status !== 'unused'} data-testid={`row-invite-${i.id}`}>
+                      <td data-label="Code"><span className="ah-code">{i.code}</span>{i.note && <span className="ah-sub2">{i.note}</span>}</td>
+                      <td data-label="Status"><LuxTag tone={STATUS_TONE[i.status]}>{i.status.toUpperCase()}</LuxTag>{i.sentAt && <span className="ah-sub2">emailed {fmtAgo(i.sentAt)}</span>}</td>
+                      <td data-label="Lock · tier">{i.email ?? 'any email'}<span className="ah-sub2">{i.tierOverride ? `grants ${i.tierOverride}` : 'Free'}</span></td>
+                      <td data-label="Dates">{fmtDate(i.createdAt)}<span className="ah-sub2">expires {fmtDate(i.expiresAt)}</span></td>
+                      <td data-label="Redeemed by">{i.redeemedBy ? i.redeemedBy.email : i.status === 'used' ? '(account deleted or Google)' : '—'}{i.redeemedAt && <span className="ah-sub2">{fmtAgo(i.redeemedAt)}</span>}</td>
+                      <td data-label="">
+                        <div className="ah-acts">
+                          <LuxButton onClick={() => void copy(i.code, 'Code')}>Copy code</LuxButton>
+                          <LuxButton onClick={() => void copy(i.link, 'Invite link')}>Copy link</LuxButton>
+                          {i.status === 'unused' && i.email && email.data?.configured && (
+                            <LuxButton disabled={busy === i.id} onClick={() => void act(i.id, `Invite emailed to ${i.email}`, () => adminWrite('POST', `/api/admin/invites/${encodeURIComponent(i.id)}/resend`))}>Email it</LuxButton>
+                          )}
+                          {i.status === 'unused' && (
+                            <LuxButton className="ah-danger" disabled={busy === i.id} onClick={() => void act(i.id, 'Code revoked', () => adminWrite('POST', `/api/admin/ops/invites/${encodeURIComponent(i.id)}/revoke`))} data-testid={`button-revoke-${i.id}`}>Revoke</LuxButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {q.data && !rows.length && <p className="ah-note">{all.length ? 'No codes match.' : 'No codes yet — generate some above.'}</p>}
+        </LuxPanel>
+      </div>
     </AdminLayout>
   );
 }

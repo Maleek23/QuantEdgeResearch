@@ -25,22 +25,24 @@ interface AdminLayoutProps {
 
 /**
  * The admin hub (2026-09-29 consolidation — docs/ADMIN_HUB.md).
- * Four sections, down from twelve pages:
- *   Overview · Users & access (users · invites · waitlist) · System health · Content (blog)
+ * Sections: Overview · Users & access (users · invite codes · waitlist ·
+ *   trader books) · Audit log · System health · Content (blog). docs/ADMIN_TAB.md
  * Retired pages redirect (client/src/lib/legacy-redirects.ts). Drawn in the
  * platform's page template (LuxPage), not a separate sidebar app. The access
  * gate (access code → password → HTTP-only admin cookie) is unchanged.
  */
 export const ADMIN_SECTIONS = [
   { title: "Overview", href: "/admin", match: ["/admin"] },
-  { title: "Users & access", href: "/admin/users", match: ["/admin/users", "/admin/invites", "/admin/waitlist"] },
+  { title: "Users & access", href: "/admin/users", match: ["/admin/users", "/admin/invites", "/admin/waitlist", "/admin/traders"] },
+  { title: "Audit log", href: "/admin/audit", match: ["/admin/audit"] },
   { title: "System health", href: "/admin/system", match: ["/admin/system"] },
   { title: "Content", href: "/admin/blog", match: ["/admin/blog"] },
 ] as const;
 const ACCESS_TABS = [
   { title: "Users", href: "/admin/users" },
-  { title: "Invites", href: "/admin/invites" },
+  { title: "Invite codes", href: "/admin/invites" },
   { title: "Waitlist", href: "/admin/waitlist" },
+  { title: "Trader books", href: "/admin/traders" },
 ] as const;
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -217,7 +219,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <LuxPageHeader section="Admin" context={`v${CURRENT_RELEASE.version} · ${CURRENT_RELEASE.series}`} title={section.title}
           purpose={
             section.title === 'Overview' ? 'Who is using the platform and whether it is healthy, at a glance.'
-            : section.title === 'Users & access' ? 'Accounts, tiers and the beta gate: invites and the waitlist.'
+            : section.title === 'Users & access' ? 'Accounts, tiers and the beta gate: invite codes, the waitlist and trader-book passcodes. New accounts start on Free.'
+            : section.title === 'Audit log' ? 'Every operator action that changes access, newest first.'
             : section.title === 'System health' ? 'Data providers, process, database and API traffic — observed, not assumed.'
             : 'Blog posts on the public site.'
           }>

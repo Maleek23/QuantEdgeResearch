@@ -139,6 +139,9 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const { traders } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
       await db.update(traders).set({ passcodeHash: hash }).where(eq(traders.slug, slug));
+      // Admin action log (server/admin-audit.ts) — never the passcode itself.
+      const { appendAdminAudit } = await import('./admin-audit');
+      appendAdminAudit({ action: hash ? 'trader.passcode_set' : 'trader.passcode_clear', actor: actor.userId ? `user:${actor.userId}` : 'dev', target: slug, ip: req.ip ?? null });
       res.json({ ok: true, locked: !!hash });
     } catch (err) { fail(res, err, 'Set passcode'); }
   });

@@ -48,6 +48,7 @@ export default function Login() {
         'no_user': 'Could not retrieve your account. Please try again.',
         'login_failed': 'Login failed. Please try again.',
         'not_on_waitlist': 'You must be on the waitlist to sign in. Join below.',
+        'account_disabled': 'This account is disabled. Contact support if you think this is a mistake.',
       };
 
       setAuthError(errorMessages[error] || 'An error occurred during sign-in.');
