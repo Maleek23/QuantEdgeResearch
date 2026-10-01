@@ -61,3 +61,16 @@
 .nxp-chart-key .nxp-sw{margin-left:6px}
 @media(max-width:767px){.nxp-chart-key{font-size:12px}}
 .nxp-chart-meta{flex-wrap:wrap;gap:2px 12px}.nxp-chart-meta>span{white-space:nowrap}
+
+/* NEXUS grade (BOARD_SORT=grade, shared/nexus-grade.ts) — unvalidated actionability order */
+.nxp-row-main small.nxp-why{color:var(--text-mute);font-size:10.5px;text-transform:none}
+.nxp-grade{display:inline-flex;align-items:baseline;gap:4px;padding:1px 6px;border:1px solid var(--border-subtle);border-radius:6px;font:700 12px 'JetBrains Mono',monospace}
+.nxp-grade b{font-weight:600;color:var(--text-mute);font-size:11px}
+.nxp-grade-A{color:var(--p)}.nxp-grade-B{color:var(--accent,#6aa9ff)}.nxp-grade-C{color:var(--text-primary)}.nxp-grade-D,.nxp-grade-F{color:var(--text-mute)}
+.nxp-head-scores{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.nxp-grade-box{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:150px;max-width:220px;text-align:center}
+.nxp-grade-letter{font:700 30px 'Space Grotesk',sans-serif;line-height:1}
+.nxp-grade-box>span{font-size:11px;color:var(--text-mute)}
+.nxp-grade-why{list-style:none;margin:2px 0 0;padding:0;font-size:11px;color:var(--text-mute);text-align:left}
+.nxp-grade-why li{display:flex;justify-content:space-between;gap:10px}
+.nxp-grade-why b{color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-weight:600}
