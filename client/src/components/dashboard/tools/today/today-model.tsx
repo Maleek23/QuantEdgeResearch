@@ -82,16 +82,17 @@ function useMinuteClock() {
 }
 
 /** "board order" wording for the BOARD_SORT the server reports. */
-export const BOARD_ORDER_LABEL: Record<'score' | 'recency' | 'engine_record', string> = {
+export const BOARD_ORDER_LABEL: Record<'score' | 'recency' | 'engine_record' | 'grade', string> = {
   score: 'NEXUS board order · by evidence',
   recency: 'NEXUS board order · newest first',
   engine_record: 'NEXUS board order · by engine record',
+  grade: 'NEXUS board order · by NEXUS grade (unvalidated)',
 };
 
 export function useBook() {
   // Same query key + cadence as NEXUS (one fetch, one snapshot) and the same
   // membership rule (isLiveBookPick) so "N live" and the scores match NEXUS exactly.
-  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string; boardSort?: 'score' | 'recency' | 'engine_record' }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
+  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string; boardSort?: 'score' | 'recency' | 'engine_record' | 'grade' }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
   // ORDER = the NEXUS board's order (lib/setup-lifecycle.ts boardOrder): the server's
   // BOARD_SORT rank when it stamped one, else evidence score; stale + resolved setups
   // sink. This used to sort by evidence score alone while NEXUS used BOARD_SORT=recency,
@@ -99,7 +100,7 @@ export function useBook() {
   const now = useMinuteClock();
   const book = conv.data?.picks as unknown as ConvictionPick[] | undefined;
   const { map: life } = useSetupLifecycles(book, conv.data?.generatedAt, now);
-  const ideas = useMemo(() => boardOrder((book ?? []).filter((p) => isLiveBookPick(p)), life) as unknown as Pick[], [book, life]);
+  const ideas = useMemo(() => boardOrder((book ?? []).filter((p) => isLiveBookPick(p)), life, now) as unknown as Pick[], [book, life, now]);
   const boardSort = conv.data?.boardSort ?? 'score';
   const syms = ideas.slice(0, 12).map((p) => p.symbol).concat('SPY').join(',');
   const quotes = useQuery<{ quotes: Record<string, Quote> }>({
