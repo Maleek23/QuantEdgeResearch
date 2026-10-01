@@ -86,6 +86,12 @@ export const IGNITION_CFG = {
     perDay: { intraday: 4, daily: 3, swing: 3, weekly: 0 } as Record<IgnitionHorizon, number>,
     /** Laggard: moved ≤ this fraction of the ETF's move in the group's direction. */
     laggardMaxFraction: 0.5,
+    /**
+     * Laggard floor: a member moving AGAINST the group by more than this fraction
+     * of the ETF's move is being left behind, not lagging (SNDK/STX falling while
+     * SMH rose were listed as catch-up names on 2026-10-01).
+     */
+    laggardMinFraction: -0.5,
     minSignalsForLaggard: 1,
   },
 } as const;
@@ -150,6 +156,8 @@ export interface GroupRead {
   metrics: Record<string, number | string | boolean | null>;
   leaders: MemberChip[];
   laggards: MemberChip[];
+  /** Every member read on this horizon, best move on the group's side first (the "see all" list). */
+  ranked?: MemberChip[];
   levels: IgnitionLevel[];
   why: string[];
   status: 'measuring';
@@ -175,8 +183,13 @@ export interface MemberSignalInput {
 export function selectLeadersLaggards(
   members: MemberSignalInput[], etfMovePct: number | null, side: Side | null,
   cfg = IGNITION_CFG.ideas, maxEach = 4,
-): { leaders: MemberChip[]; laggards: MemberChip[] } {
-  if (!side) return { leaders: [], laggards: [] };
+): { leaders: MemberChip[]; laggards: MemberChip[]; ranked: MemberChip[] } {
+  const all = members.filter((m) => m.movePct != null && Number.isFinite(m.movePct));
+  const rankSign = side ? sgn(side) : (etfMovePct ?? 0) < 0 ? -1 : 1;
+  const ranked = [...all]
+    .sort((a, b) => (b.movePct as number) * rankSign - (a.movePct as number) * rankSign)
+    .map((m) => ({ symbol: m.symbol, movePct: r2(m.movePct as number), note: m.signals.slice(0, 2).join(' · ') }));
+  if (!side) return { leaders: [], laggards: [], ranked };
   const s = sgn(side);
   const etfAligned = etfMovePct != null ? etfMovePct * s : null;
   const withMove = members.filter((m) => m.movePct != null && Number.isFinite(m.movePct));
@@ -191,6 +204,7 @@ export function selectLeadersLaggards(
     .filter((m) => !leaderSet.has(m.symbol))
     .filter((m) => m.signals.length >= cfg.minSignalsForLaggard)
     .filter((m) => lagCut != null && (m.movePct as number) * s <= lagCut)
+    .filter((m) => (m.movePct as number) * s >= (etfAligned as number) * cfg.laggardMinFraction)
     .filter((m) => !m.leverage?.breakingDown)
     .sort((a, b) =>
       (b.leverage?.catchUpScore ?? -1) - (a.leverage?.catchUpScore ?? -1)
@@ -205,7 +219,7 @@ export function selectLeadersLaggards(
         m.leverage ? `β ${m.leverage.beta.toFixed(1)} (R² ${m.leverage.rSquared.toFixed(2)})${m.leverage.catchUpScore > 0 ? `, catch-up ${m.leverage.catchUpScore}` : ''}` : '',
       ].filter(Boolean).join(' · '),
     }));
-  return { leaders, laggards };
+  return { leaders, laggards, ranked };
 }
 
 function sideOf(x: number | null | undefined, eps = 0): Side | null {

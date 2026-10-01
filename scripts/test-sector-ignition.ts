@@ -110,6 +110,15 @@ t('laggards: theme-leverage "breaking down" is excluded; catch-up score ranks', 
   assert.deepEqual(r.laggards.map((x) => x.symbol), ['Z', 'X']);
 });
 
+t('laggards: a member moving hard against the group is left behind, not a laggard', () => {
+  const r = selectLeadersLaggards([
+    { symbol: 'SNDK', movePct: -2.5, signals: ['call flow'] },
+    { symbol: 'STX', movePct: -0.4, signals: ['call flow'] },
+    { symbol: 'MRVL', movePct: 0.3, signals: ['above VWAP'] },
+  ], 2, 'long');
+  assert.deepEqual(r.laggards.map((x) => x.symbol).sort(), ['MRVL', 'STX'], 'SNDK -2.5% vs ETF +2% is below the -1% floor');
+});
+
 t('laggards short side: members that have not fallen', () => {
   const r = selectLeadersLaggards([{ symbol: 'A', movePct: -2, signals: ['below VWAP'] }, { symbol: 'B', movePct: -0.1, signals: ['below VWAP'] }], -1, 'short');
   assert.deepEqual(r.leaders.map((x) => x.symbol), ['A']);

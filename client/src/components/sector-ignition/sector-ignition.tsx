@@ -24,7 +24,7 @@ interface Chip { symbol: string; movePct: number | null; note: string }
 interface Group {
   groupId: string; label: string; etf: string; horizon: Horizon; phase?: string | null; stage: Stage; side: 'long' | 'short' | null; points: number;
   etfMovePct: number | null; relPct: number | null; breadthPct: number | null; flowCount: number | null; membersRead: number;
-  metrics: Record<string, unknown>; leaders: Chip[]; laggards: Chip[]; levels: Array<{ name: string; price: number }>; why: string[];
+  metrics: Record<string, unknown>; leaders: Chip[]; laggards: Chip[]; ranked?: Chip[]; levels: Array<{ name: string; price: number }>; why: string[];
 }
 export interface IgnitionPayload {
   horizon: Horizon; asOf: string; ageSec: number; phase: string | null; groups: Group[]; dataAsOf: Record<string, string | null>;
@@ -89,6 +89,7 @@ function Row({ g, dense }: { g: Group; dense: boolean }) {
       </summary>
       <Syms label="leaders" xs={g.leaders} />
       <Syms label="laggards" xs={g.laggards} lag />
+      {(g.ranked?.length ?? 0) > g.leaders.length && <Syms label={`all ${g.ranked!.length} ranked`} xs={g.ranked!} />}
       <ul className="si-why">
         {g.why.map((w, i) => <li key={i}>{w}</li>)}
         {readAt && <li>{carried ? 'carried from the last full sweep · ' : ''}read {ageOf(readAt)} · {g.membersRead} members read</li>}
@@ -178,6 +179,7 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const daily = useSectorIgnition('daily');
   const swing = useSectorIgnition('swing');
   const phone = usePhone();
+  const [open, setOpen] = useState<string | null>(null);
   const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
   if (!pick) {
     // compact (NEXUS board header): an unavailable read takes no row — the
@@ -188,27 +190,55 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const hot = pick.groups.filter((g) => g.stage === 'igniting' || g.stage === 'extended');
   const into = hot.filter((g) => g.side === 'long').sort((a, b) => b.points - a.points).slice(0, 3);
   const out = hot.filter((g) => g.side === 'short').sort((a, b) => b.points - a.points).slice(0, 3);
-  const lag = into.flatMap((g) => g.laggards.slice(0, 2).map((c) => c.symbol)).slice(0, 4);
-  const fmt = (g: Group) => `${g.label} (${g.etf} ${sp(g.etfMovePct, 1)}${g.stage === 'igniting' ? ' · igniting' : ''})`;
+  const lagChips = into.flatMap((g) => g.laggards.slice(0, 2)).slice(0, 4);
+  const openG = [...into, ...out].find((g) => g.groupId === open) ?? null;
+  const btn = (g: Group) => (
+    <button key={g.groupId} type="button" className={`ig-strip-g${open === g.groupId ? ' on' : ''}`} aria-expanded={open === g.groupId}
+      onClick={() => setOpen(open === g.groupId ? null : g.groupId)} title="Show every member, ranked">
+      {g.label} ({g.etf} {sp(g.etfMovePct, 1)}{g.stage === 'igniting' ? ' · igniting' : ''})
+    </button>
+  );
+  const list = (xs: Group[], none: string) => (xs.length ? xs.map((g, i) => <span key={g.groupId}>{i > 0 ? ', ' : ''}{btn(g)}</span>) : none);
+  const lagLine = lagChips.length > 0 && (
+    <span><b>Laggards to watch</b> {lagChips.map((c, i) => <span key={c.symbol}>{i > 0 ? ' · ' : ''}<Link href={`/r/${encodeURIComponent(c.symbol)}`} title={c.note}>{c.symbol}</Link> <small className={cls(c.movePct)}>{sp(c.movePct, 1)}</small></span>)}</span>
+  );
+  const ranked = openG && (
+    <div className="ig-strip-ranked" role="region" aria-label={`${openG.label} members ranked`}>
+      <b>{openG.label}</b> · {openG.etf} {sp(openG.etfMovePct, 1)} · {LABEL[pick.horizon]} · best {openG.side === 'short' ? 'decliners' : 'gainers'} first
+      <ol>
+        {(openG.ranked?.length ? openG.ranked : openG.leaders).map((c) => {
+          const tag = openG.leaders.some((l) => l.symbol === c.symbol) ? 'leader' : openG.laggards.some((l) => l.symbol === c.symbol) ? 'laggard' : '';
+          return (
+            <li key={c.symbol}>
+              <Link href={`/r/${encodeURIComponent(c.symbol)}`}>{c.symbol}</Link> <span className={cls(c.movePct)}>{sp(c.movePct, 1)}</span>
+              {tag && <small className={`ig-tag ${tag}`}>{tag}</small>}{c.note && <small> {c.note}</small>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
   return (
     // compact (NEXUS board) on a phone: ONE summary line, the full read one tap away —
     // the per-row with/against tags and the Sector Ignition section carry the same read
     compact && phone ? (
       <details className="ig-strip compact ig-strip-phone" aria-label="Sector rotation">
         <summary><span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span> <b className="up">Into</b> {into[0] ? `${into[0].label}${into.length > 1 ? ` +${into.length - 1}` : ''}` : 'nothing'} · <b className="dn">Out</b> {out[0] ? `${out[0].label}${out.length > 1 ? ` +${out.length - 1}` : ''}` : 'nothing'}</summary>
-        <span><b className="up">Into</b> {into.length ? into.map(fmt).join(', ') : 'nothing igniting long'}</span>
-        <span><b className="dn">Out of</b> {out.length ? out.map(fmt).join(', ') : 'nothing igniting short'}</span>
-        {lag.length > 0 && <span><b>Laggards to watch</b> {lag.join(' · ')}</span>}
+        <span><b className="up">Into</b> {list(into, 'nothing igniting long')}</span>
+        <span><b className="dn">Out of</b> {list(out, 'nothing igniting short')}</span>
+        {lagLine}
+        {ranked}
         <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
       </details>
     ) :
     <div className={`ig-strip${compact ? ' compact' : ''}`} aria-label="Sector rotation">
       <span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span>
-      <span><b className="up">Into</b> {into.length ? into.map(fmt).join(', ') : 'nothing igniting long'}</span>
-      <span><b className="dn">Out of</b> {out.length ? out.map(fmt).join(', ') : 'nothing igniting short'}</span>
-      {lag.length > 0 && <span><b>Laggards to watch</b> {lag.join(' · ')}</span>}
+      <span><b className="up">Into</b> {list(into, 'nothing igniting long')}</span>
+      <span><b className="dn">Out of</b> {list(out, 'nothing igniting short')}</span>
+      {lagLine}
       <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
       <Link href="/t?tab=sectors" className="ig-strip-open">Open Sectors →</Link>
+      {ranked}
     </div>
   );
 }

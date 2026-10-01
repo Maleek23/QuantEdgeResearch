@@ -52,3 +52,15 @@ details.ig-strip-phone>summary{display:block;min-height:44px;line-height:44px;pa
 details.ig-strip-phone>summary::-webkit-details-marker{display:none}
 details.ig-strip-phone[open]>summary{white-space:normal;line-height:1.45;padding:12px 0 4px}
 details.ig-strip-phone>span{display:block;margin-top:4px}
+/* strip: each group opens its full member list, ranked */
+.ig-strip-g{all:unset;cursor:pointer;color:var(--text-primary);border-bottom:1px dotted var(--text-mute);padding:2px 0}
+.ig-strip-g:hover,.ig-strip-g:focus-visible,.ig-strip-g.on{color:var(--cyan-bright,var(--lx-accent-text,#7fb2ff));border-bottom-style:solid}
+.ig-strip a{color:var(--text-primary);text-decoration:none}.ig-strip a:hover{text-decoration:underline}
+.ig-strip small.up{color:var(--p)}.ig-strip small.dn{color:var(--n)}
+.ig-strip-ranked{flex-basis:100%;padding-top:6px;border-top:1px solid var(--border-subtle);font-size:12.5px}
+.ig-strip-ranked ol{margin:6px 0 0;padding-left:22px;columns:3 200px;column-gap:20px}
+.ig-strip-ranked li{break-inside:avoid;padding:2px 0;font-variant-numeric:tabular-nums}
+.ig-strip-ranked li small{color:var(--text-mute)}
+.ig-tag{font:700 9px 'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;padding:1px 4px;border-radius:4px;border:1px solid var(--border-subtle)}
+.ig-tag.leader{color:var(--p)}.ig-tag.laggard{color:var(--text-dim)}
+@media (max-width:640px){.ig-strip-ranked ol{columns:1}}
