@@ -175,6 +175,9 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-cal-d{color:var(--text-mute);font-size:10.5px}
 .jr-cal-p{font-family:var(--jr-mono);font-weight:700;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jr-cal-t{font-size:10px;color:var(--text-dim)}
+/* Tinted (P/L) days: the muted/dim inks fell to 1.4–3.3:1 on the gain/loss tint (device
+   audit 2026-10-01) — use the body ink there (≥ 6.7:1 dark, ≥ 10:1 light, strongest tint). */
+.jr-cal-tint :is(.jr-cal-d,.jr-cal-t){color:var(--text)}
 @media (max-width:480px){.jr-cal-day{min-height:46px;padding:3px}.jr-cal-t{display:none}.jr-cal-p{font-size:10px}}
 .jr-cal-week{flex-direction:column;justify-content:center;align-items:flex-end;padding:4px 6px;border-radius:7px;background:rgba(127,178,255,0.04);
   font-family:var(--jr-mono);font-size:11px;gap:1px}

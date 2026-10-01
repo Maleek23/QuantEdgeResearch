@@ -85,7 +85,7 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
                     onBlur={renderPreview ? () => setPeek(null) : undefined}
                     aria-describedby={renderPreview && peek === day.date ? `jr-peek-${day.date}` : undefined}
                     type="button"
-                    className="jr-cal-day"
+                    className={day.netPnl !== 0 ? 'jr-cal-day jr-cal-tint' : 'jr-cal-day'}
                     aria-pressed={isSel}
                     aria-label={`${day.date}: ${fmtMoney(day.netPnl)}, ${day.trades} trade${day.trades === 1 ? '' : 's'}, ${day.wins} win${day.wins === 1 ? '' : 's'}${wk ? ` (${wkNote})` : ''}`}
                     title={wk ? wkNote : undefined}
