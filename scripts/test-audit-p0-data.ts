@@ -117,5 +117,24 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   ok(computePositionsSummary([pos('C', null, null)]).totalPnLPct === null, 'nothing marked → null headline');
 }
 
+// ── #14 Journal NEXUS book: untriggered ≠ open trade ─────────────────────────
+{
+  const { mapDeskIdea, AWAITING_ENTRY_REASON } = await import('../server/journal-row-maps');
+  const idea: any = {
+    id: 'd1', symbol: 'AAPL', assetType: 'stock', direction: 'long', entryPrice: 100, targetPrice: 110, stopLoss: 95,
+    riskRewardRatio: 2, optionType: null, strikePrice: null, expiryDate: null, entryPremium: null, exitPremium: null,
+    optionPercentGain: null, exitPrice: null, percentGain: null, outcomeStatus: 'open', resolutionReason: null,
+    exitDate: null, timestamp: '2026-09-30T14:00:00Z', source: 'quant', catalyst: null, genConvictionBand: 'A',
+  };
+  const pending = mapDeskIdea({ ...idea, executionState: 'pending_trigger' });
+  ok('excluded' in pending && pending.excluded === AWAITING_ENTRY_REASON, 'pending_trigger idea is awaiting entry, not an open trade');
+  const noAudit = mapDeskIdea({ ...idea, executionState: null });
+  ok('excluded' in noAudit, 'no recorded trigger → awaiting entry');
+  const trig = mapDeskIdea({ ...idea, executionState: 'triggered' });
+  ok('row' in trig && trig.row.status === 'open', 'triggered idea is an open trade');
+  const closed = mapDeskIdea({ ...idea, executionState: 'pending_trigger', outcomeStatus: 'hit_target', exitPrice: 110, exitDate: '2026-09-30T16:00:00Z' });
+  ok('row' in closed && closed.row.status === 'closed', 'resolved ideas are unaffected');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);
