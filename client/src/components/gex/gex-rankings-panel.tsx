@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { REGIME_COPY, type GammaRegime } from '@shared/gex-regime';
 import { exposureBg, exposureText, fmtAge, fmtSignedUsd, regimeColor } from './gex-colors';
+import { GxPop } from './gex-pop';
 
 type View = 'setups' | 'negVex' | 'lowGexPlus' | 'pins';
 
@@ -70,7 +71,15 @@ type SortKey = 'rank' | 'symbol' | 'spot' | 'netGEX' | 'netVEX' | 'gexPlus' | 'z
 const mono = "'JetBrains Mono',monospace";
 const srcLabel = (s?: string) => (s === 'alpaca-indicative' ? 'Alpaca ind.' : s === 'cboe-delayed' ? 'CBOE delayed' : s ?? '—');
 
-export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void }) {
+export function GexRankingsPanel({ onPick, compact = false }: {
+  onPick: (symbol: string) => void;
+  /**
+   * GEX workspace tile (operator 2026-10-01: fit to screen): the heading,
+   * "how to read it" and colour legend move behind one (i) beside the view
+   * tabs; the per-view blurb becomes the tabs' tooltips.
+   */
+  compact?: boolean;
+}) {
   const [view, setView] = useState<View>('setups');
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'rank', dir: 1 });
 
@@ -138,8 +147,9 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
         ? 'No ticker meets every setup criterion right now — that is a measurement, not missing data.'
         : 'No ticker qualifies for this view right now — that is a measurement, not missing data.';
 
-  return (
-    <div className="gexrank">
+  /** heading, how-to-read and colour legend — inline, or behind the (i) in compact */
+  const intro = (
+    <>
       <div className="gexrank-head">
         <h3>Screener · dealer liquidity across tickers</h3>
         <p>What this shows: one options chain per ticker, read on a 10-minute cadence in cash hours, ranked on gamma (GEX, $ per 1% move) and vanna (VEX, $ per 1 IV point) — plus the magnet setups the detector finds. Every row carries its own age and source.</p>
@@ -160,15 +170,34 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
         <span><i style={{ background: 'var(--amber)' }} />regime neutral / near zero-γ</span>
         <span>tint strength = magnitude in this view</span>
       </div>
+    </>
+  );
+  const tabs = (
+    <div className="gexrank-tabs" role="tablist" aria-label="Screener view">
+      {VIEWS.map((v) => (
+        <button key={v.id} role="tab" aria-selected={view === v.id} className={`filter-chip${view === v.id ? ' active' : ''}`} onClick={() => { setView(v.id); setSort({ key: 'rank', dir: 1 }); }} title={v.blurb}>
+          {v.label} <span className="n">·{count(v.id)}</span>
+        </button>
+      ))}
+    </div>
+  );
 
-      <div className="gexrank-tabs" role="tablist" aria-label="Screener view">
-        {VIEWS.map((v) => (
-          <button key={v.id} role="tab" aria-selected={view === v.id} className={`filter-chip${view === v.id ? ' active' : ''}`} onClick={() => { setView(v.id); setSort({ key: 'rank', dir: 1 }); }} title={v.blurb}>
-            {v.label} <span className="n">·{count(v.id)}</span>
-          </button>
-        ))}
-      </div>
-      <div className="gexrank-blurb">{activeView.blurb}</div>
+  return (
+    <div className="gexrank">
+      {compact ? (
+        <div className="gexrank-bar">
+          {tabs}
+          <GxPop kind="info" label="How to read the screener — views, colours and sources" width={380}>
+            <div className="gexrank-pop">{intro}<div className="gexrank-blurb">{activeView.blurb}</div></div>
+          </GxPop>
+        </div>
+      ) : (
+        <>
+          {intro}
+          {tabs}
+          <div className="gexrank-blurb">{activeView.blurb}</div>
+        </>
+      )}
 
       {isLoading ? (
         <div className="gexrank-empty">reading the rankings…</div>

@@ -17,6 +17,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { ageLabel } from './tools/flow/tape';
 import type { ToolDef } from './tool-def';
 import { FreshStamp, InfoSheet, shortTitle, usePhone } from '@/components/ui/qe-phone';
+import { GxPop } from '@/components/gex/gex-pop';
 
 export interface ToolReport {
   /** ISO of the newest datum shown (not the fetch time). */
@@ -199,20 +200,37 @@ export function ToolFrame({
   const now = useNow();
   const { src, age } = provenanceOf(def, report, now);
   const phone = usePhone();
+  // GEX workspace (operator 2026-10-01: "it needs to fit to screen"): ONE header
+  // row — title · symbol · source + age chip · (i) holding what / units / backing.
+  const oneRow = useDashboard().page === 'gex';
   return (
-    <section className="fd-tool" aria-label={def.title} data-tool={def.id}>
+    <section className={`fd-tool${oneRow ? ' fd-one-row' : ''}`} aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">
         {dragHandle ?? (grip ? <span className="fd-grip-ph" aria-hidden><GripVertical size={12} /></span> : null)}
         <div className="fd-tool-titles">
           <div className="fd-tool-title">
-            <span>{phone ? phoneTitleOf(def) : def.title}</span>
+            <span title={oneRow ? def.title : undefined}>{phone || oneRow ? phoneTitleOf(def) : def.title}</span>
             {symbol && <span className="fd-sym" title="Follows the focus ticker in the bar above">{symbol}</span>}
             <PhoneMeta def={def} report={report} now={now} />
-            <span className={`fd-age qp-desk-only${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
-              {src} · {age}{report.note ? ` · ${report.note}` : ''}
+            <span className={`fd-age qp-desk-only${oneRow ? ' fd-age-chip' : ''}${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
+              {oneRow ? <>{age}{report.note ? ` · ${report.note}` : ''}</> : <>{src} · {age}{report.note ? ` · ${report.note}` : ''}</>}
             </span>
+            {oneRow && (
+              <span className="qp-desk-only fd-info">
+                <GxPop kind="info" label={`About ${def.title} — what it shows, units, source and age`}>
+                  <div className="gx-pop-h">{def.title}</div>
+                  <dl>
+                    <dt>Shows</dt><dd>{def.what}</dd>
+                    <dt>Units</dt><dd>{def.units}</dd>
+                    <dt>Source</dt><dd>{src}</dd>
+                    <dt>Age</dt><dd>{age} (since the newest datum shown, not the last fetch){report.note ? ` · ${report.note}` : ''}</dd>
+                    <dt>Backing</dt><dd>{def.backing}</dd>
+                  </dl>
+                </GxPop>
+              </span>
+            )}
           </div>
-          {!compact && (
+          {!compact && !oneRow && (
             <div className="fd-tool-blurb qp-desk-only" title={`${def.what}\nUnits: ${def.units}\nBacking: ${def.backing}`}>
               {def.what} <span className="fd-units">Units: {def.units}</span>
             </div>
