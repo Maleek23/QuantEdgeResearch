@@ -82,11 +82,13 @@ function probe(phone: boolean) {
     }
   }
   const small: string[] = [];
-  const minT = phone ? 36 : 24;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const minT = phone || coarse ? 44 : 24; // DESIGN_SYSTEM §10: 44 on touch, 24 desktop (WCAG 2.5.8)
   for (const el of document.querySelectorAll('button, a[href], [role="button"], [role="tab"], input:not([type=hidden]), select, textarea, [role="switch"], [role="checkbox"]')) {
     if (!vis(el) || el.closest('[data-harness]')) continue;
     const r = el.getBoundingClientRect();
     if (r.width <= 1 || r.height <= 1) continue; // sr-only
+    if (el.getAttribute('role') === 'switch' && getComputedStyle(el, '::after').content !== 'none') continue; // hit area on ::after
     const inline = el.tagName === 'A' && getComputedStyle(el).display === 'inline' && el.closest('p');
     if (!inline && (r.height < minT || r.width < minT)) small.push(`${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
   }

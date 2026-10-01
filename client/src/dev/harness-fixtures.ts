@@ -541,10 +541,11 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   if (p === '/api/admin/stats') return json(200, mockAdminStats());
   if (p === '/api/admin/activity') return json(200, mockAdminActivity());
   if (p === '/api/admin/analytics') return json(200, mockAdminAnalytics());
-  if (p === '/api/admin/invites' || p === '/api/admin/waitlist') return json(200, []);
-  if (p === '/api/trader-calls') return json(200, { calls: [], asOf: ago(60e3) });
+  if (p === '/api/admin/invites') return json(200, []);
+  if (p === '/api/admin/waitlist') return json(200, { entries: [] });
+  if (p === '/api/trader-calls') return json(200, { calls: [], traders: [], asOf: ago(60e3), config: { minScore: 60, minSample: 20, maxAgeTradingDays: 5, minConfidence: 0.6 }, note: 'fixture' });
   if (p === '/api/journal/balance') return json(200, { balance: null, source: 'test_harness_fixture' });
-  if (p === '/api/journal/sources') return json(200, { sources: [] });
+  if (p === '/api/journal/sources') return json(200, { sources: [], isAdmin: false, capabilities: { discordBot: false, brokerKeys: false, serverAlpaca: false } });
   if (p === '/api/account/deletion-request') return json(200, { pending: false });
   if (p === '/api/csrf-token') return json(200, { csrfToken: 'test-harness-fixture' });
   if (p === '/api/tracking/pageview') return json(200, { ok: true });
