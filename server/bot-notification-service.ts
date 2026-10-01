@@ -19,7 +19,7 @@ export interface BotNotification {
   reason?: string;
   /** Stable origin lets clients route high-priority index alerts without
    * guessing from prose. */
-  source?: 'quant_bot' | 'index_scalp' | 'zero_dte_desk' | 'tradingview' | 'system';
+  source?: 'quant_bot' | 'index_scalp' | 'zero_dte_desk' | 'wall_touch' | 'tradingview' | 'system';
   ideaId?: string;
   portfolio?: 'options' | 'small_account' | 'futures' | 'crypto';
   pnl?: number;

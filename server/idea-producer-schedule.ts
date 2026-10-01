@@ -242,6 +242,53 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('1-59/5 10-15 * * 1-5', holyGrail, ET);
   }
 
+  // ── GEX wall-touch (server/wall-touch.ts) — OFF unless WALL_TOUCH=true, worker
+  // role only. Watch rows + in-app alerts + forward log; never publishes ideas.
+  //   walls   09:00 and 12:30 ET — one aggregate GEX pass per name (OI only
+  //           changes overnight), sequential, each symbol its own runHeavy slot,
+  //           so this tick must NOT be wrapped in guarded() (nesting deadlocks).
+  //   detect  every minute 09:31–16:00 on the sniper's shared stage-1 1-min bars
+  //           (light); a chain only on a confirmed rejection/break (runHeavy
+  //           'high', ≤ WALL_TOUCH_MAX_CHAINS per cycle) — own in-flight guard.
+  //   outcomes 16:20 + 16:50 ET — one batched stock-bar + option-bar read per day
+  //           for that day's logged touches (and any missed day). ──
+  if (process.env.WALL_TOUCH === 'true' && (await import('./lib/process-role')).runsWorkerJobs()) {
+    let mapRunning = false; let wtRunning = false;
+    const wallMap = (phase: 'premarket' | 'midday') => async () => {
+      if (mapRunning) { logger.info('[IDEA-PRODUCERS] wall-touch map: previous pass still running — skipped'); return; }
+      mapRunning = true;
+      try {
+        const { computeWallMap } = await import('./wall-touch');
+        await computeWallMap(phase);
+      } catch (err) {
+        logger.error('[IDEA-PRODUCERS] wall-touch map failed:', err);
+      } finally {
+        mapRunning = false;
+      }
+    };
+    const wallTouch = async () => {
+      if (wtRunning) { logger.info('[IDEA-PRODUCERS] wall-touch: previous pass still running — skipped'); return; }
+      wtRunning = true;
+      try {
+        const { runWallTouch } = await import('./wall-touch');
+        await runWallTouch();
+      } catch (err) {
+        logger.error('[IDEA-PRODUCERS] wall-touch failed:', err);
+      } finally {
+        wtRunning = false;
+      }
+    };
+    cron.schedule('0 9 * * 1-5', wallMap('premarket'), ET);
+    cron.schedule('30 12 * * 1-5', wallMap('midday'), ET);
+    cron.schedule('31-59 9 * * 1-5', wallTouch, ET);
+    cron.schedule('* 10-15 * * 1-5', wallTouch, ET);
+    cron.schedule('0 16 * * 1-5', wallTouch, ET);
+    cron.schedule('20,50 16 * * 1-5', guarded('wall-touch-outcomes', async () => {
+      const { runWallTouchOutcomes } = await import('./wall-touch');
+      return (await runWallTouchOutcomes()).written;
+    }, 'low'), ET);
+  }
+
   // ── SPX fast moves (server/spx-fast-moves.ts) — OFF unless SPX_FAST_MOVES=true.
   // Every minute 09:31–10:31 (open-drive causes) and 14:30–15:58 (afternoon /
   // close-flow causes). Light: one incremental SPY+VIXY 1-min bar request per
@@ -326,5 +373,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''}${process.env.HOLY_GRAIL === 'true' ? ', Holy Grail 5m 09:41–15:56 (HOLY_GRAIL=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
+  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''}${process.env.HOLY_GRAIL === 'true' ? ', Holy Grail 5m 09:41–15:56 (HOLY_GRAIL=true)' : ''}${process.env.WALL_TOUCH === 'true' ? ', GEX wall-touch walls 09:00/12:30 + detection 1m 09:31–16:00 + outcomes 16:20/16:50 (WALL_TOUCH=true, watch/alerts/log only)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
 }

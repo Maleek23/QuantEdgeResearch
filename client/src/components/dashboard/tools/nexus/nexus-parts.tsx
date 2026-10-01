@@ -25,6 +25,7 @@ import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
+import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
 import '@/styles/nexus-prototype.css';
 
 /* ── wire types ── */
@@ -374,6 +375,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
           </p>
           <VolumeLine symbol={selected.symbol} triggeredAt={selected.triggeredAt ?? null} />
           <HolyGrailBadge symbol={selected.symbol} />
+          <WallTouchBadge symbol={selected.symbol} />
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
         {selected.isBotHeld
