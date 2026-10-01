@@ -27,6 +27,9 @@
 .si-lv{font:500 10px var(--mono,ui-monospace,monospace);color:var(--si-mute);margin-top:4px}
 .si-msg{font-size:12px;color:var(--si-mute);padding:8px 0}
 .si-foot{font-size:10px;color:var(--si-mute);line-height:1.5}
+/* method / cadence / honesty note — one tap, not a paragraph (UI redundancy pass 2026-10-01) */
+.si-method>summary{display:inline-flex;align-items:center;min-height:32px;cursor:pointer;font-size:12px;list-style-position:inside}
+@media (max-width:767px){.si-method>summary{min-height:44px}}
 .si-dense .si-row>summary{grid-template-columns:76px minmax(0,1fr) repeat(3,auto)}
 .si-dense .si-hide-dense{display:none}
 @media (max-width:640px){
@@ -42,3 +45,10 @@
 @media (max-width:640px){.ig-strip{font-size:12.5px;gap:4px 10px}.ig-strip-age{margin-left:0}}
 .ig-strip-open{font:700 11px 'JetBrains Mono',monospace;letter-spacing:.04em;color:var(--cyan-bright,var(--lx-accent-text,#7fb2ff));text-decoration:none;white-space:nowrap;padding:4px 0}
 .ig-strip-open:hover,.ig-strip-open:focus-visible{text-decoration:underline}
+/* phone NEXUS board: one summary line, the full read on tap */
+details.ig-strip-phone{display:block;padding:0 10px}
+details.ig-strip-phone[open]{padding-bottom:8px}
+details.ig-strip-phone>summary{display:block;min-height:44px;line-height:44px;padding:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style:none}
+details.ig-strip-phone>summary::-webkit-details-marker{display:none}
+details.ig-strip-phone[open]>summary{white-space:normal;line-height:1.45;padding:12px 0 4px}
+details.ig-strip-phone>span{display:block;margin-top:4px}

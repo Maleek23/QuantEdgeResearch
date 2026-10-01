@@ -40,7 +40,7 @@ import '@/styles/nexus.css';
 import './dashboard.css';
 import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
 import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
-import { DashboardCtx, PhoneMeta, ReportCtx, ToolFrame, ToolInstanceCtx, phoneTitleOf, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
+import { DashboardCtx, PhoneMeta, ReportCtx, ToolFrame, ToolInstanceCtx, phoneTitleOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { usePhone } from '@/components/ui/qe-phone';
 import { materialize, useDashboards } from './use-dashboards';
 import { undoToast } from '@/lib/undo-toast';
@@ -454,16 +454,9 @@ function BareTool({ def, instance, onReport }: { def: ToolDef; instance: string;
   );
 }
 
+/** Simple pages: the page bar carries ONE stamp + ⓘ (source, units, feed) — the title is already in the top bar. */
 function Provenance({ def, report, now }: { def: ToolDef; report: ToolReport; now: number }) {
-  const { src, age } = provenanceOf(def, report, now);
-  return (
-    <>
-    <PhoneMeta def={def} report={report} now={now} />
-    <span className={cn('fd-prov qp-desk-only', report.tone === 'warn' && 'warn')} title={`${def.title} — ${def.what}\nUnits: ${def.units}\nData source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
-      {def.title} · {src} · {age}{report.note ? ` · ${report.note}` : ''}
-    </span>
-    </>
-  );
+  return <PhoneMeta def={def} report={report} now={now} />;
 }
 
 function SimpleView({ spec }: { spec: PageSpec }) {
@@ -615,7 +608,6 @@ function PageSection({ tool, symbol, style, fill, onRemove, column = false }: {
     watch();
     return () => { ro.disconnect(); mo.disconnect(); };
   }, [live]);
-  const { src, age } = provenanceOf(def, report, now);
   const phone = usePhone();
   // fill 'auto' = natural height that must never clip (the phone GEX matrix sizes its own scroller)
   const natural = fill === 'auto';
@@ -626,10 +618,10 @@ function PageSection({ tool, symbol, style, fill, onRemove, column = false }: {
   const headId = `pg-${tool.i}`;
   return (
     <section ref={secRef} className={cn('pg-sec', column && 'pg-col', column && cue.up && 'more-up', column && cue.down && 'more-down')} data-tool={def.id} style={style} aria-labelledby={headId}>
-      <header className="pg-sec-head" title={phone ? undefined : `${def.what}\nUnits: ${def.units}\nData source: ${src}`}>
+      <header className="pg-sec-head">
         <h2 id={headId}>{phone ? phoneTitleOf(def) : def.title}</h2>
         {symbol && <span className="fd-sym">{symbol}</span>}
-        <span className={cn('pg-prov qp-desk-only', report.tone === 'warn' && 'warn')}>{src} · {age}{report.note ? ` · ${report.note}` : ''}</span>
+        {/* one stamp + ⓘ (source, units, feed) — no visible provenance line (UI redundancy pass 2026-10-01) */}
         <PhoneMeta def={def} report={report} now={now} />
         {onRemove && (
           <button type="button" className="pg-remove fd-icon-btn" onClick={onRemove} aria-label={`Remove ${def.title}`} title={`Remove ${def.title} from this dashboard`}>
@@ -672,12 +664,15 @@ function PageView({ page }: { page: PageId }) {
   return (
     <DashboardCtx.Provider value={ctx}>
       <div className={cn('flowdash dash-page', `dash-${page}`, spec.framed && 'framed')} data-page={page} data-view="page">
-        <div className="fd-bar">
-          <div className="fd-bar-title">
-            <span className="fd-eyebrow">{spec.label}</span>
-            {needsFocus && <FocusBox />}
+        {/* The page name is already the top bar's title; the bar only earns a row when it carries the focus ticker. */}
+        {needsFocus && (
+          <div className="fd-bar">
+            <div className="fd-bar-title">
+              <span className="fd-eyebrow">{spec.label}</span>
+              <FocusBox />
+            </div>
           </div>
-        </div>
+        )}
         {!tools.length ? (
           <QEError className="fd-m" title={`${spec.label} has no default layout`} message="No tools are defined for this page." />
         ) : (

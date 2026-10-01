@@ -279,7 +279,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         {q ? (
           <>
             <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>
-            <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · {fmtPct(q.changePercent)}</span>
+            <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {Number.isFinite(q.change) ? <>{q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · </> : null}{fmtPct(q.changePercent)}</span>
             <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{q.source ?? 'realtime quote'}{q.delayed ? ' · delayed' : ''} · {age(q.asOf)}</span>
             <FreshStamp className="qp-phone-only" asOf={q.asOf} warn={!!q.delayed} />
           </>

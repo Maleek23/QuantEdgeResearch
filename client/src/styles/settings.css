@@ -109,6 +109,8 @@
 .st-confirm .st-input { width: 110px; font-family: var(--lx-font-data); }
 
 .st-foot { margin: 4px 0 0; font-size: 12px; color: var(--lx-mute); text-align: center; }
+/* ≥1024px the frame's bottom bar already says it — one disclaimer per screen */
+@media (min-width: 1024px) { .st-foot { display: none; } }
 
 /* Watchlist manager (list · remove · reorder) */
 .st-watch { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; width: 100%; max-width: 360px; max-height: 320px; overflow-y: auto; }

@@ -26,6 +26,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { Heartbeat } from '@/components/viz';
+import { PhoneNote } from '@/components/ui/qe-phone';
 import { QEChart } from '@/components/charting/qe-chart';
 import '@/styles/nexus.css';
 
@@ -373,11 +374,9 @@ export function CryptoChartDeck({ coin, onCoin, fill = false }: {
   return (
     <section className={`crypto-chart-deck${fill ? ' fill' : ''}`} aria-label="Interactive crypto chart and levels">
       <div className="crypto-chart-head">
-        <div>
-          <div className="spot-label">Structure lab</div>
-          <div className="crypto-chart-title">{chartCoin}/USD · interactive tape</div>
-        </div>
-        <div className="crypto-chart-tabs">
+        {/* (no "Structure lab / BTC/USD · interactive tape" label: the section title
+            says Structure Lab and the chart's own header names the pair — it read three times) */}
+        <div className="crypto-chart-tabs" role="group" aria-label={`Chart coin — ${chartCoin}/USD`}>
           {CHART_COINS.map((c) => (
             <button key={c} type="button" className={c === chartCoin ? 'active' : ''} onClick={() => setChartCoin(c)}>{c}</button>
           ))}
@@ -393,7 +392,7 @@ export function CryptoChartDeck({ coin, onCoin, fill = false }: {
         <div><span>RSI 14d</span><b>{chartAsset?.rsi14d == null ? '—' : chartAsset.rsi14d.toFixed(0)}</b></div>
         <div><span>realized vol</span><b>{chartAsset?.realizedVol30d == null ? '—' : `${chartAsset.realizedVol30d.toFixed(0)}%`}</b></div>
       </div>
-      <p className="crypto-chart-note">Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</p>
+      <PhoneNote label="About these levels" className="crypto-chart-note"><span>Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</span></PhoneNote>
     </section>
   );
 }
@@ -634,7 +633,7 @@ export function CryptoNexus() {
           <CryptoSentiment />
 
           <div className="disclaimer">
-            Educational only · not investment advice.<br />
+            <span className="qp-phone-only">Educational only · not investment advice.<br /></span>{/* ≥768px: the frame bottom bar says it */}
             Crypto trades 24/7 and is highly volatile — you can lose your full investment.<br />
             Crypto proxies are equities — validate each separately.
           </div>

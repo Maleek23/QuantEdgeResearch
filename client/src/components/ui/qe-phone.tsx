@@ -16,6 +16,7 @@
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Info } from 'lucide-react';
+import * as Popover from '@radix-ui/react-popover';
 import { QEDrawer } from './qe-drawer';
 import { cn } from '@/lib/utils';
 
@@ -77,27 +78,71 @@ export function FreshStamp({ asOf, now, label, warn, className }: {
   );
 }
 
-/** ⓘ → bottom sheet with the section's description, units, source and full age. */
-export function InfoSheet({ title, what, units, source, age, note, extra, className, label }: {
+/**
+ * A source string as a reader sees it: endpoint paths ("/api/…", "GET …") are
+ * plumbing, not provenance — they move to the ⓘ "Feed" line. Returns the
+ * readable part ("convictions engine") and the stripped detail, if any.
+ */
+export function splitSource(src: string | undefined): { label: string; detail?: string } {
+  if (!src) return { label: '' };
+  const parts = src.split(/\s+·\s+/);
+  const keep = parts.filter((p) => !/(^|\s)(GET\s+)?\/api\//.test(p));
+  const drop = parts.filter((p) => !keep.includes(p));
+  return { label: (keep.join(' · ') || src.replace(/(GET\s+)?\/api\/\S+/g, '').trim() || 'feed'), detail: drop.length ? drop.join(' · ') : undefined };
+}
+
+/**
+ * ⓘ → the section's description, units, source and full age (and the feed
+ * endpoint, for the curious). Phone: a bottom sheet. Desktop: a popover
+ * anchored to the ⓘ — one tap either way, nothing printed by default.
+ */
+export function InfoSheet({ title, what, units, source, age, note, extra, className, label, feed }: {
   title: string; what?: ReactNode; units?: string; source?: string; age?: string; note?: string;
   extra?: ReactNode; className?: string; label?: string;
+  /** endpoint / backing detail — shown last, small */
+  feed?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const phone = usePhone();
+  const { label: srcLabel, detail } = splitSource(source);
+  const feedLine = [detail, feed].filter(Boolean).join(' · ') || undefined;
+  const body = (
+    <>
+      <dl className="qp-sheet-dl">
+        {what && (<><dt>What it shows</dt><dd>{what}</dd></>)}
+        {units && (<><dt>Units</dt><dd>{units}</dd></>)}
+        {source && (<><dt>Source</dt><dd>{srcLabel}</dd></>)}
+        {age && (<><dt>Age</dt><dd>{age} <span className="qp-sheet-mute">(time since the newest datum shown, not since the last fetch)</span></dd></>)}
+        {note && (<><dt>Status</dt><dd>{note}</dd></>)}
+        {feedLine && (<><dt>Feed</dt><dd className="qp-sheet-feed">{feedLine}</dd></>)}
+      </dl>
+      {extra}
+    </>
+  );
+  const btn = (
+    <button type="button" className={cn('qp-info', className)} onClick={() => setOpen(true)}
+      aria-label={label ?? `About ${title}`} title={label ?? `About ${title} — what it shows, source and age`} aria-haspopup="dialog">
+      <Info aria-hidden size={16} />
+    </button>
+  );
+  if (!phone) {
+    return (
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger asChild>{btn}</Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="qp-pop" side="bottom" align="end" sideOffset={6} collisionPadding={12} aria-label={title}>
+            <div className="qp-pop-title">{title}</div>
+            {body}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    );
+  }
   return (
     <>
-      <button type="button" className={cn('qp-info', className)} onClick={() => setOpen(true)}
-        aria-label={label ?? `About ${title}`} title={label ?? `About ${title} — what it shows, source and age`} aria-haspopup="dialog">
-        <Info aria-hidden size={16} />
-      </button>
+      {btn}
       <QEDrawer open={open} onClose={() => setOpen(false)} title={title} side="bottom" className="qp-sheet">
-        <dl className="qp-sheet-dl">
-          {what && (<><dt>What it shows</dt><dd>{what}</dd></>)}
-          {units && (<><dt>Units</dt><dd>{units}</dd></>)}
-          {source && (<><dt>Source</dt><dd>{source}</dd></>)}
-          {age && (<><dt>Age</dt><dd>{age} <span className="qp-sheet-mute">(time since the newest datum shown, not since the last fetch)</span></dd></>)}
-          {note && (<><dt>Status</dt><dd>{note}</dd></>)}
-        </dl>
-        {extra}
+        {body}
       </QEDrawer>
     </>
   );

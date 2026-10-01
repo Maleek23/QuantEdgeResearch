@@ -27,6 +27,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
+import { PhoneNote } from '@/components/ui/qe-phone';
 import '@/styles/nexus.css';
 
 interface BoardSignal {
@@ -211,7 +212,7 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
     <div className="impact-section">
       <div className="impact-head">
         <div className="impact-label">Signal impact · how the verified calendar changes the active book</div>
-        <div className="impact-filters">
+        <div className="impact-filters qp-row">
           {([['all', 'All', rows.length], ['conflict', 'CONFLICT', counts.conflict], ['risk', 'EVENT RISK', counts.risk], ['confluence', 'CONFLUENCE', counts.confluence], ['nosignal', 'NO SIGNAL', counts.nosignal]] as const).map(([k, label, n]) => (
             <div key={k} className={`impact-filter${filter === k ? ' active' : ''}`} onClick={() => setFilter(k as Filter)}>
               {label} <span className="count">{n}</span>
@@ -225,10 +226,10 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
           <tr>
             <th>Ticker</th>
             <th>Impact</th>
-            <th>NEXUS side</th>
+            <th className="qp-col-x">NEXUS side</th>
             <th>Verified event</th>
-            <th>Distance</th>
-            <th>Response</th>
+            <th className="qp-col-x">Distance</th>
+            <th className="qp-col-x">Response</th>
           </tr>
         </thead>
         <tbody>
@@ -238,12 +239,14 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
               <tr key={`${d.type}-${d.symbol}-${d.event?.date}`} onClick={() => openWorkup(d.symbol)}>
                 <td>
                   <div className="impact-ticker">
+                    {/* phones: the NEXUS side column drops; its arrow rides on the ticker */}
+                    <span className={`qp-phone-only impact-side ${side === 'SHORT' ? 'short' : 'long'}`} aria-label={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`} title={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`}><span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span></span>
                     {d.symbol}
                     {d.convictionScore != null && <span className="score">{Math.round(d.convictionScore)}</span>}
                   </div>
                 </td>
                 <td><div className={`impact-type ${d.type === 'nosignal' ? 'conflict' : d.type}`}>{TYPE_LABEL[d.type]}</div></td>
-                <td>
+                <td className="qp-col-x">
                   <div className={`impact-side ${side === 'SHORT' ? 'short' : 'long'}`}>
                     <span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span>
                     {side}{d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}
@@ -252,11 +255,13 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
                 <td>
                   <div className="impact-event">
                     <b>{d.event?.title ?? '—'}</b>
+                    {/* phones: the Distance / Response columns drop; distance rides on the event (row tap opens the workup) */}
+                    {d.event?.daysAway != null && <span className="qp-phone-only"> · {d.event.daysAway === 0 ? 'today' : `${d.event.daysAway}d`}</span>}
                     {d.note && <div className="detail">{d.note}</div>}
                   </div>
                 </td>
-                <td><div className="impact-distance">{d.event?.daysAway != null ? (d.event.daysAway === 0 ? 'today' : `${d.event.daysAway}d`) : '—'}</div></td>
-                <td><div className="impact-response" title="The platform's standing rule for this join — enforced in scoring, not a button">{RESPONSE[d.type]} ↗</div></td>
+                <td className="qp-col-x"><div className="impact-distance">{d.event?.daysAway != null ? (d.event.daysAway === 0 ? 'today' : `${d.event.daysAway}d`) : '—'}</div></td>
+                <td className="qp-col-x"><div className="impact-response" title="The platform's standing rule for this join — enforced in scoring, not a button">{RESPONSE[d.type]} ↗</div></td>
               </tr>
             );
           })}
@@ -266,9 +271,9 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
         </tbody>
       </table>
 
-      <div className="impact-note">
-        <b>Catalysts joined to live conviction picks.</b> {board?._meta?.note?.replace(/^Catalysts joined to live conviction picks\.?\s*/, '') ?? "'conflict' = tracked events whose polarity opposes the direction we published; it is a flag to re-read the thesis, not an automatic exit. Binary events (earnings) are counted as risk, never as directional tilt. Empty sections mean no tracked catalyst fell inside the horizon — not that none exists."}
-      </div>
+      <PhoneNote label="How to read impact" className="impact-note">
+        <b>Catalysts joined to live conviction picks.</b> <span className="qp-phone-only">Response (column hidden on phones) is the standing rule per impact: {Object.entries(RESPONSE).map(([k, v]) => `${TYPE_LABEL[k as keyof typeof TYPE_LABEL]} → ${v}`).join(' · ')}.</span> {board?._meta?.note?.replace(/^Catalysts joined to live conviction picks\.?\s*/, '') ?? "'conflict' = tracked events whose polarity opposes the direction we published; it is a flag to re-read the thesis, not an automatic exit. Binary events (earnings) are counted as risk, never as directional tilt. Empty sections mean no tracked catalyst fell inside the horizon — not that none exists."}
+      </PhoneNote>
     </div>
   );
   const summaryBlock = (
@@ -410,7 +415,7 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
         {statusBlock}
 
         <div className="disclaimer">
-          Educational only · not investment advice.<br />
+          <span className="qp-phone-only">Educational only · not investment advice.<br /></span>{/* ≥768px: the frame bottom bar says it */}
           Binary events are risk, not directional tilt.
         </div>
       </div>

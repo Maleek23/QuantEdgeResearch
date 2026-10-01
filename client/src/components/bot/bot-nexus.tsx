@@ -30,6 +30,7 @@ import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
 import { QEChart } from '@/components/charting/qe-chart';
 import { Heartbeat } from '@/components/viz';
+import { PhoneNote } from '@/components/ui/qe-phone';
 import { useBotLedger, useQuantBotStatus, type BotPositionView } from '@/lib/bot/use-bot-status';
 import { fmtMoney, runRecords, toTrade, type RunRecord } from '@/lib/journal/metrics';
 import '@/styles/nexus.css';
@@ -78,7 +79,8 @@ const MIN_N = 30; // shared/constants MIN_REPORTABLE_SAMPLE
 
 const fetchJson = (url: string) => async () => {
   const r = await fetch(url, { credentials: 'include' });
-  if (!r.ok) throw new Error(`${url} failed`);
+  // user-facing: say what happened, not which endpoint (the path is plumbing)
+  if (!r.ok) throw new Error(`The server answered HTTP ${r.status}.`);
   return r.json();
 };
 
@@ -378,7 +380,6 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       <div className="bots-section">
         <div className="bots-head">
           <div className="bots-label">Background jobs · status from output freshness</div>
-          <div className="log-count">running · stale · idle</div>
         </div>
         <div className="bots-grid">
           {jobs.map((j) => (
@@ -389,7 +390,8 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 <div className="bot-name">{j.name}</div>
                 <div className={`bot-status ${STATUS_CLASS[j.st]}`}><span className="dot" />{j.st}</div>
               </div>
-              <div className="bot-desc-text">{j.desc}</div>
+              {/* what the job does: one line on desktop (full text on hover), one tap on phones */}
+              <PhoneNote label="What it does" className="bot-desc-note"><span className="bot-desc-text" title={j.desc}>{j.desc}</span></PhoneNote>
               <div className="bot-stats">
                 {j.stats.map((s) => (
                   <div className="bot-stat" key={s.k}>
@@ -414,7 +416,8 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       {/* PAPER BOOK — what the bot is actually holding, in every run */}
       <div className="book-section">
         <div className="book-head">
-          <div className="book-label">Paper book · what Quantinum Bot holds{activeRun ? ` · trading ${activeRun.label}` : ''}</div>
+          {/* the section title already says "Quantinum Bot Paper Book" */}
+          <div className="book-label">{activeRun ? `Trading ${activeRun.label}` : 'No run trading'}</div>
           <div className="book-meta">
             {activeRun ? (
               <>
@@ -430,8 +433,10 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
         {openByRun.map(({ r, pos }) => (
           <div key={r.id}>
             <div className="book-meta" style={{ padding: '6px 12px 2px', opacity: 0.9 }} title={`portfolio "${r.displayName}" · ${r.id}`}>
-              <span><b>{r.label}</b>{r.active ? ' · trading' : ' · retired, not managed'}</span>
-              <span>value {fmtMoney(r.totalValue, { signed: false })} = cash {fmtMoney(r.cashBalance, { signed: false })} + {r.open} open at marks</span>
+              {/* the trading run is named in the book head — only a retired run needs its label here */}
+              {!r.active && <span><b>{r.label}</b> · retired, not managed</span>}
+              {/* the trading run's value / cash are in the book head right above — print only its open count */}
+              <span>{r.active ? `${r.open} open at marks` : <>value {fmtMoney(r.totalValue, { signed: false })} = cash {fmtMoney(r.cashBalance, { signed: false })} + {r.open} open at marks</>}</span>
               {r.oldestMarkAt && <span>oldest mark {fmtAge(ageMin(r.oldestMarkAt))}</span>}
               {r.unmarked > 0 && <span style={{ color: 'var(--amber)' }}>{r.unmarked} never marked (at cost)</span>}
             </div>
@@ -580,7 +585,8 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       {/* SHADOW LEDGER — what the short gate blocked, replayed on real bars */}
       <div className="book-section">
         <div className="book-head">
-          <div className="book-label" style={{ color: 'var(--amber)' }}>Shadow ledger · what the gate blocked</div>
+          {/* as a dashboard tool the section title already names it */}
+          {!only && <div className="book-label" style={{ color: 'var(--amber)' }}>Shadow ledger · what the gate blocked</div>}
           <div className="book-meta">
             <span>{ledger?.totalBlocked ?? 0} blocked</span>
             <span>{ledger?.decided ?? 0} decided</span>
@@ -696,9 +702,11 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
     <>
       {/* PERFORMANCE — observed outcomes with the unresolved population visible */}
       <div className="perf">
-        <div className="perf-head">
-          <div className="perf-label">Outcome integrity · SR 11-7 control</div>
-        </div>
+        {!only && (
+          <div className="perf-head">
+            <div className="perf-label">Outcome integrity · SR 11-7 control</div>
+          </div>
+        )}
         <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
           {/* No daily P&L series is tracked — a curve here would be a random walk. */}
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
@@ -757,7 +765,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       </div>
 
       <div className="disclaimer">
-        Educational only · not investment advice.<br />
+        <span className="qp-phone-only">Educational only · not investment advice.<br /></span>{/* ≥768px: the frame bottom bar says it */}
         Paper trading — simulated fills, no real money. Simulated results have limits and past performance does not guarantee future results.<br />
         Automation does not remove risk — it enforces discipline.
       </div>

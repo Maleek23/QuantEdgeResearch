@@ -59,7 +59,9 @@ export function DesktopRail({
         // Visual modes live ONLY in Settings › Display (operator 2026-09-29).
         ...utilityItems(target),
       ]}
-      note={<>Decision support only.<br />Not investment advice.</>}
+      // No disclaimer note here: the desktop bottom bar (nexus-frame / terminal-shell)
+      // already carries "Educational only · not investment advice" on every page —
+      // one disclaimer per screen (UI redundancy pass 2026-10-01).
     />
   );
 }

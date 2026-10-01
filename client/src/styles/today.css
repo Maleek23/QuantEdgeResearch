@@ -672,3 +672,12 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
 .today-page .tl-pm-setup.triggered{border-style:solid;color:var(--text)}
 .today-page .tl-pm-setup:hover,.today-page .tl-pm-setup:focus-visible{border-color:rgba(59,140,255,.5)}
 .today-page .tl-pm-rec{align-self:center;font:500 12px var(--mono);color:var(--text-mute)}
+
+/* ── UI redundancy pass (2026-10-01) ──
+   The dealer map's method note moved into an ⓘ in the map head; values the
+   hero already shows are not repeated on a phone (the stats band's book stats,
+   the best idea's card that repeats the ladder right above it). */
+.today-page .lterminal-status .tl-map-info{margin:-8px -6px -8px 2px;color:var(--text-mute)}
+@media (max-width:767px){
+  .today-page .tl-dup-phone{display:none!important}
+}

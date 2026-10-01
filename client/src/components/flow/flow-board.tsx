@@ -660,7 +660,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
             <ConvergenceCard />
           </div>
           <div className="disclaimer">
-            Educational only · not investment advice.<br />
+            <span className="qp-phone-only">Educational only · not investment advice.<br /></span>{/* ≥768px: the frame bottom bar says it */}
             Pattern labels are inferred from chain activity.
           </div>
         </div>
