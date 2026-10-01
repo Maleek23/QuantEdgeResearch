@@ -73,5 +73,29 @@ ok(un.score === null, 'NO SIGNAL rows have no score');
 const risk = normalizeCatalystRow({ symbol: 'X', direction: 'long', event: { title: 'CPI', daysAway: 0 } }, 'risk');
 ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps its event');
 
+// ── #10/#11 One wall basis; #12 data time ───────────────────────────────────
+{
+  const { pickWalls } = await import('../shared/gex-wall-basis');
+  const { wallsFromGex } = await import('../server/wall-touch');
+  const { cboeDataTime } = await import('../server/gex-cboe-fallback');
+  const all = { callWall: 800, putWall: 500, flip: 640 };
+  const near = { ...all, byDte: { next7: { expirationsCount: 3, callWall: 680, putWall: 650, gammaFlipPrice: 662 } } };
+  const a = pickWalls(near);
+  ok(a.basis === 'next7' && a.callWall === 680 && a.putWall === 650 && a.flip === 662, '≤7d book wins when it has walls');
+  ok(/≤7d/.test(a.basisLabel) && a.basisShort === '≤7d', 'basis is labelled');
+  const b = pickWalls({ ...all, byDte: { next7: { expirationsCount: 2, callWall: 680, putWall: 650, gammaFlipPrice: null } } });
+  ok(b.flip === null, 'the near book never borrows the all-expiry zero-γ');
+  const c = pickWalls(all);
+  ok(c.basis === 'all' && c.callWall === 800 && /fallback/.test(c.basisLabel), 'all-expiry fallback is labelled as such');
+  ok(pickWalls(null).callWall === null, 'null-safe');
+  const wt = wallsFromGex({ spotPrice: 660, callWall: 800, putWall: 500, flipPoint: 640, byDte: near.byDte });
+  ok(wt.callWall === a.callWall && wt.putWall === a.putWall && wt.flip === a.flip && wt.basis === a.basis, 'NEXUS wall-touch uses the same rule');
+
+  const fetched = Date.parse('2026-10-01T20:00:00Z');
+  ok(cboeDataTime('2026-10-01 15:44:02', fetched) === '2026-10-01T19:44:02.000Z', 'CBOE naive ET timestamp → EDT instant');
+  ok(cboeDataTime('2026-01-15 15:44:02', Date.parse('2026-01-15T21:00:00Z')) === '2026-01-15T20:44:02.000Z', 'CBOE naive ET timestamp → EST instant');
+  ok(cboeDataTime(undefined, fetched) === new Date(fetched).toISOString(), 'no payload time → download time, not now');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);

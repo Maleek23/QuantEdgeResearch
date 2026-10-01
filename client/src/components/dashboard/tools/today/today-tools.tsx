@@ -118,7 +118,7 @@ export function TodayWeekMapTool() {
             <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
               <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>

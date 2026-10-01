@@ -20,6 +20,7 @@
  *   bot        Quantinum Bot record, model-record style: n closed, win rate only
  *              when n ≥ 30, since date. Journal = the bot's book stats.
  */
+import { pickWalls } from '../shared/gex-wall-basis';
 import { and, desc, eq, lte, isNotNull } from 'drizzle-orm';
 import { logger } from './logger';
 
@@ -33,6 +34,8 @@ type Section<T> = { data: T | null; asOf: string | null; error?: string };
 export interface ShowcaseQuote { symbol: string; price: number; changePct: number | null; source: string; asOf: string; delayed?: boolean }
 export interface ShowcaseGex {
   symbol: string; spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null;
+  /** Which book the walls/zero-γ are from — shared/gex-wall-basis.ts (≤7d, else all-expiry fallback). */
+  wallBasis: 'next7' | 'all'; wallBasisLabel: string;
   maxGammaStrike: number | null; regime: string | null; netGexB: number | null; source: string | null;
   chainAgeMs: number | null; delayedFeed: boolean;
   profile: Array<{ strike: number; netGex: number }>;
@@ -116,8 +119,10 @@ function refreshGex(): Promise<void> {
         at: Date.now(),
         data: {
           symbol: 'SPY', spot,
-          callWall: r.callWall ?? null, putWall: r.putWall ?? null,
-          zeroGamma: r.zeroGammaLevel ?? r.flipPoint ?? null,
+          // The platform's one wall basis (same numbers as Today / ticker / NEXUS).
+          ...((w) => ({ callWall: w.callWall, putWall: w.putWall, zeroGamma: w.flip, wallBasis: w.basis, wallBasisLabel: w.basisShort }))(
+            pickWalls({ callWall: r.callWall, putWall: r.putWall, flip: r.zeroGammaLevel ?? r.flipPoint ?? null, byDte: r.byDte }),
+          ),
           maxGammaStrike: r.maxGammaStrike ?? null,
           regime: (r.regime as string) ?? null,
           netGexB: Number.isFinite(r.totalNetGEX) ? r.totalNetGEX : null,

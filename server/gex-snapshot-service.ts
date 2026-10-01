@@ -17,6 +17,7 @@
  * sees the score, not the raw GEX.
  */
 
+import { pickWalls, type PickedWalls } from '../shared/gex-wall-basis';
 import { logger } from "./logger";
 import { calculateAggregateGammaExposure } from "./gamma-exposure";
 import { summarizeGammaMetrics, type GammaCompare } from "../shared/gex-adjusted";
@@ -42,6 +43,14 @@ export interface GexSnapshot {
    * (docs/GAMMA_RAW_VS_ADJUSTED.md). Context only — no scorer reads it.
    */
   gammaCompare?: GammaCompare | null;
+  /**
+   * Display walls on the platform's one basis (shared/gex-wall-basis.ts): the
+   * ≤7d book, else the all-expiry walls labelled as fallback. callWall/putWall
+   * above stay all-expiry for the scanners that read them.
+   */
+  walls?: PickedWalls;
+  /** When the options chain itself was read — the data's own time, not this response's. */
+  chainFetchedAt?: string | null;
 }
 
 interface CacheEntry {
@@ -110,6 +119,8 @@ async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
     fetchedAt: new Date().toISOString(),
     modelledGrossShare: result.dataQuality?.modelledGrossShare ?? null,
     gammaCompare: result.gammaMetrics ? summarizeGammaMetrics(result.gammaMetrics, spot) : null,
+    walls: pickWalls({ callWall: result.callWall, putWall: result.putWall, flip, byDte: result.byDte }),
+    chainFetchedAt: result.dataQuality?.chainFetchedAt ?? null,
   };
 }
 

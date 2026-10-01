@@ -19,6 +19,8 @@ type Section<T> = { data: T | null; asOf: string | null; error?: string };
 type Quote = { symbol: string; price: number; changePct: number | null; source: string; asOf: string; delayed?: boolean };
 type Gex = {
   symbol: string; spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null;
+  /** '≤7d' | 'all exp.' — which book the walls are from (shared/gex-wall-basis.ts). */
+  wallBasisLabel?: string;
   maxGammaStrike: number | null; regime: string | null; netGexB: number | null; source: string | null;
   chainAgeMs: number | null; delayedFeed: boolean; profile: Array<{ strike: number; netGex: number }>;
 };
@@ -246,12 +248,12 @@ function TodayPanel({ d, now, quotes, loading }: PanelProps) {
         {g ? (
           <>
             <p className="sc-read-line"><b>{reg?.[0] ?? 'Regime unknown'}</b>{reg ? ` — ${reg[1]}` : ''}{g.zeroGamma != null ? ` Spot is ${g.spot >= g.zeroGamma ? 'above' : 'below'} zero γ.` : ''}</p>
-            <dl className="sc-levels">
+            <dl className="sc-levels" title={g.wallBasisLabel ? `Walls and zero γ from the ${g.wallBasisLabel} book` : undefined}>
               <div><dt>Call wall</dt><dd className="c">{g.callWall ?? '—'}</dd></div>
               <div><dt>Zero γ</dt><dd className="a">{g.zeroGamma != null ? fmtPx(g.zeroGamma) : '—'}</dd></div>
               <div><dt>Put wall</dt><dd className="r">{g.putWall ?? '—'}</dd></div>
             </dl>
-            <Age iso={d?.gex.asOf} now={now} prefix={`GEX${g.source ? ` · ${g.source}` : ''}${g.delayedFeed ? ' · delayed chain' : ''}`} />
+            <Age iso={d?.gex.asOf} now={now} prefix={`GEX${g.wallBasisLabel ? ` · walls ${g.wallBasisLabel}` : ''}${g.source ? ` · ${g.source}` : ''}${g.delayedFeed ? ' · delayed chain' : ''}`} />
           </>
         ) : loading ? <Skel /> : <Empty>SPY dealer levels are computing — they appear here once the options chain is read.</Empty>}
       </div>
@@ -304,7 +306,7 @@ function GexPanel({ d, now, loading }: PanelProps) {
             <span><i className="a" />Zero γ {g.zeroGamma != null ? fmtPx(g.zeroGamma) : '—'}</span>
             <span><i className="r" />Put wall {g.putWall ?? '—'}</span>
           </div>
-          <Age iso={d?.gex.asOf} now={now} prefix={`${g.source ?? 'chain'}${g.delayedFeed ? ' · delayed chain' : ''}`} />
+          <Age iso={d?.gex.asOf} now={now} prefix={`${g.wallBasisLabel ? `walls ${g.wallBasisLabel} · ` : ''}${g.source ?? 'chain'}${g.delayedFeed ? ' · delayed chain' : ''}`} />
         </>
       ) : loading ? <Skel /> : <Empty>The SPY gamma profile is computing — it appears here once the options chain is read.</Empty>}
       <PanelFoot href="/t?tab=gex" label="GEX" />

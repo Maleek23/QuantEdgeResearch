@@ -30,6 +30,7 @@ import { openWorkup } from '@/lib/workup-bus';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { pickWalls } from '@shared/gex-wall-basis';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
@@ -202,11 +203,13 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   // "This week" = the book expiring within 8 days. The all-expiry walls sit on
   // long-dated round strikes (SPX 8,000 / 7,000 on 2026-09-30) that say nothing
   // about this week, so they are only used, and labelled, when no near book exists.
-  const wk = snap?.byDte?.next7 ?? null;
-  const wallBasis = wk ? `expiries ≤7d (${wk.expirationsCount})` : 'all expiries (no near-dated book)';
-  const callWallW = wk ? wk.callWall : snap?.callWall ?? null;
-  const putWallW = wk ? wk.putWall : snap?.putWall ?? null;
-  const flipW = wk?.gammaFlipPrice ?? snap?.gammaFlipPrice ?? null;
+  // One rule platform-wide (shared/gex-wall-basis.ts) — and the chart below draws
+  // these same walls, so tiles and lines can no longer disagree (audit 2026-10-01 #10).
+  const walls = pickWalls({ callWall: snap?.callWall, putWall: snap?.putWall, flip: snap?.gammaFlipPrice, byDte: snap?.byDte });
+  const wallBasis = walls.basis === 'next7' ? `expiries ≤7d (${walls.expirations ?? '—'})` : 'all expiries (no near-dated book)';
+  const callWallW = walls.callWall;
+  const putWallW = walls.putWall;
+  const flipW = walls.flip;
   const rr = snap?.regimeRead?.regime;
   const regimeKey = rr === 'negative' ? 'negative_gamma' : rr === 'positive' ? 'positive_gamma' : rr === 'neutral' ? 'neutral' : snap?.regime;
   const regimeLabel = snap?.regimeRead?.title ?? (regimeKey ? regimeKey.replace(/_/g, ' ') : null);
@@ -234,16 +237,16 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   /* chart levels: dealer anchors + published execution levels + 1σ week band */
   const levels: Level[] = useMemo(() => {
     const rows: Level[] = [];
-    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor', strength: 0.7, meta: 'zero-γ' });
-    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (putWallW != null) rows.push({ price: putWallW, color: 'put', label: `PUT WALL ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.8, meta: `Γ wall · ${walls.basisShort}` });
+    if (flipW != null) rows.push({ price: flipW, color: 'caution', label: `ZERO-γ ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.7, meta: `zero-γ · ${walls.basisShort}` });
+    if (callWallW != null) rows.push({ price: callWallW, color: 'call', label: `CALL WALL ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.8, meta: `Γ wall · ${walls.basisShort}` });
     if (pick && pick.levelBasis !== 'contract') {
       if (pick.targetPrice != null) rows.push({ price: pick.targetPrice, color: '#6ee7b7', label: 'T1', kind: 'execution' });
       if (pick.entryPrice != null) rows.push({ price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY', kind: 'execution' });
       if (pick.stopLoss != null) rows.push({ price: pick.stopLoss, color: '#ff6b3d', label: 'STOP', kind: 'execution' });
     }
     return rows.filter((l) => Number.isFinite(l.price));
-  }, [snap?.putWall, snap?.gammaFlipPrice, snap?.callWall, pick]);
+  }, [putWallW, flipW, callWallW, walls.basisShort, pick]);
   const zones: Zone[] = useMemo(() => (
     em != null && emSpot ? [{ from: emSpot - em, to: emSpot + em, color: 'rgba(59,140,255,0.07)', label: '1σ week' }] : []
   ), [em, emSpot]);

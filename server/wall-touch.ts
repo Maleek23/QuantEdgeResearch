@@ -46,6 +46,7 @@
  *
  * No ideas are published. WALL_TOUCH=true (worker role) is required for the schedule.
  */
+import { pickWalls } from '../shared/gex-wall-basis';
 import type { Express, NextFunction, Request, Response } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -270,11 +271,9 @@ const defaultGate = (priority: 'high' | 'normal', maxWaitMs: number): GateFn => 
 
 /** Walls for one result: the next-7-day book, falling back (labelled) to the all-expiry walls. */
 export function wallsFromGex(g: GexLike): Pick<WallMapEntry, 'putWall' | 'callWall' | 'flip' | 'basis' | 'basisLabel' | 'expirations'> {
-  const n7 = (g.byDte as GexByDte | undefined)?.next7;
-  if (n7 && (n7.putWall != null || n7.callWall != null)) {
-    return { putWall: n7.putWall, callWall: n7.callWall, flip: n7.gammaFlipPrice, basis: 'next7', basisLabel: `next-7-day book (expiries ≤7d, ${n7.expirationsCount})`, expirations: n7.expirationsCount };
-  }
-  return { putWall: g.putWall ?? null, callWall: g.callWall ?? null, flip: g.flipPoint ?? null, basis: 'all', basisLabel: 'all expiries (no near-dated book — fallback)', expirations: null };
+  // The one platform-wide rule (shared/gex-wall-basis.ts).
+  const w = pickWalls({ callWall: g.callWall, putWall: g.putWall, flip: g.flipPoint, byDte: g.byDte as GexByDte | undefined });
+  return { putWall: w.putWall, callWall: w.callWall, flip: w.flip, basis: w.basis, basisLabel: w.basisLabel, expirations: w.expirations };
 }
 
 /** Merge a fresh wall pick into the detection levels: unchanged walls keep their start; replaced ones get untilMs. */

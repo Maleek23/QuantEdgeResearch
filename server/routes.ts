@@ -33256,7 +33256,15 @@ Use this checklist before entering any trade:
         candles,
         orbs,
         heatmap,
-        strikeExpiryMatrix: gex?.strikeExpiryMatrix || [],
+        // CBOE fallback now builds its own matrix (audit 2026-10-01 P0 #13).
+        strikeExpiryMatrix: (gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || [],
+        // The real reason when there is still no matrix — not "pick a wider horizon".
+        ...(((gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || []).length === 0
+          ? { strikeExpiryMatrixNote: cboeFallbackUsed ? 'CBOE fallback chain had no strikes within ±15% of spot' : `${gex?.dataSource ?? 'chain'} returned no per-expiry rows` }
+          : {}),
+        // Age = the data's own time (audit #12): when the chain was read, plus its OI date.
+        chainFetchedAt: gex?.dataQuality?.chainFetchedAt ?? (cboeSnapshot as any)?.chainFetchedAt ?? null,
+        openInterestDate: gex?.dataQuality?.openInterestDate ?? null,
         projection,
         peers,
         dataQuality: {

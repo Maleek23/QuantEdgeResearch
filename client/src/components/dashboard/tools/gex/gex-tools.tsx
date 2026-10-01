@@ -70,7 +70,8 @@ function useGexFocus() {
     note: q.isError ? 'refresh failed' : q.data?.cached ? 'cached' : snap?.dataQuality?.openInterestDate ? `OI ${snap.dataQuality.openInterestDate}` : undefined,
     tone: q.isError || q.data?.cached ? 'warn' : 'ok',
   });
-  return { symbol, setFocus, q, snap, matrix, spot, waited };
+  const matrixNote = q.data?.strikeExpiryMatrixNote ?? null;
+  return { symbol, setFocus, q, snap, matrix, matrixNote, spot, waited };
 }
 
 /** Elapsed seconds while a query is in its first load — so a slow chain says so. */
@@ -375,7 +376,10 @@ export function GexMatrixTool() {
           strikeBand={band}
           leading={leading}
           spotInToolbar={!dash.hasTool('gex-levels')}
-          emptyText={`no listed cells for ${g.symbol} in ${DTE_BUCKETS.find((b) => b.id === bucket)?.label ?? 'this'} — pick a wider horizon`}
+          emptyText={g.matrix.length === 0
+            // No rows at all: a wider horizon cannot help — say why (server note).
+            ? `no strike × expiry rows for ${g.symbol}${g.matrixNote ? ` — ${g.matrixNote}` : ''}`
+            : `no listed cells for ${g.symbol} in ${DTE_BUCKETS.find((b) => b.id === bucket)?.label ?? 'this'} — pick a wider horizon`}
         />
       </div>
       {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}

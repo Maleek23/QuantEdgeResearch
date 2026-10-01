@@ -59,13 +59,36 @@ interface AggregatedStrike {
   putVEX: number;
 }
 
+/** CBOE's own snapshot time ("2026-10-01 15:44:02", exchange-local ET) when parseable, else the download time. */
+export function cboeDataTime(raw: unknown, fetchedAtMs: number): string {
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(raw)) {
+    const base = raw.trim().replace(' ', 'T');
+    const hasZone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(base);
+    if (hasZone) {
+      const t = Date.parse(base);
+      if (Number.isFinite(t)) return new Date(t).toISOString();
+    } else {
+      // Naive timestamp = America/New_York wall clock: keep the offset (EDT/EST)
+      // whose instant reads back as the same ET wall-clock hour.
+      for (const off of ['-04:00', '-05:00']) {
+        const t = Date.parse(`${base}${off}`);
+        if (!Number.isFinite(t)) continue;
+        const etHour = Number(new Date(t).toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false })) % 24;
+        if (etHour === Number(base.slice(11, 13))) return new Date(t).toISOString();
+      }
+    }
+  }
+  return new Date(fetchedAtMs).toISOString();
+}
+
 export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | null> {
   try {
     // CBOE exposes index chains behind underscored quote symbols. The option
     // contracts inside the payload still use OCC roots such as SPX and SPXW.
     // Shared loader: one parse at a time, trimmed to near expiries (lib/cboe-loader.ts).
     const { loadCboeChain } = await import('./lib/cboe-loader');
-    const j = (await loadCboeChain(symbol)).payload as CBOEResponse | null;
+    const loaded = await loadCboeChain(symbol);
+    const j = loaded.payload as CBOEResponse | null;
     const data = j?.data;
     if (!data?.current_price || !data?.options?.length) return null;
 
@@ -79,6 +102,10 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
     let netGammaSum = 0; // for dealer-flow calc
     let excludedGross = 0;
     const byExpiry = new Map<string, { days: number; net: number }>();
+    // Strike × expiry cells, same units as the primary engine ($B GEX, $M VEX per
+    // IV pt). v1 sent [] on this path, so the GEX matrix tile was blank on every
+    // weekend/after-hours/Alpaca failure (audit 2026-10-01 P0 #13).
+    const matrix = new Map<string, { strike: number; expiryLabel: string; dte: number; netGEX: number; netVEX: number }>();
 
     for (const o of data.options) {
       // OCC compact symbol: ROOT + YYMMDD + C/P + 8-digit strike. SPX chains
@@ -110,6 +137,19 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       const vanna = iv > 0 ? bsVanna(spot, strike, Math.max(T, MIN_T_YEARS), iv) : 0;
       const vexContribution = -sign * vannaPerVolPt(vanna, oi, spot);
       totalVEX += vexContribution;
+      if (Math.abs(strike - spot) / spot <= 0.15) {
+        const dte = Math.max(0, Math.round(T * 365));
+        const mk = `${strike}|${expirationDate}`;
+        let cell = matrix.get(mk);
+        if (!cell) {
+          const [yy, mm, dd] = expirationDate.split('-').map(Number);
+          const expiryLabel = new Date(Date.UTC(yy, mm - 1, dd)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).toUpperCase();
+          cell = { strike, expiryLabel, dte, netGEX: 0, netVEX: 0 };
+          matrix.set(mk, cell);
+        }
+        cell.netGEX += (sign * gexContribution) / 1e9;
+        cell.netVEX += vexContribution / 1e6;
+      }
       if (iv > 0) profileContracts.push({ strike, T: Math.max(T, MIN_T_YEARS), iv, oi, isCall });
       else excludedGross += gexContribution;
 
@@ -224,7 +264,10 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       source: 'cboe',
       expirationsUsed: [...new Set(contractList.map((contract) => contract.expirationDate))],
       chainFeed: 'cboe-delayed',
-      chainFetchedAt: new Date(now).toISOString(),
+      // The data's own time: CBOE's payload timestamp (its delayed snapshot), else
+      // when the chain was actually downloaded (it is cached) — never "now".
+      chainFetchedAt: cboeDataTime((j as any)?.timestamp, loaded.fetchedAt),
+      strikeExpiryMatrix: Array.from(matrix.values()).sort((a, b) => b.strike - a.strike || a.dte - b.dte),
       profileExcludedGrossShare: grossGEX > 0 ? excludedGross / grossGEX : 0,
     } as GEXSnapshot;
   } catch (e: any) {
