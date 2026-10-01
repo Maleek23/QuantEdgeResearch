@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft,
   Target,
@@ -704,6 +705,9 @@ export default function TradeAudit() {
   const params = useParams<{ id: string }>();
   const tradeId = params.id;
   const { toast } = useToast();
+  // Share to Discord is operator-only on the server (route-guards.ts); hide it for everyone else.
+  const { user } = useAuth();
+  const isOperator = !!((user as any)?.isAdmin || (user as any)?.subscriptionTier === 'admin');
   
   // Main audit data with polling for open trades
   const { data, isLoading, error, refetch } = useQuery<AuditTrailData>({
@@ -730,10 +734,12 @@ export default function TradeAudit() {
         description: `${data?.tradeIdea?.symbol ?? "The"} idea was posted to the Discord channel.`,
       });
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      // The server refuses ideas that fail the grade / relevance / 4-hour dedup filters.
+      const msg = err instanceof Error ? err.message.replace(/^\d+:\s*/, '') : '';
       toast({
         title: "Couldn’t share to Discord",
-        description: "Try again in a minute.",
+        description: msg || "Try again in a minute.",
         variant: "destructive",
       });
     },
@@ -821,10 +827,13 @@ export default function TradeAudit() {
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
+          {isOperator && (
           <Button 
             variant="default" 
             size="sm"
-            onClick={() => shareToDiscord.mutate()}
+            onClick={() => {
+              if (window.confirm(`Post ${tradeIdea?.symbol ?? 'this idea'} to the public Discord channel? It must pass the grade and dedup filters.`)) shareToDiscord.mutate();
+            }}
             disabled={shareToDiscord.isPending}
             className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
             data-testid="button-share-discord"
@@ -832,6 +841,7 @@ export default function TradeAudit() {
             <SiDiscord className="h-4 w-4 mr-1" />
             {shareToDiscord.isPending ? 'Sharing...' : 'Share to Discord'}
           </Button>
+          )}
         </div>
       </div>
       

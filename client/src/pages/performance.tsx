@@ -263,6 +263,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
 export default function PerformancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const isOperator = !!((user as any)?.isAdmin || (user as any)?.subscriptionTier === 'admin');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [dateRange, setDateRange] = useState("all");
   const [engineFilter, setEngineFilter] = useState<string>("all");
@@ -305,7 +306,11 @@ export default function PerformancePage() {
       setValidationResults(result.results || []);
       setValidationSummary({ validated: result.validated, updated: result.updated });
       setShowValidationDialog(true);
-      toast({ title: "Validation complete", description: `Validated ${result.validated} ideas, updated ${result.updated}` });
+      // Dry run (server default): live quotes only, nothing is written.
+      toast({
+        title: result.dryRun ? "Dry run complete — nothing written" : "Validation complete",
+        description: `Checked ${result.validated} ideas on live quotes · ${result.wouldUpdate ?? result.updated} would resolve · ${result.skipped ?? 0} skipped (no live quote)`,
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
     } catch (error) {
       toast({ title: "Couldn’t run validation", variant: "destructive" });
@@ -600,10 +605,13 @@ export default function PerformancePage() {
               <TabsContent value="audit" className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium">Data Integrity Audit</h3>
-                  <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
-                    <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
-                    Validate All
-                  </Button>
+                  {/* Operator-only, live quotes, dry run (server/performance-validate-live.ts). */}
+                  {isOperator && (
+                    <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
+                      <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
+                      Check vs live quotes (dry run)
+                    </Button>
+                  )}
                 </div>
                 <DataIntegrityPanel stats={stats} />
               </TabsContent>
