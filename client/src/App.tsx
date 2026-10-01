@@ -1,4 +1,4 @@
-import { Suspense, useEffect, ComponentType } from "react";
+import { Suspense, useEffect, ComponentType, lazy } from "react";
 import { LEGACY_REDIRECT_PATTERN, resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -32,6 +32,8 @@ const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell
 
 const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
+// DEV-only device harness index (client/src/dev/harness.ts). null in builds → no route, no chunk.
+const HarnessIndex   = import.meta.env.DEV ? lazy(() => import("@/dev/harness-index")) : null;
 
 // The tenth reference mock: the wired marketing page. Prior landing stays at @/pages/landing.
 const Landing = lazyWithRetry(() => import("@/pages/landing-nexus"), "landing");
@@ -255,6 +257,7 @@ function Router() {
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
 
+      {HarnessIndex && <Route path="/__harness" component={HarnessIndex} />}
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
@@ -327,7 +330,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

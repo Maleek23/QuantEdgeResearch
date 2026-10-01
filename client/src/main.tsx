@@ -48,12 +48,21 @@ function BootArm() {
   return null;
 }
 
-createRoot(document.getElementById("root")!).render(
+const render = () => createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BootArm />
     <App />
   </ErrorBoundary>
 );
+
+// DEV-only device harness (client/src/dev/harness.ts): /__harness or ?harness=1
+// answers /api from synthetic fixtures so pages render under bare `vite`.
+// import.meta.env.DEV is false in builds, so the import is dropped entirely.
+if (import.meta.env.DEV) {
+  import("./dev/harness").then((h) => { if (h.harnessWanted()) h.installHarness(); render(); }, render);
+} else {
+  render();
+}
 
 // PWA installability — the SW is a pure passthrough (no caching; a trading
 // terminal must never serve stale bundles). Registered post-load, best-effort.
