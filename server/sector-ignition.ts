@@ -47,6 +47,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { logger } from './logger';
 import { BoundedCache } from './lib/bounded-cache';
+import { readShared, writeShared } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { etParts, etWallToMs } from '@shared/loss-rules';
 import {
   IGNITION_CFG, ignitionGroups, ideaCapCheck, ideaVehicles, intradayMemberFromBars, median, pickStructuralTargets, r2,
@@ -453,6 +455,7 @@ async function compute(horizon: IgnitionHorizon, nowMs: number, opts: { phase?: 
       : await buildSwingOrWeekly(horizon, nowMs);
     await appendEvents(transitionEvents(horizon, st.groups, nowMs));
     stateCache.set(horizon, st);
+    if (writesSharedState()) void writeShared(`sector-ignition-${horizon}`, st);
     return st;
   })().finally(() => inflight.delete(horizon));
   inflight.set(horizon, p);
@@ -462,7 +465,15 @@ async function compute(horizon: IgnitionHorizon, nowMs: number, opts: { phase?: 
 /** Cached read for the API: recompute only when older than the horizon's TTL. */
 export async function getSectorIgnition(horizon: IgnitionHorizon): Promise<HorizonState & { ageSec: number; cadence: string; config: unknown; honesty: string }> {
   let st = stateCache.get(horizon);
-  if (!st || Date.now() - Date.parse(st.asOf) > TTL[horizon]) {
+  // Split deployment: the worker computes on its schedule and publishes; the web
+  // process serves the newest published read and only computes when the worker
+  // has never published this horizon (computing here held ~15 MB per horizon plus
+  // the bar reads, and drove web memory restarts on 2026-09-30).
+  if (readsSharedState()) {
+    const shared = readShared<HorizonState>(`sector-ignition-${horizon}`, 7 * 86_400_000);
+    if (shared?.data && (!st || Date.parse(shared.data.asOf) >= Date.parse(st.asOf))) { st = shared.data; stateCache.set(horizon, st); }
+  }
+  if (!st || (!readsSharedState() && Date.now() - Date.parse(st.asOf) > TTL[horizon])) {
     const { runHeavy } = await import('./lib/heavy-job-gate');
     const fresh = await runHeavy(`sector-ignition:${horizon}:api`, () => compute(horizon, Date.now()), { priority: 'normal', maxWaitMs: 60_000 });
     st = fresh ?? stateCache.get(horizon) ?? newState(horizon, Date.now());

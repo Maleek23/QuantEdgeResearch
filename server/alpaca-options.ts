@@ -222,7 +222,7 @@ async function fetchSpot(sym: string, high: () => boolean = () => false): Promis
 }
 
 interface OIRow { oi: number | null; oiDate: string | null; close: number | null; multiplier: number }
-const oiCache = new BoundedCache<string, { at: number; rows: Map<string, OIRow>; requests: number }>({ name: 'alpaca.openInterest', maxEntries: 40, ttlMs: 30 * 60_000, sizeOf: (v) => 256 + v.rows.size * 160 });
+const oiCache = new BoundedCache<string, { at: number; rows: Map<string, OIRow>; requests: number }>({ name: 'alpaca.openInterest', maxEntries: process.env.ROLE === 'web' ? 8 : 40, ttlMs: 30 * 60_000, sizeOf: (v) => 256 + v.rows.size * 160 });
 const OI_TTL_MS = 30 * 60_000;
 
 async function fetchOpenInterest(sym: string, expLte: string, lo: number | null, hi: number | null, high: () => boolean = () => false): Promise<{ rows: Map<string, OIRow>; requests: number }> {
@@ -254,7 +254,9 @@ async function fetchOpenInterest(sym: string, expLte: string, lo: number | null,
   return { rows, requests };
 }
 
-const chainCache = new BoundedCache<string, { expiresAt: number; chain: AlpacaChain }>({ name: 'alpaca.chains', maxEntries: 40, ttlMs: 20 * 60_000, maxBytes: 96 * 1024 * 1024, sizeOf: (v) => 2048 + v.chain.contracts.length * 520 });
+// The web process serves pages, not scans: keep few chains there (ROLE=web).
+const CHAIN_CACHE_MAX = process.env.ROLE === 'web' ? 8 : 40;
+const chainCache = new BoundedCache<string, { expiresAt: number; chain: AlpacaChain }>({ name: 'alpaca.chains', maxEntries: CHAIN_CACHE_MAX, ttlMs: 20 * 60_000, maxBytes: 96 * 1024 * 1024, sizeOf: (v) => 2048 + v.chain.contracts.length * 520 });
 const inflight = new Map<string, { p: Promise<AlpacaChain | null>; boost: { high: boolean } }>();
 
 /**

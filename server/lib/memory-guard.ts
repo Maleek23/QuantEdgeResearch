@@ -96,7 +96,16 @@ function check(): void {
     lastTrimAt = Date.now();
     trimAllCaches(0.5, `RSS ${mb(rss)} MB > ${TRIM_RSS_MB} MB`);
   }
+  // With --expose-gc: collect when RSS passes 60% of the trim line (at most every
+  // 20 s). Dead request garbage (chain parses, board copies) otherwise sits until
+  // pm2's cap restarts the process — 9 web restarts on 2026-09-30 evening.
+  const gc = (globalThis as any).gc as (() => void) | undefined;
+  if (typeof gc === 'function' && mb(rss) > TRIM_RSS_MB * 0.6 && Date.now() - lastGcAt > 20_000) {
+    lastGcAt = Date.now();
+    try { gc(); } catch { /* ignore */ }
+  }
 }
+let lastGcAt = 0;
 
 export function startMemoryGuard(): void {
   if (started || process.env.MEMORY_GUARD === 'false') return;
