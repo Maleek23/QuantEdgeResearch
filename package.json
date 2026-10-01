@@ -44,7 +44,9 @@
     "test:chart": "tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts",
     "test:publish-gates": "tsx scripts/test-publish-gates.ts",
     "test:exit-policy": "tsx scripts/test-exit-policy.ts",
-    "research:exit-rules": "tsx research/exit-rule-replay.ts"
+    "research:exit-rules": "tsx research/exit-rule-replay.ts",
+    "research:score-v2": "EXIT_REPLAY_NOW=${EXIT_REPLAY_NOW:-2026-10-01T04:55:30Z} tsx research/score-v2-study.ts",
+    "test:score-v2": "tsx scripts/test-score-v2.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
