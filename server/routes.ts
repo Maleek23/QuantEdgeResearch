@@ -1158,7 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUser(userId, { 
         hasBetaAccess: true,
         betaInviteId: invite.id,
-        subscriptionTier: invite.tierOverride || 'pro' // Default to pro for beta users
+        subscriptionTier: invite.tierOverride || 'free' // New accounts start on Free (operator 2026-09-30); an invite can override
       });
       
       // Fetch updated user to return

@@ -198,7 +198,7 @@ async function main() {
   }
 
   // ── 6. Google sign-in never changes a tier ──────────────────────────────
-  eq(googleNewUserTier(true), 'pro', 'new whitelisted / invited Google user starts on pro (existing policy)');
+  eq(googleNewUserTier(true), 'free', 'new invited Google user starts on free (operator 2026-09-30: every new account starts on Free)');
   eq(googleNewUserTier(false), 'free', 'other new Google users start on free');
   ok(!/subscriptionTier:\s*'pro'/.test(google), 'googleAuth never writes pro directly (no upgrade on login)');
   ok(!/Upgraded beta user from free to pro/.test(google), 'login-time upgrade removed');

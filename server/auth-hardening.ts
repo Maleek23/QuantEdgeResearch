@@ -221,6 +221,11 @@ export function parseWaitlistInput(body: unknown): { ok: true; value: WaitlistIn
  * free). Returning users keep whatever tier they have — sign-in never changes
  * a tier (it used to upgrade every free beta user to pro on every login).
  */
-export function googleNewUserTier(shouldGrantBetaAccess: boolean): 'pro' | 'free' {
-  return shouldGrantBetaAccess ? 'pro' : 'free';
+/**
+ * Operator 2026-09-30: every NEW account starts on Free — email, Google and
+ * beta-redeem alike. Beta access is a flag (hasBetaAccess), not a paid tier;
+ * an invite may still carry an explicit tierOverride.
+ */
+export function googleNewUserTier(_shouldGrantBetaAccess: boolean): 'pro' | 'free' {
+  return 'free';
 }
