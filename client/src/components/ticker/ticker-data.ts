@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useChartLabDealer } from '@/components/charting/chart-lab-nexus';
 
 export interface Bar { time: number; open: number; high: number; low: number; close: number; volume?: number }
-export interface Quote { price: number; change: number; changePercent: number; volume: number; asOf: string | null; source: string | null; delayed: boolean }
+export interface Quote { session?: string | null; price: number; change: number; changePercent: number; volume: number; asOf: string | null; source: string | null; delayed: boolean }
 export interface QuantinumLayer { kind: string; label: string; points: number; why: string; source: string }
 export interface QuantinumDossier {
   symbol: string; asOf: string;
@@ -68,7 +68,7 @@ export function useQuotes(symbols: string[]) {
       const body = await r.json();
       const out: Record<string, Quote> = {};
       for (const [k, q] of Object.entries<any>(body?.quotes ?? {})) {
-        out[k] = { price: q.price, change: q.change, changePercent: q.changePercent, volume: q.volume, asOf: q.asOf ?? null, source: q.source ?? null, delayed: q.delayed === true };
+        out[k] = { price: q.price, change: q.change, changePercent: q.changePercent, volume: q.volume, asOf: q.asOf ?? null, source: q.source ?? null, delayed: q.delayed === true, session: q.session ?? null };
       }
       return out;
     },

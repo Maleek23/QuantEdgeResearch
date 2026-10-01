@@ -20,6 +20,7 @@ import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
+import { useQuotes } from '@/components/ticker/ticker-data';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
@@ -345,7 +346,14 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
 }) {
   const reduceMotion = useReducedMotion();
   const positive = selected.direction === 'long';
-  const live = selected.currentPrice ?? selected.entryPrice;
+  const quotesQ = useQuotes([selected.symbol]);
+  // Live, not carried: a session-aware quote (pre/post included) beats the board's
+  // currentPrice, which is only refreshed when the board rebuilds. When neither
+  // exists the ladder says the quote is unavailable instead of showing entry as live.
+  const lq = quotesQ.data?.[selected.symbol.toUpperCase()];
+  const liveQuote = lq?.price && lq.price > 0 ? lq.price : (selected.currentPrice && selected.currentPrice > 0 ? selected.currentPrice : 0);
+  const live = liveQuote || selected.entryPrice;
+  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : selected.currentPrice ? 'board price' : null;
   const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
   const progress = selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
@@ -413,7 +421,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         </div>}
         {tab === 'overview' && <TraderCallEvidence symbol={selected.symbol} />}
         {tab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
-        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live} /><ProfitPlan pick={selected} live={live} /></div>}
+        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={liveQuote} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live} /></div>}
         {tab === 'risk' && <RiskPanel pick={selected} live={live} />}
         {tab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
       </div>
@@ -509,4 +517,21 @@ function EvidenceRing({ score, band, support, against }: { score: number; band: 
       <span className="nxp-ring-split"><b className="bull">{support}</b> for · <b className="bear">{against}</b> against</span>
     </div>
   );
+}
+
+/** Which US session a quote belongs to, ET. */
+function sessionLabel(now = new Date()): string {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
+  const wd = g('weekday'); const m = (Number(g('hour')) % 24) * 60 + Number(g('minute'));
+  if (wd === 'Sat' || wd === 'Sun') return 'market closed';
+  if (m >= 570 && m < 960) return 'live';
+  if (m >= 240 && m < 570) return 'pre-market';
+  if (m >= 960 && m < 1200) return 'after hours';
+  return 'overnight';
+}
+function ageOf(iso: string): string {
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  if (!Number.isFinite(s)) return '';
+  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`;
 }

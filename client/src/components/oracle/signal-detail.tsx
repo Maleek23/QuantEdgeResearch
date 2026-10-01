@@ -158,7 +158,7 @@ function Card({ title, meta, children, className }: { title: string; meta?: Reac
 
 // ─────────────────────────────────────────────────────────────── PriceLadder ──
 
-export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+export function PriceLadder({ pick, live, className, liveStamp }: { pick: ConvictionPick; live: number; className?: string; /** e.g. "after hours · Yahoo · 2m" — when absent and live is 0, the quote is unavailable */ liveStamp?: string | null }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
   const awaitingTrigger = g.status === 'pending_trigger';
@@ -187,7 +187,9 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
           <div className="mt-0.5 text-label font-mono text-muted-foreground">
             {awaitingTrigger
               ? trigger.text.replace('no position', 'not entered')
+              : !live ? 'Live quote unavailable — showing entry, not the market'
               : atEntry ? 'At recorded entry' : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% versus entry`}
+            {live && liveStamp ? <span> · {liveStamp}</span> : null}
           </div>
         </div>
         <div className="text-right">
