@@ -2829,11 +2829,25 @@ button:not([disabled]):active,
    data cells (tap-to-drill data, not controls) and inline links inside prose are
    exempt. The journal (.jr) is owned by the journal branch and is left alone. */
 @media (max-width:767px){
-  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],[role=option],select,summary,
-      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:44px!important}
-  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],summary):not(.gx-cell){min-width:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell):not([role=switch]){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],summary):not(.gx-cell):not([role=switch]){min-width:44px!important}
   a[href]:not(p a):not(.sr-only){min-height:44px!important}
   label:has(> input[type=checkbox]),label:has(> input[type=radio]){min-height:44px;display:inline-flex;align-items:center}
+}
+/* Touch tablets (iPad 768/1024) are touch devices too: the 44px floor keys on the
+   pointer, not only the width (device audit 2026-10-01). GEX keeps its own layout. */
+@media (min-width:768px) and (pointer:coarse){
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell):not([role=switch]):not([data-page=gex] *){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],summary):not(.gx-cell):not([role=switch]):not([data-page=gex] *){min-width:44px!important}
+  a[href]:not(p a):not(.sr-only):not([data-page=gex] *){min-height:44px!important}
+}
+/* Switches keep their 36×20 track (a 44×44 floor turned the pill into a circle with
+   the knob outside it); the 44px hit area is an invisible ::after around the track. */
+@media (max-width:767px),(pointer:coarse){
+  [role=switch]{position:relative}
+  [role=switch]::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 }
 @media (max-width:599px){
   #main-content :is(p,li,dd,blockquote,figcaption){font-size:max(14px,1em)}

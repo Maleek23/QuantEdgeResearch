@@ -67,12 +67,17 @@
 .zd-prov p{display:flex;gap:6px;align-items:flex-start;margin:2px 0}
 
 /* NEXUS view switch (Board · 0DTE) */
-.nx-views{display:flex;align-items:center;gap:4px;height:34px;padding:4px 12px 0;box-sizing:border-box}
+/* --nx-views-h is the bar's real height: the touch floor (index.css) makes the tabs 44px on
+   phones and touch tablets, and the board below subtracts exactly this (no overlap). */
+:root{--nx-views-h:34px}
+@media (max-width:767px),(pointer:coarse){:root{--nx-views-h:50px}}
+.nx-views{display:flex;align-items:center;gap:4px;height:var(--nx-views-h);padding:4px 12px 0;box-sizing:border-box}
 .nx-views button{height:26px;padding:0 12px;border:1px solid var(--nx-border-hi,rgba(59,140,255,.16));border-radius:5px;background:transparent;color:var(--text-mute,#7f889a);font:600 11px var(--fd-mono,'JetBrains Mono',monospace);letter-spacing:.06em;cursor:pointer}
+@media (max-width:767px){.nx-views button{font-size:12px}}
 .nx-views button[aria-selected="true"]{color:var(--text,#e6ebf5);border-color:color-mix(in srgb,var(--cyan,#3b8cff) 55%,transparent);background:color-mix(in srgb,var(--cyan,#3b8cff) 12%,transparent)}
 .nx-views button:focus-visible{outline:2px solid var(--cyan,#3b8cff);outline-offset:1px}
 .nx-board-host{--nx-outer-h:var(--qe-main-h,calc(100dvh - 98px))}
-.nx-board-host>*{--qe-main-h:calc(var(--nx-outer-h) - 34px)}
+.nx-board-host>*{--qe-main-h:calc(var(--nx-outer-h) - var(--nx-views-h))}
 
 @media (max-width:767px){
   .zd-view{padding:10px 16px 24px}
