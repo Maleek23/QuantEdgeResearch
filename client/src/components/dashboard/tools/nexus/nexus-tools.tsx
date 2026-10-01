@@ -185,7 +185,7 @@ export function NexusBoardTool() {
   const rows = useMemo(() => {
     const ranked = rankRows(all, { scope: 'setups', side, query, rank });
     const c = cryptoOnly ? ranked.filter((p) => String(p.assetType).toLowerCase() === 'crypto') : ranked;
-    return withRotation ? c.filter((p) => rotationTagFor(rotMap, p.symbol, p.direction)?.tag === 'with') : c;
+    return withRotation ? c.filter((p) => rotationTagFor(rotMap, p.symbol, p.direction, p.source)?.tag === 'with') : c;
   }, [all, side, query, rank, cryptoOnly, withRotation, rotMap]);
   useApplyUrlSelection(all, !!convictions.data);
   useBookReport(convictions, `${rows.length} shown`);
@@ -203,7 +203,7 @@ export function NexusBoardTool() {
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
         <div className="of-seg" role="group" aria-label="Asset">
           <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>
-          <button type="button" className={withRotation ? 'on' : ''} aria-pressed={withRotation} onClick={() => setWithRotation(!withRotation)} title="Only ideas riding the current sector rotation (sector ignition, measuring)">ROTATION</button>
+          <button type="button" className={withRotation ? 'on' : ''} aria-pressed={withRotation} onClick={() => setWithRotation(!withRotation)} title="Only ideas riding the current sector rotation (sector ignition read, plus ideas fired by the sector-rotation engine — measuring)">ROTATION</button>
         </div>
         <div className="of-seg" role="group" aria-label="View">
           {(['list', 'grid', 'table'] as const).map((v) => <button key={v} type="button" className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v.toUpperCase()}</button>)}
@@ -219,7 +219,7 @@ export function NexusBoardTool() {
           ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
           : view === 'table'
             ? <div className="fd-scroll fd-pad"><SignalTable picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
-            : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />)}</div>)}
+            : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />)}</div>)}
     </div>
   );
 }

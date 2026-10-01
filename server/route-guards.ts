@@ -61,6 +61,8 @@ export const ROUTE_GUARDS: GuardRule[] = [
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/learning\/analyze$/ },
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/market-data$/ },
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/catalysts(\/sync-earnings)?$/ },
+  // Sector rotation → NEXUS: firing writes into the official idea book.
+  { level: 'operator', methods: ['POST'], pattern: /^\/api\/sectors\/rotation-ideas\/fire$/ },
 
   // ── Scanner / ingest triggers (write ideas or burn provider quota) ──
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/(earnings\/scan|popular-tickers\/scan|movers\/scan-options|refresh-prices|bear-flag-scanner\/ingest|index-scalps\/run|gex-history\/archive-now|automations\/bot-watchlist\/refresh)$/ },

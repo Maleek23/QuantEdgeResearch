@@ -1,0 +1,53 @@
+/* ROTATION IDEAS — client/src/components/sectors/rotation-ideas.tsx.
+   Sectors-page panel + Today's compact row. Landing language, nexus tokens;
+   long = green ▲ / short = red ▼ with the word printed (colour is never the
+   only carrier). Phones: one column, no horizontal page scroll. */
+.rti{display:flex;flex-direction:column;gap:12px}
+.rti-head{display:flex;flex-direction:column;gap:6px}
+.rti-honesty{margin:0;color:var(--text-dim);font-size:13px;line-height:1.5;max-width:900px}
+.rti-record{padding:12px 14px;border-radius:8px;border:1px solid var(--nx-border);background:linear-gradient(135deg,var(--panel-solid),var(--panel-2));position:relative;overflow:hidden}
+.rti-record::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--amber);opacity:.8}
+.rti-record-k{font:700 10.5px 'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rti-record-v{display:flex;flex-wrap:wrap;gap:4px 18px;font:500 13px Inter,system-ui,sans-serif}
+.rti-record-v b{font-family:'JetBrains Mono',monospace}
+.rti-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rti-on{border-color:color-mix(in srgb,var(--amber) 55%,transparent);color:var(--amber)}
+.rti-forward{font:500 12px 'JetBrains Mono',monospace;color:var(--text-dim)}
+.rti-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.rti-card{padding:12px 14px;border-radius:8px;border:1px solid var(--nx-border);background:var(--panel-solid);margin-bottom:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.rti-card[data-side="long"]{border-left:2px solid var(--green)}
+.rti-card[data-side="short"]{border-left:2px solid var(--red)}
+.rti-card-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}
+.rti-entry{margin:0;font-size:13px;line-height:1.45}
+.rti-levels{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:0}
+.rti-levels div{min-width:0}
+.rti-levels dt{font:700 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
+.rti-levels dd{margin:0;font:600 13px 'JetBrains Mono',monospace;overflow-wrap:anywhere}
+.rti-levels small{display:block;font-weight:500;font-size:10px;color:var(--text-mute)}
+.rti-why{margin:0;padding:0 0 0 16px;font-size:12px;line-height:1.5;color:var(--text-dim)}
+.rti-why b{color:var(--text)}
+.rti-block{font-size:12px;color:var(--amber)}
+.rti-card-foot{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.rti-fire{min-height:40px;padding:8px 14px;border-radius:6px;border:1px solid var(--cyan-bright);background:color-mix(in srgb,var(--cyan-bright) 14%,transparent);color:var(--text);font:700 12px Inter,system-ui,sans-serif;cursor:pointer}
+.rti-fire:disabled{opacity:.45;cursor:not-allowed}
+.rti-fire:not(:disabled):hover,.rti-fire:focus-visible{background:color-mix(in srgb,var(--cyan-bright) 26%,transparent)}
+.rti-fired{font:600 12px Inter,system-ui,sans-serif;color:var(--cyan-bright)}
+.rti-rec-mini{font:500 11px 'JetBrains Mono',monospace;color:var(--text-mute)}
+.rti-result{margin:-4px 0 10px;padding:8px 12px;border-radius:6px;border:1px dashed var(--nx-border-hi);font-size:12.5px;color:var(--amber)}
+.rti-result.ok{color:var(--green)}
+.rti-table td{white-space:normal}
+/* Today row */
+.rti-row-sec{padding:6px 0}
+.rti-row{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:8px 12px;border:1px solid var(--nx-border, var(--line-hi));border-radius:7px;font-size:13px;line-height:1.45}
+.rti-row-k{font:700 11px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;display:inline-flex;gap:6px;align-items:center}
+.rti-row-open{margin-left:auto;font-weight:600;color:var(--cyan-bright)}
+/* Today does not load sectors.css — the few shared marks the row uses */
+.rti-row .sx-up{color:var(--green)}
+.rti-row .sx-dn{color:var(--red)}
+.rti-row .sx-mute{color:var(--text-mute)}
+.rti-row .sx-measuring{padding:2px 7px;border-radius:3px;border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);color:var(--amber);font:700 10px 'JetBrains Mono',monospace;letter-spacing:.08em}
+@media (max-width: 900px){
+  .rti-cols{grid-template-columns:minmax(0,1fr)}
+  .rti-levels{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .rti-row-open{margin-left:0}
+}

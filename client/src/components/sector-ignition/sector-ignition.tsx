@@ -237,7 +237,15 @@ export function useRotationMap(): Map<string, { label: string; stage: string; si
     return m;
   }, [pick]);
 }
-export function rotationTagFor(map: Map<string, { label: string; stage: string; side: 'long' | 'short' }>, symbol: string, direction: string): RotationTag | null {
+export function rotationTagFor(map: Map<string, { label: string; stage: string; side: 'long' | 'short' }>, symbol: string, direction: string, source?: string | null): RotationTag | null {
+  // An idea FIRED by the sector-rotation engine (server/sector-rotation-ideas.ts) was published
+  // on the board's rotation side by construction — it carries the with-rotation tag whatever the
+  // ignition read says right now (that engine's record is measured separately, source sector_rotation).
+  if (String(source ?? '').toLowerCase() === 'sector_rotation') {
+    const dir = /short|bear/i.test(direction) ? 'short' : 'long';
+    const ign = map.get(symbol.toUpperCase());
+    return { tag: 'with', label: ign && ign.side === dir ? ign.label : 'Sector rotation (board)', stage: ign && ign.side === dir ? ign.stage : 'board', side: dir };
+  }
   const r = map.get(symbol.toUpperCase());
   if (!r) return null;
   const dir = /short|bear/i.test(direction) ? 'short' : 'long';
