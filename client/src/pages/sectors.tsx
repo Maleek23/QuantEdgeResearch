@@ -7,8 +7,12 @@
  *   2. Rankings      sortable table (stacked cards on phones): rank, members,
  *                    consensus x/N (which signals agree, on hover/tap), 1D/3D/
  *                    10D/20D, breadth, RS, regime, stretch, overnight drift
- *   3. Overnight     pre-market gappers / after-hours movers mapped to sectors
- *   4. Sector panel  leaders with confluence chips, laggards (catch-up), the
+ *   3. Rotation ideas  stated plans for the top Leading/Improving (long) and
+ *                    Weakening/Lagging (short) sectors' leaders and laggards,
+ *                    Send to NEXUS (operator), fired → outcome, the engine's
+ *                    own record (components/sectors/rotation-ideas.tsx)
+ *   4. Overnight     pre-market gappers / after-hours movers mapped to sectors
+ *   5. Sector panel  leaders with confluence chips, laggards (catch-up), the
  *                    sector's overnight movers, NEXUS ideas with/against
  *
  * Reads GET /api/sectors/board and /api/sectors/:id — the worker's published
@@ -24,6 +28,7 @@ import { useTheme } from '@/components/theme-provider';
 import { FreshStamp, usePhone } from '@/components/ui/qe-phone';
 import { HoverHint, LuxSortHead, nextSort, type LuxSortDir } from '@/components/lux';
 import type { Consensus, MemberRead, OvernightMover, RankPoint, Regime, SectorRow } from '@shared/sector-board';
+import { RotationIdeasPanel } from '@/components/sectors/rotation-ideas';
 import '@/styles/nexus.css';
 import '@/styles/sectors.css';
 
@@ -139,9 +144,17 @@ export default function SectorsPage() {
             </div>
           </section>
 
+          <section aria-labelledby="sx-ideas-h" id="rotation-ideas">
+            <div className="container">
+              <div className="sec-eyebrow">03 · Rotation → trade ideas</div>
+              <h2 id="sx-ideas-h" className="sx-h2">What the rotation suggests — and what was fired</h2>
+              <RotationIdeasPanel forward={data.forward} />
+            </div>
+          </section>
+
           <section aria-labelledby="sx-ov-h">
             <div className="container">
-              <div className="sec-eyebrow">03 · Overnight movers</div>
+              <div className="sec-eyebrow">04 · Overnight movers</div>
               <h2 id="sx-ov-h" className="sx-h2">{data.overnight.kind === 'after_hours' ? 'After-hours movers' : 'Pre-market gappers'} by sector</h2>
               <Overnight data={data} onOpen={open} />
             </div>
@@ -149,7 +162,7 @@ export default function SectorsPage() {
 
           <section aria-labelledby="sx-panel-h" ref={panelRef as never}>
             <div className="container">
-              <div className="sec-eyebrow">04 · Inside the sector</div>
+              <div className="sec-eyebrow">05 · Inside the sector</div>
               {active ? <SectorPanel id={active} sectors={sectors} onOpen={open} /> : <div className="sx-empty">Pick a sector above.</div>}
             </div>
           </section>

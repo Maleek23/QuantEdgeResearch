@@ -410,7 +410,7 @@ const mb = (b: number) => Math.round(b / 1048576);
 // ─── forward log ─────────────────────────────────────────────────────────
 
 const LOG_DIR = path.join(process.cwd(), '.cache', 'sector-board');
-async function readForwardLog(months = 3): Promise<BoardLogRow[]> {
+export async function readForwardLog(months = 3): Promise<BoardLogRow[]> {
   try {
     const files = (await fsp.readdir(LOG_DIR)).filter((f) => /^forward-\d{4}-\d{2}\.jsonl$/.test(f)).sort().slice(-months);
     const out: BoardLogRow[] = [];
@@ -440,6 +440,11 @@ export async function runSectorBoard(opts: { force?: boolean } = {}): Promise<nu
     const snap = await inflight;
     last = snap;
     if (writesSharedState()) await writeShared(BOARD_SHARED, snap);
+    // Rotation suggestions ride the board (server/sector-rotation-ideas.ts) — bounded level-map reads, never fatal.
+    try {
+      const { refreshRotationSuggestions } = await import('./sector-rotation-ideas');
+      await refreshRotationSuggestions(snap);
+    } catch (err) { logger.warn(`[SECTOR-BOARD] rotation suggestions failed: ${(err as Error).message}`); }
     const top = snap.sectors.slice(0, 3).map((s) => `${s.label}(${s.regime ?? '—'})`).join(', ');
     logger.info(`[SECTOR-BOARD] ${phase}: ${snap.sectors.length} sectors, top ${top}; ${snap.compute.ms} ms, rss ${snap.compute.rssBeforeMb}→${snap.compute.rssAfterMb} MB, ${snap.compute.symbols} symbols`);
     return snap.sectors.length;

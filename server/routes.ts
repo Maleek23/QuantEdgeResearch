@@ -32690,6 +32690,9 @@ Use this checklist before entering any trade:
     const { registerSectorIgnitionRoutes } = await import('./sector-ignition');
     registerSectorIgnitionRoutes(app, requireBetaAccess);
     // Sector board — rank flow, rankings, overnight, confluence leaders (server/sector-board.ts; worker computes, web reads the published snapshot)
+    // Sector rotation ideas — suggestions → fire into NEXUS (server/sector-rotation-ideas.ts). Before /api/sectors/:id.
+    const { registerSectorRotationRoutes } = await import('./sector-rotation-ideas');
+    registerSectorRotationRoutes(app, requireBetaAccess);
     const { registerSectorBoardRoutes } = await import('./sector-board');
     registerSectorBoardRoutes(app, requireBetaAccess);
   }

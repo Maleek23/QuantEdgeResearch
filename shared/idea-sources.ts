@@ -123,3 +123,17 @@ function prettify(value: string): string {
     .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ");
 }
+
+/**
+ * Display meta for a raw source (canonical key, chip code, label, tone).
+ * Unknown sources prettify instead of truncating. `sector_rotation` is the
+ * sector board's rotation engine (server/sector-rotation-ideas.ts) — measured
+ * on its own record, never merged with `sector_ignition`.
+ */
+export function getIdeaSourceMeta(src?: string | null): IdeaSourceMeta {
+  const canonical = normalizeIdeaSource(src);
+  const m = META[canonical];
+  if (m) return { canonical, ...m };
+  const label = prettify(canonical);
+  return { canonical, short: label.replace(/\s+/g, "").slice(0, 6).toUpperCase(), label, tone: "neutral" };
+}

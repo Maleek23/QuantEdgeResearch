@@ -372,6 +372,21 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     (await import('./sector-board')).scheduleSectorBoardBootstrap();
   }
 
+  // ── Sector rotation ideas (server/sector-rotation-ideas.ts) — OFF unless
+  // SECTOR_ROTATION_IDEAS=true. 09:50 and 13:00 ET: fire at most
+  // SECTOR_ROTATION_MAX_PER_DAY (default 4, manual + auto together) of the
+  // highest-confluence suggestions in sectors with side-consensus ≥ 5, each
+  // re-planned live and passed through the bot's rules and every publish gate.
+  // Source sector_rotation, measuring. Suggestions are built by the board run. ──
+  if (process.env.SECTOR_ROTATION_IDEAS === 'true') {
+    const rot = guarded('sector-rotation-ideas', async () => {
+      const { runRotationAuto } = await import('./sector-rotation-ideas');
+      return runRotationAuto();
+    });
+    cron.schedule('50 9 * * 1-5', rot, ET);
+    cron.schedule('0 13 * * 1-5', rot, ET);
+  }
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('27,57 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));

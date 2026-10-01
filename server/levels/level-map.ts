@@ -152,6 +152,28 @@ export interface PublishSnap {
 }
 
 /**
+ * The loss-rule expected-move cap on T1 (rule 3a) for a plan, or null when the
+ * rule is off, the target is already inside it, or the candles are unavailable.
+ * Shared by the publish snap below and the sector-rotation suggestion builder.
+ */
+export async function expectedMoveCapFor(plan: PublishPlan): Promise<number | null> {
+  try {
+    const { lossRulesConfig } = await import('../loss-rules');
+    const cfg = lossRulesConfig();
+    if (!cfg.targetCap) return null;
+    const { fetchCandles } = await import('../historical-candles');
+    const { capTargetToExpectedMove, realizedVolDaily, horizonTradingDays, etParts } = await import('@shared/loss-rules');
+    const bars = (await withTimeout(fetchCandles(plan.symbol, '3mo', '1d'), 4000)) ?? [];
+    const today = etParts(Date.now()).dateKey;
+    const closes = bars.filter((b) => etParts(b.time * 1000).dateKey < today).map((b) => b.close);
+    const sigma = realizedVolDaily(closes, 20);
+    const horizonDays = horizonTradingDays({ holdingPeriod: plan.horizon, expiryDate: plan.expiryDate ?? null, publishedMs: Date.now() });
+    const cap = capTargetToExpectedMove({ direction: plan.direction, entry: plan.entry, target: plan.targets[0], stop: plan.stop, sigmaDaily: sigma, horizonDays, multiple: cfg.targetCapMultiple });
+    return cap.capped ? cap.target : null;
+  } catch { return null; /* cap unavailable — storage still applies it */ }
+}
+
+/**
  * Snap a NEW plan to structure. Returns null (plan untouched) when the flag is
  * off, the plan is not on the underlying's price scale, or no level map could be
  * built. Never throws.
@@ -168,22 +190,7 @@ export async function snapPlanForPublish(plan: PublishPlan): Promise<PublishSnap
 
     // Loss-rule target cap FIRST, so the snapped target is always inside it and
     // storage's cap (applied later at createTradeIdea) becomes a no-op.
-    let maxTarget: number | null = null;
-    try {
-      const { lossRulesConfig } = await import('../loss-rules');
-      const cfg = lossRulesConfig();
-      if (cfg.targetCap) {
-        const { fetchCandles } = await import('../historical-candles');
-        const { capTargetToExpectedMove, realizedVolDaily, horizonTradingDays, etParts } = await import('@shared/loss-rules');
-        const bars = (await withTimeout(fetchCandles(plan.symbol, '3mo', '1d'), 4000)) ?? [];
-        const today = etParts(Date.now()).dateKey;
-        const closes = bars.filter((b) => etParts(b.time * 1000).dateKey < today).map((b) => b.close);
-        const sigma = realizedVolDaily(closes, 20);
-        const horizonDays = horizonTradingDays({ holdingPeriod: plan.horizon, expiryDate: plan.expiryDate ?? null, publishedMs: Date.now() });
-        const cap = capTargetToExpectedMove({ direction: plan.direction, entry, target: plan.targets[0], stop, sigmaDaily: sigma, horizonDays, multiple: cfg.targetCapMultiple });
-        if (cap.capped) maxTarget = cap.target;
-      }
-    } catch { /* cap unavailable — storage still applies it */ }
+    const maxTarget = await expectedMoveCapFor(plan);
 
     const asOfEt = new Date(map.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
     const result = snapPlanToStructure({

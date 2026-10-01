@@ -40,6 +40,7 @@ import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
 import { SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
+import { RotationIdeasRow } from '@/components/sectors/rotation-ideas';
 import {
   Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
@@ -444,6 +445,8 @@ export default function TodayPage() {
       {/* STATS — measured */}
       {/* SECTOR IGNITION — four horizons, measuring (server/sector-ignition.ts) */}
       <SectorIgnitionBand />
+      {/* ROTATION IDEAS — the sector board's stated plans, one row (full panel on /t?tab=sectors) */}
+      <RotationIdeasRow />
 
       <section className="stats-bar-l">
         <div className="container">
