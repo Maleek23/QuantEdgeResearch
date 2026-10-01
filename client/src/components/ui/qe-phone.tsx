@@ -19,6 +19,7 @@ import { Info } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import { QEDrawer } from './qe-drawer';
 import { cn } from '@/lib/utils';
+import { freshnessChip, type FreshnessFields } from '@shared/quote-freshness';
 
 const PHONE_Q = '(max-width: 767px)';
 
@@ -74,6 +75,37 @@ export function FreshStamp({ asOf, now, label, warn, className }: {
   return (
     <span className={cn('qp-stamp', `qp-${tone}`, className)} role="note" aria-label={spoken} title={spoken}>
       <i aria-hidden className="qp-dot" />{text}
+    </span>
+  );
+}
+
+/**
+ * THE quote freshness chip — "Live", "Delayed 15m", "Pre-mkt 07:42",
+ * "After-hrs 17:10", "Overnight (proxy)" + age. One rule for every price
+ * surface (ticker header, NEXUS selected idea, Today tape): the label comes
+ * from shared/quote-freshness.ts `freshnessChip`, fed only by the quote's own
+ * session / asOf / source / delayedSec / proxy fields — never by the page.
+ * Same dot+age anatomy as <FreshStamp>; ticks its age every 15 s.
+ */
+export function QuoteFreshChip({ q, now, className, hideAge }: {
+  q: FreshnessFields | null | undefined; now?: number; className?: string; hideAge?: boolean;
+}) {
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (now != null) return;
+    const id = setInterval(() => setTick(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [now]);
+  if (!q) return null;
+  const t = now ?? tick;
+  const chip = freshnessChip(q, t);
+  const ageTxt = !hideAge && q.asOf != null ? compactAge(q.asOf as string | number, t) : null;
+  // The label already says "Live"; an age on Live only matters once it is not instant.
+  const showAge = ageTxt && !(chip.tone === 'live' && (chip.ageSec ?? 0) < 30);
+  const spoken = `${chip.label}${ageTxt ? `, ${ageTxt} old` : ''}. ${chip.title}`;
+  return (
+    <span className={cn('qp-stamp', 'qp-chip', `qp-chip-${chip.tone}`, className)} role="note" aria-label={spoken} title={spoken} data-fresh={chip.tone}>
+      <i aria-hidden className="qp-dot" />{chip.label}{showAge ? <span className="qp-chip-age"> · {ageTxt}</span> : null}
     </span>
   );
 }

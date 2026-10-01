@@ -79,12 +79,13 @@ export function dayChangeFromIntradayChart(res: any): DayChange | null {
   const regular = Number(m.regularMarketPrice);
   const price = Number.isFinite(barPrice) && barPrice > 0 ? barPrice : regular;
   if (!(price > 0)) return null;
-  // range=1d → chartPreviousClose IS the prior regular close. `previousClose` is
-  // the same number when Yahoo sends it; prefer it when present.
-  const prev = Number(m.previousClose ?? m.chartPreviousClose);
-  const prevOk = prev > 0 ? prev : price;
   const barAt = Number(ts[i]);
   const at = Number.isFinite(barAt) && barAt > 0 ? barAt * 1000 : null;
+  // Prior REGULAR close. Usually meta.previousClose — but before today's open
+  // Yahoo's previousClose is the close BEFORE regularMarketPrice's session (D-2),
+  // so a pre-market print measured against it double-counted yesterday's move.
+  const prev = priorRegularCloseFromMeta(m, at != null ? at / 1000 : 0);
+  const prevOk = prev != null && prev > 0 ? prev : price;
   const pct = pctChange(price, prevOk) ?? 0;
   return {
     price,
@@ -96,6 +97,28 @@ export function dayChangeFromIntradayChart(res: any): DayChange | null {
     regularMarketPrice: regular > 0 ? regular : null,
     regularChangePercent: regular > 0 ? pctChange(regular, prevOk) : null,
   };
+}
+
+/**
+ * The regular close a print at `printSec` should be measured against.
+ *
+ * Measured 2026-10-01 07:04 ET on SPY range=1d: currentTradingPeriod = Oct 1,
+ * regularMarketTime = Sep 30 16:00 (762.63), previousClose = 764.20 = the Sep 29
+ * close. So before today's regular session starts, the prior regular close is
+ * regularMarketPrice, not previousClose. Applied only when the print is newer
+ * than regularMarketTime (a real pre-market/overnight print); otherwise the
+ * classic previousClose (day move, incl. after-hours) is kept.
+ */
+export function priorRegularCloseFromMeta(m: any, printSec: number | null = null): number | null {
+  if (!m) return null;
+  const prev = Number(m.previousClose ?? m.chartPreviousClose);
+  const rmp = Number(m.regularMarketPrice);
+  const rmt = Number(m.regularMarketTime);
+  const regStart = Number(m.currentTradingPeriod?.regular?.start);
+  const beforeTodaysOpen = Number.isFinite(rmt) && Number.isFinite(regStart) && rmt < regStart;
+  const printAfterClose = printSec == null || (Number.isFinite(rmt) && printSec > rmt);
+  if (beforeTodaysOpen && printAfterClose && rmp > 0) return rmp;
+  return prev > 0 ? prev : null;
 }
 
 /** Convert a provider (price, changePercent) pair to an absolute change without assuming price is the base. */

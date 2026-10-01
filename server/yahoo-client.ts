@@ -144,7 +144,9 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
     volume: Number.isFinite(lastVol) ? lastVol : Number(m.regularMarketVolume ?? 0),
     // Preserve the market's timestamp. Consumer UI uses this to distinguish a
     // fresh print from a fresh HTTP response that happened to contain old data.
-    at: dc.at ?? Date.now(),
+    // No bar (an index before the open): the print is regularMarketTime, never
+    // "now" — stamping the response time made yesterday's SPX close look live.
+    at: dc.at ?? (Number(m.regularMarketTime) > 0 ? Number(m.regularMarketTime) * 1000 : Date.now()),
     session: dc.session,
     regularMarketPrice: dc.regularMarketPrice,
     regularChangePercent: dc.regularChangePercent,
