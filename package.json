@@ -53,7 +53,8 @@
     "research:score-v2": "EXIT_REPLAY_NOW=${EXIT_REPLAY_NOW:-2026-10-01T04:55:30Z} tsx research/score-v2-study.ts",
     "test:score-v2": "tsx scripts/test-score-v2.ts",
     "test:quote-freshness": "tsx scripts/test-quote-freshness.ts",
-    "test:spx-mirror": "tsx scripts/test-spx-mirror.ts"
+    "test:spx-mirror": "tsx scripts/test-spx-mirror.ts",
+    "test:track-record": "tsx scripts/test-track-record.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
