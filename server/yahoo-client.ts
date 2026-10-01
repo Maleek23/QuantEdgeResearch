@@ -40,12 +40,15 @@ let _throttled429Until = 0;
  */
 const YAHOO_INDEX_SYMBOLS: Record<string, string> = {
   SPX: '^GSPC',
+  // SPXW (weeklies/0DTE) and NDXP settle on the cash index: chart the index.
+  SPXW: '^GSPC',
   GSPC: '^GSPC',
   VIX: '^VIX',
   VIX9D: '^VIX9D',
   VIX3M: '^VIX3M',
   VVIX: '^VVIX',
   NDX: '^NDX',
+  NDXP: '^NDX',
   RUT: '^RUT',
   DJI: '^DJI',
 };
