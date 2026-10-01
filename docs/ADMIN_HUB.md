@@ -13,6 +13,8 @@ journal) does not depend on anything here. Open it when you want to:
 - see whether the platform is healthy — data providers, memory, restarts, rate limits, Discord bot;
 - write or edit a blog post.
 
+> **2026-10-01:** Users & access was rebuilt (invite codes, waitlist approval, users, trader-book passcodes) and an Audit log section was added. See [ADMIN_TAB.md](ADMIN_TAB.md); it supersedes the Users & access row below.
+
 ## Sections (2026-09-29: twelve pages → four)
 
 | Section | URL | What it is for | Reads / writes |
