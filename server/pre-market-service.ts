@@ -45,6 +45,14 @@ export interface PreMarketSnapshot {
   phase: GapPhase;
   /** Server timestamp of fetch. */
   fetchedAt: string;
+  /** Time of the last pre-market 1-minute bar used for preMarketGapPct (ISO), when read from bars. */
+  preMarketAt?: string | null;
+  /** After-hours move vs the regular close (%), from the last 1-minute bar in today's post window; null when none printed. */
+  postMarketMovePct?: number | null;
+  /** Time of that after-hours bar (ISO). */
+  postMarketAt?: string | null;
+  /** Yahoo's regular-session price (the close once the session ends). */
+  regularMarketPrice?: number | null;
 }
 
 interface CacheEntry {
@@ -111,6 +119,14 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
         for (let i = ts.length - 1; i >= 0; i--) {
           if (ts[i] >= pre.start && ts[i] < pre.end && cl[i] != null && Number(cl[i]) > 0) {
             meta.__pmLast = Number(cl[i]); meta.__pmLastAt = ts[i] * 1000; break;
+          }
+        }
+      }
+      const post = meta.currentTradingPeriod?.post;
+      if (post?.start && post?.end) {
+        for (let i = ts.length - 1; i >= 0; i--) {
+          if (ts[i] >= post.start && ts[i] < post.end && cl[i] != null && Number(cl[i]) > 0) {
+            meta.__postLast = Number(cl[i]); meta.__postLastAt = ts[i] * 1000; break;
           }
         }
       }
@@ -181,6 +197,11 @@ function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSn
     gapPct: activeGap,
     phase,
     fetchedAt: new Date().toISOString(),
+    preMarketAt: Number.isFinite(meta.__pmLastAt) ? new Date(meta.__pmLastAt).toISOString() : null,
+    postMarketMovePct: Number.isFinite(meta.__postLast) && Number.isFinite(regularPrice) && regularPrice > 0
+      ? ((meta.__postLast - regularPrice) / regularPrice) * 100 : null,
+    postMarketAt: Number.isFinite(meta.__postLastAt) ? new Date(meta.__postLastAt).toISOString() : null,
+    regularMarketPrice: Number.isFinite(regularPrice) && regularPrice > 0 ? regularPrice : null,
   };
 }
 /**

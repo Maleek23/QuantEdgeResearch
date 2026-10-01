@@ -53,6 +53,7 @@ const Dashboard     = lazy(() => import('@/components/dashboard/dashboard').then
 // JOURNAL keeps its own sub-tabs (owned by the journal branch), synced to ?jtab=.
 // Every other tab's previous board is registered as an "all-in-one" tool.
 const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
+const SectorsPage = lazy(() => import('@/pages/sectors'));
 // NEXUS = the board + a 0DTE view (?nx=0dte) — components/zerodte/nexus-views.tsx.
 const NexusViews = lazy(() => import('@/components/zerodte/nexus-views'));
 
@@ -407,6 +408,7 @@ export default function TerminalShell() {
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
               {tab === 'flow' && <Dashboard page="flow" />}
               {tab === 'gex' && <Dashboard page="gex" />}
+              {tab === 'sectors' && <SectorsPage />}
               {tab === 'leaps' && <Dashboard page="leaps" />}
               {tab === 'crypto' && <Dashboard page="crypto" />}
               {tab === 'catalyst' && <Dashboard page="catalyst" />}

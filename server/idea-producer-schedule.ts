@@ -351,6 +351,27 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('50 16 * * 5', ign('weekly'), ET);
   }
 
+  // ── Sector board (server/sector-board.ts, shared/sector-board.ts): rank flow,
+  // rankings, overnight movers and confluence leaders, published to shared state
+  // for the web route (which never computes). Pre-market 08:45 + 09:20 (the 09:20
+  // quote read shares the 60 s pre-market cache with sector ignition's), every
+  // 15 min 09:37–15:52 on :07/:22/:37/:52 (≡2 mod 5; the heavy gate serialises it
+  // with the tape at :22/:52), close 16:15 (forward log), after-hours 17:45.
+  // 'low' priority: minute-sensitive jobs go first. SECTOR_BOARD=false turns it off. ──
+  if (process.env.SECTOR_BOARD !== 'false') {
+    const board = guarded('sector-board', async () => {
+      const { runSectorBoard } = await import('./sector-board');
+      return runSectorBoard();
+    }, 'low');
+    cron.schedule('45 8 * * 1-5', board, ET);
+    cron.schedule('20 9 * * 1-5', board, ET);
+    cron.schedule('37,52 9 * * 1-5', board, ET);
+    cron.schedule('7,22,37,52 10-15 * * 1-5', board, ET);
+    cron.schedule('15 16 * * 1-5', board, ET);
+    cron.schedule('45 17 * * 1-5', board, ET);
+    (await import('./sector-board')).scheduleSectorBoardBootstrap();
+  }
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('27,57 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));

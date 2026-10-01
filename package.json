@@ -32,6 +32,7 @@
     "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",
     "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
+    "test:sector-board": "tsx scripts/test-sector-board.ts",
     "test:holy-grail": "tsx scripts/test-holy-grail.ts",
     "test:wall-touch": "tsx scripts/test-wall-touch.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",

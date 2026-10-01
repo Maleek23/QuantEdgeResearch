@@ -487,6 +487,14 @@ export async function getSectorIgnition(horizon: IgnitionHorizon): Promise<Horiz
   };
 }
 
+/** Read-only: the newest read of a horizon this process holds or the worker published — never computes. */
+export function peekSectorIgnition(horizon: IgnitionHorizon): HorizonState | null {
+  const local = stateCache.get(horizon) ?? null;
+  const shared = readShared<HorizonState>(`sector-ignition-${horizon}`, Infinity)?.data ?? null;
+  if (local && shared) return Date.parse(shared.asOf) > Date.parse(local.asOf) ? shared : local;
+  return local ?? shared;
+}
+
 export const CADENCE: Record<IgnitionHorizon, string> = {
   intraday: 'every 5 min 09:30–11:30 ET (members fully re-read every ~15 min; stirring/igniting groups every pass)',
   daily: 'pre-market 09:05 / 09:20 ET, first hour with the intraday pass to 10:30, end-of-day read 16:10 ET',

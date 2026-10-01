@@ -174,7 +174,7 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const swing = useSectorIgnition('swing');
   const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
   if (!pick) {
-    return <div className="ig-strip" role="status">{daily.isLoading || swing.isLoading ? 'Reading sector rotation…' : 'Sector rotation unavailable right now'}</div>;
+    return <div className="ig-strip" role="status">{daily.isLoading || swing.isLoading ? 'Reading sector rotation…' : 'Sector rotation unavailable right now'}<Link href="/t?tab=sectors" className="ig-strip-open">Open Sectors →</Link></div>;
   }
   const hot = pick.groups.filter((g) => g.stage === 'igniting' || g.stage === 'extended');
   const into = hot.filter((g) => g.side === 'long').sort((a, b) => b.points - a.points).slice(0, 3);
@@ -188,6 +188,7 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
       <span><b className="dn">Out of</b> {out.length ? out.map(fmt).join(', ') : 'nothing igniting short'}</span>
       {lag.length > 0 && <span><b>Laggards to watch</b> {lag.join(' · ')}</span>}
       <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
+      <Link href="/t?tab=sectors" className="ig-strip-open">Open Sectors →</Link>
     </div>
   );
 }

@@ -20,10 +20,18 @@ export interface PeerGroup {
   id: string;
   /** Plain-English group name used in the why-line ("storage peers"). */
   label: string;
-  /** ETF whose tape represents the group; null when the group IS the benchmark set. */
+  /** ETF whose tape represents the group; null when the group IS the benchmark set or no clean ETF exists. */
   etf: string | null;
   /** Members in order of closeness. */
   members: readonly string[];
+  /**
+   * Thematic overlay (sector board only): a cross-cutting theme whose members
+   * also sit in a closeness group above. Thematic groups are appended LAST so
+   * they never change an existing symbol's primary group, and sector ignition
+   * (shared/sector-ignition.ts ignitionGroups) skips them — its thresholds and
+   * backtest were set on the closeness groups.
+   */
+  thematic?: true;
 }
 
 export const PEER_GROUPS: readonly PeerGroup[] = [
@@ -84,6 +92,13 @@ export const PEER_GROUPS: readonly PeerGroup[] = [
 
   // ── Index complex (each index's peers are the other indices) ──
   { id: 'us_indices', label: 'index', etf: null, members: ['SPY', 'QQQ', 'IWM', 'DIA'] },
+
+  // ── Thematic overlays (sector board; appended last — see PeerGroup.thematic) ──
+  { id: 'photonics', label: 'photonics', etf: null, members: ['COHR', 'LITE', 'AAOI', 'FN', 'CIEN', 'POET', 'LWLG', 'IPGP'], thematic: true },
+  { id: 'ai_neoclouds', label: 'AI infra/neocloud', etf: null, members: ['NBIS', 'CRWV', 'IREN', 'APLD', 'CORZ', 'WULF', 'CIFR', 'SMCI'], thematic: true },
+  { id: 'mag7', label: 'Magnificent 7', etf: 'MAGS', members: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA'], thematic: true },
+  { id: 'glp1', label: 'GLP-1/obesity', etf: null, members: ['LLY', 'NVO', 'VKTX', 'AMGN', 'HIMS', 'ALT'], thematic: true },
+  { id: 'inverse_vol', label: 'inverse/volatility', etf: null, members: ['VXX', 'UVXY', 'SVXY', 'SQQQ', 'SH', 'SDS', 'SOXS'], thematic: true },
 ];
 
 /** Where the first-listed group is not the tightest read. */

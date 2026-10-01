@@ -98,7 +98,7 @@ export interface IgnitionGroup { groupId: string; label: string; etf: string; me
 
 /** Every peer group with a representative ETF; members closest-first, ETF excluded, capped. */
 export function ignitionGroups(max = IGNITION_CFG.maxMembersPerGroup): IgnitionGroup[] {
-  return PEER_GROUPS.filter((g) => !!g.etf).map((g) => ({
+  return PEER_GROUPS.filter((g) => !!g.etf && !g.thematic).map((g) => ({
     groupId: g.id, label: g.label, etf: g.etf as string,
     members: g.members.filter((m) => m !== g.etf).slice(0, max),
   }));

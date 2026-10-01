@@ -9,16 +9,17 @@
  */
 import {
   Activity, Bell, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart,
-  Grid3X3, HelpCircle, LineChart, Radar, SlidersHorizontal, TrendingUp, Wallet, Home,
+  Grid3X3, HelpCircle, Layers, LineChart, Radar, SlidersHorizontal, TrendingUp, Wallet, Home,
 } from 'lucide-react';
 
-export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
+export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'sectors' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
 
 export const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'NEXUS' },
   { id: 'flow',    label: 'FLOW' },
   { id: 'gex',     label: 'GEX' },
   { id: 'chart',   label: 'CHART' },
+  { id: 'sectors', label: 'SECTORS' },
   { id: 'leaps',   label: 'LEAPS' },
   { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
@@ -45,7 +46,7 @@ export const MOBILE_DOCK: DockItem[] = [
 ];
 export const MOBILE_PRIMARY: Tab[] = ['oracle', 'flow', 'gex', 'chart'];
 export const MOBILE_PRIMARY_PAGES: string[] = ['/today'];
-export const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
+export const MOBILE_MORE: Tab[] = ['sectors', 'leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
 
 /** Standalone pages — same chrome as the terminal, reached from the nav and "More". */
 export interface PageLink { href: string; label: string; short: string; icon: typeof Radar }
@@ -66,6 +67,7 @@ export function MobileTabIcon({ tab }: { tab: Tab }) {
   if (tab === 'chart') return <CandlestickChart className={c} />;
   if (tab === 'flow') return <Activity className={c} />;
   if (tab === 'gex') return <Grid3X3 className={c} />;
+  if (tab === 'sectors') return <Layers className={c} />;
   if (tab === 'leaps') return <TrendingUp className={c} />;
   if (tab === 'crypto') return <Bitcoin className={c} />;
   if (tab === 'catalyst') return <CalendarDays className={c} />;

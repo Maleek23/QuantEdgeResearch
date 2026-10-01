@@ -93,6 +93,17 @@ export const GUIDES: Record<Tab, Guide> = {
     ],
     next: 'Use the ticker workup to turn a crypto thesis into a specific, liquid options trade—or reject it.',
   },
+  sectors: {
+    title: 'Sectors Guide',
+    question: 'Which groups is money rotating into, and who leads them?',
+    read: [
+      'The rank flow is each sector\'s composite rank over the last 10 sessions: 60% momentum (3D/10D/20D return and RS vs SPY, ranked across sectors) plus 40% breadth (members above their 20-day MA). Top climbers are blue, sliders vermilion; tap a line to isolate it.',
+      'Regime is a quadrant on RS level vs RS momentum: Leading, Improving, Weakening, Lagging. Consensus x/N counts only the signals we could read that agree — hover or tap it to see which.',
+      'Overnight drift is the median member pre-market gap (after-hours after the close). "Confirms" means the gap points the same way as the rotation; "fights" means it does not.',
+      'Leaders are ranked by a named confluence (chart, flow, levels, gamma, RS vs sector, overnight, NEXUS). Every weight is unvalidated — the forward log records each close\'s leaders and their next 1/3/5-session returns vs the sector.',
+    ],
+    next: 'Open a leader\'s workup, or the NEXUS board, before acting — a sector read is context, not a trade.',
+  },
   catalyst: {
     title: 'Catalyst Guide',
     question: 'Does the calendar agree with the call?',

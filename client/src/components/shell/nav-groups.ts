@@ -6,7 +6,7 @@
  * nav-model.tsx (the single source the nav-architecture test parses).
  */
 import {
-  Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Radar, TrendingUp, Wallet,
+  Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Layers, Radar, TrendingUp, Wallet,
 } from 'lucide-react';
 import type { LuxIcon, LuxNavGroup, LuxNavItem } from '@/components/lux/lux-sidebar';
 import { PAGES, UTILITY_PAGES, tabHref, type PageLink, type Tab } from './nav-model';
@@ -16,6 +16,7 @@ export const TAB_ICON: Record<Tab, LuxIcon> = {
   chart: CandlestickChart,
   flow: Activity,
   gex: Grid3X3,
+  sectors: Layers,
   leaps: TrendingUp,
   crypto: Bitcoin,
   catalyst: CalendarDays,
@@ -31,6 +32,7 @@ export const TAB_SHORT: Record<Tab, string> = {
   chart: 'Chart',
   flow: 'Flow',
   gex: 'GEX',
+  sectors: 'Sectors',
   leaps: 'LEAPS',
   crypto: 'Crypto',
   catalyst: 'Catalysts',
@@ -44,6 +46,7 @@ export const TAB_HINT: Record<Tab, string> = {
   chart: 'Charts with walls, zero-γ and idea levels',
   flow: 'Options flow — prints, sweeps and blocks',
   gex: 'Dealer positioning — GEX, VEX, walls, zero-γ',
+  sectors: 'Sector rotation — rank flow, rankings, overnight movers, leaders',
   leaps: 'Long-dated calls, graded',
   crypto: 'BTC/ETH and the equity proxies',
   catalyst: 'Earnings, macro and news calendar',
@@ -68,7 +71,7 @@ export const pageShort = (p: PageLink) => PAGE_SHORT[p.href] ?? p.label;
 export const NAV_GROUPS: Array<{ id: string; label: string; tabs?: Tab[]; pages?: string[] }> = [
   { id: 'start', label: 'Start', pages: ['/today'] },
   { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'] },
-  { id: 'research', label: 'Research', tabs: ['chart', 'leaps', 'crypto', 'catalyst'] },
+  { id: 'research', label: 'Research', tabs: ['chart', 'sectors', 'leaps', 'crypto', 'catalyst'] },
   { id: 'manage', label: 'Manage', tabs: ['bot', 'positions', 'journal'] },
 ];
 
