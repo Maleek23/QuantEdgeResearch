@@ -179,7 +179,8 @@ export default function PositionsHeatmapPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">🔥 Position Heat Map</h1>
+            {/* phones: one line, not a two-line 30px banner under the POSITIONS page bar */}
+            <h1 className="text-xl md:text-3xl font-bold tracking-tight">🔥 Position Heat Map</h1>
             <CacheFreshnessIndicator asOf={data.asOf} />
           </div>
           <button

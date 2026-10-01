@@ -166,17 +166,22 @@ export function provenanceOf(def: ToolDef, report: ToolReport, now: number) {
 export const phoneTitleOf = (def: ToolDef) => def.phoneTitle ?? shortTitle(def.title);
 
 /**
- * PHONE section meta (< 768px; hidden on desktop, where the full provenance
- * line shows): ONE compact freshness stamp (● 2m, grey/amber/red by age) and
- * an ⓘ that opens a bottom sheet with the description, units, full source and age.
+ * SECTION meta, every size (UI redundancy pass 2026-10-01 — was phone-only;
+ * desktop printed a full "source · /api/path · age" line plus a "what · Units"
+ * blurb under every title: two to four lines per section). ONE compact
+ * freshness stamp (● 2m, grey/amber/red by age), the tool's short status note
+ * on desktop, and an ⓘ with the description, units, full source, age and feed
+ * (a bottom sheet on phones, a popover on desktop). Age always visible; source
+ * one tap away.
  */
 export function PhoneMeta({ def, report, now }: { def: ToolDef; report: ToolReport; now: number }) {
   const { src, age } = provenanceOf(def, report, now);
   const label = def.staticContent ? 'static' : def.ageInside ? 'per row' : report.asOf === undefined ? '…' : '—';
   return (
-    <span className="qp-meta qp-phone-only">
+    <span className="qp-meta qp-meta-all">
+      {report.note && <span className={`qp-meta-note qp-desk-only${report.tone === 'warn' ? ' warn' : ''}`} title={report.note}>{report.note}</span>}
       <FreshStamp asOf={def.staticContent || def.ageInside ? null : report.asOf} now={now} label={label} warn={report.tone === 'warn'} />
-      <InfoSheet title={def.title} what={def.what} units={def.units} source={src} age={age} note={report.note} />
+      <InfoSheet title={def.title} what={def.what} units={def.units} source={src} age={age} note={report.note} feed={def.backing} />
     </span>
   );
 }
@@ -191,13 +196,13 @@ export function ToolFrame({
   grip?: boolean;
   resizeHandle?: ReactNode;
   children: ReactNode;
+  /** @deprecated the description lives behind the ⓘ at every size now; kept so call sites stay valid */
   compact?: boolean;
   /** shown as a chip for tools that follow the focused ticker */
   symbol?: string;
 }) {
   const [report, setReport] = useState<ToolReport>({});
   const now = useNow();
-  const { src, age } = provenanceOf(def, report, now);
   const phone = usePhone();
   return (
     <section className="fd-tool" aria-label={def.title} data-tool={def.id}>
@@ -208,15 +213,7 @@ export function ToolFrame({
             <span>{phone ? phoneTitleOf(def) : def.title}</span>
             {symbol && <span className="fd-sym" title="Follows the focus ticker in the bar above">{symbol}</span>}
             <PhoneMeta def={def} report={report} now={now} />
-            <span className={`fd-age qp-desk-only${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
-              {src} · {age}{report.note ? ` · ${report.note}` : ''}
-            </span>
           </div>
-          {!compact && (
-            <div className="fd-tool-blurb qp-desk-only" title={`${def.what}\nUnits: ${def.units}\nBacking: ${def.backing}`}>
-              {def.what} <span className="fd-units">Units: {def.units}</span>
-            </div>
-          )}
         </div>
         {onRemove && (
           <button type="button" className="fd-icon-btn" onClick={onRemove} aria-label={`Remove ${def.title}`} title="Remove tool">

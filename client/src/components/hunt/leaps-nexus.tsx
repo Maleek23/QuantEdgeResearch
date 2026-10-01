@@ -390,7 +390,8 @@ export function LeapsNexus({ only, ...ctl }: LeapsNexusProps = {}) {
               </div>
               <button className="focus-action" onClick={() => { setSearchOpen(true); setQuery(''); setCursor(0); }}>⌘K SEARCH →</button>
             </div>
-            <div className="leaps-desc">Stock-replacement calls ranked by business quality, structural trend and real contract value.</div>
+            {/* phones: the section ⓘ carries the description */}
+            <div className="leaps-desc qp-desk-only">Stock-replacement calls ranked by business quality, structural trend and real contract value.</div>
             <div className="leaps-meta">
               {sessionTags}
               <span className="tag mute" style={{ display: 'inline-flex', gap: 6 }}>
@@ -408,16 +409,9 @@ export function LeapsNexus({ only, ...ctl }: LeapsNexusProps = {}) {
 
         {/* ══════════ RIGHT SIDEBAR ══════════ */}
         <div className="col col-right">
-          <div className="sec-head">
-            <div className="sec-num" style={{ color: 'var(--gold)', textShadow: '0 0 8px rgba(251,191,36,0.4)' }}>Long-horizon</div>
-            <div className="sec-title" style={{ background: 'linear-gradient(135deg,#fff,var(--gold))', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>LEAPS Lab.</div>
-            <div className="sec-sub">Stock-replacement calls ranked by business quality, structural trend and real contract value.</div>
-            <div className="sec-meta">
-              <span className="tag gold">LEAPS</span>
-              <span className="tag live"><span className="dot" />engaged</span>
-            </div>
-          </div>
-
+          {/* (The rail used to open with a second "Long-horizon · LEAPS Lab." header
+              repeating the main header's eyebrow, title and description word for
+              word — removed; UI redundancy pass 2026-10-01.) */}
           {summaryBlock}
 
           {gradeDist}
@@ -425,7 +419,8 @@ export function LeapsNexus({ only, ...ctl }: LeapsNexusProps = {}) {
           {howGraded}
 
           <div className="disclaimer">
-            Educational only · not investment advice.<br />
+            {/* desktop/tablet: the frame's bottom bar carries the disclaimer — phones keep it here */}
+            <span className="qp-phone-only">Educational only · not investment advice.<br /></span>
             ROI modeled via Black-Scholes at +30% underlying move.
           </div>
         </div>

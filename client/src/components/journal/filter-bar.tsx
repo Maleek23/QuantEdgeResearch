@@ -93,7 +93,9 @@ export function JournalFilterBar({ api, options, shown, total }: {
         <Select label="Source" value={f.broker} values={options.brokers} onChange={(v) => setFilter('broker', v)} />
       </div>
       <span className="jr-filter-count" aria-live="polite">
-        {shown} of {total} trades
+        {/* announced, not drawn: the page header right above already prints
+            "N trades" / "x of N in view" (UI redundancy pass 2026-10-01) */}
+        <span className="sr-only">{shown} of {total} trades</span>
         {activeCount > 0 && (
           <button type="button" className="jr-btn jr-btn-sm" style={{ marginLeft: 8 }} onClick={clear}>
             <X className="h-3 w-3" /> Clear {activeCount}

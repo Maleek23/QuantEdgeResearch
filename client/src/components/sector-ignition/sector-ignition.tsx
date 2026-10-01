@@ -15,6 +15,7 @@ import { PEER_GROUPS } from '@shared/sector-peers';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useToolReport } from '@/components/dashboard/frame';
+import { usePhone } from '@/components/ui/qe-phone';
 import './sector-ignition.css';
 
 export type Horizon = 'intraday' | 'daily' | 'swing' | 'weekly';
@@ -118,9 +119,8 @@ export function SectorIgnitionPanel({ horizons = ['intraday', 'daily', 'swing', 
       {d && (
         <div className="si-meta">
           <span>{counts.igniting} igniting · {counts.stirring} stirring of {groups.length} groups</span>
-          <span className={stale ? 'stale' : ''}>read {ageOf(d.asOf)}{stale ? ' — stale' : ''}</span>
-          {newest && <span>data {ageOf(newest)}</span>}
-          <span>measuring</span>
+          {/* one age (the read); the newest datum's age is on hover — "measuring" is in the section head */}
+          <span className={stale ? 'stale' : ''} title={newest ? `read ${ageOf(d.asOf)} · newest datum ${ageOf(newest)}` : undefined}>read {ageOf(d.asOf)}{stale ? ' — stale' : ''}</span>
         </div>
       )}
       {q.isError && !d ? <div className="si-msg">Sector ignition didn&rsquo;t load. <button type="button" className="tl-link-btn" onClick={() => q.refetch()}>Retry</button></div>
@@ -131,7 +131,12 @@ export function SectorIgnitionPanel({ horizons = ['intraday', 'daily', 'swing', 
       {d && live.length < groups.length && all === false && shown.length > 0 && <button type="button" className="tl-link-btn si-meta" onClick={() => setAll(true)}>+{groups.length - live.length} quiet groups</button>}
       {d && h === 'weekly' && d.watchlist.length > 0 && <div className="si-foot">Watchlist (no auto trades): {d.watchlist.map((w) => `${w.label} ${w.side} — ${w.symbols.join(', ')}`).join(' · ')}</div>}
       {d && d.emitted.length > 0 && <div className="si-foot">Ideas today: {d.emitted.map((e) => `${e.symbol} ${e.side}`).join(' · ')} (source sector_ignition, measuring)</div>}
-      {d && !dense && <div className="si-foot">{d.cadence}. {d.notes.slice(0, 2).join(' ')} {d.honesty}</div>}
+      {d && !dense && (
+        <details className="si-foot si-method">
+          <summary>How it&rsquo;s read</summary>
+          {d.cadence}. {d.notes.slice(0, 2).join(' ')} {d.honesty}
+        </details>
+      )}
     </div>
   );
 }
@@ -142,7 +147,7 @@ export function SectorIgnitionBand() {
     <section className="td-index-desk" aria-label="Sector ignition">
       <div className="container">
         <div className="td-index-head">
-          <div><b>Sector ignition</b><span>which groups are igniting — 0DTE, daily, swing, weeks · measuring</span></div>
+          <div><b>Sector ignition</b><span>measuring</span></div>
           <Link href="/t?nx=0dte">Intraday on the 0DTE desk</Link>
         </div>
         <SectorIgnitionPanel max={8} />
@@ -172,8 +177,12 @@ export function SectorIgnitionTool() {
 export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const daily = useSectorIgnition('daily');
   const swing = useSectorIgnition('swing');
+  const phone = usePhone();
   const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
   if (!pick) {
+    // compact (NEXUS board header): an unavailable read takes no row — the
+    // Sector Ignition section on the same page reports the failure with a retry.
+    if (compact && !(daily.isLoading || swing.isLoading)) return null;
     return <div className="ig-strip" role="status">{daily.isLoading || swing.isLoading ? 'Reading sector rotation…' : 'Sector rotation unavailable right now'}</div>;
   }
   const hot = pick.groups.filter((g) => g.stage === 'igniting' || g.stage === 'extended');
@@ -182,6 +191,17 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
   const lag = into.flatMap((g) => g.laggards.slice(0, 2).map((c) => c.symbol)).slice(0, 4);
   const fmt = (g: Group) => `${g.label} (${g.etf} ${sp(g.etfMovePct, 1)}${g.stage === 'igniting' ? ' · igniting' : ''})`;
   return (
+    // compact (NEXUS board) on a phone: ONE summary line, the full read one tap away —
+    // the per-row with/against tags and the Sector Ignition section carry the same read
+    compact && phone ? (
+      <details className="ig-strip compact ig-strip-phone" aria-label="Sector rotation">
+        <summary><span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span> <b className="up">Into</b> {into[0] ? `${into[0].label}${into.length > 1 ? ` +${into.length - 1}` : ''}` : 'nothing'} · <b className="dn">Out</b> {out[0] ? `${out[0].label}${out.length > 1 ? ` +${out.length - 1}` : ''}` : 'nothing'}</summary>
+        <span><b className="up">Into</b> {into.length ? into.map(fmt).join(', ') : 'nothing igniting long'}</span>
+        <span><b className="dn">Out of</b> {out.length ? out.map(fmt).join(', ') : 'nothing igniting short'}</span>
+        {lag.length > 0 && <span><b>Laggards to watch</b> {lag.join(' · ')}</span>}
+        <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
+      </details>
+    ) :
     <div className={`ig-strip${compact ? ' compact' : ''}`} aria-label="Sector rotation">
       <span className="ig-strip-k">Rotation · {LABEL[pick.horizon]}</span>
       <span><b className="up">Into</b> {into.length ? into.map(fmt).join(', ') : 'nothing igniting long'}</span>

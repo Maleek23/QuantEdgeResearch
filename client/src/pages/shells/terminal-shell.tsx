@@ -520,11 +520,12 @@ export default function TerminalShell() {
           <LiveStatsBar />
         </span>
         <div className="bb-spacer" />
-        <span className="hidden items-center lg:inline-flex">
+        <span className="hidden min-w-0 shrink items-center overflow-hidden lg:inline-flex">
           <FooterMarketLine className="text-[10px]" />
         </span>
         <div className="bb-sep hidden sm:block" />
-        <div className="bb-item hidden sm:flex">Educational only · not investment advice</div>
+        {/* the page's ONE disclaimer on desktop/tablet (the rail note was a second copy) — never clipped by the market line */}
+        <div className="bb-item hidden shrink-0 sm:flex">Educational only · not investment advice</div>
       </footer>
     </div>
   );

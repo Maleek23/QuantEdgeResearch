@@ -60,7 +60,7 @@ export function useQuantBotStatus(enabled = true) {
     queryKey: QUANT_BOT_STATUS_KEY,
     queryFn: async () => {
       const r = await fetch('/api/quant-bot/status', { credentials: 'include' });
-      if (!r.ok) throw new HttpError(r.status, `/api/quant-bot/status failed (${r.status})`);
+      if (!r.ok) throw new HttpError(r.status, `The bot status request failed (HTTP ${r.status}).`);
       return r.json();
     },
     enabled,

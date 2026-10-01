@@ -26,7 +26,7 @@
  * their own Save beside them, so nothing is half-saved by a page-level button.
  */
 import { reasonOf } from '@/lib/optimistic';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowRight, ArrowUp, Check, Download, ShieldCheck, Trash2, X } from 'lucide-react';
@@ -68,8 +68,18 @@ const goTo = (id: string) => {
   try { history.replaceState(null, '', `#${id}`); } catch { /* sandboxed */ }
 };
 
+/**
+ * Where a section's settings are saved. The section's subtitle says it once;
+ * a row only prints its own scope when it DIFFERS (was a "YOUR ACCOUNT" /
+ * "THIS DEVICE" caption under every field — UI redundancy pass 2026-10-01).
+ */
+type Scope = 'device' | 'account';
+const SectionScope = createContext<Scope | undefined>(undefined);
+
 /** One labelled row: label + help on the left, control on the right (stacks on a phone). */
-function Row({ label, help, htmlFor, children, scope }: { label: ReactNode; help?: ReactNode; htmlFor?: string; children: ReactNode; scope?: 'device' | 'account' }) {
+function Row({ label, help, htmlFor, children, scope: rowScope }: { label: ReactNode; help?: ReactNode; htmlFor?: string; children: ReactNode; scope?: Scope }) {
+  const sectionScope = useContext(SectionScope);
+  const scope = rowScope && rowScope !== sectionScope ? rowScope : undefined;
   return (
     <div className="st-row">
       <div className="st-row-l">
@@ -111,7 +121,8 @@ export default function SettingsPage() {
         title="Settings"
         purpose="Your profile, how the terminal looks, trading defaults, alerts, connections and your data."
       >
-        <nav className="st-jump" aria-label="Settings sections">
+        {/* phones: one sideways-scrolling row (was three wrapped rows of chips) */}
+        <nav className="st-jump qp-row" aria-label="Settings sections">
           {SECTIONS.map((s) => (
             <a key={s.id} href={`#${s.id}`} onClick={(e) => { e.preventDefault(); goTo(s.id); }}>{s.label}</a>
           ))}
@@ -151,7 +162,8 @@ function ProfileSection() {
   const since = u?.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
-    <LuxPanel id="st-profile" num="01" title="Profile" sub="How you appear in the account menu and on journal notes.">
+    <SectionScope.Provider value="account">
+    <LuxPanel id="st-profile" num="01" title="Profile" sub="How you appear in the account menu and on journal notes. Saved to your account.">
       <div className="st-profile">
         <div className="st-avatar" aria-hidden>{initial}</div>
         <div className="st-profile-id">
@@ -179,6 +191,7 @@ function ProfileSection() {
         </LuxButton>
       </div>
     </LuxPanel>
+    </SectionScope.Provider>
   );
 }
 
@@ -214,6 +227,7 @@ function DisplaySection() {
   const [jp, setJp] = useJournalPrefs();
   const localZone = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'this device'; } }, []);
   return (
+    <SectionScope.Provider value="device">
     <LuxPanel id="st-display" num="02" title="Display" sub="Applies instantly and is saved on this device. This is the one place the display mode is chosen.">
       <div className="st-modes" role="radiogroup" aria-label="Display mode">
         {VISUAL_MODES.map((m) => {
@@ -259,6 +273,7 @@ function DisplaySection() {
           options={[{ value: 'et', label: 'New York (ET)' }, { value: 'local', label: 'This device' }]} />
       </Row>
     </LuxPanel>
+    </SectionScope.Provider>
   );
 }
 
@@ -295,7 +310,8 @@ function TradingSection() {
   const risk$ = draft ? (draft.accountSize * draft.maxRiskPerTrade) / 100 : NaN;
 
   return (
-    <LuxPanel id="st-trading" num="03" title="Trading Defaults" sub="What boards open on, and the numbers every signal is sized from.">
+    <SectionScope.Provider value="account">
+    <LuxPanel id="st-trading" num="03" title="Trading Defaults" sub="What boards open on, and the numbers every signal is sized from. Saved to your account unless marked.">
       <Row label="Default horizon" help="Horizon filters (NEXUS 'Book by horizon') open on this until you pick another there." htmlFor="st-horizon" scope="device">
         <select id="st-horizon" className="st-input st-select" value={horizon}
           onChange={(e) => { const v = e.target.value as HorizonFilterValue; setHorizon(v); writeDefaultHorizon(v); }}>
@@ -337,6 +353,7 @@ function TradingSection() {
         <WatchlistManager />
       </Row>
     </LuxPanel>
+    </SectionScope.Provider>
   );
 }
 
@@ -345,6 +362,7 @@ function AlertsSection() {
   const [prefs, setPrefs] = useState<AlertPrefs>(() => loadAlertPrefs());
   const update = (p: AlertPrefs) => { setPrefs(p); saveAlertPrefs(p); };
   return (
+    <SectionScope.Provider value="device">
     <LuxPanel id="st-alerts" num="04" title="Alerts" sub="Signal state changes, detected while the platform is open. Saved on this device — the same settings as the Alerts page."
       meta={<Link href="/alerts" className="st-link">Alerts page <ArrowRight aria-hidden size={12} /></Link>}>
       <div className="st-alerts">
@@ -358,6 +376,7 @@ function AlertsSection() {
         <Switch on={prefs.watchlistOnly} onChange={(v) => update({ ...prefs, watchlistOnly: v })} label="Alert on watchlist tickers only" />
       </Row>
     </LuxPanel>
+    </SectionScope.Provider>
   );
 }
 
@@ -421,6 +440,7 @@ function JournalSection() {
   const sources = useQuery<SourcesResp>({ queryKey: ['/api/journal/sources'], retry: 0, staleTime: 60_000 });
   const books = sources.data?.sources?.length ? sources.data.sources : [{ key: 'mine', label: 'My journal' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }];
   return (
+    <SectionScope.Provider value="device">
     <LuxPanel id="st-journal" num="06" title="Journal" sub="Defaults for the trade journal. Saved on this device."
       meta={<Link href="/t?tab=journal" className="st-link">Open journal <ArrowRight aria-hidden size={12} /></Link>}>
       <Row label="Default book" help="Opened when a link doesn't name a book. Links that do still win." htmlFor="st-book" scope="device">
@@ -433,6 +453,7 @@ function JournalSection() {
           options={[{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Collapse' }]} />
       </Row>
     </LuxPanel>
+    </SectionScope.Provider>
   );
 }
 

@@ -547,6 +547,9 @@ button.jr-heat-c{cursor:pointer}
   .jr-top{flex-wrap:nowrap;gap:8px}
   .jr-top-t{flex-wrap:nowrap;min-width:0;overflow:hidden}
   .jr-top-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+  /* the page title repeats the active sub-tab right above it ("Dashboard" twice) —
+     kept for screen readers (main is labelled by it), not drawn (UI redundancy pass 2026-10-01) */
+  .jr-top-h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .jr-top .jr-head-actions{flex:none;display:flex;gap:6px}
   .jr-btn-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .jr-top .jr-btn{min-width:44px;min-height:44px;justify-content:center;padding:0 10px}

@@ -247,7 +247,11 @@ export function OptionsFlowTool() {
         <div className="of-stat of-tide" title="Cumulative call vs put premium through today, from the rows below. Premium traded — NOT bull/bear: neither feed measures whether the print was bought or sold.">
           <div className="of-lbl">Premium tide <span className="of-sub qp-desk-only">today · calls vs puts</span></div>
           <Tide pts={stats.tide} />
-          <div className="of-sub"><span style={{ color: CALL }}>C {money(stats.tide.at(-1)?.c ?? 0)}</span> / <span style={{ color: PUT }}>P {money(stats.tide.at(-1)?.p ?? 0)}</span></div>
+          {/* The tide's end values equal the Puts / Calls premium beside it on a 1-day
+              window — print them only when they differ (a multi-day window). */}
+          {(Math.round(stats.tide.at(-1)?.c ?? 0) !== Math.round(stats.calls) || Math.round(stats.tide.at(-1)?.p ?? 0) !== Math.round(stats.puts)) && (
+            <div className="of-sub"><span style={{ color: CALL }}>C {money(stats.tide.at(-1)?.c ?? 0)}</span> / <span style={{ color: PUT }}>P {money(stats.tide.at(-1)?.p ?? 0)}</span> today</div>
+          )}
         </div>
         <div className="of-stat">
           <div className="of-lbl">Flow trades</div>

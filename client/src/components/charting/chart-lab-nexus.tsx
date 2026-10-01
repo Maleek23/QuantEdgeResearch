@@ -697,7 +697,7 @@ export function ChartLabBoard() {
           <ChartLabSysStatus />
 
           <div className="disclaimer">
-            Educational only · not investment advice.<br />
+            <span className="qp-phone-only">Educational only · not investment advice.<br /></span>{/* ≥768px: the frame bottom bar says it */}
             Past performance does not guarantee future results.
           </div>
         </div>

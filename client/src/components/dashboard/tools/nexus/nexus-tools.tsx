@@ -28,7 +28,7 @@ import { useDashState, useDashboard, useFocusSymbol, useNow, useToolReport, useT
 import { HorizonBook } from '@/components/ideas/horizon-book';
 import { ageLabel } from '../flow/tape';
 import {
-  ContextBody, DevelopingDetail, DevelopingRow, MarketSummary, SetupDetail, SetupRow,
+  ContextBody, DevelopingDetail, DevelopingRow, SetupDetail, SetupRow,
   macroRisk, rankDeveloping, rankRows, spySourceOf, withSpxRow,
   useDevelopingQuote, useNexusConvictions, useNexusExtended, useNexusPatterns, useNexusPulse, useSpxExpression,
   RANKS, SIDES, type DetailTab, type PatternHit, type Rank, type Side,
@@ -421,12 +421,17 @@ export function NexusContextTool() {
   const age = (iso?: string | null) => (iso ? ageLabel(iso, now) : 'n/a');
   return (
     <div className="fd-scroll nxd nxd-context">
-      <MarketSummary market={market} pulse={pulse.data} bonds={bonds} macro={macro} />
+      {/* No MarketSummary strip here: regime, preferred side, 10Y, TLT and the
+          risk level are all in the body right below (they printed twice). The
+          per-feed ages sit behind one tap; the section stamp shows the newest. */}
       <div className="nxp-context nxd-context-inline">
         <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div></div>
-        <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} />
+        <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} hideFreshness />
       </div>
-      <div className="fd-foot">Ages · regime {age(convictions.data?.generatedAt)} · 10Y/VIX {age(pulse.data?.asOf)} · TLT {age(extended.data?.asOf)}</div>
+      <details className="fd-foot nxd-ages">
+        <summary>Feed ages</summary>
+        regime {age(convictions.data?.generatedAt)} · 10Y/VIX {age(pulse.data?.asOf)} · TLT {age(extended.data?.asOf)}{extended.data ? ` · macro ${extended.data.isStale ? 'stale' : extended.data.session ?? '—'}` : ''}
+      </details>
     </div>
   );
 }

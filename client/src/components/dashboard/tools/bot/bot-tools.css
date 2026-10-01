@@ -33,6 +33,10 @@
 .flowdash .bot-only .bot-icon{width:24px;height:24px}
 .flowdash .bot-only .bot-name{font-size:12.5px}
 .flowdash .bot-only .bot-desc-text{margin-bottom:6px;min-height:0;font-size:10.5px}
+/* job descriptions: one line on desktop (full text in the title), PhoneNote tap on phones */
+@media (min-width:768px){
+  .botlab .bot-desc-note .bot-desc-text{display:block;min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 .flowdash .bot-only .bot-stats{padding-top:6px}
 
 /* book / history / ledger rows */

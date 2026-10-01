@@ -10,7 +10,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { History, Radar } from 'lucide-react';
+import { History } from 'lucide-react';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import './crypto-ideas.css';
@@ -107,9 +107,10 @@ export function CryptoIdeasList({ dense = false }: { dense?: boolean }) {
   return (
     <div className={`cxi ${dense ? 'cxi-dense' : ''}`}>
       <header className="cxi-head">
-        <strong><Radar size={13} aria-hidden /> Crypto ideas · 24/7</strong>
+        {/* the section title already says "Crypto Ideas · 24/7" — the head keeps the universe and cadence */}
         <span className="cxi-mono">{d.universe.join(' · ')}</span>
-        <span className="cxi-mono cxi-mute">last scan {ago(d.lastScan?.at)} · {d.schedule}</span>
+        {/* the section stamp is the last scan's age; the cadence sentence is desktop-only */}
+        <span className="cxi-mono cxi-mute qp-desk-only" title={`last scan ${ago(d.lastScan?.at)}`}>{d.schedule}</span>
       </header>
 
       {open.length === 0

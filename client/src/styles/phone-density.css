@@ -31,6 +31,22 @@
 .qp-sheet-dl dt{margin-top:12px;font:600 12px/1.3 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--lx-mute)}
 .qp-sheet-dl dd{margin:0;font:400 15px/1.5 Inter,system-ui,sans-serif;color:var(--lx-text)}
 .qp-sheet-mute{color:var(--lx-mute);font-size:13px}
+.qp-sheet-dl dd.qp-sheet-feed{font:400 12px/1.5 'JetBrains Mono',ui-monospace,monospace;color:var(--lx-mute);word-break:break-word}
+
+/* ── desktop ⓘ popover (UI redundancy pass 2026-10-01): what / units / source /
+   age / feed move out of every section header into one tap ── */
+.qp-pop{z-index:80;width:min(360px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;padding:12px 14px 14px;border:1px solid var(--lx-line-hi,rgba(120,140,170,.3));border-radius:10px;background:var(--lx-surface-hi,#12151c);color:var(--lx-text,#e6e9ef);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+.qp-pop:focus-visible{outline:2px solid var(--lx-accent,#3b8cff);outline-offset:2px}
+.qp-pop-title{font:600 14px/1.3 Inter,system-ui,sans-serif;color:var(--lx-text)}
+.qp-pop .qp-sheet-dl dt{margin-top:10px;font-size:11px}
+.qp-pop .qp-sheet-dl dd{font-size:13px;line-height:1.45}
+.qp-pop .qp-sheet-mute{font-size:12px}
+@media (min-width:768px){
+  .qp-info{width:32px;height:32px;margin:-6px -6px -6px 0}
+  .qp-meta-all{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:none;min-width:0}
+  .qp-meta-note{font:500 11px/1 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute,var(--lx-mute));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
+  .qp-meta-note.warn{color:var(--amber,#f5b642)}
+}
 
 /* ── inline note (desktop: the note, as before; the toggle is phone-only) ── */
 .qp-note-btn{display:none}

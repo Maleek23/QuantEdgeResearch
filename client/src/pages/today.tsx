@@ -30,7 +30,7 @@ import { regimeFromLegacy } from '@shared/gex-regime';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
-import { Clamp } from '@/components/ui/qe-phone';
+import { Clamp, InfoSheet } from '@/components/ui/qe-phone';
 import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useTickFlash } from '@/lib/use-tick-flash';
@@ -39,7 +39,7 @@ import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, 
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
-import { RotationStrip, SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
+import { SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
 import {
   Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
@@ -52,6 +52,10 @@ import '@/styles/today.css';
  * outcome). The page that owns the "check an idea's evidence" workflow (W4)
  * carries the link; the TODAY dashboard tools import it too.
  */
+/** The weekly dealer map's method note (behind the map's ⓘ; was a caption under the hero). */
+const MAP_NOTE = (magnetIsPut: boolean) =>
+  `Shaded band: SPY’s 1σ weekly move from its last 20 sessions (about 2 weeks in 3 close inside it). The line is a model projection: it leans toward the biggest strike only in long gamma, capped at a quarter of that move. Not a forecast. Walls, ${magnetIsPut ? 'pivot' : 'magnet'} and floor are measured.`;
+
 export function AuditTrailLink({ ideaId, className }: { ideaId: string; className?: string }) {
   return <Link href={`/trade-ideas/${encodeURIComponent(ideaId)}/audit`} className={className}>Audit trail</Link>;
 }
@@ -314,7 +318,7 @@ export default function TodayPage() {
                     : null}
                 </h1>
               )}
-              <Clamp className="hero-sub" lines={3}>
+              <Clamp className="hero-sub" lines={2}>
                 {feedDown
                   ? 'We only draw the map from measured positioning. It comes back the moment the feed does — this page retries every 30 seconds.'
                   : !wp.data ? ''
@@ -345,7 +349,14 @@ export default function TodayPage() {
               <div className="lterminal-head">
                 <div className="lterminal-dots"><span /><span /><span /></div>
                 <div className="lterminal-title">dealer map · spy · this week</div>
-                <div className="lterminal-status"><span className="dot" />{pathAsOf ? `model ${ageLabel(pathAsOf, now)}` : 'measured'}</div>
+                <div className="lterminal-status"><span className="dot" />{pathAsOf ? `model ${ageLabel(pathAsOf, now)}` : 'measured'}
+                  {/* the chart's method note lives behind the ⓘ (was a 2–3 line caption under the hero) */}
+                  <InfoSheet className="tl-map-info" title="Dealer map · how to read it" label="How to read the dealer map"
+                    what={MAP_NOTE(magnetIsPut)}
+                    units="SPY price $; band = 1σ weekly move"
+                    source={wp.data?.volSource === 'realized-20d' ? 'SPY realized volatility, last 20 sessions · GEX walls from the SPY options chain' : 'SPY volatility estimate · GEX walls from the SPY options chain'}
+                    age={pathAsOf ? `model ${ageLabel(pathAsOf, now)} · dealer levels ${g.asOf ? ageLabel(g.asOf, now) : '—'}` : undefined} />
+                </div>
               </div>
               <div className="lterminal-body">
                 <div className="t-panel" style={{ gridColumn: '1/-1' }}>
@@ -375,7 +386,6 @@ export default function TodayPage() {
               </div>
             </div>
           </div>
-          <div className="tl-map-foot">Shaded band: SPY’s 1σ weekly move from its last 20 sessions (about 2 weeks in 3 close inside it). The line is a model projection: it leans toward the biggest strike only in long gamma, capped at a quarter of that move. Not a forecast. Walls, {magnetIsPut ? 'pivot' : 'magnet'} and floor are measured.</div>
         </div>
       </section>
 
@@ -391,8 +401,9 @@ export default function TodayPage() {
       {/* PRE-MARKET — the leading direction read before the open */}
       <PremarketStrip dirOf={dirOf} now={now} />
 
-      {/* ROTATION — where money is moving, one line (sector ignition, measuring). */}
-      <div className="container" style={{ marginTop: 12 }}><RotationStrip /></div>
+      {/* (The one-line RotationStrip that sat here read the same daily/swing
+          sector-ignition feed as the Sector ignition band below — same groups,
+          same moves, twice on one page. The band keeps them; UI redundancy pass 2026-10-01.) */}
 
       {/* INDEX DESK — the same four instruments the intraday engine monitors. */}
       <section className="td-index-desk" aria-label="Index desk">
@@ -437,12 +448,15 @@ export default function TodayPage() {
       <section className="stats-bar-l">
         <div className="container">
           <div className="stats-grid">
-            <div className="stat-item reveal">
+            {/* The two book stats repeat the hero's "The book · N live" panel (count,
+                long/short, top score) — on phones, where that panel sits one scroll
+                above, they're hidden; the record stats below are the band's news. */}
+            <div className="stat-item reveal tl-dup-phone">
               <div className="lstat-val">{book.conv.isLoading ? '—' : ideas.length}</div>
               <div className="lstat-label">Live ideas in the book</div>
               <div className="lstat-sub">{longs} long · {ideas.length - longs} short</div>
             </div>
-            <div className="stat-item reveal">
+            <div className="stat-item reveal tl-dup-phone">
               <div className="lstat-val">{best ? convictionDisplayPercent(best.convictionScore ?? 0) : '—'}<span className="tl-of">/100</span></div>
               <div className="lstat-label">Top evidence score</div>
               <div className="lstat-sub">{best ? `${best.symbol} · ${best.direction}` : 'waiting for the board'}</div>
@@ -494,7 +508,8 @@ export default function TodayPage() {
                 </div>
               </div>
               <div className="feature-visual reveal">
-                <SigCard p={best as never} chart={cardCharts} />
+                {/* phones: the best idea's card repeats the ladder right above it (entry/stop/target) */}
+                <div className="tl-dup-phone"><SigCard p={best as never} chart={cardCharts} /></div>
                 {ideas[1] && <SigCard p={ideas[1] as never} chart={cardCharts} />}
               </div>
             </div>
@@ -524,12 +539,18 @@ export default function TodayPage() {
               </button>
             </div>
             <div className="tl-book">
-              {bookRows.map((p) => (
-                <div className="tl-book-item reveal" key={p.ideaId}>
-                  <SigCard p={p as never} chart={cardCharts} />
-                  <p className="tl-book-why">{explain(p).headline}</p>
-                </div>
-              ))}
+              {bookRows.map((p) => {
+                // explain() falls back to the thesis' first sentence — which the card
+                // already prints; only a flow / pattern read earns its own line.
+                const why = explain(p).headline;
+                const thesisLead = `${(p.thesis ?? '').split('.')[0]}.`;
+                return (
+                  <div className="tl-book-item reveal" key={p.ideaId}>
+                    <SigCard p={p as never} chart={cardCharts} />
+                    {why !== thesisLead && <p className="tl-book-why">{why}</p>}
+                  </div>
+                );
+              })}
             </div>
             {ideas.length > 8 && <Link href="/t" className="tl-more">{ideas.length - 8} more on the NEXUS board →</Link>}
           </div>
@@ -588,8 +609,9 @@ export default function TodayPage() {
           <div className="cta-box reveal">
             <h2 className="cta-title">Model record</h2>
             <p className="cta-sub">
+              {/* the win rate / R numbers are in the stats band above — this says how they're kept */}
               {o?.decided != null
-                ? `${o.winRate != null ? `${o.winRate.toFixed(0)}% of ${o.decided} decided ideas hit target before stop` : `${o.decided} decided ideas so far — a win rate shows at ${o.sampleFloor ?? 30}`}. Every idea published since ${o.since}: target, stop, or a measured close. Losers stay on the record; unresolved ideas are counted, never scored.`
+                ? `Every idea published since ${o.since} is scored on target, stop, or a measured close.${o.winRate == null ? ` A win rate shows at ${o.sampleFloor ?? 30} decided ideas.` : ''} Losers stay on the record; unresolved ideas are counted, never scored.`
                 : perf.isError ? 'The model record didn’t load — the full record is in the journal.'
                 : 'The record is replayed on 5-minute bars, not marked to the close.'}
             </p>
