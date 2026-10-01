@@ -187,6 +187,8 @@ function QEChartCompact({
   const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
   const dealerAsOf = dealerQ.data ? (dealerQ.data.cached ? dealerQ.data.cachedAt : dealerQ.data.generatedAt) ?? null : null;
   const dealerSource = snap?.source ?? dealerQ.data?.optionsSource ?? 'chain';
+  // The expanded modal has no card beside it: labels come back on the canvas there.
+  const expandedLevels = useMemo(() => (levels.some((l) => l.hideLabel) ? levels.map((l) => ({ ...l, hideLabel: false })) : levels), [levels]);
   const allLevels = useMemo(() => {
     if (!prefs.walls || !snap) return levels;
     const rows: (Level & { dashed?: boolean })[] = [];
@@ -652,7 +654,7 @@ function QEChartCompact({
               fill
               tf={tf}
               onTfChange={setTf}
-              levels={levels}
+              levels={expandedLevels}
               zones={zones}
               live={live}
               onOpenChartPage={openChartPage}

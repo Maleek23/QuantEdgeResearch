@@ -160,7 +160,8 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
           </span>
         )}
         <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
-        <span className="text-[9px] font-mono text-muted-foreground ml-1">⌘K</span>
+        {/* keyboard hint: not on phones (no ⌘K there) */}
+        <span className="hidden md:inline text-[9px] font-mono text-muted-foreground ml-1">⌘K</span>
       </button>
 
       {open && (

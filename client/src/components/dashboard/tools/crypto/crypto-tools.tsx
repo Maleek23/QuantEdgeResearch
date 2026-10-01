@@ -16,7 +16,7 @@ import {
 } from '@/components/crypto/crypto-nexus';
 import { QEError, QELoading } from '@/components/ui/qe-states';
 import { CryptoIdeasList, useCryptoIdeas } from '@/components/crypto/crypto-ideas';
-import { useToolReport, useToolSetting } from '../../frame';
+import { useDashboard, useToolReport, useToolSetting } from '../../frame';
 import './crypto-tools.css';
 
 /** Report + gate on the shared /api/crypto/pulse query. */
@@ -56,12 +56,13 @@ export function CryptoSpotTool() {
 export function CryptoChartTool() {
   const [coin, setCoin] = useToolSetting<ChartCoin>('coin', 'BTC');
   const { pulseQ, pulse } = useCryptoMajors();
+  const { hasTool } = useDashboard();
   useToolReport({
     asOf: pulseQ.isLoading ? undefined : pulse?.asOf ?? null,
     note: pulseQ.isError ? 'strip refresh failed' : 'age = level strip; chart candles live',
     tone: pulseQ.isError ? 'warn' : 'ok',
   });
-  return <div className="cx-tool cx-chart"><CryptoChartDeck coin={coin} onCoin={setCoin} fill /></div>;
+  return <div className="cx-tool cx-chart"><CryptoChartDeck coin={coin} onCoin={setCoin} fill spotReadShown={hasTool('crypto-spot')} /></div>;
 }
 
 /* ════════════ Summary · BTC / ETH / ratio / feeds ════════════ */

@@ -55,7 +55,9 @@ export function GammaProfileChart({ snap, spot, zeroGamma, height = 86, idSuffix
 }
 
 /** putWall … zeroGamma … callWall on a price axis with the live spot marker. */
-export function DealerStructureRail({ snap, spot, zeroGamma, negGamma }: { snap: GEXSnapshot; spot: number; zeroGamma: number | null; negGamma: boolean }) {
+export function DealerStructureRail({ snap, spot, zeroGamma, negGamma, names = false }: { snap: GEXSnapshot; spot: number; zeroGamma: number | null; negGamma: boolean;
+  /** label the ticks by name only — the caller prints the prices in its own cards */
+  names?: boolean }) {
   if (!(snap.putWall || snap.callWall || zeroGamma)) return null;
   const pts = [snap.putWall, zeroGamma, snap.callWall, spot].filter((v): v is number => Number.isFinite(v as number));
   const lo = Math.min(...pts) * 0.995; const hi = Math.max(...pts) * 1.005;
@@ -73,9 +75,9 @@ export function DealerStructureRail({ snap, spot, zeroGamma, negGamma }: { snap:
         {spot > 0 && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: 'var(--text)', boxShadow: '0 0 8px rgba(255,255,255,0.5)', transform: 'translateX(-4px)' }} />}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: mono, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
-        <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
-        <span style={{ color: 'var(--amber)' }}>zero-γ {flip != null ? `$${flip.toFixed(1)}` : '—'}</span>
-        <span style={{ color: 'var(--cyan-bright)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
+        <span style={{ color: 'var(--red)' }}>{names ? 'put wall' : `P ${snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}`}</span>
+        <span style={{ color: 'var(--amber)' }}>{names ? 'zero-γ' : `zero-γ ${flip != null ? `$${flip.toFixed(1)}` : '—'}`}</span>
+        <span style={{ color: 'var(--cyan-bright)' }}>{names ? 'call wall' : `C ${snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}`}</span>
       </div>
     </div>
   );

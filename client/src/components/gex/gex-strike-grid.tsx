@@ -374,6 +374,7 @@ export function GexStrikeMatrix({
   onScaleChange,
   strikeBand,
   leading,
+  spotInToolbar = true,
 }: {
   /** every listed cell for the symbol (all expiries) — shares are of this book */
   cells: StrikeExpiryCell[];
@@ -402,6 +403,9 @@ export function GexStrikeMatrix({
   strikeBand?: { lo: number; hi: number; pct: number; basis: string } | null;
   /** the owning tool's controls (metric, gamma view, horizon) — same ONE toolbar row */
   leading?: ReactNode;
+  /** print the spot price on the jump-to-spot button (off when another tile on the
+   *  page — Key Levels — already prints the spot, labelled) */
+  spotInToolbar?: boolean;
 }) {
   const [ownScale, setOwnScale] = useState<MatrixScale>('column');
   const scale = scaleProp ?? ownScale;
@@ -502,8 +506,8 @@ export function GexStrikeMatrix({
     <div className="gx-toolbar">
       {leading}
       {levels.spot > 0 && sIdx >= 0 && (
-        <button type="button" className={`gx-spot-btn${spotDir ? ' off' : ''}`} onClick={() => jump(true)} title="Scroll spot to the centre (keyboard: S)">
-          {spotDir === 'up' ? '↑' : spotDir === 'down' ? '↓' : '◎'} <span className="gx-spot-word">Spot </span>${levels.spot.toFixed(2)}
+        <button type="button" className={`gx-spot-btn${spotDir ? ' off' : ''}`} onClick={() => jump(true)} title={`Scroll the chain-snapshot spot ($${levels.spot.toFixed(2)}) to the centre (keyboard: S)`}>
+          {spotDir === 'up' ? '↑' : spotDir === 'down' ? '↓' : '◎'} {spotInToolbar ? <><span className="gx-spot-word">Spot </span>${levels.spot.toFixed(2)}</> : 'Spot'}
         </button>
       )}
       {pages > 1 && (
@@ -649,7 +653,7 @@ export function GexStrikeMatrix({
       >
         <div className="gx-lines" style={{ height: HEAD + strikes.length * ROW }} aria-hidden>
           {zgY != null && <div className="gx-line zg" style={{ top: zgY }}><span>ZERO-γ ${levels.zeroGamma!.toFixed(2)}</span></div>}
-          {spotY != null && <div className="gx-line spot" style={{ top: spotY }}><span>SPOT ${levels.spot.toFixed(2)}</span></div>}
+          {spotY != null && <div className="gx-line spot gx-line-gutter" style={{ top: spotY }}><span>SPOT</span></div>}
         </div>
         <table
           className="gx-table gx-grid"
@@ -816,7 +820,7 @@ export function GexStrikeLadder({
       >
         <div className="gx-lines" style={{ height: L_HEAD + rows.length * L_ROW }} aria-hidden>
           {zgY != null && <div className="gx-line zg" style={{ top: zgY }}><span>ZERO-γ ${levels.zeroGamma!.toFixed(2)}</span></div>}
-          {spotY != null && <div className="gx-line spot" style={{ top: spotY }}><span>SPOT ${levels.spot.toFixed(2)}</span></div>}
+          {spotY != null && <div className="gx-line spot gx-line-gutter" style={{ top: spotY }}><span>SPOT</span></div>}
         </div>
         <div className="gx-ladder-head" style={{ height: L_HEAD }}>
           <span>STRIKE</span>

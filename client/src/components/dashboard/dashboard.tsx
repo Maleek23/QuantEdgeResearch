@@ -428,12 +428,13 @@ function SaveBadge({ api }: { api: ReturnType<typeof useDashboards> }) {
   const pristine = api.active?.pristine;
   const txt = api.save === 'loading' ? 'loading layouts…'
     : api.save === 'saving' ? 'saving…'
-    : pristine ? 'default layout · your changes save automatically'
+    : pristine ? 'default layout'
     : api.save === 'account' ? `saved to your account${ago != null ? ` · ${ago < 60 ? `${ago}s` : `${Math.round(ago / 60)}m`} ago` : ''}`
     : api.save === 'device' || (api.save === 'default' && !api.signedIn) ? 'saved on this device only (signed out)'
     : api.save === 'default' ? 'saved to your account'
     : 'account save failed — kept on this device';
-  return <span className={cn('fd-save', api.save === 'error' && 'warn')} role="status">{txt}</span>;
+  // the "changes save automatically" hint lives in the tooltip, not on the toolbar (audit 2026-10-01 #18)
+  return <span className={cn('fd-save', api.save === 'error' && 'warn')} role="status" title={pristine ? 'Default layout — your changes save automatically' : undefined}>{txt}</span>;
 }
 
 /* ── simple page: one primary tool, full bleed, optional right rail ── */

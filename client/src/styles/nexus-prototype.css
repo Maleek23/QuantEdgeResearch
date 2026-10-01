@@ -53,3 +53,11 @@
 /* ADX / Holy Grail badge (holy-grail-badge.tsx) — small, plain */
 .nxp-hg{display:flex;flex-wrap:wrap;gap:6px}.nxp-hg-badge{display:inline-block;padding:2px 7px;border:1px solid var(--border-subtle);border-radius:5px;color:var(--text-dim);font:600 10px/1.6 'JetBrains Mono',monospace}
 .nxp-rot{margin-left:6px;padding:1px 6px;border-radius:4px;font:700 9.5px 'JetBrains Mono',monospace;letter-spacing:.02em;white-space:nowrap}.nxp-rot.with{color:var(--p);background:color-mix(in srgb,var(--p) 12%,transparent)}.nxp-rot.against{color:var(--n);background:color-mix(in srgb,var(--n) 12%,transparent)}
+
+/* setup detail: the level lines on the chart are keyed to the card by colour swatches (audit 2026-10-01 #20) */
+.nxp-sw{display:inline-block;width:10px;height:2px;margin:0 5px 3px 0;vertical-align:middle;border-radius:1px;background:var(--lx-accent,#3b8cff)}
+.nxp-sw.loss{background:var(--lx-loss,#ff6b3d)}.nxp-sw.gain{background:var(--lx-gain,#6ee7b7)}
+.nxp-chart-key{color:var(--text-mute);font:600 10px 'JetBrains Mono',monospace;white-space:nowrap}
+.nxp-chart-key .nxp-sw{margin-left:6px}
+@media(max-width:767px){.nxp-chart-key{font-size:12px}}
+.nxp-chart-meta{flex-wrap:wrap;gap:2px 12px}.nxp-chart-meta>span{white-space:nowrap}

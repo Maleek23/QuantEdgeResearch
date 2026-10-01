@@ -26,9 +26,9 @@ import { GexRankingsPanel } from '@/components/gex/gex-rankings-panel';
 import { exposureText, fmtGexB, fmtVexM, LEVEL_COLORS, regimeColor } from '@/components/gex/gex-colors';
 import {
   DTE_BUCKETS, type BucketId, readHorizon, writeHorizon, strikeBandOf,
-  useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
+  useGexHub, useGexTerminal, useSectorRotation,
   nearTermByStrike, shapeMatrix, regimeView, zeroGammaOf, gridLevelsOf, regimeNarrative,
-  nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf, TERMINAL_TIMEOUT_MS,
+  nearTermDisagrees, sessionClock, terminalAsOf, TERMINAL_TIMEOUT_MS,
   hasAdjusted, gexMetricOf, type GammaView,
 } from '@/components/gex/gex-model';
 import { DealerStructureRail, GammaLevelsCompare, GammaProfileChart, GammaViewSeg, GexCellDrill } from '@/components/gex/gex-parts';
@@ -158,7 +158,7 @@ export function GexPhoneSummary() {
     <section className="gx-phone-sum" aria-label={`${g.symbol} GEX summary`}>
       <div className="gx-ps-top">
         <span className="gx-spot-sym">{g.symbol}</span>
-        <b className="gx-ps-spot">{px(spot)}</b>
+        <b className="gx-ps-spot">{px(spot)}</b><small className="gx-ps-spotlbl">chain snapshot</small>
         <FreshStamp className="gx-ps-age" asOf={asOf} now={now} warn={!!g.q.data?.cached} label="age —" />
       </div>
       <div className="gx-ps-regime" style={{ borderColor: `color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
@@ -191,6 +191,7 @@ export function GexPhoneSummary() {
    full-bleed to the dock. Levels / regime / net live one tap away (the
    "Levels" sheet); the rest of the workspace stacks below the grid. */
 interface PhoneQuote { price: number; change: number; changePercent: number; asOf: string | null }
+/** The live quote for the focused symbol (phone header + Key Levels). Same key as the ticker page. */
 function usePhoneQuote(symbol: string) {
   // same key + shape as the ticker page (ticker-data.ts useQuotes) → one shared cache entry
   return useQuery<Record<string, PhoneQuote>>({
@@ -200,7 +201,7 @@ function usePhoneQuote(symbol: string) {
       if (!r.ok) throw new Error('quote failed');
       const body = await r.json();
       const out: Record<string, PhoneQuote> = {};
-      for (const [k, q] of Object.entries<any>(body?.quotes ?? {})) out[k] = { price: q.price, change: q.change, changePercent: q.changePercent, asOf: q.asOf ?? null };
+      for (const [k, q] of Object.entries<any>(body?.quotes ?? {})) if (Number.isFinite(q?.price) && q.price > 0) out[k] = { price: q.price, change: q.change, changePercent: q.changePercent, asOf: q.asOf ?? null };
       return out;
     },
     staleTime: 15_000, refetchInterval: 30_000, retry: 1,
@@ -239,6 +240,7 @@ export function GexPhoneMatrixView() {
   const blocked = gate(g);
   const asOf = g.q.data ? terminalAsOf(g.q.data) : null;
   const snapAt = asOf ? new Date(asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
+  const snapTime = asOf ? new Date(asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
   const price = quote?.price ?? (g.spot || null);
   const up = (quote?.change ?? 0) >= 0;
   return (
@@ -260,15 +262,18 @@ export function GexPhoneMatrixView() {
             {DTE_BUCKETS.map((b) => <option key={b.id} value={b.id}>{b.label} · {shaped.bucketCounts[b.id]} exp</option>)}
           </select>
         </div>
+        {/* Two prices, two meanings — labelled here, and only here (audit 2026-10-01, GEX #2):
+            the live quote, and the chain-snapshot spot the grid was computed at. */}
         <div className="gxp-quote">
+          {quote && <span className="gxp-tag">live</span>}
           <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
           {quote && Number.isFinite(quote.change) && (
             <span className="gxp-chg" style={{ color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}{Math.abs(quote.change).toFixed(2)} {up ? '+' : '−'}{Math.abs(quote.changePercent).toFixed(2)}%</span>
           )}
-          <span className="gxp-snap" title={quote ? 'Price: realtime quote · grid: the GEX engine\'s chain snapshot' : 'No realtime quote — price is the GEX chain spot'}>
-            <FreshStamp asOf={asOf} now={now} warn={!!g.q.data?.cached} label="—" />
-            {snapAt ? <span>{snapAt} ET snapshot</span> : null}
-          </span>
+        </div>
+        <div className="gxp-snap" title={`Grid: the GEX engine's chain snapshot${snapAt ? ` (${snapAt} ET)` : ''}, computed at spot ${g.spot ? g.spot.toFixed(2) : '—'}.${quote ? ' Live: realtime quote.' : ' No realtime quote — the price above is the chain spot.'}`}>
+          <FreshStamp asOf={asOf} now={now} warn={!!g.q.data?.cached} label="—" />
+          <span>chain snapshot{quote && g.spot ? <> <b>{g.spot.toFixed(2)}</b></> : null}{snapTime ? ` @ ${snapTime} ET` : ''}{quote ? '' : ' · no live quote'}</span>
         </div>
       </header>
       {blocked ?? (
@@ -323,7 +328,8 @@ export function GexMatrixTool() {
   const [bucket, setBucket] = useHorizon(narrow);
   const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
   const [gview, setGview] = useToolSetting<GammaView>('gammaView', 'raw');
-  const urlOn = useDashboard().page === 'gex';
+  const dash = useDashboard();
+  const urlOn = dash.page === 'gex';
   useUrlParam('g.metric', metric, setMetric, G_METRIC, urlOn);
   useUrlParam('g.exp', bucket, setBucket, G_BUCKET, urlOn);
   useUrlParam('g.scale', scale, setScale, G_SCALE, urlOn);
@@ -368,6 +374,7 @@ export function GexMatrixTool() {
           onScaleChange={setScale}
           strikeBand={band}
           leading={leading}
+          spotInToolbar={!dash.hasTool('gex-levels')}
           emptyText={`no listed cells for ${g.symbol} in ${DTE_BUCKETS.find((b) => b.id === bucket)?.label ?? 'this'} — pick a wider horizon`}
         />
       </div>
@@ -408,7 +415,9 @@ const ageText = (iso: string, now: number) => {
 
 export function GexKeyLevelsTool() {
   const g = useGexFocus();
-  const eh = useExtendedHoursNexus();
+  const quoteQ = usePhoneQuote(g.symbol);
+  const live = quoteQ.data?.[g.symbol];
+  const { hasTool } = useDashboard();
   const now = useNow(15_000);
   const near = useMemo(() => nearTermByStrike(g.matrix, g.spot), [g.matrix, g.spot]);
   const blocked = gate(g);
@@ -416,24 +425,26 @@ export function GexKeyLevelsTool() {
   const snap = g.snap!; const spot = g.spot;
   const reg = regimeView(snap);
   const zg = zeroGammaOf(snap);
-  const quote = [...(eh.data?.mostActive ?? []), ...(eh.data?.gainers ?? []), ...(eh.data?.losers ?? [])].find((x) => x.symbol === g.symbol && Number.isFinite(x.changePct));
   const dist = (v: number | null | undefined) => (v != null && spot ? `${v >= spot ? '+' : ''}${(((v - spot) / spot) * 100).toFixed(1)}%` : '');
+  const chainAt = terminalAsOf(g.q.data);
+  const chainTime = chainAt ? new Date(chainAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
+  // Net GEX / VEX are exposures: they print once, in Regime & Narrative, when that tile is on the page.
+  const exposuresElsewhere = hasTool('gex-regime');
   return (
     <div className="gx-tool fd-scroll">
+      {/* THE spot of the GEX workspace (audit 2026-10-01, GEX #2): the live quote, big; the
+          chain-snapshot spot the walls were computed at, labelled, once. */}
       <div className="gx-spot">
-        <div><span className="gx-spot-sym">{g.symbol}</span> <b>{px(spot)}</b>{' '}
-          {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : null}
+        <div><span className="gx-spot-sym">{g.symbol}</span> {live ? <span className="gx-spot-tag">live</span> : null}<b>{px(live?.price ?? spot)}</b>{' '}
+          {live && Number.isFinite(live.changePercent) ? <span style={{ color: live.changePercent >= 0 ? 'var(--green)' : 'var(--red)' }}>{live.changePercent >= 0 ? '+' : ''}{live.changePercent.toFixed(2)}%</span> : null}
         </div>
-        {/* Never a bare "chg —" / "Last close": say which feed and how old, or that it is missing. */}
-        {/* one short line; the full reason is the tooltip (GEX workspace fit, 2026-10-01) */}
-        <span className="dim gx-spot-note" title={`Spot is the GEX engine's chain spot; the change comes from the extended-hours quote feed.${eh.isError && !eh.data ? ' Quote feed unavailable.' : !eh.isLoading && !quote ? ` No ${g.symbol} quote in the extended-hours feed.` : ''}`}>
-          {eh.isError && !eh.data ? 'spot · GEX chain (no quote feed)'
-            : eh.isLoading ? 'loading quote…'
-            : !quote ? 'spot · GEX chain'
-            : `${sessionLabelOf(eh.data)} quote${eh.data?.asOf ? ` · ${ageText(eh.data.asOf, now)}` : ''}`}
+        <span className="dim gx-spot-note" title={`Live: realtime quote${live?.asOf ? ` · ${ageText(live.asOf, now)}` : ''}. Walls, nodes and zero-γ are from the GEX engine's chain snapshot${chainTime ? ` at ${chainTime} ET` : ''}, computed at spot $${spot.toFixed(2)}.`}>
+          {live ? <>{live.asOf ? `${ageText(live.asOf, now)} · ` : ''}chain snapshot {px(spot)}{chainTime ? ` @ ${chainTime}` : ''}</>
+            : quoteQ.isLoading ? `chain snapshot${chainTime ? ` @ ${chainTime}` : ''} · loading live…`
+            : `chain snapshot${chainTime ? ` @ ${chainTime}` : ''} · no live quote`}
         </span>
       </div>
-      <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} />
+      <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} names />
       <div className="context-grid gx-pad">
         <div className="context-item">
           <div className="context-k" title="Strike ABOVE spot with the largest call gamma $ summed over all expiries. Typical resistance.">Call wall</div>
@@ -455,17 +466,20 @@ export function GexKeyLevelsTool() {
           <div className="context-v amber">{zg != null ? px(zg) : '—'}</div>
           <div className="context-sub">{zg != null ? `spot ${Math.abs((spot / zg - 1) * 100).toFixed(1)}% ${spot >= zg ? 'above' : 'below'}` : 'no crossing within ±20%'}</div>
         </div>
-        <div className="context-item">
-          <div className="context-k" title="Net VEX: $ dealers trade per 1 IV point. − = dealers sell as IV rises.">Net VEX</div>
-          <div className="context-v" style={{ color: exposureText('vex', snap.totalVEX ?? 0) }}>{(snap.totalVEX ?? 0) < 0 ? '⚠ ' : ''}{fmtVexM(snap.totalVEX)}</div>
-          <div className="context-sub">per 1 IV point</div>
-        </div>
-        <div className="context-item">
-          <div className="context-k">Net GEX · all</div>
-          <div className="context-v" style={{ color: exposureText('gex', snap.totalGEX) }}>{fmtGexB(snap.totalGEX)}</div>
-          <div className="context-sub">per 1% move</div>
-        </div>
+        {!exposuresElsewhere && <>
+          <div className="context-item">
+            <div className="context-k" title="Net VEX: $ dealers trade per 1 IV point. − = dealers sell as IV rises.">Net VEX</div>
+            <div className="context-v" style={{ color: exposureText('vex', snap.totalVEX ?? 0) }}>{(snap.totalVEX ?? 0) < 0 ? '⚠ ' : ''}{fmtVexM(snap.totalVEX)}</div>
+            <div className="context-sub">per 1 IV point</div>
+          </div>
+          <div className="context-item">
+            <div className="context-k">Net GEX · all</div>
+            <div className="context-v" style={{ color: exposureText('gex', snap.totalGEX) }}>{fmtGexB(snap.totalGEX)}</div>
+            <div className="context-sub">per 1% move</div>
+          </div>
+        </>}
       </div>
+      {exposuresElsewhere && <div className="gx-ref">Net GEX and net VEX → <b>Regime &amp; Narrative</b></div>}
       <div className="gx-sub-head">Near-term nodes · 0–7 DTE</div>
       <div className="gx-nodes gx-pad">
         {([
@@ -483,7 +497,7 @@ export function GexKeyLevelsTool() {
 /* ════════════ Regime & narrative ════════════ */
 export function GexRegimeTool() {
   const g = useGexFocus();
-  const eh = useExtendedHoursNexus();
+  const { hasTool } = useDashboard();
   const near = useMemo(() => nearTermByStrike(g.matrix, g.spot), [g.matrix, g.spot]);
   const blocked = gate(g);
   if (blocked) return blocked;
@@ -495,6 +509,15 @@ export function GexRegimeTool() {
   const clock = sessionClock();
   const negGamma = reg?.regime === 'negative';
   const color = regimeColor(reg?.regime, reg?.nearFlip);
+  // Each fact once (audit 2026-10-01, GEX #3): net GEX prints in the stats below, not
+  // again in the posture card; spot lives in Key Levels; the 0–7 DTE node strikes print
+  // in Key Levels when that tile is on the page — the playbook names them instead.
+  const basis = (reg?.basis ?? '').split(' · ').filter((s) => !/^net GEX /.test(s)).join(' · ');
+  const nodesElsewhere = hasTool('gex-levels');
+  const holdRange = near.negative && near.positive
+    ? (nodesElsewhere ? 'the 0–7 DTE negative ↔ positive nodes' : `$${near.negative.strike}–$${near.positive.strike}`)
+    : 'the measured near-term range';
+  const dominantTxt = nodesElsewhere ? 'the dominant node' : `$${near.dominant?.strike ?? 'the dominant node'}`;
   return (
     <div className="gx-tool fd-scroll">
       <div className="gx-hero" style={{ borderColor: `color-mix(in srgb, ${color} 35%, transparent)`, background: `color-mix(in srgb, ${color} 7%, transparent)` }}
@@ -503,7 +526,7 @@ export function GexRegimeTool() {
         <div>
           <div className="gx-hero-title">{reg?.title}</div>
           <div className="gx-hero-posture">{read.headline}</div>
-          <div className="gx-hero-basis">{reg?.basis} · all listed expiries</div>
+          <div className="gx-hero-basis">{basis ? `${basis} · ` : ''}all listed expiries</div>
         </div>
       </div>
       <p className="gx-expect">{read.expectation}</p>
@@ -514,18 +537,18 @@ export function GexRegimeTool() {
           <b style={{ color: disagrees ? 'var(--amber)' : undefined }}>{snap.gexByScope ? `${fmtGexB(snap.gexByScope.frontExpiry)} · ${fmtGexB(snap.gexByScope.le7d)}` : near.levels.length ? fmtGexB(near.total) : '—'}</b>
         </div>
         <div><span>Expiry clock</span><b>{clock.label}</b></div>
-        <div><span>{sessionLabelOf(eh.data)}</span><b>{px(spot)}</b></div>
+        <div title="Net VEX: $ dealers trade per 1 IV point. − = dealers sell as IV rises."><span>Net VEX</span><b style={{ color: exposureText('vex', snap.totalVEX ?? 0) }}>{(snap.totalVEX ?? 0) < 0 ? '⚠ ' : ''}{fmtVexM(snap.totalVEX)}</b></div>
       </div>
       {disagrees && <div className="of-warn" style={{ margin: '0 10px 8px' }}>The 0–7 DTE book leans the other way from the whole book — the near-term read and the headline disagree.</div>}
       <div className="gx-actions">
         <div>
           <span>If price holds inside</span>
-          <strong>{near.negative && near.positive ? `$${near.negative.strike}–$${near.positive.strike}` : 'the measured near-term range'}</strong>
-          <p>{negGamma ? 'Negative gamma (dealers short) can amplify breaks. Wait for direction and acceptance beyond a node.' : reg?.regime === 'positive' ? `Positive gamma (dealers long) can dampen extensions and pull price toward $${near.dominant?.strike ?? 'the dominant node'}.` : 'Dealer gamma is roughly balanced — nodes are weaker decision levels.'}</p>
+          <strong>{holdRange}</strong>
+          <p>{negGamma ? 'Negative gamma (dealers short) can amplify breaks. Wait for direction and acceptance beyond a node.' : reg?.regime === 'positive' ? `Positive gamma (dealers long) can dampen extensions and pull price toward ${dominantTxt}.` : 'Dealer gamma is roughly balanced — nodes are weaker decision levels.'}</p>
         </div>
         <div>
           <span>If a wall breaks</span>
-          <strong>{near.positive ? `>${near.positive.strike} upper` : 'upper node —'} · {near.negative ? `<${near.negative.strike} lower` : 'lower node —'}</strong>
+          <strong>{nodesElsewhere ? 'above the positive node · below the negative node' : <>{near.positive ? `>${near.positive.strike} upper` : 'upper node —'} · {near.negative ? `<${near.negative.strike} lower` : 'lower node —'}</>}</strong>
           <p>Require price acceptance plus volume/flow confirmation. GEX supplies structure; it does not create the entry by itself.</p>
         </div>
       </div>

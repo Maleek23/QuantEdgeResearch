@@ -391,19 +391,22 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-chart-card">
-        <div className="nxp-chart-meta"><span>1 month structure</span><strong className={liveFlash}>{money(live)}</strong></div>
+        {/* Levels live in ONE place — the card below (price, context, R, progress).
+            The chart draws the lines only, colour-keyed to the card's swatches; the
+            live price is printed in the card, not again in this header. */}
+        <div className="nxp-chart-meta"><span>1 month structure</span><small className="nxp-chart-key">lines: <i className="nxp-sw accent" />{pendingEntry ? 'trigger' : 'entry'} <i className="nxp-sw loss" />stop <i className="nxp-sw gain" />T1</small></div>
         <QEChart symbol={selected.symbol} initialTf="1D" height={Math.max(chartHeight, 380)} levels={[
-          { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: 'accent' },
-          { price: selected.stopLoss, label: 'STOP', color: 'loss' },
-          { price: selected.targetPrice, label: 'T1', color: 'gain' },
+          { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: 'accent', hideLabel: true },
+          { price: selected.stopLoss, label: 'STOP', color: 'loss', hideLabel: true },
+          { price: selected.targetPrice, label: 'T1', color: 'gain', hideLabel: true },
         ]} />
       </div>
 
       <div className="nxp-levels">
-        <div><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1</small></div>
-        <div><span>{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
-        <div className="risk"><span>Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
-        <div className="reward"><span>First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
+        <div title={liveStamp ?? undefined}><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
+        <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
+        <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
+        <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
       </div>
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}

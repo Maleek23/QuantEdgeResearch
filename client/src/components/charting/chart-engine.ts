@@ -260,6 +260,10 @@ export interface Level {
   strength?: number;
   /** Optional compact context rendered beside a GEX node. */
   meta?: string;
+  /** Draw the line only — the caller prints the label and price beside the
+   *  chart (e.g. the NEXUS setup card), so the canvas does not repeat them.
+   *  The accessible description still names the level. */
+  hideLabel?: boolean;
 }
 export interface Zone { from: number; to: number; color?: string; label?: string }
 
@@ -537,7 +541,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
         ctx.fillStyle = color;
         ctx.font = '700 9px "JetBrains Mono", monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(lvl.label, padding.left + 4, y - 3);
+        if (!lvl.hideLabel) ctx.fillText(lvl.label, padding.left + 4, y - 3);
         if (isNode) {
           const nodeX = w - padding.right - 10;
           const radius = 3 + strength * 4;

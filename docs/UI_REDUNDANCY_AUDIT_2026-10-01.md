@@ -45,15 +45,15 @@ Labels used below:
 | 15 | Page bars (NEXUS, Catalysts, Crypto, Bot) and simple pages (Chart, LEAPS, Positions) | N | An eyebrow bar ("NEXUS", "CATALYST" …) repeated the top-bar title. The simple-page bar printed "{title} · {source} · {age}", e.g. "Position Heat Map (all-in-one, classic) · open positions (live repriced) · age shown per row", and the tool itself then printed "Position Heat Map" again. | **Fixed** (bar shown only when it carries the focus ticker; simple bar = stamp + ⓘ; Positions h1 one line on phones) |
 | 16 | Ticker page | bug | The change read "▼ −$NaN · −0.49%" when the quote has no `change` field. | **Fixed** (dollar change omitted when not finite) |
 | 17 | Desktop bottom bar | regression guard | With live market data the footer market line pushed the (now only) disclaimer off the right edge. | **Fixed** (market line shrinks; disclaimer never clips) |
-| 18 | FLOW (desktop) | O | Three rows of filter chips. A focus hint ("row clicks re-point the terminal's ticker"). The toolbar hint "default layout · your changes save automatically". | Left (workspace chrome; candidates for an overflow menu) |
-| 19 | FLOW feed (phone) | P | Contract column truncates ("479C 10-…"). | Left |
-| 20 | NEXUS · Setup detail | D | Trigger, stop and T1 show in the trade vector and again as chart price-line labels. Live price shows in the structure header and in the vector. | Left (the chart labels belong to the chart) |
-| 21 | Crypto · Spot Read vs Structure Lab | D | BTC spot, 7D and 30D show in both the level strip and the Spot Read card. | Left |
-| 22 | Ticker page | D, N | A "TICKER" eyebrow, the breadcrumb "Research / SPY", the h1 "SPY" and a "SPY ⌘K" switcher sit in one header. The chart legend repeats call wall, put wall and zero-γ from the dealer-map cards above. | Left |
+| 18 | FLOW (desktop) | O | Three rows of filter chips. A focus hint ("row clicks re-point the terminal's ticker"). The toolbar hint "default layout · your changes save automatically". | **Fixed** (leftovers pass: one control row, Filters sheet, hints in ⓘ) |
+| 19 | FLOW feed (phone) | P | Contract column truncates ("479C 10-…"). | **Fixed** (leftovers pass: two-line row card) |
+| 20 | NEXUS · Setup detail | D | Trigger, stop and T1 show in the trade vector and again as chart price-line labels. Live price shows in the structure header and in the vector. | **Fixed** (leftovers pass: levels in the card, lines-only chart) |
+| 21 | Crypto · Spot Read vs Structure Lab | D | BTC spot, 7D and 30D show in both the level strip and the Spot Read card. | **Fixed** (leftovers pass: Spot Read keeps them) |
+| 22 | Ticker page | D, N | A "TICKER" eyebrow, the breadcrumb "Research / SPY", the h1 "SPY" and a "SPY ⌘K" switcher sit in one header. The chart legend repeats call wall, put wall and zero-γ from the dealer-map cards above. | **Header fixed** (leftovers pass). Chart legend left. |
 | 23 | Quantinum Bot · Automation KPIs (phone) | P | Five KPI cards fill the first screen. | Left (numbers, not prose) |
 | 24 | Phone dock | N | The operator brief for this task says Today → NEXUS → FLOW → GEX → **More**. The code and the `nav-architecture.py` N14 HARD check say TODAY · NEXUS · FLOW · GEX · **CHART**, with "More" in the top-bar menu (operator order 2026-09-29). | Not changed. Needs an operator decision; changing it fails N14. |
 
-### GEX — notes for the agent reworking it (nothing edited)
+### GEX — notes for the agent reworking it (nothing edited in the first pass; items 2–3 and the spot-tag overlap fixed in the leftovers pass)
 
 1. **Matrix header: 4 lines of hints before the first strike.**
    - "12/12 expiries · max NOV 28 (60d) · colour: per expiry · click a cell to drill"
@@ -70,6 +70,88 @@ Labels used below:
    - "change: quote feed unavailable · spot from GEX chain" is a 2-line status inside Key Levels.
    - The toolbar shows "default layout · your changes save automatically".
 5. **Shared frame change affects GEX tiles.** `ToolFrame` (shared, `components/dashboard/frame.tsx`) changed in this pass, so GEX tiles also lose their second and third header lines. Description, units, source and feed are now behind the ⓘ popover, and the stamp shows age. Nothing inside `components/gex/*` or `tools/gex/*` was touched.
+
+## Leftovers pass (same day)
+
+This pass covers the rows left open above (#18–#22) and GEX notes 2–3. It used the same harness and fixtures, at 375×812 and 1440×900, in light and dark.
+
+**FLOW (#18).**
+- The controls are now one row: window, source, ticker, four primary chips (Calls, Puts, Sweeps, Whales), a **Filters** button and an ⓘ.
+- The other 13 chips are in the Filters sheet: a popover on desktop, a bottom sheet on phones. The button shows a count of the active filters that are hidden there. Each chip keeps its tooltip, and the sheet has "Clear all".
+- The ⓘ holds what the hint lines used to say:
+  - row clicks re-point the ticker (with the focus symbol)
+  - "Add stock chart"
+  - how the filters combine
+  - which filters the feeds can't support
+  - Bullflow and chain-scan status and age
+- The toolbar save badge reads "default layout". "Your changes save automatically" moved into its tooltip.
+
+**FLOW phone (#19).** Each row is now a two-line card. Line 1 has the ticker chip and the print type. Line 2 has the contract (`479C 10/17`), coloured by side, in full. The full contract with its expiry year is in the row's title and the row sheet.
+
+**NEXUS setup detail (#20).**
+- The levels now print in one place: the card under the chart.
+  - Each level shows its price, its context, R and progress, and a colour swatch.
+  - The Live cell now carries the quote's session, source and age.
+- The chart still draws the entry, stop and T1 lines, keyed by colour, but no longer prints text labels for them (`Level.hideLabel`). Their names stay in the chart's accessible description.
+- Expanding the chart restores the labels, since the card isn't visible there.
+- The structure header no longer prints the live price a second time.
+
+**Crypto (#21).** When the Spot Read tile is on the page and the chart coin is BTC or ETH, the Structure Lab strip stops repeating spot, 7d, 30d, RSI and vol. It points to Spot Read instead. SOL, XRP and QNT keep the strip, since nothing else on the page shows them.
+
+**Ticker header (#22).**
+- The header is one line: symbol, price, change, then session · source · delayed · age.
+- The "TICKER" eyebrow is removed; the breadcrumb already says it.
+- Actions sit on one row that wraps.
+- On phones:
+  - Watch and alert become 44px icon buttons, each with an accessible name and a title.
+  - The switcher drops its ⌘K hint.
+- Header height: 223 → 134px at 375 and 148 → 126px at 1440.
+
+**GEX (notes 2–3).**
+- **Spot.**
+  - Key Levels is the one prominent spot. It shows the live quote, tagged LIVE, with its age, and the chain-snapshot spot labelled "chain snapshot $575.40 @ time".
+  - The matrix's jump button reads "◎ Spot" when Key Levels is on the page; its price moved into the tooltip.
+  - The matrix spot line's tag reads "SPOT" and sits in the strike column, so it no longer covers the first expiry's cells.
+  - Regime no longer prints "LAST CLOSE $575.40".
+- **Phone.**
+  - The header labels both prices in one place: `LIVE 576.12` and `chain snapshot 575.40 @ 6:24 AM ET`.
+  - The spot row in the grid shows `◎ 575`, not a third unlabelled price.
+  - The Levels sheet labels its spot "chain snapshot".
+- **Walls and net GEX.**
+  - Net GEX and net VEX print once, in Regime. When Regime is on the page, Key Levels shows "Net GEX and net VEX → Regime & Narrative" in their place.
+  - The posture card no longer repeats net GEX.
+  - The rail in Key Levels labels its ticks by name, since the cards below give the prices.
+  - When Key Levels is on the page, Regime's playbook names the 0–7 DTE nodes instead of reprinting their strikes.
+  - Without the other tile, every number comes back.
+- **Fit.** The matrix fills 803/809px (99.3%) at 1440, 696/702px at 1280 and 525/531px at 1024, with no horizontal scroll. This is the same as before the pass.
+
+**Harness.**
+- The crypto-ideas fixture's `winRate` is now a fraction (0.45), as the server sends it. It was 45, which rendered as "4500%".
+- Device audit for NEXUS, FLOW, GEX and Ticker at 375 and 1440, in dark and light: 9/16 pass both before and after this pass. The failure lists match item for item, so there are no new failures.
+
+### Leftovers pass — before → after (first viewport, harness fixtures)
+
+Lines are distinct text line boxes per block, as counted in this pass. On workspaces, the freed chrome fills with more data rows, so the targeted counts are the better measure.
+
+| Page | 375 lines | 375 chars | 1440 lines | 1440 chars |
+|---|---|---|---|---|
+| FLOW | 63 → 65 | 358 → 374 | 229 → 258 | 2065 → 2102 |
+| NEXUS setup detail | 45 → 45 | 271 → 283 | 188 → 187 | 1844 → 1871 |
+| Crypto (top) | 57 → 57 | 705 → 705 | 165 → 165 | 2044 → 2042 |
+| Crypto (Structure Lab) | 56 → 48 | 291 → 329 | 139 → 130 | 1324 → 1362 |
+| Ticker | 51 → 53 | 386 → 421 | 105 → 104 | 848 → 854 |
+| GEX | 95 → 95 | 439 → 446 | 414 → 411 | 2717 → 2658 |
+
+| Targeted measure | 375 before → after | 1440 before → after |
+|---|---|---|
+| FLOW control block height | 59 → 59px (it already scrolled sideways) | 160 → 47px |
+| FLOW phone cells with a cut-off contract | 40 → 0 | — |
+| Ticker header height | 223 → 134px | 148 → 126px |
+| GEX: visible "575.40" | 1 → 1 (now labelled) | 2 → 1 (labelled; live 576.12 shown once) |
+| GEX: "+$4.21B" net GEX prints | 3 → 1 | 3 → 1 |
+| Crypto: BTC spot "64,210" prints | 2 → 1 | 3 → 2 (the remaining extra is the BTC idea's entry, a different fact) |
+
+Screenshots are in `docs/ui-redundancy-2026-10-01/leftovers/<page>_<375|1440>_<dark|light>_<before|after>.jpg`. Pages: flow, flowfilters (sheet open), nexusdetail, crypto, cryptolab, ticker and gex. "Before" is dark mode only.
 
 ## What changed (mechanics)
 

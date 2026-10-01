@@ -19,6 +19,7 @@
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
 .tk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.tk-actions .lx-btn, .tk-actions > button { flex: none; }
 .tk-alert-edit { display: inline-flex; gap: 6px; align-items: center; }
 .tk-alert-edit input {
   width: 96px; padding: 6px 8px; border: 1px solid var(--lx-line-hi); border-radius: var(--lx-radius);
@@ -27,6 +28,10 @@
 .tk-alert-edit input:focus-visible { border-color: var(--lx-accent); }
 
 .tk-quote { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; min-width: 0; }
+/* one header line: symbol · price · change · stamp (wraps only when it must) */
+.tk-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; min-width: 0; }
+.tk-line .tk-sym { margin-right: 4px; }
+.tk-line .qp-stamp { margin-left: auto; align-self: center; }
 .tk-price { font: 700 clamp(26px, 3.4vw, 34px)/1.1 var(--lx-font-data); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--lx-text); }
 .tk-chg { font: 700 17px/1.2 var(--lx-font-data); font-variant-numeric: tabular-nums; }
 .tk-src { color: var(--lx-mute); font: 500 12px/1.4 var(--lx-font-data); }
@@ -140,7 +145,9 @@
   .tk-stat-s, .tk-src, .tk-news-meta, .tk-footnote { font-size: 14px; }
   .tk-stat-k { font-size: 12px; }
   .tk-actions { width: 100%; }
-  .tk-actions > * { flex: 1 1 auto; justify-content: center; }
+  /* phones: watch / alert collapse to 44px icons (named + titled); the row wraps cleanly */
+  .tk-act-icon { min-width: 44px; justify-content: center; }
+  .tk-act-icon .tk-act-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .tk-rules b, .tk-events > li > b { min-width: 0; width: 100%; }
 }
 

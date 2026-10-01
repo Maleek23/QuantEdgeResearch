@@ -13,12 +13,13 @@
  *            with its flow markers; double-click opens the workup
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Info } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
+import * as Popover from '@radix-ui/react-popover';
 import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
 import { QEDrawer } from '@/components/ui/qe-drawer';
-import { usePhone } from '@/components/ui/qe-phone';
+import { InfoSheet, usePhone } from '@/components/ui/qe-phone';
 import { CALL, CALL_FILL, PUT } from './flow-colors';
 import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
 import { idSet, intIn, oneOf, sortCodec, text, useUrlParam } from '@/lib/url-state';
@@ -50,6 +51,8 @@ const CHIPS: { id: ChipId; label: string; why: string }[] = [
   { id: 'repeat', label: 'Repeat Flow', why: 'Same contract printed ≥ 2× in this window, or a Bullflow "Repeater" alert.' },
   { id: 'largeSize', label: 'Large Size', why: '≥ 1,000 contracts (where size is known).' },
 ];
+/** Visible in the one control row; every other chip lives in the Filters sheet (audit 2026-10-01 #18). */
+const PRIMARY_CHIPS: ChipId[] = ['calls', 'puts', 'sweeps', 'whales'];
 const HIDDEN_CHIPS = 'Not offered — the feeds do not measure them: Bid · Ask · AA · BB · Mid (aggressor side), Rising Vol (needs intraday volume series), AM Spike, Earnings Soon, Bullflow (their own proprietary flag).';
 
 type SortKey = 'at' | 'premium' | 'symbol' | 'spot' | 'strike' | 'type' | 'expiry' | 'label' | 'price' | 'size' | 'volOI' | 'sig' | 'source';
@@ -79,14 +82,18 @@ const Q_CODEC = text(12);
 const CHIPS_CODEC = idSet<ChipId>(CHIPS.map((c) => c.id));
 const SORT_CODEC = sortCodec<SortKey>(COLS.map((c) => c.key), SORT_DEFAULT);
 /** Phone (< 768px): four essential columns — the rest is one tap away in the row sheet. */
-const PHONE_KEYS: SortKey[] = ['at', 'symbol', 'strike', 'premium'];
+/* Three columns; the contract prints in full on the row's second line
+   ("SPY 479C 10/17"), never truncated (audit 2026-10-01 #19). */
+const PHONE_KEYS: SortKey[] = ['at', 'symbol', 'premium'];
 const PHONE_COLS: Col[] = PHONE_KEYS.map((k) => {
   const c = COLS.find((x) => x.key === k)!;
-  return k === 'strike' ? { ...c, label: 'Contract', w: 84 } : c;
+  return k === 'symbol' ? { ...c, label: 'Contract', w: 0 } : k === 'at' ? { ...c, w: 64 } : { ...c, w: 84 };
 });
 const ROW = 28;
-/** Phone rows are touch targets: 44px. */
-const PHONE_ROW = 44;
+/** Phone rows are two-line touch cards: 52px. */
+const PHONE_ROW = 52;
+/** "10/17" from "2026-10-17". */
+const mmdd = (iso: string) => (iso.length >= 10 ? `${iso.slice(5, 7)}/${iso.slice(8, 10)}` : iso);
 
 interface Scored { r: TapeRow; sig: SigParts; n: number }
 
@@ -278,7 +285,8 @@ export function OptionsFlowTool() {
         </div>
       </div>
 
-      {/* ── controls + chips ── */}
+      {/* ── controls: ONE row — window, source, ticker, the primary chips, a Filters
+            sheet (with an active-count badge) for the rest, and an ⓘ for the hints ── */}
       <div className="of-controls qp-row">
         <div className="of-seg" role="group" aria-label="Window">
           {[1, 2, 5].map((d) => <button key={d} type="button" className={cn(days === d && 'on')} onClick={() => setDays(d)}>{d}D</button>)}
@@ -289,20 +297,19 @@ export function OptionsFlowTool() {
         </div>
         <input className="of-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ticker" aria-label="Filter by ticker" />
         <div className="of-chips">
-          {CHIPS.map((c) => (
+          {CHIPS.filter((c) => PRIMARY_CHIPS.includes(c.id)).map((c) => (
             <button key={c.id} type="button" className={cn('of-chip', chips.has(c.id) && 'on')} aria-pressed={chips.has(c.id)} title={c.why} onClick={() => toggleChip(c.id)}>{c.label}</button>
           ))}
-          {chips.size > 0 && <button type="button" className="of-chip clear" onClick={() => setChips(new Set())}>Clear filters ({chips.size})</button>}
-          <span className="of-info" title={`${HIDDEN_CHIPS}\n\nChips in the same family (ETFs/Stocks, Calls/Puts) combine with OR; everything else with AND.`}><Info size={12} aria-label="Why some filters are missing" /></span>
         </div>
+        <FilterSheet phone={phone} chips={chips} toggle={toggleChip} clear={() => setChips(new Set())} />
+        <InfoSheet title="Options Flow — filters" className="of-qinfo"
+          what={<>Rows are prints from the Bullflow alert stream (BF) and our own chain scan (CS). {editable && !hasTool('stock-chart') ? <>Row clicks re-point the terminal's ticker (now <b>{focus}</b>).</> : 'Row clicks re-point the terminal\'s ticker.'} Double-click opens the workup.</>}
+          note={`Chips in the same family (ETFs/Stocks, Calls/Puts) combine with OR; everything else with AND. ${HIDDEN_CHIPS}`}
+          source={`Bullflow ${bf?.enabled ? bf.streamState : 'not configured'} · newest ${ageLabel(bf?.newestAt, now)} · chain scan newest ${cs?.ok ? ageLabel(cs?.newestAt, now) : 'read failed'}`}
+          extra={editable && !hasTool('stock-chart') ? (
+            <div className="qp-sheet-actions"><button type="button" className="fd-btn" onClick={() => addTool('stock-chart')}>Add stock chart</button><span className="qp-sheet-mute">to see {focus} with flow markers</span></div>
+          ) : undefined} />
       </div>
-
-      {!hasTool('stock-chart') && editable && (
-        <div className="of-hint qp-desk-only">
-          Focus: <b>{focus}</b> — row clicks re-point the terminal's ticker.
-          <button type="button" onClick={() => addTool('stock-chart')}>Add stock chart</button> to see it with flow markers.
-        </div>
-      )}
 
       {/* ── table ── */}
       {tape.isLoading ? (
@@ -328,7 +335,7 @@ export function OptionsFlowTool() {
           ) : (
             <div className="of-scroll" ref={setScroller} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
               <table className="of-table" style={{ width: phone ? '100%' : TABLE_W }}>
-                <colgroup>{cols.map((c) => <col key={c.key} style={{ width: c.w }} />)}</colgroup>
+                <colgroup>{cols.map((c) => <col key={c.key} style={c.w ? { width: c.w } : undefined} />)}</colgroup>
                 <thead>
                   <tr>
                     {cols.map((c) => (
@@ -345,8 +352,10 @@ export function OptionsFlowTool() {
                       onClick={() => setDetail(row)} tabIndex={0} aria-haspopup="dialog"
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail(row); } }}>
                       <td className="mono dim">{etTime(r.at).slice(0, 5)}</td>
-                      <td><span className="of-tk">{r.symbol}</span></td>
-                      <td style={{ color: r.optionType === 'call' ? CALL : PUT }}>{r.strike}{r.optionType === 'call' ? 'C' : 'P'} <span className="dim">{r.expiry.slice(5)}</span></td>
+                      <td className="of-ct" title={`${r.symbol} ${r.strike} ${r.optionType === 'call' ? 'Call' : 'Put'} · exp ${r.expiry}`}>
+                        <span className="of-ct-top"><span className="of-tk">{r.symbol}</span><span className="of-ct-kind dim">{r.label}</span></span>
+                        <span className="of-ct-line" style={{ color: r.optionType === 'call' ? CALL : PUT }}>{r.strike}{r.optionType === 'call' ? 'C' : 'P'} {mmdd(r.expiry)}</span>
+                      </td>
                       <td className="r val">{money(r.premium)}</td>
                     </tr>
                   ) : (
@@ -387,6 +396,52 @@ export function OptionsFlowTool() {
       )}
       {detail && <PrintSheet row={detail} now={now} onClose={() => setDetail(null)} onFocus={() => { setFocus(detail.r.symbol); setDetail(null); }} />}
     </div>
+  );
+}
+
+/** Every non-primary chip, grouped; a popover on desktop, a bottom sheet on phones. */
+function FilterSheet({ phone, chips, toggle, clear }: { phone: boolean; chips: Set<ChipId>; toggle: (c: ChipId) => void; clear: () => void }) {
+  const [open, setOpen] = useState(false);
+  const more = CHIPS.filter((c) => !PRIMARY_CHIPS.includes(c.id));
+  const activeMore = more.filter((c) => chips.has(c.id)).length;
+  const body = (
+    <div className="of-fsheet">
+      <div className="of-fsheet-chips">
+        {more.map((c) => (
+          <button key={c.id} type="button" className={cn('of-chip', chips.has(c.id) && 'on')} aria-pressed={chips.has(c.id)} title={c.why} onClick={() => toggle(c.id)}>{c.label}</button>
+        ))}
+      </div>
+      <div className="of-fsheet-foot">
+        <span className="qp-sheet-mute">{chips.size ? `${chips.size} filter${chips.size === 1 ? '' : 's'} on` : 'No filters on'}</span>
+        {chips.size > 0 && <button type="button" className="of-chip clear" onClick={clear}>Clear all</button>}
+      </div>
+    </div>
+  );
+  const btn = (
+    <button type="button" className={cn('of-chip of-fbtn', activeMore > 0 && 'on')} aria-haspopup="dialog" onClick={() => setOpen(true)}
+      title={activeMore ? `${activeMore} more filter${activeMore === 1 ? '' : 's'} on` : 'More filters'}
+      aria-label={activeMore ? `Filters, ${activeMore} more on` : 'Filters'}>
+      <SlidersHorizontal size={12} aria-hidden /> Filters{activeMore > 0 && <span className="of-fbadge">{activeMore}</span>}
+    </button>
+  );
+  if (!phone) {
+    return (
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger asChild>{btn}</Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="qp-pop of-fpop" side="bottom" align="start" sideOffset={6} collisionPadding={12} aria-label="Flow filters">
+            <div className="qp-pop-title">Filters</div>
+            {body}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    );
+  }
+  return (
+    <>
+      {btn}
+      <QEDrawer open={open} onClose={() => setOpen(false)} title="Flow filters" side="bottom" className="qp-sheet">{body}</QEDrawer>
+    </>
   );
 }
 

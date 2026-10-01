@@ -249,38 +249,15 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
 
   const header = (
     <header className="tk-head">
-      <div className="tk-head-top">
-        <div className="tk-id">
-          <span className="tk-eyebrow qp-desk-only">Ticker</span>
-          <h1 className="tk-sym">{sym}</h1>
-        </div>
-        <div className="tk-actions">
-          {backTo && <LuxButton variant="ghost" onClick={backTo.onClick}><ArrowLeft aria-hidden /> {backTo.label}</LuxButton>}
-          <LuxButton onClick={() => void toggleWatch(sym)} aria-pressed={watched} aria-label={watchLabel(sym, watched)} disabled={wl.isBusy(sym)}><Star aria-hidden fill={watched ? 'currentColor' : 'none'} /> {watched ? 'On watchlist' : 'Add to watchlist'}</LuxButton>
-          {alertOpen ? (
-            <span className="tk-alert-edit">
-              <input autoFocus inputMode="decimal" aria-label="Alert price" value={alertPx} onChange={(e) => setAlertPx(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') setAlertOpen(false); if (e.key === 'Enter') void armAlert(); }} placeholder="price $" />
-              <LuxButton onClick={() => void armAlert()}>Arm alert</LuxButton>
-            </span>
-          ) : (
-            <LuxButton onClick={() => { setAlertPx(price != null ? price.toFixed(2) : ''); setAlertOpen(true); }} title="Alert once when price crosses a level (relayed to Discord)">
-              <Bell aria-hidden /> {alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert not armed' : 'Set alert'}
-            </LuxButton>
-          )}
-          <LuxButton variant="primary" onClick={runEngine} disabled={engine === 'running'} title="Quantinum runs the publisher's own engine — every detector, every gate — on this name now. A qualifying setup publishes to NEXUS.">
-            <Cpu aria-hidden /> {engine === 'running' ? 'Running…' : 'Run Quantinum'}
-          </LuxButton>
-          <TickerSwitcher value={sym} onChange={onSymbol} />
-        </div>
-      </div>
-
-      <div className="tk-quote" aria-live="polite">
+      {/* ONE line: symbol · price · change · session stamp (audit 2026-10-01 #22).
+          No "TICKER" eyebrow — the breadcrumb already says Research / SYM. */}
+      <div className="tk-line" aria-live="polite">
+        <h1 className="tk-sym">{sym}</h1>
         {q ? (
           <>
             <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>
             <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {Number.isFinite(q.change) ? <>{q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · </> : null}{fmtPct(q.changePercent)}</span>
-            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{q.source ?? 'realtime quote'}{q.delayed ? ' · delayed' : ''} · {age(q.asOf)}</span>
+            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{[q.session, q.source ?? 'realtime quote', q.delayed ? 'delayed' : null, age(q.asOf)].filter(Boolean).join(' · ')}</span>
             <FreshStamp className="qp-phone-only" asOf={q.asOf} warn={!!q.delayed} />
           </>
         ) : d.quote.isError ? (
@@ -288,6 +265,28 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         ) : (
           <span className="tk-src">Loading quote…</span>
         )}
+      </div>
+
+      {/* secondary actions: one row that wraps cleanly; phones show icons for watch / alert */}
+      <div className="tk-actions">
+        {backTo && <LuxButton variant="ghost" onClick={backTo.onClick}><ArrowLeft aria-hidden /> {backTo.label}</LuxButton>}
+        <LuxButton className="tk-act-icon" onClick={() => void toggleWatch(sym)} aria-pressed={watched} aria-label={watchLabel(sym, watched)} title={watchLabel(sym, watched)} disabled={wl.isBusy(sym)}><Star aria-hidden fill={watched ? 'currentColor' : 'none'} /> <span className="tk-act-l">{watched ? 'On watchlist' : 'Add to watchlist'}</span></LuxButton>
+        {alertOpen ? (
+          <span className="tk-alert-edit">
+            <input autoFocus inputMode="decimal" aria-label="Alert price" value={alertPx} onChange={(e) => setAlertPx(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setAlertOpen(false); if (e.key === 'Enter') void armAlert(); }} placeholder="price $" />
+            <LuxButton onClick={() => void armAlert()}>Arm alert</LuxButton>
+          </span>
+        ) : (
+          <LuxButton className="tk-act-icon" onClick={() => { setAlertPx(price != null ? price.toFixed(2) : ''); setAlertOpen(true); }} title="Alert once when price crosses a level (relayed to Discord)"
+            aria-label={alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert not armed' : 'Set alert'}>
+            <Bell aria-hidden /> <span className="tk-act-l">{alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert not armed' : 'Set alert'}</span>
+          </LuxButton>
+        )}
+        <LuxButton variant="primary" onClick={runEngine} disabled={engine === 'running'} title="Quantinum runs the publisher's own engine — every detector, every gate — on this name now. A qualifying setup publishes to NEXUS.">
+          <Cpu aria-hidden /> {engine === 'running' ? 'Running…' : 'Run Quantinum'}
+        </LuxButton>
+        <TickerSwitcher value={sym} onChange={onSymbol} />
       </div>
 
       <Clamp className="tk-verdict">

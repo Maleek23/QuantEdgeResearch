@@ -363,8 +363,11 @@ export const CHART_COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'QNT'] as const;
 export type ChartCoin = typeof CHART_COINS[number];
 
 /** Structure lab: coin tabs, interactive chart, level strip. `fill` = flex to the parent. */
-export function CryptoChartDeck({ coin, onCoin, fill = false }: {
+export function CryptoChartDeck({ coin, onCoin, fill = false, spotReadShown = false }: {
   coin?: ChartCoin; onCoin?: (c: ChartCoin) => void; fill?: boolean;
+  /** The Spot Read cards are on the same screen: BTC / ETH spot, 7d, 30d, RSI
+   *  and vol print there once, so the strip points to them instead of repeating. */
+  spotReadShown?: boolean;
 } = {}) {
   const [ownCoin, setOwnCoin] = useState<ChartCoin>('BTC');
   const chartCoin = coin ?? ownCoin;
@@ -385,13 +388,15 @@ export function CryptoChartDeck({ coin, onCoin, fill = false }: {
       {fill
         ? <QEChart key={chartCoin} symbol={`${chartCoin}-USD`} title={`${chartCoin}/USD`} initialTf="1h" fill />
         : <QEChart key={chartCoin} symbol={`${chartCoin}-USD`} title={`${chartCoin}/USD`} initialTf="1h" height={380} />}
-      <div className="crypto-level-strip">
+      {spotReadShown && (chartCoin === 'BTC' || chartCoin === 'ETH') ? (
+        <div className="crypto-level-ref">{chartCoin} spot, 7d / 30d, RSI and realized vol are in <b>Spot Read</b> — one place, with its age.</div>
+      ) : <div className="crypto-level-strip">
         <div><span>spot</span><b>{chartAsset ? `$${chartAsset.price.toLocaleString(undefined, { maximumFractionDigits: chartAsset.price < 10 ? 4 : 0 })}` : '—'}</b></div>
         <div><span>7d</span><b className={(chartAsset?.change7d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change7d)}</b></div>
         <div><span>30d</span><b className={(chartAsset?.change30d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change30d)}</b></div>
         <div><span>RSI 14d</span><b>{chartAsset?.rsi14d == null ? '—' : chartAsset.rsi14d.toFixed(0)}</b></div>
         <div><span>realized vol</span><b>{chartAsset?.realizedVol30d == null ? '—' : `${chartAsset.realizedVol30d.toFixed(0)}%`}</b></div>
-      </div>
+      </div>}
       <PhoneNote label="About these levels" className="crypto-chart-note"><span>Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</span></PhoneNote>
     </section>
   );
@@ -610,7 +615,7 @@ export function CryptoNexus() {
         <div className="col crypto-area">
           <CryptoHeader />
           <CryptoSpotRead />
-          <CryptoChartDeck />
+          <CryptoChartDeck spotReadShown />
           <CryptoProxyGate />
           <CryptoProxyBoard />
           <CryptoHowTo />

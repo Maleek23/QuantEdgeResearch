@@ -392,7 +392,7 @@ function mockCryptoIdeas() {
     asOf: ago(3 * 60e3), universe: coins.map((c) => c[0]), schedule: 'every 4h (fixture)', maxPerDay: 4, maxPerRun: 2,
     lastScan: { at: ago(25 * 60e3), coins: coins.map(([symbol, price], i) => ({ symbol, price, daily: i % 2 ? 'downtrend' : 'uptrend', h4: i % 3 ? 'range' : 'trend', fundingAprPct: +(4 + i * 1.7).toFixed(1), oiChangePct: +((i - 2) * 1.3).toFixed(1), plans: i < 3 ? [{ direction: i % 2 ? 'short' : 'long', setup: 'trend_pullback', grade: 'B' }] : [], notes: ['fixture'], sources: { spot: 'test_harness_fixture', spotAsOf: ago(25 * 60e3), perp: 'test_harness_fixture', perpAsOf: ago(25 * 60e3) } })), published: ['BTC', 'SOL'], skipped: ['DOGE'] },
     ideas,
-    record: { n: 22, total: 26, open: 4, unresolvedClosed: 0, wins: 10, losses: 12, winRate: 45, avgR: 0.12, rCount: 22, firstAt: ago(30 * 864e5), lastAt: ago(36e5), lowN: true },
+    record: { n: 22, total: 26, open: 4, unresolvedClosed: 0, wins: 10, losses: 12, winRate: 0.45, avgR: 0.12, rCount: 22, firstAt: ago(30 * 864e5), lastAt: ago(36e5), lowN: true },
     gradeScale: 'A ≥ 75 · B ≥ 60 · C ≥ 45 (fixture)', provenance: 'test_harness_fixture',
   };
 }

@@ -142,7 +142,7 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
               return (
                 <tr key={k} className={isSpot ? 'spot' : undefined}>
                   <th scope="row" className="gxp-k" title={isSpot ? `Strike ${strikeTxt(k)} — nearest to spot $${spot.toFixed(2)}` : `Strike ${strikeTxt(k)}`}>
-                    {isSpot ? <span className="gxp-spot" aria-label={`spot ${spot.toFixed(2)}, strike ${strikeTxt(k)}`}>{spot.toFixed(2)}</span> : strikeTxt(k)}
+                    {isSpot ? <span className="gxp-spot" aria-label={`strike ${strikeTxt(k)}, nearest to the chain-snapshot spot ${spot.toFixed(2)}`}>◎ {strikeTxt(k)}</span> : strikeTxt(k)}
                   </th>
                   {shown.map(([d]) => {
                     const c = model.byKey.get(`${k}|${d}`);
