@@ -246,6 +246,7 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     timestamp: tradeIdeas.timestamp, source: tradeIdeas.source, catalyst: tradeIdeas.catalyst, genConvictionBand: tradeIdeas.genConvictionBand,
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
     exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-time:([a-z_]+)\\]')`,
+    highestPriceReached: tradeIdeas.highestPriceReached, lowestPriceReached: tradeIdeas.lowestPriceReached,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),

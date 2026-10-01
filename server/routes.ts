@@ -9,6 +9,7 @@ import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPosit
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { buildMonotoneCalibration, interpolateCalibration } from "@shared/isotonic-calibration";
 import { parseJournalFilters, countJournalFilters } from "@shared/journal-filters";
+import { readExitPolicy, exitPolicyPlan } from "@shared/exit-policy";
 import { WATCHLIST_ORDER_PAGE, applyWatchlistOrder, sanitizeWatchlistOrder } from "@shared/watchlist-order";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
@@ -7585,7 +7586,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         publishedTarget: q.target ? Number(q.target) : null,
       });
       if (!r) return res.status(404).json({ error: "not enough data for a ladder" });
-      res.json(r);
+      // EXIT_POLICY (docs/EXIT_RULE_REPLAY.md): the model exit plan's manage
+      // schedule. Default 'plan' adds nothing — the card is unchanged.
+      const policy = readExitPolicy(process.env);
+      const pub = q.pub ? Date.parse(String(q.pub)) : NaN;
+      const exitPolicy = policy === "plan" ? null : exitPolicyPlan({
+        policy, publishedMs: Number.isFinite(pub) ? pub : null, holdingPeriod: q.hp ?? null, expiryDate: q.exp || null,
+      });
+      res.json({ ...r, exitPolicy });
     } catch (err) {
       logger.error("[API] target ladder failed:", err);
       res.status(500).json({ error: "ladder failed" });

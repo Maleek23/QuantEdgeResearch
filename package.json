@@ -41,7 +41,9 @@
     "test:consistency": "tsx scripts/test-consistency.ts",
     "check:consistency": "tsx research/consistency-check.ts",
     "test:chart": "tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts",
-    "test:publish-gates": "tsx scripts/test-publish-gates.ts"
+    "test:publish-gates": "tsx scripts/test-publish-gates.ts",
+    "test:exit-policy": "tsx scripts/test-exit-policy.ts",
+    "research:exit-rules": "tsx research/exit-rule-replay.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

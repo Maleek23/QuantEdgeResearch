@@ -65,6 +65,8 @@ export default function TradesView() {
       return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
     });
   }, [trades, sort]);
+  // Desk book: capture ratio (realized ÷ best favourable move) on closed rows — docs/EXIT_RULE_REPLAY.md.
+  const showCapture = useMemo(() => trades.some((t) => t.row.captureRatio != null), [trades]);
   const order = sorted.map((t) => t.id);
   const shown = sorted.slice(0, limit);
 
@@ -115,6 +117,7 @@ export default function TradesView() {
                 <th scope="col" className="num">Exit</th>
                 {th('pnl', 'Net P&L', true)}
                 <th scope="col">Result</th>
+                {showCapture && <th scope="col" className="num" title="Realized move ÷ the best favourable move of the underlying while open (closed rows)">Capture</th>}
                 {th('hold', 'Held', true)}
                 <th scope="col">Setup</th>
                 <th scope="col">Source</th>
@@ -141,6 +144,7 @@ export default function TradesView() {
                     ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
                     : <Pnl value={t.netPnl} />}</td>
                   <td><OutcomeChip status={t.status} /></td>
+                  {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
                   <td className="jr-dim">{t.row.broker}</td>

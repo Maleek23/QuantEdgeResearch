@@ -38,6 +38,8 @@ export interface JournalTradeRow {
   importBatchId?: string | null;
   /** Desk rows: a target/stop exit whose time is the tracker cycle, not the touch — "resolved at … ET (hit time unknown)". */
   exitTimeNote?: string | null;
+  /** Desk rows, closed: realized ÷ best favourable underlying move (shared/exit-policy.ts captureRatio). */
+  captureRatio?: number | null;
   /** Client-derived: an option with no closing fill, settled by the expiry rule — at intrinsic by the server, or $0 unverified (shared/journal-expiry.ts). */
   expiredAssumed?: boolean;
   createdAt?: string | null;
