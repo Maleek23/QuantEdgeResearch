@@ -148,7 +148,7 @@ const mb = (n: number) => Math.round(n / 1024 / 1024);
 
 // ─── Alpaca stock data (batched) ─────────────────────────────────────────
 
-type FetchJson = (url: string) => Promise<{ status: number; json: any | null }>;
+export type FetchJson = (url: string) => Promise<{ status: number; json: any | null }>;
 const defaultFetch: FetchJson = async (url) => {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 15_000);
@@ -167,7 +167,7 @@ let feed: 'sip' | 'iex' = (process.env.ZERO_DTE_SNIPER_FEED === 'iex' ? 'iex' : 
 let feedFellBackOn = '';
 
 /** Batched multi-symbol bars; pages merged per symbol. Returns rows keyed by symbol. */
-async function batchedBars(symbols: string[], timeframe: '1Min' | '1Day', startIso: string, fetchJson: FetchJson, counter: { n: number }): Promise<Map<string, any[]>> {
+async function batchedBars(symbols: string[], timeframe: '1Min' | '5Min' | '15Min' | '1Day', startIso: string, fetchJson: FetchJson, counter: { n: number }): Promise<Map<string, any[]>> {
   const out = new Map<string, any[]>();
   for (let i = 0; i < symbols.length; i += SNIPER_LIVE_CFG.SYMBOLS_PER_REQUEST) {
     const chunk = symbols.slice(i, i + SNIPER_LIVE_CFG.SYMBOLS_PER_REQUEST);
@@ -254,6 +254,33 @@ async function refreshBars(symbols: string[], dateKey: string, nowMs: number, fe
     }
   }
 }
+
+// ─── shared stage-1 bars (server/holy-grail.ts reads the same store) ──────
+
+/**
+ * Stage-1 1-minute bar refresh WITHOUT the detectors: other board-wide engines
+ * (server/holy-grail.ts) call this so one incremental batched fetch serves
+ * every engine — the sniper's BoundedCache is the single copy of today's bars.
+ */
+export async function refreshStage1Bars(symbols: string[], nowMs: number, fetchJson: FetchJson = defaultFetch): Promise<{ requests: number; feed: string }> {
+  const dateKey = etDateKey(nowMs);
+  resetDay(dateKey);
+  const counter = { n: 0 };
+  await refreshBars(symbols, dateKey, nowMs, fetchJson, counter);
+  return { requests: counter.n, feed };
+}
+
+/** Today's held 1-minute RTH bars for a symbol (read-only view of the stage-1 store). */
+export function peekStage1Bars(sym: string): { dateKey: string; bars: readonly MinuteBar[] } | null {
+  const d = barStore.get(sym);
+  return d ? { dateKey: d.dateKey, bars: d.bars } : null;
+}
+
+/** The same batched Alpaca stock-bar request stage 1 uses, for history (warm-up) reads. */
+export async function fetchStockBarsBatched(symbols: string[], timeframe: '5Min' | '15Min' | '1Day', startIso: string, fetchJson: FetchJson = defaultFetch): Promise<Map<string, any[]>> {
+  return batchedBars(symbols, timeframe, startIso, fetchJson, { n: 0 });
+}
+
 
 // ─── universe ─────────────────────────────────────────────────────────────
 

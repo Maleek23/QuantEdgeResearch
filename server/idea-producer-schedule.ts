@@ -218,6 +218,30 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('1-59/2 10-15 * * 1-5', sniper, ET);
   }
 
+  // ── Holy Grail (server/holy-grail.ts) — OFF unless HOLY_GRAIL=true. Every
+  // 5 min one minute after each 5-min bar closes (09:41–15:56 ET). Light: it
+  // reuses the 0DTE sniper's stage-1 1-min bar store (one incremental batched
+  // request for the board) plus a once-a-day warm-up read; no option chains,
+  // so it runs outside the heavy gate with its own in-flight guard. WATCH rows
+  // only, except timeframe × side cells that survived the replay (HG_POLICIES). ──
+  if (process.env.HOLY_GRAIL === 'true') {
+    let hgRunning = false;
+    const holyGrail = async () => {
+      if (hgRunning) { logger.info('[IDEA-PRODUCERS] holy-grail: previous pass still running — skipped'); return; }
+      hgRunning = true;
+      try {
+        const { runHolyGrail } = await import('./holy-grail');
+        await runHolyGrail();
+      } catch (err) {
+        logger.error('[IDEA-PRODUCERS] holy-grail failed:', err);
+      } finally {
+        hgRunning = false;
+      }
+    };
+    cron.schedule('41-59/5 9 * * 1-5', holyGrail, ET);
+    cron.schedule('1-59/5 10-15 * * 1-5', holyGrail, ET);
+  }
+
   // ── SPX fast moves (server/spx-fast-moves.ts) — OFF unless SPX_FAST_MOVES=true.
   // Every minute 09:31–10:31 (open-drive causes) and 14:30–15:58 (afternoon /
   // close-flow causes). Light: one incremental SPY+VIXY 1-min bar request per
@@ -302,5 +326,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
+  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''}${process.env.HOLY_GRAIL === 'true' ? ', Holy Grail 5m 09:41–15:56 (HOLY_GRAIL=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
 }

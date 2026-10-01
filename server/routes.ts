@@ -32689,6 +32689,9 @@ Use this checklist before entering any trade:
     // Board-wide 0DTE sniper — last cycle (server/zero-dte-sniper.ts; engine off unless ZERO_DTE_SNIPER=true)
     const { registerZeroDteSniperRoutes } = await import('./zero-dte-sniper');
     registerZeroDteSniperRoutes(app, requireBetaAccess);
+    // Holy Grail (Raschke ADX/EMA20) — last cycle + per-symbol active setups (server/holy-grail.ts; engine off unless HOLY_GRAIL=true)
+    const { registerHolyGrailRoutes } = await import('./holy-grail');
+    registerHolyGrailRoutes(app, requireBetaAccess);
     // Sector ignition — four horizons, measuring (server/sector-ignition.ts)
     const { registerSectorIgnitionRoutes } = await import('./sector-ignition');
     registerSectorIgnitionRoutes(app, requireBetaAccess);
