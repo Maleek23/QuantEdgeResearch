@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, validatePassword } from "@shared/password-policy";
 import { Loader2, Lock, CheckCircle, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 
@@ -32,10 +33,11 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) {
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
+        title: "Password not accepted",
+        description: `${passwordError}.`,
         variant: "destructive",
       });
       return;
@@ -143,7 +145,8 @@ export default function ResetPassword() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
                 disabled={isLoading}
                 data-testid="input-new-password"
               />
@@ -157,7 +160,8 @@ export default function ResetPassword() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
                 disabled={isLoading}
                 data-testid="input-confirm-password"
               />

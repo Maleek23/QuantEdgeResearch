@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, real, integer, boolean, timestamp, index, uniqueIndex, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_TOO_SHORT_MESSAGE, PASSWORD_TOO_LONG_MESSAGE } from "./password-policy";
 
 // Subscription Tier Type - 3 tiers for monetization
 export type SubscriptionTier = 'free' | 'advanced' | 'pro' | 'admin';
@@ -82,7 +83,7 @@ export const betaOnboardingSchema = z.object({
   investmentGoals: z.enum(['income', 'growth', 'speculation', 'hedging']),
   riskTolerance: z.enum(['conservative', 'moderate', 'aggressive', 'very_aggressive']),
   referralSource: z.string().min(1, "Please tell us how you heard about us"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_TOO_SHORT_MESSAGE).max(PASSWORD_MAX_LENGTH, PASSWORD_TOO_LONG_MESSAGE),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",

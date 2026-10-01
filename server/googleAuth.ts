@@ -3,6 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import type { Express } from "express";
 import { storage } from "./storage";
 import { logger, logError } from "./logger";
+import { googleNewUserTier, saveSession } from "./auth-hardening";
 
 // Whitelist of approved admin/VIP emails that bypass invite requirement
 function getApprovedEmails(): string[] {
@@ -52,8 +53,11 @@ export async function setupGoogleAuth(app: Express) {
           const emailLower = email.toLowerCase();
           const isWhitelisted = isEmailApproved(emailLower);
           
-          // Check if user already exists (returning user)
-          const existingUser = await storage.getUserByEmail(emailLower);
+          // Check if user already exists (returning user). Also match the Google id, so
+          // a returning user whose Google email changed is not re-created by upsertUser
+          // (which would overwrite their tier and beta access).
+          const existingUser =
+            (await storage.getUserByEmail(emailLower)) || (await storage.getUser(`google_${profile.id}`)) || null;
           
           // Check if user has a valid beta invite
           const invite = await storage.getBetaInviteByEmail(emailLower);
@@ -96,12 +100,9 @@ export async function setupGoogleAuth(app: Express) {
             // Refresh user data
             user = await storage.getUser(existingUser.id) || existingUser;
             
-            // If existing user has beta access but is on free tier, upgrade to pro
-            if (user.hasBetaAccess && user.subscriptionTier === 'free') {
-              await storage.updateUser(user.id, { subscriptionTier: 'pro' });
-              user = await storage.getUser(user.id) || user;
-              logger.info("Upgraded beta user from free to pro tier", { userId: user.id, email });
-            }
+            // Sign-in never changes a tier. (It used to upgrade every free-tier beta
+            // user to pro on every Google login; tiers are set at account creation,
+            // by invite redemption, or by billing.)
           } else {
             // New user - only grant beta access for: whitelisted OR just-redeemed invite
             // Do NOT grant for already-redeemed invites (those users should already exist)
@@ -113,7 +114,7 @@ export async function setupGoogleAuth(app: Express) {
               lastName: lastName || null,
               profileImageUrl: profileImageUrl || null,
               hasBetaAccess: shouldGrantBetaAccess,
-              subscriptionTier: shouldGrantBetaAccess ? 'pro' : 'free', // Beta users get pro tier
+              subscriptionTier: googleNewUserTier(shouldGrantBetaAccess), // first creation only (beta policy)
             });
             
             // If invite was redeemed, also set betaInviteId
@@ -177,10 +178,19 @@ export async function setupGoogleAuth(app: Express) {
           return res.redirect("/login?error=login_failed");
         }
         
+        // req.logIn (passport 0.7) has already regenerated the session id, so a
+        // pre-login id planted by an attacker is dropped (session fixation). Set
+        // userId on that fresh session and persist it before redirecting.
         (req.session as any).userId = user.id;
-        
-        logger.info("Google OAuth login complete", { userId: user.id });
-        return res.redirect("/trade-desk");
+        saveSession(req)
+          .then(() => {
+            logger.info("Google OAuth login complete", { userId: user.id });
+            res.redirect("/trade-desk");
+          })
+          .catch((saveErr) => {
+            logger.error("Google OAuth session save error", { error: (saveErr as Error)?.message });
+            res.redirect("/login?error=login_failed");
+          });
       });
     })(req, res, next);
   });

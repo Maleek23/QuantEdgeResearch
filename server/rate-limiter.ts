@@ -205,6 +205,47 @@ export const passwordResetLimiter = rateLimit({
   },
 });
 
+/**
+ * Strict per-IP limiter for public account endpoints (homepage audit 2026-09-30).
+ * Counts every request, successful or not: a successful sign-up or waitlist
+ * entry is exactly what mass creation looks like. Keyed on req.ip, which honours
+ * 'trust proxy' (1 hop = Caddy) — never the client-controlled X-Forwarded-For.
+ */
+export function makeStrictIpLimiter(opts: { name: string; windowMs: number; max: number; message: string }) {
+  return rateLimit({
+    windowMs: opts.windowMs,
+    max: opts.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    handler: (req, res) => {
+      logger.warn(`${opts.name} rate limit exceeded`, { ip: req.ip, path: req.path });
+      res.status(429).json({
+        error: 'Too many attempts',
+        message: opts.message,
+        retryAfter: Math.ceil(opts.windowMs / 1000),
+      });
+    },
+  });
+}
+
+// Sign-up: 5 per 15 minutes and 20 per day per IP. Invite codes are also
+// counted per code in server/auth-hardening.ts (InviteAttemptTracker).
+export const signupLimiters = [
+  makeStrictIpLimiter({ name: 'Signup (15m)', windowMs: 15 * 60 * 1000, max: 5,
+    message: 'Too many sign-up attempts. Please wait 15 minutes and try again.' }),
+  makeStrictIpLimiter({ name: 'Signup (day)', windowMs: 24 * 60 * 60 * 1000, max: 20,
+    message: 'Too many sign-up attempts from this network today. Please try again tomorrow.' }),
+];
+
+// Waitlist: each new email posts to the operator's Discord webhook, so cap it.
+export const waitlistLimiters = [
+  makeStrictIpLimiter({ name: 'Waitlist (15m)', windowMs: 15 * 60 * 1000, max: 5,
+    message: 'Too many waitlist requests. Please wait 15 minutes and try again.' }),
+  makeStrictIpLimiter({ name: 'Waitlist (day)', windowMs: 24 * 60 * 60 * 1000, max: 20,
+    message: 'Too many waitlist requests from this network today. Please try again tomorrow.' }),
+];
+
 // Tracking/analytics rate limiter - 120 requests per minute per IP
 // Allows normal page navigation but prevents abuse from CSRF-exempt endpoints
 export const trackingLimiter = rateLimit({

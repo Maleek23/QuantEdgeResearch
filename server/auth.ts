@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
+import { safeSecretEqual } from './auth-hardening';
 
 // Require JWT_SECRET - fail fast if not configured
 function getJWTSecret(): string {
@@ -106,7 +107,7 @@ export function requireAdmin(req: Request, res: Response, next: Function) {
   
   const providedPassword = req.headers['x-admin-password'] || req.body?.password;
   
-  if (providedPassword === adminPassword) {
+  if (safeSecretEqual(providedPassword, adminPassword)) { // constant-time
     logger.info('Admin authenticated via legacy password method', {
       ip: req.ip,
       path: req.path,
