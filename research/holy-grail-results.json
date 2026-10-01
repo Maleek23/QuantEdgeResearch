@@ -1,0 +1,35 @@
+{
+ "generatedAt": "2026-10-01T01:05:13.073Z",
+ "from": "2025-10-01",
+ "to": "2026-09-30",
+ "split": "2026-04-01",
+ "label": "measuring",
+ "meta": {
+  "drift": {
+   "n": 72300,
+   "fwd5Pct": 0.467,
+   "fwd10Pct": 0.892
+  },
+  "universe": "daily = 300 liquid names (today's list — survivorship); intraday = 150 names (top 150 by $-volume + option names); SPY 1m from cached 1-min bars"
+ },
+ "counts": {
+  "stock": 544943,
+  "options": 15340
+ },
+ "survivors": [
+  {
+   "key": "SPY-only 1m|short|1|adx",
+   "rule": "r2",
+   "n": 182,
+   "expectancyR": 0.0759,
+   "winPct": 36.8132,
+   "h1": 0.0269,
+   "h1n": 104,
+   "h2": 0.1412,
+   "h2n": 78,
+   "h1NoBest": 0.0078,
+   "h2NoBest": 0.117
+  }
+ ],
+ "optionSurvivors": []
+}

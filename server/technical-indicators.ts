@@ -1,3 +1,4 @@
+import { lastDefined, wilderDmi } from '../shared/trend-indicators';
 // Technical Indicators for Trading Analysis
 
 /**
@@ -357,73 +358,14 @@ export function calculateADX(
   if (highs.length < period + 1 || lows.length < period + 1 || closes.length < period + 1) {
     return 50; // Neutral if not enough data
   }
-
-  const plusDM: number[] = [];
-  const minusDM: number[] = [];
-  const trueRanges: number[] = [];
-
-  // Calculate directional movement and true range
-  for (let i = 1; i < highs.length; i++) {
-    const highDiff = highs[i] - highs[i - 1];
-    const lowDiff = lows[i - 1] - lows[i];
-
-    // +DM and -DM
-    plusDM.push(highDiff > lowDiff && highDiff > 0 ? highDiff : 0);
-    minusDM.push(lowDiff > highDiff && lowDiff > 0 ? lowDiff : 0);
-
-    // True Range
-    const high = highs[i];
-    const low = lows[i];
-    const prevClose = closes[i - 1];
-    const tr = Math.max(
-      high - low,
-      Math.abs(high - prevClose),
-      Math.abs(low - prevClose)
-    );
-    trueRanges.push(tr);
-  }
-
-  // Wilder smoothing for +DM, -DM, and TR
-  let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
-  let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
-  let smoothedTR = trueRanges.slice(0, period).reduce((a, b) => a + b, 0);
-
-  // Calculate DX values for ADX smoothing
-  const dxValues: number[] = [];
-
-  for (let i = period; i < plusDM.length; i++) {
-    smoothedPlusDM = smoothedPlusDM - (smoothedPlusDM / period) + plusDM[i];
-    smoothedMinusDM = smoothedMinusDM - (smoothedMinusDM / period) + minusDM[i];
-    smoothedTR = smoothedTR - (smoothedTR / period) + trueRanges[i];
-
-    // Calculate +DI and -DI at this point
-    const plusDI = smoothedTR !== 0 ? (smoothedPlusDM / smoothedTR) * 100 : 0;
-    const minusDI = smoothedTR !== 0 ? (smoothedMinusDM / smoothedTR) * 100 : 0;
-
-    // Calculate DX
-    const diSum = plusDI + minusDI;
-    const dx = diSum !== 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
-    dxValues.push(dx);
-  }
-
-  // ADX is the Wilder-smoothed average of DX values
-  if (dxValues.length < period) {
-    // Not enough DX values for proper ADX smoothing, return simple average
-    const avgDx = dxValues.length > 0 
-      ? dxValues.reduce((a, b) => a + b, 0) / dxValues.length 
-      : 50;
-    return Number(avgDx.toFixed(2));
-  }
-
-  // Initial ADX is SMA of first 'period' DX values
-  let adx = dxValues.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-  // Apply Wilder smoothing to subsequent DX values
-  for (let i = period; i < dxValues.length; i++) {
-    adx = ((adx * (period - 1)) + dxValues[i]) / period;
-  }
-
-  return Number(adx.toFixed(2));
+  // One Wilder DMI/ADX for the whole codebase: shared/trend-indicators.ts.
+  const d = wilderDmi(highs, lows, closes, period);
+  const adx = lastDefined(d.adx);
+  if (adx != null) return Number(adx.toFixed(2));
+  // Fewer than 2·period−1 bars: no Wilder ADX yet — fall back to the simple mean of the DX values we have.
+  const dx = d.dx.filter(Number.isFinite);
+  const avgDx = dx.length > 0 ? dx.reduce((a, b) => a + b, 0) / dx.length : 50;
+  return Number(avgDx.toFixed(2));
 }
 
 /**

@@ -50,3 +50,5 @@
 .nxtc-badge{margin-left:6px;padding:1px 5px;border:1px solid var(--border-subtle);border-radius:4px;font:700 9px 'JetBrains Mono',monospace;color:var(--text-dim);vertical-align:middle}
 .nxtc-list{padding:4px 12px}
 .nxp-ring{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.nxp-ring svg{display:block}.nxp-ring-n{fill:var(--text-primary);font:650 20px 'Space Grotesk',sans-serif}.nxp-ring span{margin-top:2px}.nxp-ring-split b{font-weight:700}.nxp-ring-split .bull{color:var(--p)}.nxp-ring-split .bear{color:var(--n)}
+/* ADX / Holy Grail badge (holy-grail-badge.tsx) — small, plain */
+.nxp-hg{display:flex;flex-wrap:wrap;gap:6px}.nxp-hg-badge{display:inline-block;padding:2px 7px;border:1px solid var(--border-subtle);border-radius:5px;color:var(--text-dim);font:600 10px/1.6 'JetBrains Mono',monospace}
