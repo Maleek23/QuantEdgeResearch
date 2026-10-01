@@ -10,7 +10,8 @@
  * leaders / laggards chips (→ /r/SYM), the read's own age. Open a row for the
  * why-lines and key levels. Every read is "measuring" — unvalidated thresholds.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { PEER_GROUPS } from '@shared/sector-peers';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useToolReport } from '@/components/dashboard/frame';
@@ -189,4 +190,35 @@ export function RotationStrip({ compact = false }: { compact?: boolean }) {
       <span className="ig-strip-age">{ageOf(pick.asOf)} · measuring</span>
     </div>
   );
+}
+
+/**
+ * symbol → is this idea WITH or AGAINST the current sector rotation?
+ * Groups igniting/extended long or short (daily in session, else swing),
+ * membership from shared/sector-peers. Measuring — a map, not a signal.
+ */
+export type RotationTag = { tag: 'with' | 'against'; label: string; stage: string; side: 'long' | 'short' };
+export function useRotationMap(): Map<string, { label: string; stage: string; side: 'long' | 'short' }> {
+  const daily = useSectorIgnition('daily');
+  const swing = useSectorIgnition('swing');
+  const pick = daily.data && daily.data.groups.some((g) => g.stage === 'igniting' || g.stage === 'extended') ? daily.data : swing.data ?? daily.data;
+  return useMemo(() => {
+    const m = new Map<string, { label: string; stage: string; side: 'long' | 'short' }>();
+    if (!pick) return m;
+    const hot = pick.groups.filter((g) => (g.stage === 'igniting' || g.stage === 'extended') && g.side);
+    for (const g of hot) {
+      const peer = PEER_GROUPS.find((p) => p.id === g.groupId);
+      for (const s of [...(peer?.members ?? []), ...g.leaders.map((c) => c.symbol), ...g.laggards.map((c) => c.symbol)]) {
+        const k = s.toUpperCase();
+        if (!m.has(k)) m.set(k, { label: g.label, stage: g.stage, side: g.side as 'long' | 'short' });
+      }
+    }
+    return m;
+  }, [pick]);
+}
+export function rotationTagFor(map: Map<string, { label: string; stage: string; side: 'long' | 'short' }>, symbol: string, direction: string): RotationTag | null {
+  const r = map.get(symbol.toUpperCase());
+  if (!r) return null;
+  const dir = /short|bear/i.test(direction) ? 'short' : 'long';
+  return { tag: dir === r.side ? 'with' : 'against', label: r.label, stage: r.stage, side: r.side };
 }
