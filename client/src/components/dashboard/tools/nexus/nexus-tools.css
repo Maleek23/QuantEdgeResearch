@@ -128,3 +128,16 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
   .flowdash .nxd-track-item{min-height:36px}
   .flowdash .nxd-track-item button,.flowdash .nxd-track-add button,.flowdash .nxd-track-add input,.flowdash .nxd-track-add select{min-height:36px}
 }
+/* carry-over lifecycle (docs/SETUP_LIFECYCLE.md) — the row's state, re-grade and live mark */
+.flowdash .nxd .nxp-row small.nxp-life{text-transform:none;font-variant-numeric:tabular-nums;color:var(--text-mute)}
+.flowdash .nxd .nxp-life-tag-fresh{color:var(--cyan)}
+.flowdash .nxd .nxp-life-tag-stale,.flowdash .nxd .nxp-life-tag-resolved{color:var(--text-mute);font-style:italic}
+.flowdash .nxd .nxp-row.nxp-life-stale,.flowdash .nxd .nxp-row.nxp-life-resolved{opacity:.62}
+.flowdash .nxd .nxp-row.nxp-life-stale:hover,.flowdash .nxd .nxp-row.nxp-life-resolved:hover,.flowdash .nxd .nxp-row.nxp-life-stale.selected{opacity:1}
+.flowdash .nxd-day-head{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;gap:8px;padding:6px 8px 3px;background:var(--panel-solid);font:700 10px var(--fd-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .nxd-day-head span:last-child{font-weight:600;letter-spacing:0}
+.flowdash .nxd-days{flex-wrap:wrap}
+.flowdash .nxd-days button b{margin-left:4px;font-weight:600;opacity:.7}
+.flowdash .nxd-date{height:24px;padding:0 4px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--bg-2);color:var(--text);font:600 10.5px var(--fd-mono)}
+.flowdash .nxd-date.on{border-color:color-mix(in srgb,var(--cyan) 50%,transparent)}
+.flowdash .nxd-stale-toggle{border:0;background:transparent;color:var(--text-mute);font:600 10.5px var(--fd-mono);text-decoration:underline;cursor:pointer;padding:2px 8px}

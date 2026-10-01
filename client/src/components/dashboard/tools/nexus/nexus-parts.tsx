@@ -10,6 +10,7 @@
  * are pure functions of those responses — nothing is invented here.
  */
 import { WatchStar } from '@/components/watch/watch-star';
+import { ageLabel } from '../flow/tape';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight, PanelRightOpen, Target } from 'lucide-react';
@@ -25,7 +26,8 @@ import { QuoteFreshChip } from '@/components/ui/qe-phone';
 import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
-import { compareBoardRows } from '@shared/board-sort';
+import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
+import { etDay } from '@shared/setup-lifecycle';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -121,18 +123,23 @@ export function withSpxRow(picks: ConvictionPick[] | undefined, spySource: Convi
   return sourceRows;
 }
 
-/** Setups in the server's board order when it set one, else by evidence score (held positions by live P&L), then side / search / rank filtered. */
-export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }): ConvictionPick[] {
+/**
+ * Setups in the server's board order when it set one, else by evidence score (held
+ * positions by live P&L), then side / search / rank filtered. With a lifecycle map
+ * (lib/setup-lifecycle.ts) stale and resolved setups sink below fresh/carried ones —
+ * the same order Today's book uses.
+ */
+export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }, life?: Map<string, SetupLife>): ConvictionPick[] {
   const needle = f.query.trim().toUpperCase();
-  const ranked = sourceRows
+  const filtered = sourceRows
     .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : isLiveBookPick(pick)) // same rule as Today's book
     .filter((pick) => f.side === 'all' || pick.direction === f.side)
-    .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle))
-    .sort((a, b) => f.scope === 'positions'
-      ? (b.unrealizedPnlPercent ?? -Infinity) - (a.unrealizedPnlPercent ?? -Infinity)
-      // BOARD_SORT (server): when the server stamped an order, keep it — the evidence
-      // score did not rank outcomes on the honest record (docs/SCORE_V2_STUDY.md).
-      : compareBoardRows(a, b));
+    .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle));
+  const ranked = f.scope === 'positions'
+    ? filtered.sort((a, b) => (b.unrealizedPnlPercent ?? -Infinity) - (a.unrealizedPnlPercent ?? -Infinity))
+    // BOARD_SORT (server): when the server stamped an order, keep it — the evidence
+    // score did not rank outcomes on the honest record (docs/SCORE_V2_STUDY.md).
+    : boardOrder(filtered, life);
   if (f.scope === 'positions' || f.rank === 'all') return ranked;
   if (f.rank === 'new') {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -205,12 +212,42 @@ export const useDevelopingQuote = (symbol: string | undefined, enabled: boolean)
 });
 
 /* ── rows ── */
-export function SetupRow({ pick, selected, onSelect, rotation }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null }) {
+/**
+ * The lifecycle line under a setup row (docs/SETUP_LIFECYCLE.md):
+ *   STATE · graded <publish> → now <live re-grade> · $live ±% vs entry · <age of that price>
+ * The price is the live quote when the batch answered, else the board's build-time
+ * read — each stamped with its own age, never shown as current without one.
+ */
+export function lifecycleLine(pick: ConvictionPick, sl: SetupLife, now: number): { text: string; title: string } {
+  const { life, mark } = sl;
+  const parts: string[] = [life.state === 'carried' && life.session != null && life.sessions != null ? `CARRIED s${life.session}/${life.sessions}` : life.label];
+  if (pick.publishedConvictionScore != null) {
+    const was = convictionPercent(pick.publishedConvictionScore), is = convictionPercent(pick.convictionScore);
+    parts.push(was === is ? `grade ${is} (unchanged)` : `graded ${was} → now ${is}`);
+  }
+  if (mark && pick.entryPrice > 0) {
+    const vs = (mark.price / pick.entryPrice - 1) * 100;
+    parts.push(`$${mark.price.toFixed(2)} ${vs >= 0 ? '+' : ''}${vs.toFixed(1)}% vs entry · ${ageLabel(mark.asOf, now)}`);
+  }
+  const title = `${life.label}: ${life.reason}.${pick.publishedConvictionScore != null ? ` Evidence grade at publish ${convictionPercent(pick.publishedConvictionScore)}, re-graded live by the board ${convictionPercent(pick.convictionScore)}.` : ''}${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
+  return { text: parts.join(' · '), title };
+}
+
+/** Publish time on a row: "3:09 PM" today, "Tue 3:09 PM" on an earlier day (ET). */
+export function publishStamp(iso: string, now: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  return etDay(d.getTime()) === etDay(now) ? time : `${d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' })} ${time}`;
+}
+
+export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
+  const line = life ? lifecycleLine(pick, life, now ?? Date.now()) : null;
   return (
-    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
+    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={line?.title}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
-      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${new Date((pick.calledAt ?? pick.generatedAt)!).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}` : ''}</small></span>
+      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}</span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
