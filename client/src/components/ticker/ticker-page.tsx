@@ -31,6 +31,7 @@ import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { pickWalls } from '@shared/gex-wall-basis';
+import { isUnknownSymbol } from '@/lib/unknown-symbol';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
@@ -100,6 +101,11 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const d = useTickerData(symbol);
   const { sym } = d;
   const q: Quote | undefined = d.quote.data?.[sym];
+  const unknown = isUnknownSymbol({
+    quoteSuccess: d.quote.isSuccess, hasQuote: !!q,
+    barsCount: d.bars.isSuccess ? d.bars.data?.data?.length ?? 0 : null,
+    barsErrorStatus: d.bars.error instanceof Error ? d.bars.error.message : null,
+  });
   const priceFlash = useTickFlash(q?.price, { resetKey: sym });
   const bars = d.bars.data?.data ?? [];
   const qtm = d.qtm.data;
@@ -266,6 +272,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           </>
         ) : d.quote.isError ? (
           <span className="tk-src">No quote for {sym} — every price provider failed. Retry in a minute.</span>
+        ) : d.quote.isSuccess ? (
+          <span className="tk-src">No quote for {sym}{unknown ? ' — not a symbol any provider recognises' : ' yet'}.</span>
         ) : (
           <span className="tk-src">Loading quote…</span>
         )}
@@ -328,6 +336,19 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       </div>
     </nav>
   );
+
+  // Unknown symbol: a not-found state with search, not an endless "Loading quote…"
+  // beside readings computed from nothing (lib/unknown-symbol.ts).
+  if (unknown) {
+    return (
+      <LuxPage width="wide" className="tk-page">
+        {header}
+        <Section id="not-found" title="Symbol not found">
+          <p className="tk-body">No price provider recognises <strong>{sym}</strong>, and there is no price history for it. Check the spelling, or search for another symbol above.</p>
+        </Section>
+      </LuxPage>
+    );
+  }
 
   if (view !== 'page') {
     return (
@@ -438,7 +459,7 @@ function OptionsSection({ sym, pick }: { sym: string; pick: Pick | null }) {
     <Section id="options" title="Options" meta={<>
       {aggressor.data?.read && <LuxTag tone={aggressor.data.read.lean === 'long' ? 'gain' : aggressor.data.read.lean === 'short' ? 'loss' : 'mute'} title="Aggressor-inferred net premium today (ask vs bid side)">aggressor {aggressor.data.read.lean}</LuxTag>}
       {!!dark.data?.darkPoolLevels?.length && <LuxTag tone="mute" title="Largest dark-pool print level today">dark {fmtPx(dark.data.darkPoolLevels[0].price)} · {fmtBig(dark.data.darkPoolLevels[0].notional, '$')}</LuxTag>}
-      <LuxTag tone="mute">{trades.length} prints · {scope}</LuxTag>
+      <LuxTag tone="mute">{flow.isError && !flow.data ? 'flow unavailable — feed error' : `${trades.length} prints · ${scope}`}</LuxTag>
     </>}>
       <div className="tk-stats">
         {trades.length > 0 && <>

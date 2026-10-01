@@ -66,6 +66,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
     reasons: ["Market context is refreshing — no live regime adjustment applied"],
     spyData: null,
     vixLevel: null,
+    regimeUnavailable: true,
     timestamp: new Date(),
   };
 }
@@ -178,6 +179,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: the fields above are engine defaults, not a measured market. */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -3053,6 +3056,7 @@ bandFor(p.convictionScore);
       score: marketCtx.score,
       vixLevel: marketCtx.vixLevel,
       reasons: marketCtx.reasons,
+      ...(marketCtx.regimeUnavailable ? { regimeUnavailable: true } : {}),
     },
     breadth: breadthResponse,
     geopolitical: geo,

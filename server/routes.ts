@@ -7941,7 +7941,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         offset: parseInt(req.query.offset as string) || 0,
         days: parseInt(req.query.days as string) || 7,
       });
-      res.json(result);
+      // A DB failure is an error, not "0 prints · today" (audit 2026-10-01 P0 #27).
+      const { flowResponseStatus } = await import("./flow-response-status");
+      res.status(flowResponseStatus(result)).json(result);
     } catch (error) {
       logger.error("[API] Failed to fetch options flow:", error);
       res.status(500).json({ error: "Failed to fetch options flow" });

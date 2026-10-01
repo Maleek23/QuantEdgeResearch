@@ -109,6 +109,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: regime/score are engine defaults, not a measured market — show "unavailable". */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;

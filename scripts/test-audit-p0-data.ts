@@ -187,5 +187,20 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   ok(!pickShowcaseIdeas(rows, 10).some((r) => r.symbol === 'D'), 'pre-baseline ideas never appear');
 }
 
+// ── Item 9: fake defaults ────────────────────────────────────────────────────
+{
+  const { isUnknownSymbol } = await import('../client/src/lib/unknown-symbol');
+  const { analyzeMarketConditions } = await import('../server/market-context-service');
+  const { flowResponseStatus } = await import('../server/flow-response-status');
+  ok(isUnknownSymbol({ quoteSuccess: true, hasQuote: false, barsCount: null, barsErrorStatus: '404' }), '/r/ZZZZZ: empty quote + 404 history → not found');
+  ok(isUnknownSymbol({ quoteSuccess: true, hasQuote: false, barsCount: 0 }), 'empty quote + zero bars → not found');
+  ok(!isUnknownSymbol({ quoteSuccess: true, hasQuote: false, barsCount: null, barsErrorStatus: '500' }), 'a history outage is not "not found"');
+  ok(!isUnknownSymbol({ quoteSuccess: false, hasQuote: false, barsCount: 0 }), 'a quote outage is not "not found"');
+  ok(!isUnknownSymbol({ quoteSuccess: true, hasQuote: true, barsCount: 0 }), 'a quoted symbol is never not-found');
+  const ctx = analyzeMarketConditions(null, null, null);
+  ok(ctx.regimeUnavailable === true, 'no SPY data is flagged unavailable, not shown as a "ranging" market');
+  ok(flowResponseStatus({ unavailable: true }) === 503 && flowResponseStatus({}) === 200, 'a flow DB error is a 503, not an empty tape');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);

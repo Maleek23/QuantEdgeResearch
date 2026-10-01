@@ -584,10 +584,11 @@ export default function TodayPage() {
             <div className="feature-visual reveal">
               <div className="rot-map">
                 <RotQuad sectors={sectors} />
-                <div className="rot-label tl">Leading</div>
-                <div className="rot-label tr">Improving</div>
-                <div className="rot-label bl">Weakening</div>
-                <div className="rot-label br">Lagging</div>
+                {/* Matches the plot: x = relative strength (right = stronger), y = momentum (up = rising). */}
+                <div className="rot-label tl">Improving</div>
+                <div className="rot-label tr">Leading</div>
+                <div className="rot-label bl">Lagging</div>
+                <div className="rot-label br">Weakening</div>
                 <div className="rot-axis x">x · rel strength →</div>
                 <div className="rot-axis y">y · momentum →</div>
               </div>
