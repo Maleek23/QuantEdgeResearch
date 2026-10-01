@@ -88,9 +88,11 @@ function probe(phone: boolean) {
     if (!vis(el) || el.closest('[data-harness]')) continue;
     const r = el.getBoundingClientRect();
     if (r.width <= 1 || r.height <= 1) continue; // sr-only
-    if (el.getAttribute('role') === 'switch' && getComputedStyle(el, '::after').content !== 'none') continue; // hit area on ::after
     const inline = el.tagName === 'A' && getComputedStyle(el).display === 'inline' && el.closest('p');
-    if (!inline && (r.height < minT || r.width < minT)) small.push(`${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
+    // an absolutely positioned ::after is the hit area for compact chips and switches (index.css)
+    const af = getComputedStyle(el, '::after');
+    const hit = af.content !== 'none' && af.position === 'absolute' ? { w: Math.max(r.width, parseFloat(af.width) || 0), h: Math.max(r.height, parseFloat(af.height) || 0) } : { w: r.width, h: r.height };
+    if (!inline && (hit.h < minT || hit.w < minT)) small.push(`${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
   }
   const tiny: string[] = [];
   const floor = phone ? 11 : 10;

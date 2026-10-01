@@ -437,7 +437,7 @@ function mockSectorsBoard() {
   });
   return {
     asOf: ago(3 * 60e3), dateKey: dayIso(0), phase: 'session', sessionThrough: dayIso(-1), provisional: null, sessions, sectors,
-    climbers: ['semis', 'energy'], sliders: ['utilities'],
+    climbers: ['banks', 'retail'], sliders: ['semis', 'utilities'],
     overnight: { kind: 'premarket', at: ago(5 * 36e5), movers: [{ symbol: 'NVDA', movePct: 2.4, kind: 'premarket', sectors: ['semis'], price: 128.4, at: ago(5 * 36e5) }, { symbol: 'TSLA', movePct: -3.1, kind: 'premarket', sectors: [], price: 241.7, at: ago(5 * 36e5) }] },
     forward: { rows: 120, summary: [{ h: 1, n: 60, meanExcess: 0.12, beatPct: 54 }, { h: 5, n: 40, meanExcess: 0.31, beatPct: 56 }], since: '2026-09-01' },
     dataAsOf: { bars: ago(3 * 60e3), quotes: ago(60e3) }, notes: ['fixture'], cadence: 'every 5 min (fixture)', honesty: 'Synthetic test-harness fixture - not market data.',
