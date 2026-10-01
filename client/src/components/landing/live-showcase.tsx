@@ -207,12 +207,12 @@ function GexBars({ g }: { g: Gex }) {
         const h = Math.max(1.2, (Math.abs(r.netGex) / max) * (mid - 6));
         const pos = r.netGex >= 0;
         return <rect key={r.strike} x={i * bw + bw * 0.14} width={bw * 0.72} y={pos ? mid - h : mid} height={h} rx="1.5"
-          fill={pos ? '#2f5aa8' : '#9a4430'}><title>{`${r.strike}: ${r.netGex.toFixed(2)}B`}</title></rect>;
+          fill={pos ? 'var(--cyan)' : 'var(--red)'} fillOpacity={0.78}><title>{`${r.strike}: ${r.netGex.toFixed(2)}B`}</title></rect>;
       })}
       {marks.map(([v, , c]) => (v != null && v >= lo && v <= hi
         ? <line key={String(c)} x1={xOf(v)} x2={xOf(v)} y1="4" y2={H - 4} stroke={c} strokeDasharray="3 3" strokeWidth="1.5" />
         : null))}
-      {g.spot >= lo && g.spot <= hi && <line x1={xOf(g.spot)} x2={xOf(g.spot)} y1="0" y2={H} stroke="#fff" strokeWidth="1.5" />}
+      {g.spot >= lo && g.spot <= hi && <line x1={xOf(g.spot)} x2={xOf(g.spot)} y1="0" y2={H} stroke="var(--text)" strokeWidth="1.5" />}
       <text x="2" y={H + 14} className="sc-gex-ax">{lo}</text>
       <text x={W - 2} y={H + 14} textAnchor="end" className="sc-gex-ax">{hi}</text>
       {g.spot >= lo && g.spot <= hi && <text x={xOf(g.spot)} y={H + 14} textAnchor="middle" className="sc-gex-ax spot">spot</text>}

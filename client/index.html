@@ -63,16 +63,19 @@
     <script>
       (function () {
         var h = document.documentElement, m = 'dark';
+        var sys = function () { try { return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; } catch (e) { return 'dark'; } };
         try {
           m = localStorage.getItem('qe-mode') || '';
-          if (!/^(dark|midnight|dim|light|contrast)$/.test(m)) {
+          if (m === 'system') m = sys();
+          else if (!/^(dark|midnight|dim|light|contrast)$/.test(m)) {
+            // no choice yet → follow the OS (default preference 'system')
             var t = localStorage.getItem('quantedge-theme') || '';
-            m = /light/.test(t) ? 'light'
+            m = !t || t === 'system' ? sys()
+              : /light/.test(t) ? 'light'
               : t === 'night' ? 'midnight'
-              : t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light'
               : 'dark';
           }
-        } catch (e) { m = 'dark'; }
+        } catch (e) { m = sys(); }
         h.setAttribute('data-mode', m);
         h.className += (m === 'light' ? ' light terminal-nexus-light' : ' dark terminal-nexus');
         h.style.colorScheme = m === 'light' ? 'light' : 'dark';

@@ -141,7 +141,7 @@ export function TodayWeekMapTool() {
               <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <span className="live">{ageLabel(spy.asOf, now)}</span> : <span>no quote</span>}</div>
               <div className="t-price"><span className={spyFlash}>SPY {fmt(spyPx)}</span></div>
               <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
-              <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={54} /></div>
+              <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'} height={54} /></div>
             </div>
             <div className="t-panel">
               <div className="t-panel-head"><span>The book · {book.ideas.length} live</span>{book.asOf ? <span className="live">{ageLabel(book.asOf, now)}</span> : <span>—</span>}</div>

@@ -6,7 +6,9 @@
  *              and the product itself: the live panels (components/landing/
  *              live-showcase.tsx — real data from GET /api/public/showcase and
  *              the live price bus, every number with its source and age)
+ *              + the product mockup above them (desktop GEX + phone NEXUS, sample data)
  *   features   what you get: NEXUS, FLOW, GEX, 0DTE desk, Journal, Quantinum Bot
+ *   gallery    one capture per desk (sample data, lazy webp, snap carousel on phones)
  *   different  transparency as the differentiator: timestamps, public record,
  *              loss rules, MEASURING labels
  *   record     the public record band — the same live payload (bot n, win rate
@@ -29,6 +31,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 import { reasonOf } from '@/lib/optimistic';
 import { DISCORD_INVITE_URL, DISCORD_SERVER_NAME } from '@/lib/public-config';
+import { ThemePicker } from '@/components/landing/theme-picker';
+import { useTheme } from '@/components/theme-provider';
 
 const ARROW = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
@@ -55,6 +59,43 @@ const FEATURES: Array<{ tag: string; title: string; line: string; points: string
   { tag: 'QUANTINUM BOT', title: 'The paper-trading bot', line: 'Trades NEXUS’s published ideas on paper, with real contract marks.',
     points: ['A public ledger of every simulated fill', 'No real money — paper only'], href: '/t?tab=bot', open: 'Open Quantinum Bot' },
 ];
+
+/** Product gallery — real captures with SAMPLE data (labelled), one per feature block. */
+const GALLERY: Array<{ src: string; url: string; tag: string; caption: string; alt: string }> = [
+  { src: '/screenshots/qe-nexus.webp', url: 'quantedgelabs.net/t', tag: 'NEXUS',
+    caption: 'Every setup ranked by its evidence — entry, stop and target printed.',
+    alt: 'NEXUS, the trading desk: ranked setups on the left, the selected setup’s chart and plan in the middle, the macro context on the right, shown with sample data.' },
+  { src: '/screenshots/qe-flow.webp', url: 'quantedgelabs.net/t?tab=flow', tag: 'FLOW',
+    caption: 'Prints, sweeps and blocks, filterable, each with its source and age.',
+    alt: 'FLOW, the options-flow tape: premium tide, sweep share and a table of prints by ticker, strike and expiry, shown with sample data.' },
+  { src: '/screenshots/qe-gex-matrix.webp', url: 'quantedgelabs.net/t?tab=gex', tag: 'GEX',
+    caption: 'Dealer gamma by strike and expiry — call wall, put wall, zero-γ.',
+    alt: 'The GEX strike-by-expiry matrix with the call wall, put wall and zero-gamma marked, shown with sample data.' },
+  { src: '/screenshots/qe-chart.webp', url: 'quantedgelabs.net/t?tab=chart', tag: 'CHART',
+    caption: 'Price with the dealer levels drawn on it, plus drawing tools.',
+    alt: 'The chart workspace: SPY candles with gamma levels and a drawing toolbar, shown with sample data.' },
+  { src: '/screenshots/qe-journal.webp', url: 'quantedgelabs.net/t?tab=journal', tag: 'JOURNAL',
+    caption: 'Your own book: P&L, edge by setup and what to stop doing.',
+    alt: 'The trading journal dashboard: net P&L, win rate, profit factor, a cumulative P&L curve and an edge score, shown with sample data.' },
+  { src: '/screenshots/qe-quantinum.webp', url: 'quantedgelabs.net/r/SPY', tag: 'QUANTINUM',
+    caption: 'Quantinum’s read on any ticker — every engine, one page.',
+    alt: 'The ticker page for SPY: key stats, the dealer map for the week and a price chart, shown with sample data.' },
+];
+
+/** A browser frame around a capture. Lazy by default; `eager` only for the hero (LCP). */
+function Frame({ src, w, h, alt, url, eager }: { src: string; w: number; h: number; alt: string; url: string; eager?: boolean }) {
+  return (
+    <figure className="lp-frame">
+      <div className="lp-frame-bar" aria-hidden="true">
+        <span className="lp-dots"><i /><i /><i /></span>
+        <span className="lp-url">{url}</span>
+      </div>
+      <img src={src} width={w} height={h} alt={alt} decoding="async" loading={eager ? 'eager' : 'lazy'}
+        {...(eager ? { fetchpriority: 'high' } : {})} />
+      <span className="lp-tag">Sample data</span>
+    </figure>
+  );
+}
 
 /** How it's different — transparency is the product (each item is real behaviour, not a promise). */
 const DIFFERENT: Array<[string, string]> = [
@@ -224,6 +265,7 @@ function Pricing() {
 }
 
 export default function LandingNexus() {
+  const isLight = useTheme().theme === 'nexus-light';
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const go = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -240,7 +282,7 @@ export default function LandingNexus() {
   }, []);
 
   return (
-    <div className="landing nexus-vars lp">
+    <div className={`landing nexus-vars lp${isLight ? ' light' : ''}`}>
       <SEOHead pageKey="landing" />
       <a href="#main" className="lp-skip">Skip to content</a>
       {/* NAV */}
@@ -257,6 +299,7 @@ export default function LandingNexus() {
             <a className="lnav-link" href="#sec-faq" onClick={go('sec-faq')}>FAQ</a>
           </div>
           <div className="lnav-spacer" />
+          <ThemePicker compact className="lnav-theme" />
           <Link href="/login" className="btn btn-ghost">Sign in</Link>
           <Link href="/signup" className="btn btn-primary">Join beta</Link>
         </div>
@@ -276,6 +319,15 @@ export default function LandingNexus() {
                 <DiscordButton />
               </div>
               <p className="lp-hero-note">Invite-only beta · free plan on delayed data · not investment advice</p>
+            </div>
+            {/* The product mockup (restored 2026-09-30): desktop GEX + phone NEXUS, overlapping */}
+            <div className="lp-hero-stage">
+              <Frame eager src="/screenshots/qe-gex.webp" w={1600} h={1000} url="quantedgelabs.net/t?tab=gex"
+                alt="The QuantEdge GEX workspace on a desktop: a strike-by-expiry gamma matrix, key levels with call wall, put wall and zero-gamma, and the dealer regime, shown with sample data." />
+              <figure className="lp-phone">
+                <img src="/screenshots/qe-nexus-phone.webp" width={600} height={1301} decoding="async" loading="eager"
+                  alt="NEXUS, the QuantEdge trading desk, on a phone: setups ranked by confidence, shown with sample data." />
+              </figure>
             </div>
             <div className="lp-hero-live" id="sec-live">
               <p className="lp-live-cap"><span className="sc-live-dot" aria-hidden="true" /> Live from today’s market — real data, each number with its source and age</p>
@@ -302,6 +354,25 @@ export default function LandingNexus() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* GALLERY — one capture per desk; a snap carousel on phones */}
+        <section id="sec-gallery" className="lp-sec lp-gallery-sec" aria-labelledby="lp-gallery-title">
+          <div className="container">
+            <div className="lp-head">
+              <p className="lp-eyebrow">Inside the terminal</p>
+              <h2 className="lp-h2" id="lp-gallery-title">Every desk, as you’ll use it.</h2>
+              <p className="lp-lede">Screens from the product with sample data — the live panels above show today’s real numbers.</p>
+            </div>
+            <ul className="lp-gallery" aria-label="Product screenshots">
+              {GALLERY.map((g) => (
+                <li key={g.tag} className="lp-gallery-item">
+                  <Frame src={g.src} w={1600} h={1000} url={g.url} alt={g.alt} />
+                  <p className="lp-gallery-cap"><b>{g.tag}</b> {g.caption}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -412,7 +483,7 @@ export default function LandingNexus() {
           <p className="lfooter-def">QuantEdge is a trading research terminal for stocks, options and crypto — every number carries its evidence and its record.</p>
           <div className="lfooter-bottom">
             <div>© QuantEdge Labs · Founded by <Link href="/about#founder">Abdulmalik Ajisegiri</Link></div>
-            <p className="disclaimer" id="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss; options (including 0DTE) and crypto carry substantial risk and can lose their full value. Quantinum Bot results are paper (simulated) trades, and past performance does not guarantee future results. Some data is delayed (e.g. CBOE option chains ~15 min; free plan quotes 15 min). The live panels show real market data with its source and age. Every performance figure carries its sample size.</p>
+            <p className="disclaimer" id="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss; options (including 0DTE) and crypto carry substantial risk and can lose their full value. Quantinum Bot results are paper (simulated) trades, and past performance does not guarantee future results. Some data is delayed (e.g. CBOE option chains ~15 min; free plan quotes 15 min). Screenshots show sample data; the live panels show real market data with its source and age. Every performance figure carries its sample size.</p>
           </div>
         </div>
       </footer>

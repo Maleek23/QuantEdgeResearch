@@ -15,6 +15,7 @@ import { SiGoogle } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 import { RETURN_TO_PARAM, clearStashedReturnTo, readReturnTo, stashReturnTo } from "@/lib/return-to";
+import { ThemePicker } from "@/components/landing/theme-picker";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -117,7 +118,7 @@ export default function Login() {
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 dark:from-emerald-950/50 via-[#fafafa] dark:via-[#0a0a0a] to-[#fafafa] dark:to-[#0a0a0a]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 dark:from-emerald-950/50 via-background to-background" />
 
         {/* Grid pattern */}
         <div className="absolute inset-0 opacity-20" style={{
@@ -181,13 +182,14 @@ export default function Login() {
             </Link>
           </div>
 
-          {/* Back button */}
-          <Link href="/">
-            <button className="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground transition-colors mb-8">
+          {/* Back link + the public pages' Light / Dark / System picker */}
+          <div className="flex items-center justify-between gap-3 mb-8">
+            <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
               Back to home
-            </button>
-          </Link>
+            </Link>
+            <ThemePicker compact />
+          </div>
 
           {/* Header */}
           <div className="mb-8">
@@ -222,7 +224,7 @@ export default function Login() {
                 <p className="text-sm text-foreground dark:text-foreground font-medium">Invite-only beta</p>
                 <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
                   Sign-in is for approved beta members. Have an invite code?{" "}
-                  <Link href="/signup" className="text-sky-400 hover:underline">Create your account</Link> first.
+                  <Link href="/signup" className="text-sky-700 dark:text-sky-400 hover:underline">Create your account</Link> first.
                 </p>
               </div>
             </div>
@@ -246,7 +248,7 @@ export default function Login() {
               <div className="w-full border-t border-gray-200 dark:border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-[#fafafa] dark:bg-[var(--surface-base)] px-3 text-muted-foreground dark:text-muted-foreground">or continue with email</span>
+              <span className="bg-background px-3 text-muted-foreground dark:text-muted-foreground">or continue with email</span>
             </div>
           </div>
 
@@ -316,7 +318,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-gray-900 dark:bg-white text-foreground dark:text-black hover:bg-gray-800 dark:hover:bg-muted font-medium"
+                className="w-full h-11 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 font-medium"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Signing in..." : "Sign in"}
