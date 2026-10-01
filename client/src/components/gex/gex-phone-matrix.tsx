@@ -6,16 +6,22 @@
  * Phone only (< 768px). The matrix IS the page:
  *   - full-bleed, fills the height between the page header and the dock
  *     (measured: the dock's top edge, the bottom bar, the grid's own top);
- *   - a narrow strike column, EXACTLY 4 expiry columns per page, one-line
- *     "SEP 29" headers, ~15px bold tabular values, ~38px rows, 1px separators;
+ *   - FIT, not scroll (operator 2026-10-01): as many expiry columns as the
+ *     measured width holds at ≥ 50px each (6 at 375–390px, so the whole 0–7d
+ *     week shows without paging), a sticky strike column, one-line "SEP 29"
+ *     headers, 12–15px bold tabular values (sized to the column), 1px separators;
+ *   - the nearest 13 strikes around spot by default (25 / all from the settings
+ *     sheet), rows stretched to fill the height — no vertical scroll at 13;
  *   - king node per expiry = solid yellow with dark ink; #2–#3 per expiry
  *     get an outline; every other cell is shaded by |value| (√ scale, per
  *     expiry, as on desktop). The value is always printed — colour is never alone;
  *   - the spot row carries a filled price tag in the strike column (nothing
  *     floats over the cells);
  *   - a sticky NET $ row per expiry (every listed strike of that expiry);
- *   - bottom bar: ticker quick-switch chips (watchlist) and an expiry pager
- *     (pages of 4); a horizontal swipe on the grid also pages.
+ *   - bottom bar: ticker quick-switch chips (watchlist) and an expiry pager,
+ *     shown only when the horizon has more expiries than fit; a horizontal
+ *     swipe on the grid also pages. Width and height come from a
+ *     ResizeObserver, so rotation / split view / a resized window re-fit.
  *
  * Nothing is invented: an absent cell is blank ("not listed"); a tap on a
  * cell opens the same drill as desktop (GexCellDrill, owned by the caller).
@@ -26,15 +32,22 @@ import { robustMax } from '@/components/viz';
 import { exposureStrength, rampColor, rampInk } from './gex-colors';
 import { fmtCompact, type Metric } from './gex-strike-grid';
 
-export const PHONE_PER_PAGE = 4;
-/** strikes kept each side of spot — a phone reads the near book, not 600 strikes */
-const SIDE = 40;
+/** min expiry-column width (px) — "−1.2B" at 12px bold mono plus padding */
+const MIN_COL = 50;
+/** sticky strike column width (px) — "◎ 6695" fits */
+const KEY_COL = 54;
+/** strikes on screen: nearest N to spot (odd → spot row in the middle); 'all' = ±40 */
+export type PhoneStrikeRows = 13 | 25 | 'all';
+export const PHONE_STRIKE_ROWS: PhoneStrikeRows[] = [13, 25, 'all'];
+const ALL_SIDE = 40;
+/** expiry columns that fit a grid `w` px wide */
+export const phoneColsFor = (w: number) => Math.max(3, Math.min(7, Math.floor((w - KEY_COL) / MIN_COL)));
 
 const val = (c: StrikeExpiryCell, m: Metric) => (m === 'vex' ? (c.netVEX ?? 0) : m === 'gexAdj' ? (c.netGEXAdj ?? 0) : c.netGEX);
 const expLabel = (label: string) => label.toUpperCase().replace(/\s0(\d)$/, ' $1');
 const strikeTxt = (s: number) => (Number.isInteger(s) ? String(s) : s.toFixed(1));
 
-export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellClick, chips, onSymbol }: {
+export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellClick, chips, onSymbol, strikeRows = 13 }: {
   cells: StrikeExpiryCell[];
   /** every listed expiry, ascending: [dte, label] */
   expiries: Array<[number, string]>;
@@ -45,12 +58,20 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
   /** quick-switch tickers (watchlist first) */
   chips: string[];
   onSymbol: (s: string) => void;
+  /** nearest N strikes around spot (default 13), or every listed strike within ±40 */
+  strikeRows?: PhoneStrikeRows;
 }) {
-  const pages = Math.max(1, Math.ceil(expiries.length / PHONE_PER_PAGE));
+  /* measured box: width → columns per page, height → row height (ResizeObserver) */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const scRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number | null }>({ w: 375, h: null });
+  const perPage = phoneColsFor(box.w);
+  const pages = Math.max(1, Math.ceil(expiries.length / perPage));
   const [page, setPage] = useState(0);
   useEffect(() => { setPage(0); }, [symbol]);
   const pg = Math.min(page, pages - 1);
-  const shown = expiries.slice(pg * PHONE_PER_PAGE, pg * PHONE_PER_PAGE + PHONE_PER_PAGE);
+  const shown = useMemo(() => expiries.slice(pg * perPage, pg * perPage + perPage), [expiries, pg, perPage]);
 
   const model = useMemo(() => {
     const listed = cells.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte) && c.dte >= 0);
@@ -78,40 +99,52 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
     // nearest strike to spot, then SIDE strikes each way
     let si = 0;
     for (let i = 0; i < desc.length; i++) if (Math.abs(desc[i] - spot) < Math.abs(desc[si] - spot)) si = i;
-    const lo = Math.max(0, si - SIDE); const hi = Math.min(desc.length, si + SIDE + 1);
+    // nearest strike's window: N rows centred on spot (clamped at the book's edges)
+    const side = strikeRows === 'all' ? ALL_SIDE : (strikeRows - 1) / 2;
+    let lo = Math.max(0, si - side); let hi = Math.min(desc.length, si + side + 1);
+    if (strikeRows !== 'all') { const want = strikeRows; if (hi - lo < want) { if (lo === 0) hi = Math.min(desc.length, want); else lo = Math.max(0, hi - want); } }
     const strikes = desc.slice(lo, hi);
     return { byKey, col, strikes, spotStrike: desc.length ? desc[si] : null };
-  }, [cells, shown, metric, spot]);
+  }, [cells, shown, metric, spot, strikeRows]);
 
   /* fill the screen: the grid ends at the bottom bar, which ends at the dock */
-  const scRef = useRef<HTMLDivElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-  const [h, setH] = useState<number | null>(null);
   useLayoutEffect(() => {
     const measure = () => {
-      const el = scRef.current; if (!el) return;
+      const el = scRef.current; const root = rootRef.current; if (!el || !root) return;
       const main = document.getElementById('main-content');
       const top = el.getBoundingClientRect().top + (main?.scrollTop ?? window.scrollY);
       const dock = document.querySelector('.qe-dock');
       const dockTop = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect().top : window.innerHeight;
       const bar = barRef.current?.getBoundingClientRect().height ?? 56;
-      setH(Math.max(260, Math.round(dockTop - top - bar - 6)));
+      const w = Math.round(root.getBoundingClientRect().width);
+      const h = Math.max(300, Math.round(dockTop - top - bar - 6));
+      setBox((b) => (b.w === w && b.h === h ? b : { w, h }));
     };
     measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (ro && rootRef.current) ro.observe(rootRef.current);
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', measure); window.removeEventListener('orientationchange', measure); };
   }, []);
+  const h = box.h;
+  /* rows stretch to fill the measured height (30–46px); past that the strikes scroll inside */
+  const HEAD = 32; const FOOT = 32;
+  const rowH = h ? Math.max(30, Math.min(46, Math.floor((h - HEAD - FOOT) / Math.max(1, model.strikes.length)))) : 37;
+  const colW = (box.w - KEY_COL) / Math.max(1, shown.length);
+  const cellFont = colW >= 72 ? 15 : colW >= 60 ? 14 : colW >= 54 ? 13 : 12;
+  const fits = h != null && HEAD + FOOT + rowH * model.strikes.length <= h;
 
   /* centre spot on load, symbol, metric or page change — never on a refetch */
   const centred = useRef('');
   useEffect(() => {
     const el = scRef.current;
-    const key = `${symbol}|${metric}|${pg}|${h}`;
+    const key = `${symbol}|${metric}|${pg}|${h}|${strikeRows}`;
     if (!el || !model.strikes.length || centred.current === key || h == null) return;
     centred.current = key;
     const row = el.querySelector<HTMLElement>('tr.spot');
     if (row) el.scrollTop = Math.max(0, row.offsetTop - (el.clientHeight - row.offsetHeight) / 2);
-  }, [symbol, metric, pg, h, model]);
+  }, [symbol, metric, pg, h, model, strikeRows]);
 
   /* horizontal swipe pages the expiries */
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -124,11 +157,11 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
 
   const unit = metric === 'vex' ? '$ per IV point' : '$ per 1% move';
   return (
-    <div className="gxp">
-      <div ref={scRef} className="gxp-scroll" style={h ? { height: h } : undefined} tabIndex={0} role="region"
-        aria-label={`${symbol} strike by expiry ${metric === 'gexAdj' ? 'Δ-adjusted GEX' : metric.toUpperCase()}, ${unit}, expiries ${pg * PHONE_PER_PAGE + 1}–${pg * PHONE_PER_PAGE + shown.length} of ${expiries.length}. Swipe sideways for more expiries.`}
+    <div ref={rootRef} className="gxp">
+      <div ref={scRef} className={`gxp-scroll${fits ? ' fits' : ''}`} style={h ? { height: fits ? HEAD + FOOT + rowH * model.strikes.length + 2 : h } : undefined} tabIndex={0} role="region"
+        aria-label={`${symbol} strike by expiry ${metric === 'gexAdj' ? 'Δ-adjusted GEX' : metric.toUpperCase()}, ${unit}, ${model.strikes.length} strikes around spot, expiries ${pg * perPage + 1}–${pg * perPage + shown.length} of ${expiries.length}.${pages > 1 ? ' Swipe sideways for more expiries.' : ''}`}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <table className="gxp-table">
+        <table className="gxp-table" style={{ ['--gxp-row' as string]: `${rowH}px`, ['--gxp-font' as string]: `${cellFont}px`, ['--gxp-kcol' as string]: `${KEY_COL}px` }}>
           <colgroup><col className="gxp-col-k" />{shown.map(([d]) => <col key={d} />)}</colgroup>
           <thead>
             <tr>
@@ -184,7 +217,7 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
         {pages > 1 && (
           <div className="gxp-pager" role="group" aria-label="Expiry pages">
             {Array.from({ length: pages }, (_, i) => (
-              <button key={i} type="button" className={i === pg ? 'on' : ''} aria-pressed={i === pg} aria-label={`Expiries ${i * PHONE_PER_PAGE + 1}–${Math.min(expiries.length, (i + 1) * PHONE_PER_PAGE)}`} onClick={() => setPage(i)}>{i + 1}</button>
+              <button key={i} type="button" className={i === pg ? 'on' : ''} aria-pressed={i === pg} aria-label={`Expiries ${i * perPage + 1}–${Math.min(expiries.length, (i + 1) * perPage)}`} onClick={() => setPage(i)}>{i + 1}</button>
             ))}
           </div>
         )}

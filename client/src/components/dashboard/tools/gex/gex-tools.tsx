@@ -16,7 +16,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { FreshStamp } from '@/components/ui/qe-phone';
 import { QEDrawer } from '@/components/ui/qe-drawer';
 import { TickerSwitcher } from '@/components/ticker-switcher';
-import { GexPhoneMatrix } from '@/components/gex/gex-phone-matrix';
+import { GexPhoneMatrix, PHONE_STRIKE_ROWS, type PhoneStrikeRows } from '@/components/gex/gex-phone-matrix';
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { describeLegacyRegime } from '@shared/gex-regime';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -235,6 +235,7 @@ export function GexPhoneMatrixView() {
   const cellMetric = gexMetricOf(metric, view, adjOk);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const [levels, setLevels] = useState(false);
+  const [rows, setRows] = useState<PhoneStrikeRows>(13);
   const [bucket, setBucket] = useHorizon(true);
   const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, cellMetric), [g.matrix, bucket, g.spot, cellMetric]);
   const blocked = gate(g);
@@ -245,44 +246,53 @@ export function GexPhoneMatrixView() {
   const up = (quote?.change ?? 0) >= 0;
   return (
     <section className="gxp-page" aria-label={`${g.symbol} GEX matrix`}>
+      {/* ONE row (operator 2026-10-01, "fit the phone"): ticker · price + chain age · GEX|VEX ·
+          horizon · settings. Raw/Δ-adj, the strike count and the levels live in the settings sheet.
+          Two prices, two meanings (audit 2026-10-01, GEX #2): the live quote big, the chain-snapshot
+          spot the grid was computed at labelled underneath with its age. */}
       <header className="gxp-head">
         <div className="gxp-head-row">
           <TickerSwitcher value={g.symbol} onChange={g.setFocus} className="gxp-ticker" />
+          <div className="gxp-quote" title={`${quote ? 'Live quote' : 'No live quote — chain spot'} ${price != null ? price.toFixed(2) : '—'}. Grid: the GEX engine's chain snapshot${snapAt ? ` (${snapAt} ET)` : ''}, computed at spot ${g.spot ? g.spot.toFixed(2) : '—'}; the stamp is its age.`}
+            aria-label={`${quote ? 'live' : 'chain spot'} ${price != null ? price.toFixed(2) : 'unknown'}${quote && Number.isFinite(quote.changePercent) ? `, ${quote.changePercent.toFixed(2)} percent` : ''}; grid from the chain snapshot at ${g.spot ? g.spot.toFixed(2) : 'unknown'}`}>
+            <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
+            <div className="gxp-snap">
+              {quote && Number.isFinite(quote.changePercent)
+                ? <span className="gxp-chg" style={{ color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}{Math.abs(quote.changePercent).toFixed(2)}%</span>
+                : <span>chain</span>}
+              <FreshStamp asOf={asOf} now={now} warn={!!g.q.data?.cached} label="—" />
+            </div>
+          </div>
           <div className="of-seg gxp-metric" role="group" aria-label="Metric">
             {(['gex', 'vex'] as const).map((m) => <button key={m} type="button" className={metric === m ? 'on' : ''} aria-pressed={metric === m} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>)}
           </div>
-          <button type="button" className="gxp-levels-btn" onClick={() => setLevels(true)} aria-haspopup="dialog" aria-label="Levels, regime and net exposure" title="Levels, regime and net exposure">
-            <SlidersHorizontal size={16} aria-hidden /><span>Levels</span>
-          </button>
-        </div>
-        <div className="gxp-gview-row">
-          {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} className="of-seg gxp-gview" />}
           {/* horizon: 0–7d by default on a phone, remembered on this device */}
           <select className="gxp-horizon" value={bucket} onChange={(e) => setBucket(e.target.value as BucketId)} aria-label="Days to expiry" title="Expiry horizon (remembered on this device)">
-            {DTE_BUCKETS.map((b) => <option key={b.id} value={b.id}>{b.label} · {shaped.bucketCounts[b.id]} exp</option>)}
+            {DTE_BUCKETS.map((b) => <option key={b.id} value={b.id} aria-label={`${b.label}, ${shaped.bucketCounts[b.id]} expiries`}>{b.label}</option>)}
           </select>
-        </div>
-        {/* Two prices, two meanings — labelled here, and only here (audit 2026-10-01, GEX #2):
-            the live quote, and the chain-snapshot spot the grid was computed at. */}
-        <div className="gxp-quote">
-          {quote && <span className="gxp-tag">live</span>}
-          <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
-          {quote && Number.isFinite(quote.change) && (
-            <span className="gxp-chg" style={{ color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}{Math.abs(quote.change).toFixed(2)} {up ? '+' : '−'}{Math.abs(quote.changePercent).toFixed(2)}%</span>
-          )}
-        </div>
-        <div className="gxp-snap" title={`Grid: the GEX engine's chain snapshot${snapAt ? ` (${snapAt} ET)` : ''}, computed at spot ${g.spot ? g.spot.toFixed(2) : '—'}.${quote ? ' Live: realtime quote.' : ' No realtime quote — the price above is the chain spot.'}`}>
-          <FreshStamp asOf={asOf} now={now} warn={!!g.q.data?.cached} label="—" />
-          <span>chain snapshot{quote && g.spot ? <> <b>{g.spot.toFixed(2)}</b></> : null}{snapTime ? ` @ ${snapTime} ET` : ''}{quote ? '' : ' · no live quote'}</span>
+          <button type="button" className="gxp-levels-btn" onClick={() => setLevels(true)} aria-haspopup="dialog" aria-label="Levels, regime, gamma definition and strike count" title={`Levels · regime · Raw/Δ-adj · strikes${snapTime ? ` · chain @ ${snapTime} ET` : ''}`}>
+            <SlidersHorizontal size={18} aria-hidden />
+            {view !== 'raw' || rows !== 13 ? <i className="gxp-dot-on" aria-hidden /> : null}
+          </button>
         </div>
       </header>
       {blocked ?? (
         <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiries} spot={g.spot} metric={cellMetric} symbol={g.symbol}
-          onCellClick={setDrill} chips={chips} onSymbol={g.setFocus} />
+          onCellClick={setDrill} chips={chips} onSymbol={g.setFocus} strikeRows={rows} />
       )}
       {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
-      <QEDrawer open={levels} onClose={() => setLevels(false)} title={`${g.symbol} levels · regime · net`} side="bottom" className="qp-sheet gxp-levels-sheet">
-        <div className="flowdash nexus-vars gxp-levels-body"><GexPhoneSummary /></div>
+      <QEDrawer open={levels} onClose={() => setLevels(false)} title={`${g.symbol} levels · regime · settings`} side="bottom" className="qp-sheet gxp-levels-sheet">
+        <div className="flowdash nexus-vars gxp-levels-body">
+          <div className="gxp-sheet-ctl">
+            {metric === 'gex' && <div className="gxp-sheet-row"><span>Gamma</span><GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} className="of-seg gxp-gview" /></div>}
+            <div className="gxp-sheet-row"><span>Strikes</span>
+              <div className="of-seg gxp-gview" role="group" aria-label="Strikes shown around spot">
+                {PHONE_STRIKE_ROWS.map((n) => <button key={n} type="button" className={rows === n ? 'on' : ''} aria-pressed={rows === n} onClick={() => setRows(n)}>{n === 'all' ? 'All' : n}</button>)}
+              </div>
+            </div>
+          </div>
+          <GexPhoneSummary />
+        </div>
       </QEDrawer>
     </section>
   );
