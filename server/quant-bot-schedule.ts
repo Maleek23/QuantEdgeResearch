@@ -62,6 +62,19 @@ async function cycle(origin: string): Promise<void> {
   } catch (err) {
     logger.error(`[QUANT-BOT] ${origin} cycle failed:`, err);
   }
+  // Desk bots (docs/DESK_ADMINS.md, DESK_ADMINS=true): after the platform bot,
+  // one job for all of them, capped at DESK_BOTS_MAX, lower priority except for
+  // the 0DTE flatten / post-close settle, which must not be dropped.
+  try {
+    const { deskAdminsEnabled, runDeskBots } = await import('./desk-admin');
+    if (!deskAdminsEnabled()) return;
+    const { runHeavy } = await import('./lib/heavy-job-gate');
+    await runHeavy(`desk-bots:${origin}`, () => runDeskBots(origin), {
+      priority: /flatten|settle/.test(origin) ? 'high' : 'low',
+    });
+  } catch (err) {
+    logger.error(`[DESK-BOTS] ${origin} failed:`, err);
+  }
 }
 
 /** Back-compat name. */
