@@ -325,16 +325,17 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     });
   }
 
-  /** What is under (x, y) in pane pixels — flow marker › dark-pool line › orb › GEX line. */
-  hit(x: number, y: number): LayerHit | null {
+  /** What is under (x, y) in pane pixels — flow marker › dark-pool line › orb › GEX line.
+   *  `tol` widens every target (a fingertip: ~12px; the mouse: 4). */
+  hit(x: number, y: number, tol = 4): LayerHit | null {
     const f = this.frame;
     let best: { d: number; p: FlowPrint } | null = null;
     for (const h of f.flow) {
       const d = Math.hypot(h.x - x, h.y - y);
-      if (d <= h.r + 4 && (!best || d < best.d)) best = { d, p: h.p };
+      if (d <= h.r + tol && (!best || d < best.d)) best = { d, p: h.p };
     }
     if (best) return { kind: 'flow', p: best.p };
-    const dp = f.dp.find((r) => Math.abs(r.y - y) <= 4);
+    const dp = f.dp.reduce<{ y: number; lvl: DpLevel } | null>((b, r) => (Math.abs(r.y - y) <= tol && (!b || Math.abs(r.y - y) < Math.abs(b.y - y)) ? r : b), null);
     if (dp) return { kind: 'dp', lvl: dp.lvl };
     if (this.input.gex === 'bubbles' && this.series && this.chart) {
       const l = this.chart.timeScale().coordinateToLogical(x);
@@ -348,12 +349,12 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
           if (by == null) continue;
           const d = Math.abs(by - y);
           const r = 1 + (f.rMax - 1) * Math.sqrt(Math.min(1, Math.abs(g) / (f.norm ?? this.maxAbs)));
-          if (d <= Math.max(r, 5) && d < hd) { hd = d; hit = { kind: 'orb', strike: b.strike, g, t: b.times[idx], src: b.srcs[idx] }; }
+          if (d <= Math.max(r, tol + 1) && d < hd) { hd = d; hit = { kind: 'orb', strike: b.strike, g, t: b.times[idx], src: b.srcs[idx] }; }
         }
         if (hit) return hit;
       }
     }
-    const ln = f.lines.find((r) => Math.abs(r.y - y) <= 4);
+    const ln = f.lines.find((r) => Math.abs(r.y - y) <= tol);
     if (ln) return { kind: 'line', strike: ln.strike, gex: ln.gex, t: this.input.gexTopAsOf ?? Date.now() };
     return null;
   }

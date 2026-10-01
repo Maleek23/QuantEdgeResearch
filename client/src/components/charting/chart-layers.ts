@@ -138,4 +138,4 @@ export function fmtUsd(v: number, signed = false): string {
   return `${s}$${a.toFixed(0)}`;
 }
 export const ageOf = (iso: string | null, now: number) => (iso ? fmtAge((now - Date.parse(iso)) / 1000) : '—');
-export const fmtVol = (v: number) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(2)}K` : `${Math.round(v)}`);
+export const fmtVol = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(2)}K` : `${Math.round(v)}`);

@@ -9,13 +9,16 @@
  *               + dealer levels + GEX / dark-pool / flow layers + drawings
  *   status bar  range presets · live stamp · ET clock · RTH/ETH · % · log · auto
  *
- * Phone: the left bar folds into a ⋯ drawing sheet; Indicators opens as a
- * bottom sheet; the legend stays. Two-point tools are tap-tap (or drag).
+ * Phone: symbol · interval · Indicators · undo · draw · ⋯ More. The left bar
+ * folds into the drawing sheet; Indicators and More (chart type, scale,
+ * session, redo, replay, snapshot, full screen, layouts) open as bottom
+ * sheets; 1-tap interval chips sit in the status bar. Two-point tools are
+ * tap-tap (or drag); touch gets finger-sized hit targets.
  *
  * Keyboard (chart focused or hovered): Alt+H horizontal line at the cursor ·
  * Alt+T trend line · Alt+V vertical line · Alt+F Fibonacci · Alt+J horizontal
  * ray · Alt+R reset view · Esc cancel / deselect · Del delete selected ·
- * Ctrl/⌘+Z undo · Ctrl/⌘+Y or ⇧Z redo · ←/→ pan · +/− zoom.
+ * Ctrl/⌘+Z undo · Ctrl/⌘+Y or ⇧Z redo · ←/→ pan · +/− zoom · 1–5 interval.
  *
  * Data is the same as the compact embed (chart-layers.ts hooks, identical
  * query keys, one live-bus subscription per symbol). Drawings persist per
@@ -31,7 +34,10 @@ import {
 import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
+import { useVisualMode } from '@/lib/visual-mode';
 import { COLOR_ROLES, LINE_WIDTHS, newDrawingId, type ColorRole, type Drawing, type DrawTool, type ToolId } from './drawing-geometry';
+import { cleanCompareSymbol } from './indicators';
+import { deleteLayout, saveLayout, useChartLayouts, type ChartLayout } from './chart-layouts';
 import { useDrawings } from './use-drawings';
 import { TvPane, describeLayerHit, type TvPaneHandle } from './tv-pane';
 import {
@@ -45,6 +51,10 @@ import '@/styles/nexus.css';
 const LazyWatchlist = lazy(() => import('@/components/charting/chart-lab-nexus').then((m) => ({ default: m.ChartLabWatchlist })));
 
 const TFS: TfKey[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1D', '1W'];
+/** One-tap interval chips (TradingView's favourites row). */
+const TF_CHIPS: TfKey[] = ['1m', '5m', '15m', '1h', '1D'];
+/** TradingView's interval shorthand: D / W, so a daily chip never reads like the "1D" range button. */
+const CHIP_LABEL: Record<string, string> = { '1D': 'D', '1W': 'W', '4h': '4h', '30m': '30m' };
 const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
 const TF_NAME: Record<string, string> = { '1m': '1 minute', '5m': '5 minutes', '15m': '15 minutes', '30m': '30 minutes', '1h': '1 hour', '4h': '4 hours', '1D': '1 day', '1W': '1 week' };
 const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
@@ -80,6 +90,7 @@ const TYPE_DEFS: { id: ChartType; label: string; Icon: (p: object) => JSX.Elemen
 ];
 
 type Menu = null | 'tf' | 'type' | 'ind' | 'settings' | 'draw';
+type Notice = { text: string; href?: string; file?: string } | null;
 
 export function TvChart({
   symbol: rawSymbol,
@@ -121,9 +132,29 @@ export function TvChart({
   const [allHidden, setAllHidden] = useState(false);
   const [allLocked, setAllLocked] = useState(false);
   const [editText, setEditText] = useState<string | null>(null);
-  const [isFull, setIsFull] = useState(false);
+  const [nativeFull, setNativeFull] = useState(false);
+  // iPhone Safari (and embedded webviews) have no element fullscreen: the chart
+  // then covers the viewport itself.
+  const [pseudoFull, setPseudoFull] = useState(false);
+  const isFull = nativeFull || pseudoFull;
+  const [notice, setNotice] = useState<Notice>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(null), notice.href ? 12_000 : 3_500);
+    return () => clearTimeout(id);
+  }, [notice]);
+  const [visualMode] = useVisualMode();
 
   const { data: series, isError: candlesError, isLoading: candlesLoading } = useCandles(symbol, tf, inView);
+
+  /* ── compare: a second symbol as a % line (the scale switches to percent) ── */
+  const [cmpSym, setCmpSym] = useState<string | null>(null);
+  const [cmpDraft, setCmpDraft] = useState('');
+  const cmpOn = !!cmpSym && cmpSym !== symbol;
+  const cmpQ = useCandles(cmpOn ? cmpSym! : symbol, tf, inView && cmpOn);
+  const compare = useMemo(() => (cmpOn && cmpQ.data?.bars.length ? { symbol: cmpSym!, bars: cmpQ.data.bars } : null), [cmpOn, cmpSym, cmpQ.data]);
+  const addCompare = () => { const c = cleanCompareSymbol(cmpDraft); if (c && c !== symbol) { setCmpSym(c); setCmpDraft(''); } };
+  const scale = cmpOn ? 'pct' : prefs.scale;
 
   /* ── dealer walls + zero-γ ── */
   const dealerQ = useDealerMap(symbol, true, inView);
@@ -246,7 +277,7 @@ export function TvChart({
     const pal = chartPalette(rootRef.current);
     return { pos: pal.accent, neg: pal.loss, dp: pal.caution, call: pal.call, put: pal.put, mute: pal.dim };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs, now]);
+  }, [prefs, now, visualMode]);
   const describeLayer = useCallback((hit: Parameters<typeof describeLayerHit>[0]) => describeLayerHit(hit, tk), [tk]);
 
   /* ── drawings ── */
@@ -315,6 +346,7 @@ export function TvChart({
         if (paneRef.current?.cancelDraft()) { /* draft dropped */ }
         else if (menu) setMenu(null);
         else if (tool !== 'cursor') setTool('cursor');
+        else if (pseudoFull) setPseudoFull(false);
         else if (dr.selectedId) dr.setSelectedId(null);
         else used = false; // let the expanded modal close
       } else if (!mod && (e.key === 'Delete' || e.key === 'Backspace')) {
@@ -323,6 +355,8 @@ export function TvChart({
         paneRef.current?.pan(-1);
       } else if (!mod && !e.altKey && e.key === 'ArrowRight') {
         paneRef.current?.pan(1);
+      } else if (!mod && !e.altKey && !e.shiftKey && /^[1-5]$/.test(e.key)) {
+        setTf(TF_CHIPS[Number(e.key) - 1]);
       } else if (!mod && (e.key === '+' || e.key === '=')) {
         paneRef.current?.zoom(1);
       } else if (!mod && (e.key === '-' || e.key === '_')) {
@@ -332,28 +366,59 @@ export function TvChart({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dr, menu, tool, deleteSelected, pickTool, placeHLineAtCursor, rootRef]);
+  }, [dr, menu, tool, deleteSelected, pickTool, placeHLineAtCursor, rootRef, pseudoFull, setTf]);
 
   /* ── snapshot / fullscreen ── */
-  const snapshot = useCallback(() => {
+  /* Snapshot: a data-URL <a download> does nothing in iOS home-screen apps and
+     in-app browsers. Phones and tablets get the share sheet (Save Image /
+     Files / Messages); elsewhere a blob download, and when even that cannot
+     save, the image opens in a new tab to long-press / right-click save. */
+  const snapshot = useCallback(async () => {
     const canvas = paneRef.current?.screenshot();
     if (!canvas) return;
+    const name = `${symbol}-${tf}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.png`;
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+    if (!blob) { setNotice({ text: 'Snapshot failed — the chart could not be captured' }); return; }
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+    if (coarse && typeof File !== 'undefined' && nav.share) {
+      const file = new File([blob], name, { type: 'image/png' });
+      if (nav.canShare?.({ files: [file] })) {
+        try { await nav.share({ files: [file], title: `${symbol} ${tfLabel}` }); setNotice({ text: 'Snapshot ready to save or send' }); return; }
+        catch (e) { if ((e as Error)?.name === 'AbortError') return; /* fall through to a download */ }
+      }
+    }
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = `${symbol}-${tf}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}.png`;
-    a.click();
-  }, [symbol, tf]);
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setNotice({ text: `Snapshot saved — ${name}`, href: url, file: name });
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }, [symbol, tf, tfLabel]);
   useEffect(() => {
-    const on = () => setIsFull(document.fullscreenElement === rootRef.current);
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    const on = () => setNativeFull((doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null) === rootRef.current);
     document.addEventListener('fullscreenchange', on);
-    return () => document.removeEventListener('fullscreenchange', on);
+    document.addEventListener('webkitfullscreenchange', on);
+    return () => { document.removeEventListener('fullscreenchange', on); document.removeEventListener('webkitfullscreenchange', on); };
   }, [rootRef]);
   const toggleFull = useCallback(() => {
-    const el = rootRef.current;
+    const el = rootRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void }) | null;
+    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
     if (!el) return;
-    if (document.fullscreenElement) void document.exitFullscreen?.();
-    else void el.requestFullscreen?.().catch(() => {});
-  }, [rootRef]);
+    setMenu(null);
+    if (pseudoFull) { setPseudoFull(false); return; }
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (doc.exitFullscreen) void doc.exitFullscreen().catch(() => {}); else doc.webkitExitFullscreen?.();
+      return;
+    }
+    const req = el.requestFullscreen?.bind(el) ?? el.webkitRequestFullscreen?.bind(el);
+    if (!req || document.fullscreenEnabled === false) { setPseudoFull(true); return; }
+    try {
+      const r = req();
+      if (r && typeof (r as Promise<void>).catch === 'function') (r as Promise<void>).catch(() => setPseudoFull(true));
+    } catch { setPseudoFull(true); }
+  }, [rootRef, pseudoFull]);
 
   /* ── legend extras: active layers, like TV's indicator rows ── */
   const legendRow = (key: string, label: ReactNode, body: ReactNode, onHide?: () => void) => (
@@ -400,6 +465,9 @@ export function TvChart({
         ? <span className="tv-dim">{ov.flow.prints.length} prints · stream {ov.flow.streamState} · calls ● above, puts ◆ below</span>
         : <span className="tv-dim">{ovError ? 'feed unavailable' : 'loading…'}</span>, () => set('flow', false))}
       {prefs.ma && legendRow('ma', 'MA', <><span style={{ color: 'var(--tv-accent)' }}>20</span><span style={{ color: 'var(--tv-caution)' }}>50</span></>, () => set('ma', false))}
+      {prefs.ema && legendRow('ema', 'EMA', <><span style={{ color: 'var(--tv-info)' }}>9</span><span style={{ color: 'var(--tv-marker)' }}>21</span></>, () => set('ema', false))}
+      {prefs.vwap && legendRow('vwap', 'VWAP', intraday ? <span style={{ color: 'var(--tv-text)' }}>session · ET</span> : <span className="tv-dim">intraday timeframes only</span>, () => set('vwap', false))}
+      {cmpOn && legendRow('cmp', `vs ${cmpSym}`, <span className="tv-dim">{cmpQ.isError ? `no history for ${cmpSym}` : cmpQ.isLoading ? 'loading…' : '% from the first visible bar'}</span>, () => setCmpSym(null))}
       {expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized</span></span>)}
       {candlesError && <div className="tv-leg-row tv-warn">Price history unavailable for {symbol} {tfLabel}</div>}
       {candlesLoading && <div className="tv-leg-row tv-dim">loading {symbol} {tfLabel}…</div>}
@@ -419,6 +487,12 @@ export function TvChart({
     ? (gexSamples ? `${gexSamples} sample${gexSamples === 1 ? '' : 's'} since ${etClock(Date.parse(ov.gexTimeline.recordingSince!))} ET · every ${ov.gexTimeline.sampleEveryMin}m` : 'not recorded yet — starts now it is charted')
     : 'net gamma by strike through time';
   const wallsSub = !layersOk ? 'no options chain for this symbol' : dealerQ.data ? `${dealerSource} · ${ageOf(dealerAsOf, now)} old` : dealerQ.isError ? 'dealer map unavailable' : 'call wall · put wall · zero-γ';
+  const applyLayout = (l: ChartLayout) => {
+    for (const [k, v] of Object.entries(l.prefs) as [keyof typeof l.prefs, never][]) {
+      if (k === 'tf') setTf(v); else set(k, v);
+    }
+    setNotice({ text: `Layout “${l.name}” applied` });
+  };
   const startReplay = () => {
     setMenu(null);
     setReplay((r) => (r.on ? { ...r, on: false, playing: false } : { on: true, idx: Math.min(sessionBars.length - 1, Math.max(1, Math.floor(sessionBars.length * 0.75))), playing: false, speed: r.speed }));
@@ -435,35 +509,61 @@ export function TvChart({
       {menuRow(prefs.flow, (v) => set('flow', v), 'Options flow prints', layersOk ? 'calls ● above · puts ◆ below' : 'no options layers for this symbol', tk.call)}
       <div className="tv-mhead">Indicators</div>
       {menuRow(prefs.fullVolume, (v) => set('fullVolume', v), 'Volume', null)}
+      {menuRow(prefs.vwap, (v) => set('vwap', v), 'VWAP (session)', intraday ? 'resets each ET session' : 'intraday timeframes only')}
+      {menuRow(prefs.ema, (v) => set('ema', v), 'EMA 9 / 21', null)}
       {menuRow(prefs.ma, (v) => set('ma', v), 'MA 20 / 50', null)}
+      <div className="tv-mhead">Compare</div>
+      <form className="tv-cmp" onSubmit={(e) => { e.preventDefault(); addCompare(); }}>
+        <input
+          className="tv-text-in" value={cmpDraft} onChange={(e) => setCmpDraft(e.target.value.toUpperCase())}
+          placeholder={cmpOn ? `vs ${cmpSym} — replace…` : 'Symbol, e.g. QQQ'} aria-label="Compare with symbol" maxLength={15}
+          autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="go"
+        />
+        <button type="submit" className="tv-btn" disabled={!cleanCompareSymbol(cmpDraft) || cleanCompareSymbol(cmpDraft) === symbol}>Add</button>
+        {cmpOn && <button type="button" className="tv-btn" onClick={() => setCmpSym(null)} aria-label={`Remove ${cmpSym} comparison`}>Remove</button>}
+      </form>
+      <small className="tv-msub">Percent scale while a comparison shows</small>
       <div className="tv-mhead">Session</div>
       {menuRow(extended, (v) => set('extended', v), 'Extended hours (ETH)', intraday ? null : 'intraday timeframes only')}
       {onSymbolChange && (<><div className="tv-mhead">Panels</div>{menuRow(prefs.watchlist, (v) => set('watchlist', v), 'Watchlist panel', 'click a name to chart it')}</>)}
-      <div className="tv-mactions tv-phone-only">
-        <button type="button" className="tv-btn" disabled={sessionBars.length < 3} onClick={startReplay}>{replay.on ? 'Exit replay' : 'Replay'}</button>
-        <button type="button" className="tv-btn" onClick={() => { setMenu(null); snapshot(); }}>Snapshot</button>
-        {onOpenChartPage && <button type="button" className="tv-btn" onClick={onOpenChartPage}>Chart page ↗</button>}
-      </div>
     </div>
   );
 
   const settingsMenu = (
     <div className="tv-menu tv-menu-right" role="menu" aria-label="Chart settings">
+      <div className="tv-mactions tv-phone-only tv-mactions-top">
+        <button type="button" className="tv-btn" disabled={!dr.canRedo} onClick={() => dr.redo()}>Redo</button>
+        <button type="button" className={`tv-btn${replay.on ? ' on' : ''}`} disabled={sessionBars.length < 3} onClick={startReplay}>{replay.on ? 'Exit replay' : 'Replay'}</button>
+        <button type="button" className="tv-btn" onClick={() => { setMenu(null); void snapshot(); }}>Snapshot</button>
+        <button type="button" className={`tv-btn${isFull ? ' on' : ''}`} onClick={toggleFull}>{isFull ? 'Exit full screen' : 'Full screen'}</button>
+      </div>
+      <div className="tv-mhead tv-phone-only">Chart type</div>
+      <div className="tv-seg tv-phone-only" role="group" aria-label="Chart type">
+        {TYPE_DEFS.map((t) => (
+          <button type="button" key={t.id} className={prefs.type === t.id ? 'on' : ''} aria-pressed={prefs.type === t.id} onClick={() => set('type', t.id)}>{t.label}</button>
+        ))}
+      </div>
       <div className="tv-mhead">Price scale</div>
       <div className="tv-seg" role="group" aria-label="Price scale mode">
         {([['normal', 'Linear'], ['log', 'Log'], ['pct', 'Percent']] as const).map(([k, l]) => (
-          <button type="button" key={k} className={prefs.scale === k ? 'on' : ''} aria-pressed={prefs.scale === k} onClick={() => set('scale', k)}>{l}</button>
+          <button type="button" key={k} className={scale === k ? 'on' : ''} aria-pressed={scale === k} disabled={cmpOn && k !== 'pct'} title={cmpOn ? 'Percent while a comparison shows' : undefined} onClick={() => set('scale', k)}>{l}</button>
         ))}
+      </div>
+      <div className="tv-mhead tv-phone-only">Session</div>
+      <div className={`tv-seg tv-phone-only${intraday ? '' : ' tv-na'}`} role="group" aria-label="Session hours">
+        <button type="button" className={!extended ? 'on' : ''} aria-pressed={!extended} disabled={!intraday} onClick={() => set('extended', false)}>RTH</button>
+        <button type="button" className={extended ? 'on' : ''} aria-pressed={extended} disabled={!intraday} onClick={() => set('extended', true)}>ETH</button>
       </div>
       {menuRow(prefs.magnet, (v) => set('magnet', v), 'Magnet', 'crosshair and drawing points snap to O/H/L/C')}
       {menuRow(stayDrawing, setStayDrawing, 'Stay in drawing mode', 'keep the tool after placing a drawing')}
+      <LayoutsSection prefs={{ ...prefs, tf }} onApply={applyLayout} />
       <div className="tv-mactions">
         <button type="button" className="tv-btn" onClick={() => { setMenu(null); paneRef.current?.reset(); }} title="Reset chart view (Alt+R)">Reset view</button>
         {onOpenChartPage && <button type="button" className="tv-btn" onClick={onOpenChartPage} title="Open this symbol and timeframe on the CHART tab">Chart page ↗</button>}
         {onOpenLab && <button type="button" className="tv-btn" onClick={onOpenLab} title="Chart Lab: published levels, watchlist, ES translation">Chart Lab ↗</button>}
       </div>
-      <div className="tv-mhead">Shortcuts</div>
-      <dl className="tv-keys">
+      <div className="tv-mhead tv-desk">Shortcuts</div>
+      <dl className="tv-keys tv-desk">
         <dt>Alt+H</dt><dd>Horizontal line at cursor</dd>
         <dt>Alt+T / V / F / J</dt><dd>Trend · vertical · Fib · h-ray</dd>
         <dt>Esc</dt><dd>Cancel / deselect</dd>
@@ -471,6 +571,7 @@ export function TvChart({
         <dt>{MOD}+Z / {MOD}+Y</dt><dd>Undo / redo</dd>
         <dt>← → · + −</dt><dd>Pan · zoom</dd>
         <dt>Alt+R</dt><dd>Reset view</dd>
+        <dt>1 … 5</dt><dd>Interval {TF_CHIPS.join(' · ')}</dd>
       </dl>
     </div>
   );
@@ -496,11 +597,19 @@ export function TvChart({
     </>
   );
 
+  const tfChips = (where: string) => (
+    <div className={`tv-seg tv-tfchips ${where}`} role="group" aria-label="Interval">
+      {(TF_CHIPS.includes(tf) ? TF_CHIPS : [...TF_CHIPS, tf]).map((k) => (
+        <button type="button" key={k} className={tf === k ? 'on' : ''} aria-pressed={tf === k} onClick={() => setTf(k)} aria-label={`Interval ${TF_NAME[k] ?? k}`} title={TF_NAME[k] ?? k}>{CHIP_LABEL[k] ?? k}</button>
+      ))}
+    </div>
+  );
+
   /* ── status bar clock (own 1 s timer, isolated) ── */
   const layout = (
     <div
       ref={rootRef}
-      className={`tv-root${fill ? ' tv-fill' : ''}${isFull ? ' tv-full' : ''}`}
+      className={`tv-root${fill ? ' tv-fill' : ''}${isFull ? ' tv-full' : ''}${pseudoFull ? ' tv-pseudo-full' : ''}${menu && menu !== 'draw' ? ' tv-menu-open' : ''}`}
       onPointerEnter={() => { hoverRef.current = true; }}
       onPointerLeave={() => { hoverRef.current = false; }}
     >
@@ -526,7 +635,8 @@ export function TvChart({
             </div>
           )}
         </div>
-        <div className="tv-pop">
+        {tfChips('tv-chips-top')}
+        <div className="tv-pop tv-desk-flex">
           {(() => { const T = TYPE_DEFS.find((t) => t.id === prefs.type) ?? TYPE_DEFS[0]; return (
             <button type="button" className={`tv-tb${menu === 'type' ? ' on' : ''}`} onClick={() => toggleMenu('type')} aria-haspopup="menu" aria-expanded={menu === 'type'} aria-label={`Chart type: ${T.label}`} title="Chart type"><T.Icon /></button>
           ); })()}
@@ -556,15 +666,17 @@ export function TvChart({
         </button>
         <span className="tv-sep tv-desk" />
         <button type="button" className="tv-tb" disabled={!dr.canUndo} onClick={() => dr.undo()} aria-label={`Undo (${MOD}+Z)`} title={`Undo — ${MOD}+Z`}><IconUndo /></button>
-        <button type="button" className="tv-tb" disabled={!dr.canRedo} onClick={() => dr.redo()} aria-label={`Redo (${MOD}+Y)`} title={`Redo — ${MOD}+Y`}><IconRedo /></button>
+        <button type="button" className="tv-tb tv-desk-flex" disabled={!dr.canRedo} onClick={() => dr.redo()} aria-label={`Redo (${MOD}+Y)`} title={`Redo — ${MOD}+Y`}><IconRedo /></button>
         <button type="button" className={`tv-tb tv-phone-flex${menu === 'draw' || tool !== 'cursor' ? ' on' : ''}`} onClick={() => toggleMenu('draw')} aria-haspopup="dialog" aria-expanded={menu === 'draw'} aria-label="Drawing tools" title="Drawing tools"><IconPencil /></button>
 
         <span className="tv-grow" />
-        <div className="tv-pop tv-desk-flex">
-          <button type="button" className={`tv-tb${menu === 'settings' ? ' on' : ''}`} onClick={() => toggleMenu('settings')} aria-haspopup="menu" aria-expanded={menu === 'settings'} aria-label="Chart settings and shortcuts" title="Settings · shortcuts"><IconSettings /></button>
+        <div className="tv-pop">
+          <button type="button" className={`tv-tb${menu === 'settings' ? ' on' : ''}`} onClick={() => toggleMenu('settings')} aria-haspopup="menu" aria-expanded={menu === 'settings'} aria-label="Chart settings, layouts and more" title="Settings · layouts · shortcuts">
+            <IconSettings className="tv-desk" /><IconMore className="tv-phone-flex" />
+          </button>
           {menu === 'settings' && settingsMenu}
         </div>
-        <button type="button" className="tv-tb tv-desk-flex" onClick={snapshot} aria-label="Take a snapshot (PNG)" title="Snapshot — download PNG"><IconCamera /></button>
+        <button type="button" className="tv-tb tv-desk-flex" onClick={() => void snapshot()} aria-label="Take a snapshot (PNG)" title="Snapshot — save a PNG"><IconCamera /></button>
         <button type="button" className={`tv-tb tv-desk-flex${isFull ? ' on' : ''}`} onClick={toggleFull} aria-label={isFull ? 'Exit fullscreen' : 'Fullscreen'} title={isFull ? 'Exit fullscreen' : 'Fullscreen'}><IconFullscreen /></button>
       </div>
       {menu && menu !== 'draw' && <div className="tv-scrim" onClick={() => setMenu(null)} />}
@@ -609,10 +721,13 @@ export function TvChart({
             range={range}
             fitKey={`${symbol}:${tf}:${range}:${extended}:${replay.on}`}
             chartType={prefs.type}
-            scale={prefs.scale}
+            scale={scale}
             magnet={prefs.magnet}
             showVolume={prefs.fullVolume}
             showMA={prefs.ma}
+            showEMA={prefs.ema}
+            showVWAP={prefs.vwap}
+            compare={compare}
             levels={allLevels}
             zones={zones}
             layers={layers}
@@ -662,10 +777,18 @@ export function TvChart({
               <button type="button" className="tv-tb" aria-label="Delete drawing (Del)" title="Delete — Del" disabled={!!selected.locked} onClick={deleteSelected}><IconTrash /></button>
             </div>
           )}
-          {tool !== 'cursor' && (
+          {tool !== 'cursor' ? (
             <div className="tv-hint" role="status">
               {ALL_TOOLS.find((t) => t.id === tool)?.label}: {tool === 'brush' ? 'press and drag' : 'click / tap each point'} · Esc to cancel
             </div>
+          ) : notice ? (
+            <div className="tv-hint tv-notice" role="status">
+              {notice.text}
+              {notice.href && <> · <a href={notice.href} download={notice.file} target="_blank" rel="noopener noreferrer">open image</a></>}
+            </div>
+          ) : null}
+          {pseudoFull && (
+            <button type="button" className="tv-tb tv-exitfull" onClick={() => setPseudoFull(false)} aria-label="Exit full screen" title="Exit full screen (Esc)"><IconClose /></button>
           )}
         </div>
 
@@ -679,6 +802,7 @@ export function TvChart({
 
       {/* ── status bar ── */}
       <div className="tv-status" role="toolbar" aria-label="Chart status">
+        {tfChips('tv-chips-status')}
         <div className={`tv-seg${intraday ? '' : ' tv-na'}`} role="group" aria-label="Visible range">
           {(['1D', '5D', 'ALL'] as RangeKey[]).map((r) => (
             <button type="button" key={r} className={range === r ? 'on' : ''} aria-pressed={range === r} disabled={!intraday} onClick={() => set('range', r)} title={intraday ? `Show ${r === 'ALL' ? 'all loaded bars' : r === '1D' ? 'the last session' : 'the last 5 sessions'}` : 'Intraday timeframes only'}>{r === 'ALL' ? 'All' : r}</button>
@@ -687,13 +811,13 @@ export function TvChart({
         <span className="tv-grow" />
         <LiveStamp tick={replay.on ? null : liveTick} live={live && !replay.on} />
         <Clock />
-        <div className={`tv-seg${intraday ? '' : ' tv-na'}`} role="group" aria-label="Session">
+        <div className={`tv-seg tv-st-session${intraday ? '' : ' tv-na'}`} role="group" aria-label="Session">
           <button type="button" className={!extended ? 'on' : ''} aria-pressed={!extended} disabled={!intraday} onClick={() => set('extended', false)} title="Regular trading hours only (09:30–16:00 ET)">RTH</button>
           <button type="button" className={extended ? 'on' : ''} aria-pressed={extended} disabled={!intraday} onClick={() => set('extended', true)} title="Extended hours (pre- and post-market)">ETH</button>
         </div>
-        <div className="tv-seg" role="group" aria-label="Price scale">
-          <button type="button" className={prefs.scale === 'pct' ? 'on' : ''} aria-pressed={prefs.scale === 'pct'} onClick={() => set('scale', prefs.scale === 'pct' ? 'normal' : 'pct')} title="Percent scale">%</button>
-          <button type="button" className={prefs.scale === 'log' ? 'on' : ''} aria-pressed={prefs.scale === 'log'} onClick={() => set('scale', prefs.scale === 'log' ? 'normal' : 'log')} title="Logarithmic scale">log</button>
+        <div className="tv-seg tv-st-scale" role="group" aria-label="Price scale">
+          <button type="button" className={scale === 'pct' ? 'on' : ''} aria-pressed={scale === 'pct'} disabled={cmpOn} onClick={() => set('scale', prefs.scale === 'pct' ? 'normal' : 'pct')} title={cmpOn ? 'Percent while a comparison shows' : 'Percent scale'}>%</button>
+          <button type="button" className={scale === 'log' ? 'on' : ''} aria-pressed={scale === 'log'} disabled={cmpOn} onClick={() => set('scale', prefs.scale === 'log' ? 'normal' : 'log')} title="Logarithmic scale">log</button>
           <button type="button" onClick={() => paneRef.current?.autoScale()} title="Auto-fit the price scale to the visible bars">auto</button>
         </div>
       </div>
@@ -716,6 +840,34 @@ export function TvChart({
     </div>
   );
   return layout;
+}
+
+/** Settings menu: save the current settings under a name; apply or delete saved ones. */
+function LayoutsSection({ prefs, onApply }: { prefs: Parameters<typeof saveLayout>[1]; onApply: (l: ChartLayout) => void }) {
+  const layouts = useChartLayouts();
+  const [name, setName] = useState('');
+  const save = () => { if (name.trim()) { saveLayout(name, prefs); setName(''); } };
+  return (
+    <>
+      <div className="tv-mhead">Layouts</div>
+      <form className="tv-cmp" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <input className="tv-text-in" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this layout" aria-label="Layout name" maxLength={40} enterKeyHint="done" />
+        <button type="submit" className="tv-btn" disabled={!name.trim()} aria-label="Save layout">Save</button>
+      </form>
+      {layouts.length ? (
+        <div className="tv-layouts" role="list" aria-label="Saved layouts">
+          {layouts.map((l) => (
+            <div className="tv-layout" role="listitem" key={l.name}>
+              <button type="button" className="tv-mitem" onClick={() => onApply(l)} aria-label={`Apply layout ${l.name}`} title={`${l.prefs.tf ?? ''} · ${l.prefs.type ?? ''} · ${l.prefs.scale ?? ''}`}>
+                <span>{l.name}</span><b>{l.prefs.tf}</b>
+              </button>
+              <button type="button" className="tv-tb" onClick={() => deleteLayout(l.name)} aria-label={`Delete layout ${l.name}`} title="Delete layout"><IconTrash /></button>
+            </div>
+          ))}
+        </div>
+      ) : <small className="tv-msub">Saves interval, chart type, scale, session, layers and indicators.</small>}
+    </>
+  );
 }
 
 /** Live price stamp: source + age, its own 1 s clock. */
@@ -755,14 +907,31 @@ const TV_CSS = `
   --tv-bg:var(--lx-surface,var(--bg));--tv-panel:var(--lx-surface-2,var(--panel-2));--tv-hi:var(--lx-surface-hi,var(--panel-2));--tv-line:var(--lx-line,var(--nx-border));--tv-line-hi:var(--lx-line-hi,var(--nx-border-hi));--tv-fg:var(--lx-text,var(--text));--tv-mute:var(--lx-mute,var(--text-mute));
   display:flex;flex-direction:column;height:var(--qe-main-h, calc(100dvh - 98px));min-height:460px;background:var(--tv-bg);color:var(--tv-fg);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;position:relative}
 .tv-root.tv-fill{flex:1 1 0;height:auto;min-height:0}
-.tv-root.tv-full{height:100vh}
+.tv-root.tv-full{height:100vh;height:100dvh}
+.tv-root.tv-pseudo-full{position:fixed;inset:0;z-index:1002;min-height:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.tv-exitfull{position:absolute;top:8px;right:72px;z-index:9;background:var(--tv-panel)!important;border:1px solid var(--tv-line-hi)!important}
+.tv-tfchips{flex:none}
+.tv-status .tv-tfchips{margin-right:4px}
+.tv-tfchips button{min-width:34px}
+.tv-seg.tv-chips-status{display:none}
+@media (max-width:1179px){.tv-seg.tv-chips-top{display:none}.tv-seg.tv-chips-status{display:inline-flex}}
+.tv-cmp{display:flex;align-items:center;gap:4px;padding:2px 4px}
+.tv-cmp .tv-text-in{flex:1;min-width:0;width:auto}
+.tv-msub{display:block;padding:2px 6px 4px;font-size:11px;color:var(--tv-mute);line-height:1.35}
+.tv-layouts{display:flex;flex-direction:column;gap:1px;padding:2px 0}
+.tv-layout{display:flex;align-items:center;gap:2px}
+.tv-layout .tv-mitem{flex:1;min-width:0}
+.tv-layout .tv-mitem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-mactions.tv-mactions-top{margin:0 0 6px;padding:0 0 8px;border-top:0;border-bottom:1px solid var(--tv-line)}
+.tv-notice{color:var(--tv-fg);pointer-events:auto}
+.tv-notice a{color:var(--tv-accent)}
 .tv-top{display:flex;align-items:center;gap:2px;height:40px;padding:0 6px;border-bottom:1px solid var(--tv-line);flex:none;position:relative;z-index:21}
 .tv-sym{width:150px;min-width:110px}
 .tv-symlabel{padding:0 8px;font-size:13px;color:var(--tv-fg)}
 .tv-sep{width:1px;height:20px;background:var(--tv-line);margin:0 4px;flex:none}
 .tv-grow{flex:1}
 .tv-tb{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:32px;height:32px;padding:0 6px;border:0;border-radius:4px;background:transparent;color:var(--tv-fg);font:600 12px 'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap}
-.tv-tb:hover:not(:disabled){background:var(--tv-hi)}
+@media (hover:hover){.tv-tb:hover:not(:disabled){background:var(--tv-hi)}}
 .tv-tb.on{color:var(--tv-accent)}
 .tv-tb:disabled{opacity:.38;cursor:default}
 .tv-tb:focus-visible,.tv-tool:focus-visible,.tv-seg button:focus-visible,.tv-btn:focus-visible,.tv-mitem:focus-visible,.tv-sw:focus-visible,.tv-w:focus-visible,.tv-leg-x:focus-visible{outline:2px solid var(--tv-accent);outline-offset:1px}
@@ -801,6 +970,7 @@ const TV_CSS = `
 .tv-seg button.on{background:var(--tv-hi);color:var(--tv-fg)}
 .tv-seg button:disabled{opacity:.35;cursor:default}
 .tv-menu .tv-seg{margin:2px 4px 4px}
+.tv-seg.tv-phone-only{display:none}
 .tv-replay{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--tv-line);font-size:11px;flex:none}
 .tv-replay input[type=range]{flex:1;min-width:140px;accent-color:var(--tv-accent)}
 .tv-body{display:flex;flex:1;min-height:0;position:relative}
@@ -808,7 +978,7 @@ const TV_CSS = `
 .tv-left::-webkit-scrollbar{display:none}
 .tv-left-group{display:flex;flex-direction:column;gap:2px;padding-top:4px;margin-top:2px;border-top:1px solid var(--tv-line)}
 .tv-tool{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:34px;height:34px;border:0;border-radius:4px;background:transparent;color:var(--tv-fg);cursor:pointer;flex:none}
-.tv-tool:hover:not(:disabled){background:var(--tv-hi)}
+@media (hover:hover){.tv-tool:hover:not(:disabled){background:var(--tv-hi)}}
 .tv-tool.on{color:var(--tv-accent);background:var(--tv-hi)}
 .tv-tool:disabled{opacity:.35;cursor:default}
 .tv-tool-name{display:none}
@@ -820,8 +990,8 @@ const TV_CSS = `
 .tv-gamma-wm{display:block;width:100%;height:auto}
 html[data-mode=light] .tv-wm{opacity:.09}
 @media (max-width:767px){.tv-wm{width:60%}.tv-wm-sym{font-size:clamp(32px,11vw,56px)}.tv-wm-tf{font-size:11px;margin-bottom:4px}}
-.tv-orb-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:1px 8px;border:1px solid color-mix(in srgb,var(--tv-accent) 45%,transparent);border-radius:999px;background:color-mix(in srgb,var(--tv-accent) 12%,transparent);color:var(--tv-text);font-size:11px;pointer-events:auto}
-.tv-orb-chip button{padding:0 6px;border:0;border-radius:999px;background:var(--tv-accent);color:#fff;font:700 10px/1.6 'JetBrains Mono',monospace;cursor:pointer}
+.tv-orb-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:1px 8px;border:1px solid color-mix(in srgb,var(--tv-accent) 45%,transparent);border-radius:999px;background:color-mix(in srgb,var(--tv-accent) 12%,transparent);color:var(--tv-text);font-size:11px}
+.tv-orb-chip button{padding:0 6px;border:0;border-radius:999px;background:var(--tv-accent);color:var(--lx-accent-ink,#fff);font:700 10px/1.6 'JetBrains Mono',monospace;cursor:pointer}
 .tv-canvas{position:absolute;inset:0;touch-action:none}
 .tv-legend{position:absolute;top:6px;left:8px;right:80px;z-index:4;pointer-events:none;display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.5;text-shadow:0 0 3px var(--tv-bg),0 0 6px var(--tv-bg)}
 .tv-leg-row{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;min-width:0}
@@ -832,9 +1002,13 @@ html[data-mode=light] .tv-wm{opacity:.09}
 .tv-leg-ohlc i{font-style:normal;color:var(--tv-mute);margin-right:2px}
 .tv-leg-name{color:var(--tv-mute)}
 .tv-leg-vals{display:inline-flex;flex-wrap:wrap;gap:0 8px}
-.tv-leg-ind{pointer-events:auto;width:max-content;max-width:100%;padding-right:2px;border-radius:3px}
-.tv-leg-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:0;border-radius:3px;background:transparent;color:var(--tv-mute);cursor:pointer;opacity:0}
-.tv-leg-ind:hover .tv-leg-x,.tv-leg-x:focus-visible{opacity:1}
+.tv-leg-ind{width:max-content;max-width:100%;padding-right:2px;border-radius:3px}
+/* The legend never takes the chart's clicks / taps (drawing, selecting, panning
+   under it) — only its own small buttons do. */
+.tv-leg-x,.tv-orb-chip button{pointer-events:auto}
+.tv-leg-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:0;border-radius:3px;background:transparent;color:var(--tv-mute);cursor:pointer;opacity:.45}
+.tv-leg-x:hover,.tv-leg-x:focus-visible{opacity:1}
+.tv-armed~.tv-legend .tv-leg-x,.tv-armed~.tv-legend .tv-orb-chip button{pointer-events:none}
 .tv-leg-x:hover{background:var(--tv-hi);color:var(--tv-fg)}
 .tv-dim{color:var(--tv-mute)}
 .tv-warn{color:var(--tv-caution)}
@@ -878,6 +1052,16 @@ html[data-mode=light] .tv-wm{opacity:.09}
   .tv-phone-flex{display:inline-flex}
   .tv-phone-only,.tv-mactions.tv-phone-only{display:flex}
   .tv-top{height:48px;gap:0;padding:0 2px}
+  /* an open menu is a bottom sheet: lift the bar that holds it over the scrim (and the app dock) */
+  .tv-root.tv-menu-open .tv-top{z-index:1001}
+  .tv-status .tv-clock,.tv-status .tv-st-session,.tv-status .tv-st-scale{display:none}
+  .tv-tfchips button{min-width:40px}
+  .tv-menu .tv-seg button{flex:1}
+  .tv-menu .tv-seg{display:flex}
+  .tv-menu .tv-seg.tv-phone-only{display:flex}
+  .tv-cmp .tv-text-in{height:44px;font-size:16px}
+  .tv-float .tv-text-in{height:40px;font-size:16px;width:140px;flex:none}
+  .tv-exitfull{right:60px}
   .tv-top .tv-sep{display:none}
   .tv-sym{overflow:hidden}
   .tv-sym input{min-width:0}
@@ -896,13 +1080,18 @@ html[data-mode=light] .tv-wm{opacity:.09}
   .tv-legend{right:64px;font-size:12px;flex-direction:row;flex-wrap:wrap;gap:0 10px;align-content:flex-start}
   .tv-leg-main,.tv-leg-row:not(.tv-leg-ind){flex-basis:100%}
   .tv-leg-ind .tv-leg-vals,.tv-leg-x{display:none}
-  .tv-leg-ind{pointer-events:none}
-  .tv-float{top:auto;bottom:6px;left:6px;right:6px;width:auto;max-width:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  /* two rows on a phone: colours, then width · text · lock · delete — nothing scrolled out of reach */
+  .tv-float{top:auto;bottom:6px;left:6px;right:6px;width:auto;max-width:none;flex-wrap:wrap;justify-content:space-between;row-gap:4px}
   .tv-float::-webkit-scrollbar{display:none}
   .tv-float-name{display:none}
   .tv-swatches,.tv-widths{flex:none}
+  .tv-swatches{flex:1 1 100%;justify-content:space-between;border-left:0;padding:0}
+  .tv-widths{border-left:0;padding:0}
   .tv-float .tv-tb{min-width:40px;height:40px}
-  .tv-sw{width:26px;height:26px}
+  /* the app's phone rule makes every button ≥ 44px: eight swatches need 352px, so the row scrolls on the narrowest phones */
+  .tv-float .tv-sw{flex:none}
+  .tv-swatches{gap:2px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+  .tv-swatches::-webkit-scrollbar{display:none}
   .tv-w{width:32px;height:32px}
   .tv-side{position:absolute;inset:0 0 0 auto;width:min(86vw,320px);z-index:8;box-shadow:-12px 0 30px rgba(0,0,0,.5)}
   .tv-hint{bottom:8px}

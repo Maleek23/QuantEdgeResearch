@@ -13,8 +13,8 @@ import type {
   IPrimitivePaneView, Logical, PrimitiveHoveredItem, SeriesAttachedParameter, SeriesType, Time,
 } from 'lightweight-charts';
 import {
-  channelOffsetLine, channelPriceOffset, fibLevels, fmtDuration, hitTestAll, measure, rayEnd,
-  timeToLogical, type ColorRole, type Drawing, type HitPart, type Projected, type Pt,
+  channelOffsetLine, channelPriceOffset, fibLevels, fmtDuration, hitTestAll, logicalToX, measure, MOUSE_TOL, rayEnd,
+  timeToLogical, type ColorRole, type Drawing, type HitPart, type HitTol, type Projected, type Pt,
 } from './drawing-geometry';
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
@@ -82,8 +82,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   logicalOf(t: number): number { return timeToLogical(this.state.times, t, this.state.barMs); }
 
   private x(t: number): number | null {
-    const c = this.chart?.timeScale().logicalToCoordinate(this.logicalOf(t) as Logical);
-    return c == null ? null : c;
+    const ts = this.chart?.timeScale();
+    if (!ts) return null;
+    return logicalToX((i) => ts.logicalToCoordinate(i as Logical), this.logicalOf(t));
   }
   private y(p: number): number | null {
     const c = this.series?.priceToCoordinate(p);
@@ -113,19 +114,24 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** lightweight-charts asks this on every pointer move: drives the cursor. */
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {
     if (this.drawingMode) return { externalId: 'draw', zOrder: 'top', cursorStyle: 'crosshair' };
+    if (this.locked) return null;
     const h = this.hit(x, y, this.size.w, this.size.h);
     if (!h) return null;
     const d = this.state.drawings.find((v) => v.id === h.id);
     return { externalId: h.id, zOrder: 'top', cursorStyle: d?.locked ? 'default' : h.part.kind === 'handle' ? 'move' : 'pointer' };
   }
 
-  /** Topmost drawing under (x, y) in pane pixels. */
-  hit(x: number, y: number, w: number, h: number): { id: string; part: HitPart } | null {
+  /** Topmost drawing under (x, y) in pane pixels (the selected one's handles first). */
+  hit(x: number, y: number, w: number, h: number, tol: HitTol = MOUSE_TOL): { id: string; part: HitPart } | null {
     if (this.state.allHidden) return null;
     const list: Projected[] = [];
     for (const d of this.state.drawings) { const p = this.project(d); if (p) list.push(p); }
-    return hitTestAll(list, x, y, w, h);
+    return hitTestAll(list, x, y, w, h, tol, this.state.selectedId);
   }
+  /** "Lock all": nothing is grabbable, the cursor stays the chart's. */
+  locked = false;
+  /** The last pointer was a finger: draw bigger handles. */
+  touchUi = false;
 
   /* ── axis labels for horizontal lines (and the selected drawing's anchors) ── */
 
@@ -352,7 +358,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private handle(ctx: CanvasRenderingContext2D, p: Pt, col: string, surface: string, selected: boolean) {
     ctx.globalAlpha = 1;
-    ctx.beginPath(); ctx.arc(p.x, p.y, selected ? 5 : 4, 0, Math.PI * 2);
+    // Touch: a finger-sized handle on the selected drawing (the hit area is 20px).
+    ctx.beginPath(); ctx.arc(p.x, p.y, selected ? (this.touchUi ? 8 : 5) : 4, 0, Math.PI * 2);
     ctx.fillStyle = surface; ctx.fill();
     ctx.lineWidth = selected ? 2 : 1.5; ctx.strokeStyle = col; ctx.stroke();
   }

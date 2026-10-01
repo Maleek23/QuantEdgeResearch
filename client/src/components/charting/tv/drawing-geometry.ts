@@ -90,6 +90,22 @@ export function logicalToTime(times: ArrayLike<number>, l: number, barMs: number
   return times[i] + (l - i) * Math.min(span, step);
 }
 
+/**
+ * Fractional logical index → x pixel. lightweight-charts v5's
+ * timeScale().logicalToCoordinate() only maps WHOLE indices (a fractional one
+ * returns 0 — the left edge), so a drawing anchored between bars (made on
+ * another timeframe, a brush stroke, a time that is not a bar of this series)
+ * collapsed onto the left edge. Interpolate between the two whole neighbours.
+ */
+export function logicalToX(toX: (i: number) => number | null, l: number): number | null {
+  if (!Number.isFinite(l)) return null;
+  const i = Math.floor(l);
+  const a = toX(i);
+  if (a == null || l === i) return a;
+  const b = toX(i + 1);
+  return b == null ? null : a + (b - a) * (l - i);
+}
+
 /** Median spacing between bars (ms) — the bar length used to extrapolate. */
 export function medianBarMs(times: ArrayLike<number>, fallback = 60_000): number {
   const gaps: number[] = [];
@@ -220,15 +236,35 @@ export interface Projected {
 export const HIT_TOL = 6;
 export const HANDLE_R = 5;
 
-export function hitTest(pr: Projected, x: number, y: number, w: number, h: number, tol = HIT_TOL): HitPart | null {
+/** Pixel tolerances for a pointer: a fingertip covers ~2× what a mouse does. */
+export interface HitTol { line: number; handle: number }
+export const MOUSE_TOL: HitTol = { line: HIT_TOL, handle: HANDLE_R + 3 };
+export const TOUCH_TOL: HitTol = { line: 14, handle: 20 };
+export const tolFor = (pointerType: string | undefined): HitTol => (pointerType === 'touch' || pointerType === 'pen' ? TOUCH_TOL : MOUSE_TOL);
+
+export function hitTest(pr: Projected, x: number, y: number, w: number, h: number, tol: number | HitTol = HIT_TOL): HitPart | null {
+  const t: HitTol = typeof tol === 'number' ? { line: tol, handle: Math.max(HANDLE_R + 3, tol + 2) } : tol;
+  return hitTestWith(pr, x, y, w, h, t);
+}
+
+/** Nearest handle within the handle tolerance, or null. */
+export function hitHandle(pr: Projected, x: number, y: number, handleTol: number): number | null {
+  if (pr.d.tool === 'brush') return null;
+  let best = -1; let bestD = handleTol;
+  for (let i = 0; i < pr.pts.length; i++) {
+    const dd = Math.hypot(pr.pts[i].x - x, pr.pts[i].y - y);
+    if (dd <= bestD) { bestD = dd; best = i; }
+  }
+  return best >= 0 ? best : null;
+}
+
+function hitTestWith(pr: Projected, x: number, y: number, w: number, h: number, t: HitTol): HitPart | null {
   const { d, pts } = pr;
   const p = { x, y };
-  // Handles first (selected or not — grabbing an end is how you edit).
-  if (d.tool !== 'brush') {
-    for (let i = 0; i < pts.length; i++) {
-      if (Math.hypot(pts[i].x - x, pts[i].y - y) <= HANDLE_R + 3) return { kind: 'handle', index: i };
-    }
-  }
+  const tol = t.line;
+  // Handles first (selected or not — grabbing an end is how you edit); the nearest wins.
+  const hi = hitHandle(pr, x, y, t.handle);
+  if (hi != null) return { kind: 'handle', index: hi };
   const body: HitPart = { kind: 'body' };
   const [a, b] = pts;
   switch (d.tool) {
@@ -268,7 +304,7 @@ export function hitTest(pr: Projected, x: number, y: number, w: number, h: numbe
       return x >= a.x - tol && x <= a.x + tw + tol && y >= a.y - 16 - tol && y <= a.y + 4 + tol ? body : null;
     }
     case 'arrow':
-      return a && Math.hypot(a.x - x, (a.y + (d.dir === 'down' ? -9 : 9)) - y) <= 12 ? body : null;
+      return a && Math.hypot(a.x - x, (a.y + (d.dir === 'down' ? -9 : 9)) - y) <= Math.max(12, tol + 4) ? body : null;
     case 'brush':
       for (let i = 1; i < pts.length; i++) if (distToSegment(p, pts[i - 1], pts[i]) <= tol) return body;
       return null;
@@ -291,11 +327,21 @@ function insideQuad(p: Pt, q: Pt[]): boolean {
   return inside;
 }
 
-/** Topmost hit (last drawn wins), skipping hidden drawings. */
-export function hitTestAll(list: Projected[], x: number, y: number, w: number, h: number): { id: string; part: HitPart } | null {
+/**
+ * Topmost hit (last drawn wins), skipping hidden drawings. The selected
+ * drawing's handles are checked first: with touch tolerances a fingertip on a
+ * selected line's end must grab that handle, not a line drawn later nearby.
+ */
+export function hitTestAll(list: Projected[], x: number, y: number, w: number, h: number, tol: number | HitTol = HIT_TOL, selectedId: string | null = null): { id: string; part: HitPart } | null {
+  const t: HitTol = typeof tol === 'number' ? { line: tol, handle: Math.max(HANDLE_R + 3, tol + 2) } : tol;
+  if (selectedId) {
+    const sel = list.find((p) => p.d.id === selectedId && !p.d.hidden);
+    const hi = sel ? hitHandle(sel, x, y, t.handle) : null;
+    if (sel && hi != null) return { id: sel.d.id, part: { kind: 'handle', index: hi } };
+  }
   for (let i = list.length - 1; i >= 0; i--) {
     if (list[i].d.hidden) continue;
-    const part = hitTest(list[i], x, y, w, h);
+    const part = hitTestWith(list[i], x, y, w, h, t);
     if (part) return { id: list[i].d.id, part };
   }
   return null;

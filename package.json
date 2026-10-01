@@ -38,6 +38,7 @@
     "db:push": "drizzle-kit push",
     "test:consistency": "tsx scripts/test-consistency.ts",
     "check:consistency": "tsx research/consistency-check.ts",
+    "test:chart": "tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts",
     "test:publish-gates": "tsx scripts/test-publish-gates.ts"
   },
   "dependencies": {

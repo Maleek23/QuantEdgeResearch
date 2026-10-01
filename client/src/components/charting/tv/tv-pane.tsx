@@ -26,8 +26,9 @@ import { etInfo, fmtVol, etClock, fmtUsd, shortDate } from '@/components/chartin
 import { useVisualMode } from '@/lib/visual-mode';
 import {
   DEFAULT_TOOL_COLOR, TOOL_POINTS, logicalToTime, medianBarMs, moveAnchor, newDrawingId, snapToOhlc,
-  timeToLogical, type Anchor, type ColorRole, type Drawing, type ToolId,
+  timeToLogical, tolFor, type Anchor, type ColorRole, type Drawing, type ToolId,
 } from './drawing-geometry';
+import { alignToTimes, calcEMA, calcSessionVWAP } from './indicators';
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
 
@@ -159,6 +160,12 @@ export interface TvPaneProps {
   magnet: boolean;
   showVolume: boolean;
   showMA: boolean;
+  /** EMA 9 / 21. */
+  showEMA: boolean;
+  /** Session VWAP (intraday only). */
+  showVWAP: boolean;
+  /** A second symbol drawn as a line (the price scale is in percent while it shows). */
+  compare: { symbol: string; bars: Candle[] } | null;
   levels: (Level & { dashed?: boolean })[];
   zones: Zone[];
   layers: Omit<LayersInput, 'bars' | 'zones' | 'cutoff'>;
@@ -183,10 +190,10 @@ const DEFAULT_BARS: Record<string, number> = { '1m': 240, '5m': 160, '15m': 140,
 export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(props, ref) {
   const {
     symbol, tf, tfLabel, intraday, history, extended, cutoff, liveOn, range, fitKey, chartType, scale, magnet,
-    showVolume, showMA, levels, zones, layers, drawings, selectedId, allHidden, allLocked, tool,
+    showVolume, showMA, showEMA, showVWAP, compare, levels, zones, layers, drawings, selectedId, allHidden, allLocked, tool,
     onSelect, onCommit, onToolDone, legendExtras, describeLayer,
   } = props;
-  const mode = useVisualMode();
+  const [mode] = useVisualMode();
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -194,6 +201,10 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const ma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const ma50Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema9Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema21Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const vwapRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const cmpRef = useRef<ISeriesApi<'Line'> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const colorsRef = useRef<TvColors | null>(null);
   const legend = useMemo(() => new LegendStore(), []);
@@ -260,6 +271,11 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     volRef.current = vol;
     ma20Ref.current = chart.addSeries(LineSeries, { color: c.accent, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
     ma50Ref.current = chart.addSeries(LineSeries, { color: c.caution, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
+    const quiet = { priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false } as const;
+    ema9Ref.current = chart.addSeries(LineSeries, { ...quiet, color: c.info, lineWidth: 1 });
+    ema21Ref.current = chart.addSeries(LineSeries, { ...quiet, color: c.marker, lineWidth: 1 });
+    vwapRef.current = chart.addSeries(LineSeries, { ...quiet, color: c.text, lineWidth: 2, lineStyle: LineStyle.Dotted });
+    cmpRef.current = chart.addSeries(LineSeries, { ...quiet, color: c.dim, lineWidth: 2, lastValueVisible: true, title: '' });
 
     const onMove = (p: MouseEventParams<Time>) => {
       const bs = barsRef.current;
@@ -277,6 +293,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       chart.unsubscribeCrosshairMove(onMove);
       chart.remove();
       chartRef.current = null; mainRef.current = null; volRef.current = null; ma20Ref.current = null; ma50Ref.current = null;
+      ema9Ref.current = null; ema21Ref.current = null; vwapRef.current = null; cmpRef.current = null;
       linesRef.current = [];
       dataRef.current = { first: null, len: 0 };
     };
@@ -329,6 +346,10 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     }
     ma20Ref.current?.applyOptions({ color: c.accent });
     ma50Ref.current?.applyOptions({ color: c.caution });
+    ema9Ref.current?.applyOptions({ color: c.info });
+    ema21Ref.current?.applyOptions({ color: c.marker });
+    vwapRef.current?.applyOptions({ color: c.text });
+    cmpRef.current?.applyOptions({ color: c.dim });
     setDataTick((n) => n + 1); // volume colours are per bar
   }, [mode, chartType, setDataTick]);
 
@@ -348,7 +369,10 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       const low = b.clampedLow ? Math.min(b.open, b.close) : b.low;
       return { time, open: b.open, high, low, close: b.close };
     };
-    const volPoint = (b: Candle) => ({ time: toChartTime(b.time), value: b.volume, color: withAlpha(b.close >= b.open ? c.up : c.down, 0.32) });
+    // A feed without volume (some indices, the harness) leaves whitespace, not NaN bars.
+    const volPoint = (b: Candle) => (Number.isFinite(b.volume)
+      ? { time: toChartTime(b.time), value: b.volume, color: withAlpha(b.close >= b.open ? c.up : c.down, 0.32) }
+      : { time: toChartTime(b.time) });
     const prev = dataRef.current;
     const n = bars.length;
     const first = n ? bars[0].time : null;
@@ -362,11 +386,16 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       vol.setData(showVolume ? bars.map(volPoint) : []);
     }
     dataRef.current = { first, len: n };
+    const line = (vals: (number | null)[]) => bars.map((b, i) => (vals[i] == null ? { time: toChartTime(b.time) } : { time: toChartTime(b.time), value: vals[i]! }));
     if (showMA && n) {
-      const m20 = calcMA(bars, 20); const m50 = calcMA(bars, 50);
-      ma20Ref.current?.setData(bars.map((b, i) => (m20[i] == null ? { time: toChartTime(b.time) } : { time: toChartTime(b.time), value: m20[i]! })));
-      ma50Ref.current?.setData(bars.map((b, i) => (m50[i] == null ? { time: toChartTime(b.time) } : { time: toChartTime(b.time), value: m50[i]! })));
+      ma20Ref.current?.setData(line(calcMA(bars, 20)));
+      ma50Ref.current?.setData(line(calcMA(bars, 50)));
     }
+    if (showEMA && n) {
+      ema9Ref.current?.setData(line(calcEMA(bars, 9)));
+      ema21Ref.current?.setData(line(calcEMA(bars, 21)));
+    }
+    vwapRef.current?.setData(showVWAP && intraday && n ? line(calcSessionVWAP(bars, (t) => etInfo(t).date)) : []);
     // primitives
     drawPrim.set({ times, barMs });
     const last = bars[n - 1];
@@ -377,15 +406,29 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       needFit.current = false;
       applyDefaultRange(chart, bars, tf, intraday, range);
     }
-  }, [bars, times, barMs, chartType, showVolume, showMA, precision, colors, drawPrim, countPrim, legend, tf, intraday, range, liveOn, cutoff, dataTick]);
+  }, [bars, times, barMs, chartType, showVolume, showMA, showEMA, showVWAP, precision, colors, drawPrim, countPrim, legend, tf, intraday, range, liveOn, cutoff, dataTick]);
+
+  /* compare symbol: only at the main series' bar times (never adds time points) */
+  const cmpBars = compare?.bars;
+  const cmpSym = compare?.symbol ?? '';
+  useEffect(() => {
+    const s = cmpRef.current;
+    if (!s) return;
+    const pts = cmpBars ? alignToTimes(cmpBars, times) : [];
+    s.applyOptions({ visible: pts.length > 1, title: cmpSym });
+    s.setData(pts.map((b) => ({ time: toChartTime(b.time), value: b.close })));
+  }, [cmpBars, cmpSym, times]);
 
   /* volume / MA visibility + price-scale margins */
   useEffect(() => {
     volRef.current?.applyOptions({ visible: showVolume });
     ma20Ref.current?.applyOptions({ visible: showMA });
     ma50Ref.current?.applyOptions({ visible: showMA });
+    ema9Ref.current?.applyOptions({ visible: showEMA });
+    ema21Ref.current?.applyOptions({ visible: showEMA });
+    vwapRef.current?.applyOptions({ visible: showVWAP && intraday });
     chartRef.current?.priceScale('right').applyOptions({ scaleMargins: { top: 0.08, bottom: showVolume ? 0.2 : 0.08 } });
-  }, [showVolume, showMA]);
+  }, [showVolume, showMA, showEMA, showVWAP, intraday]);
 
   /* scale mode */
   useEffect(() => {
@@ -443,6 +486,8 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     drawPrim.set({ drawings: list, selectedId, allHidden });
   }, [drawPrim, drawings, selectedId, allHidden, mode]);
 
+  useEffect(() => { drawPrim.locked = allLocked; }, [drawPrim, allLocked]);
+
   const armed = tool !== 'cursor';
   useEffect(() => {
     drawPrim.drawingMode = armed;
@@ -484,10 +529,10 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   };
 
   const hideTip = () => { if (tipRef.current) tipRef.current.style.display = 'none'; };
-  const showTip = (x: number, y: number) => {
+  const showTip = (x: number, y: number, touch = false) => {
     const tip = tipRef.current; const host = hostRef.current;
     if (!tip || !host || !describeLayer) return;
-    const lines = describeLayer(layerPrim.hit(x, y));
+    const lines = describeLayer(layerPrim.hit(x, y, touch ? 12 : 4));
     if (!lines) { hideTip(); return; }
     tip.replaceChildren(...lines.map((l) => {
       const div = document.createElement('div');
@@ -518,6 +563,8 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     if (!inPane(x, y)) return;
     const it = interact.current;
     it.pointer = { x, y };
+    const touchUi = e.pointerType !== 'mouse';
+    if (drawPrim.touchUi !== touchUi) { drawPrim.touchUi = touchUi; drawPrim.set({}); }
     const t = toolRef.current;
     if (t !== 'cursor') {
       e.preventDefault();
@@ -554,7 +601,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     }
     // cursor: grab a drawing?
     const w = chartRef.current!.timeScale().width(); const h = chartRef.current!.paneSize(0).height;
-    const hit = allLocked ? null : drawPrim.hit(x, y, w, h);
+    const hit = allLocked ? null : drawPrim.hit(x, y, w, h, tolFor(e.pointerType));
     it.down = { x, y, placedOnDown: false };
     if (hit) {
       const d = drawings.find((v) => v.id === hit.id);
@@ -654,11 +701,13 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     // a click / tap on empty chart clears the selection; a tap shows the layer tooltip
     if (down && Math.hypot(x - down.x, y - down.y) < 5 && toolRef.current === 'cursor') {
       if (selectedId) onSelect(null);
-      if (e.pointerType !== 'mouse') showTip(x, y);
+      if (e.pointerType !== 'mouse') showTip(x, y, true);
     }
   };
 
-  const onPointerLeave = () => { interact.current.pointer = null; hideTip(); };
+  // A finger lifting fires pointerleave right after pointerup: only the mouse
+  // leaving hides the tooltip (a tap's tooltip stays until the next tap).
+  const onPointerLeave = (e: React.PointerEvent) => { interact.current.pointer = null; if (e.pointerType === 'mouse') hideTip(); };
 
   /* ── imperative handle ── */
   useImperativeHandle(ref, () => ({

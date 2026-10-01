@@ -58,6 +58,10 @@ export interface ChartPrefs {
   /** Full chart: volume histogram at the foot of the price pane (TV default on;
    *  independent of the compact embeds' `volume` pane). */
   fullVolume: boolean;
+  /** Full chart: EMA 9 / 21 quick indicator. */
+  ema: boolean;
+  /** Full chart: session VWAP (intraday timeframes). */
+  vwap: boolean;
   /** Keys the user explicitly set (the rest follow DEFAULT_CHART_PREFS). */
   setKeys?: (keyof ChartPrefs)[];
 }
@@ -69,7 +73,7 @@ export const CHART_PREFS_KEY = 'qe-chart-v2';
 const LEGACY_KEY = 'qe-flowchart-v1';
 export const DEFAULT_CHART_PREFS: ChartPrefs = {
   tf: '5m', range: '1D', extended: true, gex: 'bubbles', dp: false, flow: false, ma: false, volume: false, type: 'candles',
-  walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true,
+  walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false,
 };
 
 function read(): ChartPrefs {
