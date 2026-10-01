@@ -2970,17 +2970,9 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing .lnav-inner .btn{min-height:44px;padding:0 14px;white-space:nowrap}
 }
 @media (max-width:380px){.landing .brand-slash,.landing .brand-name{display:none}}
-/* Fitted matrix (matrixGeometry in gex-strike-grid.tsx): fixed column widths
-   measured from the box — exactly 4–5 expiries per horizontal view, snapping
-   by expiry; strike + Σ columns pinned, strikes scroll vertically. */
-.gx-table.gx-fit{table-layout:fixed;min-width:0}
 /* the pinned headers sit above the scrolling expiry headers (the td rule after the z-7 rule had knocked sticky-r th back to 4) */
+/* Matrix (gex-strike-grid.tsx) is a fitted CSS grid — see "GEX matrix — FIT TO THE TILE" below. */
 .gx-table thead th.gx-sticky-l,.gx-table thead th.gx-sticky-r{z-index:7}
-.gx-table.gx-fit td{min-width:0}
-.gx-table.gx-fit td.gx-strike,.gx-table.gx-fit td.gx-sum{min-width:0;overflow:hidden;text-overflow:clip}
-.gx-table.gx-fit th.gx-exp{overflow:hidden;text-overflow:ellipsis;padding:4px 3px}
-.gx-scroll.gx-snap{scroll-snap-type:x mandatory}
-.gx-scroll.gx-snap th.gx-exp{scroll-snap-align:start}
 .gx-line.spot span{left:calc(var(--gx-strike-w,176px) + 14px);margin-left:calc(var(--gx-strike-w,176px) + 14px)}
 .gx-line.zg span{left:calc(var(--gx-strike-w,176px) + 124px);margin-left:calc(var(--gx-strike-w,176px) + 124px)}
 .gx-mid .gx-table td.gx-strike{padding:0 6px}
@@ -3002,7 +2994,6 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-narrow .gx-table thead th{padding:4px 2px;font-size:12px;letter-spacing:0;white-space:normal;line-height:1.2}
 .gx-narrow .gx-table thead th small{font-size:12px}
 .gx-narrow .gx-table thead th .gx-colnet{font-size:12px}
-.gx-narrow .gx-table.gx-fit th.gx-exp{text-overflow:clip}
 .gx-narrow .gx-cell{height:32px;padding:0 2px;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .gx-narrow .gx-cell.top{padding-left:9px}
 .gx-narrow .gx-cell.top::before{font-size:9px}
@@ -3041,6 +3032,83 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-narrow .gx-sum-bar{display:block;position:absolute;left:4px;right:4px;bottom:3px;width:auto;height:3px;margin:0}
 /* spot line: a price tag pinned at the strike column on phones */
 .gx-narrow .gx-line.spot span{display:inline-block;left:2px;margin-left:2px;font-size:12px;padding:0 4px}
+/* ═══ GEX matrix — FIT TO THE TILE (2026-10-01) ═══════════════════════════
+   gex-strike-grid.tsx: the table is a CSS grid (display:contents rows), the
+   strike + Σ columns fixed, every expiry column minmax(min,1fr) so it always
+   spans the tile's width; expiries page instead of scrolling sideways. Row
+   height, cell height and cell text come from the measured box as CSS vars
+   (--gx-row-h, --gx-cell-h, --gx-cell-fs ≥ 11px). ONE toolbar row; the
+   legend, units and rarely used toggles live behind (i) and ⋯ (gex-pop.tsx). */
+.gx-wrap{container:gxm/inline-size}
+.gx-wrap .gx-table.gx-grid{display:grid;width:100%;min-width:0;font-size:var(--gx-cell-fs,12px)}
+.gx-grid thead,.gx-grid tbody,.gx-grid tr{display:contents}
+.gx-wrap .gx-grid th,.gx-wrap .gx-grid td{min-width:0;box-sizing:border-box}
+.gx-wrap .gx-grid thead th{height:var(--gx-head-h,46px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px 3px;overflow:hidden;line-height:1.15}
+.gx-wrap .gx-grid thead th.gx-sticky-l{align-items:flex-start;padding-left:8px}
+.gx-wrap .gx-grid thead th.gx-sticky-r{align-items:flex-end;padding-right:8px}
+.gx-wrap .gx-grid .gx-exp-d{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.gx-wrap .gx-grid .gx-exp-d small{display:inline;margin-left:4px;font-size:inherit;opacity:.85}
+.gx-wrap .gx-grid .gx-colnet{margin-top:0;max-width:100%;overflow:hidden;white-space:nowrap}
+.gx-wrap .gx-grid tbody td{height:var(--gx-row-h,26px);display:flex;align-items:center;justify-content:center;padding:1px 2px}
+.gx-wrap .gx-grid tbody td.gx-strike{justify-content:flex-start;overflow:hidden;padding:0 6px 0 8px}
+.gx-wrap .gx-grid tbody td.gx-sum{position:sticky;justify-content:flex-end;overflow:hidden;padding:0 8px 0 4px}
+.gx-wrap .gx-grid tr.gx-spacer td{display:block;padding:0;border:0}
+.gx-wrap .gx-grid .gx-cell{height:var(--gx-cell-h,22px);font-size:var(--gx-cell-fs,12px);font-variant-numeric:tabular-nums;padding:0 clamp(2px,calc(var(--gx-cell-fs,12px) * .35),6px)}
+.gx-wrap .gx-grid .gx-cell.top{padding-left:clamp(9px,calc(var(--gx-cell-fs,12px) + 1px),14px)}
+.gx-wrap.gx-compact .gx-grid .gx-cell.top{padding-left:2px}
+.gx-wrap.gx-compact .gx-grid .gx-cell.top::before{display:none} /* rank: ring + king fill + aria-label */
+.gx-wrap.gx-mid .gx-sum-bar{width:20px;margin-right:4px}
+.gx-wrap.gx-narrow .gx-grid tbody td.gx-strike{padding:0 3px 0 4px}
+.gx-wrap.gx-narrow .gx-grid tbody td.gx-sum{padding:0 4px}
+.gx-wrap.gx-narrow .gx-grid thead th{font-size:12px}
+/* toolbar: ONE row (wraps only when the tile is too narrow for it) */
+.gx-wrap .gx-toolbar{flex-wrap:wrap;overflow:visible;gap:5px 6px;padding:5px 6px;font-size:10.5px;color:var(--text-dim,#aab3c5);-webkit-mask-image:none;mask-image:none}
+.gx-wrap .gx-toolbar>*{flex:none}
+.gx-wrap .gx-toolbar .of-seg button{height:26px;min-height:26px;padding:0 8px;font-size:11px}
+.gx-wrap .gx-toolbar .of-seg button .dim{font-weight:500}
+.gx-wrap .gx-toolbar .of-seg button.on .dim{color:inherit}
+.gx-wrap.gx-narrow .gx-spot-btn,.gx-wrap.gx-narrow .gx-pager{order:0}
+.gx-wrap .gx-spot-btn{height:26px;font-size:11px;padding:0 8px}
+.gx-tb-end{display:inline-flex;align-items:center;gap:4px;margin-left:auto}
+.gx-wrap .gx-pager{align-items:center;gap:3px}
+.gx-wrap .gx-pager button{height:26px;min-width:26px;padding:0 6px}
+.gx-wrap .gx-pager button:disabled{opacity:.35;cursor:default}
+.gx-pager-label{font:600 11px 'JetBrains Mono',monospace;color:var(--text,#e8ecf3);white-space:nowrap}
+.gx-pager-label small{font-size:10px;color:var(--text-dim,#aab3c5)}
+.gx-wrap .gx-line.spot span{left:calc(var(--gx-strike-w) + 6px);margin-left:calc(var(--gx-strike-w) + 6px)}
+.gx-wrap .gx-line.zg span{left:calc(var(--gx-strike-w) + 110px);margin-left:calc(var(--gx-strike-w) + 110px)}
+.gx-wrap.gx-compact .gx-grid .gx-exp-d small{display:block;margin-left:0}
+.gx-wrap.gx-compact .gx-grid thead th.gx-exp{padding:2px 1px;font-size:11px;letter-spacing:0}
+@container gxm (max-width:560px){.gx-wrap .gx-toolbar .of-seg button{padding:0 6px}.gx-wrap .gx-toolbar{gap:4px}}
+.gx-wrap.gx-narrow .gx-line.spot span{left:2px;margin-left:2px}
+.gx-wrap.gx-narrow .gx-line.zg span{left:calc(var(--gx-strike-w) + 4px);margin-left:calc(var(--gx-strike-w) + 4px)}
+.gx-horizon-sel{display:none;height:26px;padding:0 6px;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:6px;background:transparent;color:var(--text,#e8ecf3);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
+.gx-horizon-sel:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:2px}
+.gx-horizon-sel option{background:var(--panel-solid,#0f1622);color:var(--text,#e8ecf3)}
+@container gxm (max-width:900px){.gx-spot-word{display:none}}
+@container gxm (max-width:720px){.gx-wrap .gx-toolbar .gx-horizon{display:none}.gx-wrap .gx-toolbar .gx-horizon-sel{display:inline-block}}
+@container gxm (max-width:640px){.gx-pager-label small{display:none}}
+@container gxm (max-width:430px){.gx-pager-label{display:none}}
+/* (i) / ⋯ popovers — portalled to <body>, re-rooted in .flowdash.nexus-vars */
+.gx-pop-btn{display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:6px;background:transparent;color:var(--text-dim,#aab3c5);cursor:pointer;flex:none}
+.gx-pop-btn:hover,.gx-pop-btn.on{color:var(--text,#e8ecf3);border-color:var(--cyan-bright,#6aa8ff)}
+.gx-pop-btn:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:2px}
+.flowdash.gx-pop-layer{position:fixed;left:0;top:0;width:0;height:0;padding:0;z-index:1200;overflow:visible}
+.gx-pop-layer .gx-pop{position:fixed;overflow:auto;overscroll-behavior:contain;padding:10px 12px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-solid);color:var(--text);box-shadow:0 14px 34px rgba(0,0,0,.35);font:400 12px/1.5 Inter,system-ui,sans-serif;text-align:left}
+.gx-pop-layer .gx-pop p{margin:0 0 8px;color:var(--text-dim)}
+.gx-pop-layer .gx-pop b{color:var(--text)}
+.gx-pop-layer .gx-pop-h{margin:10px 0 6px;font:700 10.5px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+.gx-pop-layer .gx-pop-h:first-child{margin-top:0}
+.gx-pop-layer .gx-ramp{display:flex;min-width:0;margin:0 0 8px}
+.gx-pop-layer .gx-ramp-ticks{font-size:10px;color:var(--text-dim)}
+.gx-pop-layer .gx-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:0;border:0;font:500 11px 'JetBrains Mono',monospace;color:var(--text-dim)}
+.gx-pop-layer .gx-pop-mute{font-size:11px}
+.gx-pop-layer .gx-scale-seg{display:inline-flex}
+.gx-pop-layer .gx-scale-seg button{height:28px;font-size:11px}
+.gx-pop-layer .gx-toggle{font-size:12px;color:var(--text-dim)}
+.gx-pop-layer dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0}
+.gx-pop-layer dt{font:700 10px 'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);padding-top:2px}
+.gx-pop-layer dd{margin:0;color:var(--text);overflow-wrap:anywhere}
 .landing .lfooter-def{margin:0 0 16px;max-width:640px;font-size:13px;line-height:1.55;color:var(--text-dim)}
 
 /* ═══════════════════════ LANDING v2 — product story (2026-09-30) ═══════════════════════

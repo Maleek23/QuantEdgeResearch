@@ -10,7 +10,7 @@
  * Ticker tools follow the dashboard focus symbol; a row click re-points it.
  */
 import { reasonOf } from '@/lib/optimistic';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SlidersHorizontal } from 'lucide-react';
 import { FreshStamp } from '@/components/ui/qe-phone';
@@ -25,7 +25,7 @@ import { GexHubNexus } from '@/components/gex/gex-hub-nexus';
 import { GexRankingsPanel } from '@/components/gex/gex-rankings-panel';
 import { exposureText, fmtGexB, fmtVexM, LEVEL_COLORS, regimeColor } from '@/components/gex/gex-colors';
 import {
-  DTE_BUCKETS, type BucketId,
+  DTE_BUCKETS, type BucketId, readHorizon, writeHorizon, strikeBandOf,
   useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
   nearTermByStrike, shapeMatrix, regimeView, zeroGammaOf, gridLevelsOf, regimeNarrative,
   nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf, TERMINAL_TIMEOUT_MS,
@@ -38,7 +38,7 @@ import { oneOf, useUrlParam } from '@/lib/url-state';
 
 /** GEX view state in the URL (g.*) — read by the matrix; a copied link reproduces the view. */
 const G_METRIC = oneOf<'gex' | 'vex'>(['gex', 'vex'], 'gex');
-const G_BUCKET = oneOf<BucketId>(DTE_BUCKETS.map((b) => b.id), 'all');
+const G_BUCKET = oneOf<BucketId>(DTE_BUCKETS.map((b) => b.id), '0-14');
 const G_SCALE = oneOf<MatrixScale>(['column', 'absolute'], 'column');
 /** Gamma definition: raw | Δ-adjusted | both (docs/GAMMA_RAW_VS_ADJUSTED.md). */
 const G_GAMMA = oneOf<GammaView>(['raw', 'adj', 'both'], 'raw');
@@ -234,7 +234,8 @@ export function GexPhoneMatrixView() {
   const cellMetric = gexMetricOf(metric, view, adjOk);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const [levels, setLevels] = useState(false);
-  const shaped = useMemo(() => shapeMatrix(g.matrix, 'all', g.spot, cellMetric), [g.matrix, g.spot, cellMetric]);
+  const [bucket, setBucket] = useHorizon(true);
+  const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, cellMetric), [g.matrix, bucket, g.spot, cellMetric]);
   const blocked = gate(g);
   const asOf = g.q.data ? terminalAsOf(g.q.data) : null;
   const snapAt = asOf ? new Date(asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
@@ -252,12 +253,13 @@ export function GexPhoneMatrixView() {
             <SlidersHorizontal size={16} aria-hidden /><span>Levels</span>
           </button>
         </div>
-        {metric === 'gex' && (
-          <div className="gxp-gview-row">
-            <GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} className="of-seg gxp-gview" />
-            <span className="gxp-gview-note">{view === 'adj' ? 'Δ-adjusted: hedge for a real 1% move' : 'Raw: Γ·OI·S², per 1% move'}</span>
-          </div>
-        )}
+        <div className="gxp-gview-row">
+          {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} className="of-seg gxp-gview" />}
+          {/* horizon: 0–7d by default on a phone, remembered on this device */}
+          <select className="gxp-horizon" value={bucket} onChange={(e) => setBucket(e.target.value as BucketId)} aria-label="Days to expiry" title="Expiry horizon (remembered on this device)">
+            {DTE_BUCKETS.map((b) => <option key={b.id} value={b.id}>{b.label} · {shaped.bucketCounts[b.id]} exp</option>)}
+          </select>
+        </div>
         <div className="gxp-quote">
           <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
           {quote && Number.isFinite(quote.change) && (
@@ -270,7 +272,7 @@ export function GexPhoneMatrixView() {
         </div>
       </header>
       {blocked ?? (
-        <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiryAll} spot={g.spot} metric={cellMetric} symbol={g.symbol}
+        <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiries} spot={g.spot} metric={cellMetric} symbol={g.symbol}
           onCellClick={setDrill} chips={chips} onSymbol={g.setFocus} />
       )}
       {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
@@ -282,10 +284,43 @@ export function GexPhoneMatrixView() {
 }
 
 /* ════════════ Strike × expiry matrix ════════════ */
+/**
+ * Expiry horizon, remembered PER DEVICE CLASS (gex-model readHorizon): 0–7d on
+ * a phone, 0–14d on a tablet/desktop until the viewer picks another. A shared
+ * link's g.exp still wins on load.
+ */
+function useHorizon(phone: boolean): [BucketId, (b: BucketId) => void] {
+  const [bucket, setBucketState] = useState<BucketId>(() => readHorizon(phone));
+  useEffect(() => { setBucketState(readHorizon(phone)); }, [phone]);
+  const setBucket = useCallback((b: BucketId) => { setBucketState(b); writeHorizon(phone, b); }, [phone]);
+  return [bucket, setBucket];
+}
+
+/** The horizon chips (count of listed expiries in each). */
+function HorizonSeg({ bucket, onChange, counts }: { bucket: BucketId; onChange: (b: BucketId) => void; counts: Record<BucketId, number> }) {
+  // chips on a wide tile; a container query swaps in the compact select on a narrow one (nexus.css)
+  return (
+    <>
+      <select className="gx-horizon-sel" value={bucket} onChange={(e) => onChange(e.target.value as BucketId)} aria-label="Days to expiry" title="Expiry horizon (remembered on this device)">
+        {DTE_BUCKETS.map((b) => <option key={b.id} value={b.id}>{b.label} · {counts[b.id]}</option>)}
+      </select>
+      <div className="of-seg gx-horizon" role="group" aria-label="Days to expiry">
+        {DTE_BUCKETS.map((b) => (
+          <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} aria-pressed={bucket === b.id} onClick={() => onChange(b.id)}
+            title={`${b.label === 'ALL' ? 'Every listed expiry' : `Expiries ${b.label} out`} — ${counts[b.id]} listed`}>
+            {b.label}<span className="dim"> {counts[b.id]}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function GexMatrixTool() {
   const g = useGexFocus();
+  const narrow = useIsMobile();
   const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
-  const [bucket, setBucket] = useToolSetting<BucketId>('bucket', 'all');
+  const [bucket, setBucket] = useHorizon(narrow);
   const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
   const [gview, setGview] = useToolSetting<GammaView>('gammaView', 'raw');
   const urlOn = useDashboard().page === 'gex';
@@ -293,31 +328,32 @@ export function GexMatrixTool() {
   useUrlParam('g.exp', bucket, setBucket, G_BUCKET, urlOn);
   useUrlParam('g.scale', scale, setScale, G_SCALE, urlOn);
   useUrlParam('g.gamma', gview, setGview, G_GAMMA, urlOn);
-  const narrow = useIsMobile();
   const adjOk = hasAdjusted(g.matrix);
   const view = effectiveView(gview, narrow, adjOk);
   const cellMetric = gexMetricOf(metric, view, adjOk);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, cellMetric), [g.matrix, bucket, g.spot, cellMetric]);
+  const snap = g.snap;
+  const band = useMemo(
+    () => strikeBandOf(g.spot, g.q.data?.candles, [snap?.callWall, snap?.putWall, snap?.maxGammaStrike, snap ? zeroGammaOf(snap) : null]),
+    [g.spot, g.q.data?.candles, snap],
+  );
   const blocked = gate(g, 'strike × expiry surface');
   if (blocked) return blocked;
-  const last = shaped.expiryAll[shaped.expiryAll.length - 1];
+  // the tool's own controls ride in the matrix's ONE toolbar row
+  const leading = (
+    <>
+      <div className="of-seg" role="group" aria-label="Metric">
+        {(['gex', 'vex'] as const).map((m) => (
+          <button key={m} type="button" className={metric === m ? 'on' : ''} aria-pressed={metric === m} onClick={() => setMetric(m)} title={m === 'gex' ? 'GEX — $ dealers trade per 1% spot move' : 'VEX — $ dealers trade per 1 IV point'}>{m.toUpperCase()}</button>
+        ))}
+      </div>
+      {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={!narrow} available={adjOk} />}
+      <HorizonSeg bucket={bucket} onChange={setBucket} counts={shaped.bucketCounts} />
+    </>
+  );
   return (
     <div className="gx-tool gx-col">
-      <div className="gx-controls">
-        <div className="of-seg" role="group" aria-label="Metric">
-          {(['gex', 'vex'] as const).map((m) => (
-            <button key={m} type="button" className={metric === m ? 'on' : ''} onClick={() => setMetric(m)} title={m === 'gex' ? 'GEX — $ dealers trade per 1% spot move' : 'VEX — $ dealers trade per 1 IV point'}>{m.toUpperCase()}</button>
-          ))}
-        </div>
-        {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={!narrow} available={adjOk} />}
-        <div className="of-seg" role="group" aria-label="Days to expiry">
-          {DTE_BUCKETS.map((b) => (
-            <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} onClick={() => setBucket(b.id)}>{b.label}<span className="dim"> {shaped.bucketCounts[b.id]}</span></button>
-          ))}
-        </div>
-        <span className="gx-note gx-note-detail">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
-      </div>
       {metric === 'gex' && view !== 'raw' && <GammaLevelsCompare snap={g.snap} view={view} />}
       <div className="gx-grow matrix-wrap">
         <GexStrikeMatrix
@@ -326,11 +362,13 @@ export function GexMatrixTool() {
           levels={gridLevelsOf(g.snap, g.spot, metric === 'gex' ? view : 'raw')}
           metric={cellMetric}
           compare={metric === 'gex' && view === 'both'}
-          centerKey={`${g.symbol}|tool-surface|${metric}`}
+          centerKey={`${g.symbol}|tool-surface|${metric}|${bucket}`}
           onCellClick={setDrill}
           scale={scale}
           onScaleChange={setScale}
-          emptyText={`no listed cells for ${g.symbol} in this DTE bucket`}
+          strikeBand={band}
+          leading={leading}
+          emptyText={`no listed cells for ${g.symbol} in ${DTE_BUCKETS.find((b) => b.id === bucket)?.label ?? 'this'} — pick a wider horizon`}
         />
       </div>
       {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
@@ -387,10 +425,11 @@ export function GexKeyLevelsTool() {
           {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : null}
         </div>
         {/* Never a bare "chg —" / "Last close": say which feed and how old, or that it is missing. */}
-        <span className="dim" title="Spot is the GEX engine's chain spot; the change comes from the extended-hours quote feed">
-          {eh.isError && !eh.data ? 'change: quote feed unavailable · spot from GEX chain'
-            : eh.isLoading ? 'change: loading quote…'
-            : !quote ? `change: no ${g.symbol} quote in the extended-hours feed · spot from GEX chain`
+        {/* one short line; the full reason is the tooltip (GEX workspace fit, 2026-10-01) */}
+        <span className="dim gx-spot-note" title={`Spot is the GEX engine's chain spot; the change comes from the extended-hours quote feed.${eh.isError && !eh.data ? ' Quote feed unavailable.' : !eh.isLoading && !quote ? ` No ${g.symbol} quote in the extended-hours feed.` : ''}`}>
+          {eh.isError && !eh.data ? 'spot · GEX chain (no quote feed)'
+            : eh.isLoading ? 'loading quote…'
+            : !quote ? 'spot · GEX chain'
             : `${sessionLabelOf(eh.data)} quote${eh.data?.asOf ? ` · ${ageText(eh.data.asOf, now)}` : ''}`}
         </span>
       </div>
@@ -619,7 +658,7 @@ export function GexRankingsTool() {
 /* ════════════ Magnet setups / screener (rankings job) ════════════ */
 export function GexSetupsTool() {
   const [, setFocus] = useFocusSymbol();
-  return <div className="fd-scroll"><GexRankingsPanel onPick={setFocus} /></div>;
+  return <div className="fd-scroll"><GexRankingsPanel onPick={setFocus} compact /></div>;
 }
 
 /* ════════════ GEX hub (classic, all-in-one) ════════════ */

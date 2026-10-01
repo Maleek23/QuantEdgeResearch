@@ -20,7 +20,7 @@ export const GEX_TOOLS: ToolDef[] = [
     id: 'gex-matrix', category: 'GEX', title: 'Strike × Expiry Matrix',
     what: 'Every listed strike × expiry cell, GEX or VEX, filterable by days to expiry. Coloured per expiry by default (each column 0 → its own max; toggle Absolute), top-2 cells of every expiry labelled, net per expiry in the header; click a cell to drill.',
     units: 'GEX $/1% move · VEX $/IV pt', source: ENGINE, backing: `GexStrikeMatrix (gex-strike-grid.tsx) ← ${TERMINAL}`,
-    needs: ['symbol'], defaultSize: { w: 6, h: 14 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexMatrixTool'),
+    needs: ['symbol'], defaultSize: { w: 8, h: 18 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexMatrixTool'),
   },
   {
     id: 'gex-profile', category: 'GEX', title: 'Gamma Profile · zero-γ',
@@ -56,7 +56,7 @@ export const GEX_TOOLS: ToolDef[] = [
     id: 'gex-setups', category: 'GEX', title: 'Magnet Setups · screener',
     what: 'Magnet-detector hits (near-expiry gamma just beyond spot, opened today, price moving toward it), −VEX, lowest GEX+ and pins.',
     units: 'GEX $/1%, VEX $/IV pt, score', source: 'GEX rankings job', backing: 'GexRankingsPanel (components/gex/gex-rankings-panel.tsx) → /api/gex-vex/rankings',
-    ageInside: true, defaultSize: { w: 7, h: 13 }, minSize: { w: 5, h: 8 }, Component: lazyTool(gex, 'GexSetupsTool'),
+    ageInside: true, defaultSize: { w: 4, h: 7 }, minSize: { w: 3, h: 5 }, Component: lazyTool(gex, 'GexSetupsTool'),
   },
   {
     id: 'squeeze-radar', category: 'GEX', title: 'Squeeze Radar · gamma squeeze build',
@@ -80,21 +80,24 @@ export const GEX_TOOLS: ToolDef[] = [
 ];
 
 /**
- * GEX default — the essentials only, one screen (12 × 18). Operator
- * 2026-09-29: "users should have discretion to add a lot of these things,
- * like all the GEX stuff" — the price chart, near-term ladder, gamma profile,
- * gravity, rankings, magnet setups and money flow are one click away in Add
- * tool.
+ * GEX default — one screen (12 × 18), tiled exactly at every desktop/tablet
+ * size (rows scale: layout.ts fitRowHeight). Operator 2026-10-01: "this is
+ * GEX, it needs to fit to screen" + the Magnet Setups screener back in the
+ * default (it had dropped out of sight). The matrix keeps the full height —
+ * strikes are what a GEX read needs most; its columns stretch to the tile and
+ * page by width (gex-strike-grid.tsx).
  *
- *   ┌──────────── strike × expiry matrix 8×18 ────────────┬ key levels 4×9 ─┐
- *   │ per-expiry colour, 4–5 expiries per view             ├ regime 4×9 ─────┤
- *   └──────────────────────────────────────────────────────┴─────────────────┘
+ *   ┌──────────── strike × expiry matrix 8×18 ────────────┬ key levels 4×7 ─┐
+ *   │ 0–14d by default, columns fill the tile              ├ magnet setups 4×6┤
+ *   │                                                      ├ regime 4×5 ──────┤
+ *   └──────────────────────────────────────────────────────┴──────────────────┘
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
   tools: [
     ['gex-matrix', 0, 0, 8, 18],
-    ['gex-levels', 8, 0, 4, 9],
-    ['gex-regime', 8, 9, 4, 9],
+    ['gex-levels', 8, 0, 4, 7],
+    ['gex-setups', 8, 7, 4, 6],
+    ['gex-regime', 8, 13, 4, 5],
   ],
 }];

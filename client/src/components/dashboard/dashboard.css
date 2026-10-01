@@ -60,6 +60,15 @@
 .flowdash .fd-tool-blurb{margin-top:1px;font-size:10.5px;line-height:1.35;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .flowdash .fd-units{color:var(--text-mute);font-family:var(--fd-mono);font-size:9.5px;margin-left:4px}
 .flowdash .fd-tool-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+/* GEX workspace: ONE header row (title · symbol · age/source chip · (i)) */
+.flowdash .fd-one-row .fd-tool-head{align-items:center;padding:4px 6px 4px 6px}
+.flowdash .fd-one-row .fd-tool-title{align-items:center;gap:6px}
+.flowdash .fd-one-row .fd-tool-title>span:first-child{flex:0 1 auto;min-width:4ch;overflow:hidden;text-overflow:ellipsis}
+.flowdash .fd-one-row .fd-sym{flex:none}
+.flowdash .fd-age-chip{flex:0 4 auto;padding:1px 6px;border:1px solid var(--nx-border);border-radius:999px;background:var(--panel-2);color:var(--text-dim)}
+.flowdash .fd-age-chip.warn{border-color:color-mix(in srgb,var(--amber) 45%,transparent)}
+.flowdash .fd-info{flex:none;margin-left:auto;display:inline-flex}
+.flowdash .fd-one-row .fd-info .gx-pop-btn{width:22px;height:22px}
 .flowdash .fd-resize{position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;z-index:5;touch-action:none;background:linear-gradient(135deg,transparent 50%,var(--nx-border-hi) 50%,var(--nx-border-hi) 60%,transparent 60%,transparent 72%,var(--nx-border-hi) 72%,var(--nx-border-hi) 82%,transparent 82%)}
 .flowdash .fd-tile.stacked .fd-resize{display:none}
 
@@ -262,6 +271,16 @@
 .flowdash .gx-tool .flow-wrap{margin-top:0}
 /* the hub's rankings table inside a tile */
 .flowdash .fd-scroll>.gexrank{min-width:0}
+/* Magnet Setups tile: view tabs + (i) on one row; the explainer lives in the popover */
+.flowdash .gexrank-bar{display:flex;align-items:center;gap:6px;padding:0 8px}
+.flowdash .gexrank-bar .gexrank-tabs{flex:1;min-width:0;gap:4px}
+.flowdash .fd-scroll>.gexrank:has(.gexrank-bar){gap:8px;padding-top:6px}
+.gx-pop-layer .gexrank-pop{display:flex;flex-direction:column;gap:8px}
+/* phones: the screener stacks under the GEX matrix — phone text floor 12px */
+@media (max-width:767px){
+  .flowdash .gexrank-empty,.flowdash .gexrank-foot,.flowdash .gexsetup ul,.flowdash .gexsetup-meta,
+  .flowdash .gexrank-table th,.flowdash .gexrank-table td,.flowdash .gexrank-table td .sub{font-size:12px}
+}
 
 /* ══════════════ loading & motion (2026-09-29, docs/DESIGN_SYSTEM.md "Loading") ══════════════
    Whatever lands in a tool body (skeleton, then content) fades in ≤150ms —
@@ -527,6 +546,8 @@ html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){bor
   .flowdash .gxp-gview-row{display:flex;align-items:center;gap:10px;margin-top:6px}
   .flowdash .gxp-gview button{min-height:44px;min-width:64px;font-size:12px}
   .flowdash .gxp-gview-note{font-size:12px;color:var(--text-dim)}
+  .flowdash .gxp-horizon{margin-left:auto;min-height:44px;padding:0 10px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 13px var(--fd-mono);cursor:pointer}
+  .flowdash .gxp-horizon:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px}
   .flowdash .gxp-levels-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 13px Inter,system-ui,sans-serif;cursor:pointer}
   .flowdash .gxp-quote{display:flex;align-items:baseline;gap:10px;min-width:0;white-space:nowrap}
   .flowdash .gxp-px{font:700 24px/1.1 var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums}

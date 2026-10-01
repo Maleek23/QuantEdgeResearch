@@ -32,6 +32,8 @@ export interface TerminalData {
   cachedAt?: string;
   optionsSource?: string;
   dataQuality?: { bestSource?: string; isStale?: boolean; marketStatus?: string };
+  /** 15m candles, 5 sessions (the request's interval/lookback) — the matrix's strike band uses their realized vol */
+  candles?: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }>;
 }
 export interface Sector { etf: string; name: string; change: number }
 export interface RotationPayload { leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[]; sessionLabel?: string; generatedAt?: string; asOf?: string }
@@ -83,14 +85,88 @@ export const useExtendedHoursNexus = () => useQuery<EHPayload>({
 });
 
 /* ── DTE buckets for the strike × expiry surface ── */
+/* Chip order = reading order (operator 2026-10-01: "this is GEX, it needs to
+   fit to screen, especially 0–7 days or 14 possibly"): the near-term horizons
+   first, ALL last. 0–7d is the phone default, 0–14d the tablet/desktop one. */
 export const DTE_BUCKETS = [
-  { id: 'all', label: 'ALL', test: (d: number) => d >= 0 },
   { id: '0-7', label: '0–7d', test: (d: number) => d >= 0 && d <= 7 },
+  { id: '0-14', label: '0–14d', test: (d: number) => d >= 0 && d <= 14 },
   { id: '7-30', label: '7–30d', test: (d: number) => d > 7 && d <= 30 },
   { id: '30-90', label: '30–90d', test: (d: number) => d > 30 && d <= 90 },
   { id: '90+', label: '90d+', test: (d: number) => d > 90 },
+  { id: 'all', label: 'ALL', test: (d: number) => d >= 0 },
 ] as const;
 export type BucketId = typeof DTE_BUCKETS[number]['id'];
+/** Default horizon per device class: phones read the week, wider screens two. */
+export const defaultBucketFor = (phone: boolean): BucketId => (phone ? '0-7' : '0-14');
+
+/**
+ * Remembered horizon, PER DEVICE CLASS (phone vs tablet/desktop), in this
+ * browser's localStorage. Unavailable storage (private mode, blocked) just
+ * means the default every visit.
+ */
+const HORIZON_KEY = (phone: boolean) => `qe-gex-horizon:${phone ? 'phone' : 'desk'}`;
+export function readHorizon(phone: boolean): BucketId {
+  try {
+    const v = localStorage.getItem(HORIZON_KEY(phone));
+    if (v && DTE_BUCKETS.some((b) => b.id === v)) return v as BucketId;
+  } catch { /* blocked storage */ }
+  return defaultBucketFor(phone);
+}
+export function writeHorizon(phone: boolean, b: BucketId) {
+  try { localStorage.setItem(HORIZON_KEY(phone), b); } catch { /* blocked storage */ }
+}
+
+/**
+ * Default STRIKE BAND for the matrix — the useful part of the book, sized so
+ * it fills the screen instead of 600 strikes of dust.
+ *
+ * 1-week expected move (1σ) = spot · σ_day · √5. The terminal payload carries
+ * no implied vol, so σ_day is REALIZED: intraday log returns of the payload's
+ * own candles (overnight gaps excluded), scaled to a 6.5h session. Band =
+ * ±1.5 × that move, widened to take in the structural levels (call/put wall,
+ * king node, zero-γ) that sit within ±3 moves, and clamped to ±1.5%…±25% of
+ * spot. No usable candles → the walls set the band (±25% around them), else
+ * ±5%. Always labelled with its basis; the ⋯ menu shows every strike.
+ */
+export interface StrikeBand { lo: number; hi: number; pct: number; move: number | null; basis: string }
+export function strikeBandOf(
+  spot: number,
+  candles: Array<{ time: number; close: number }> | undefined,
+  levels: Array<number | null | undefined>,
+): StrikeBand | null {
+  if (!(spot > 0)) return null;
+  let move: number | null = null;
+  const cs = (candles ?? []).filter((c) => c.close > 0 && Number.isFinite(c.time)).sort((a, b) => a.time - b.time);
+  if (cs.length >= 20) {
+    const gaps = cs.slice(1).map((c, i) => c.time - cs[i].time).filter((g) => g > 0).sort((a, b) => a - b);
+    const step = gaps[Math.floor(gaps.length / 2)] ?? 0;
+    const rets: number[] = [];
+    for (let i = 1; i < cs.length; i++) if (cs[i].time - cs[i - 1].time <= step * 2) rets.push(Math.log(cs[i].close / cs[i - 1].close));
+    if (step > 0 && rets.length >= 10) {
+      const m = rets.reduce((s, r) => s + r, 0) / rets.length;
+      const sd = Math.sqrt(rets.reduce((s, r) => s + (r - m) ** 2, 0) / (rets.length - 1));
+      const perDay = (6.5 * 3600) / step;
+      const em = spot * sd * Math.sqrt(perDay) * Math.sqrt(5);
+      if (Number.isFinite(em) && em > 0) move = em;
+    }
+  }
+  const lv = levels.filter((v): v is number => v != null && Number.isFinite(v) && v > 0);
+  let half: number; let basis: string;
+  if (move != null) {
+    half = move * 1.5;
+    for (const v of lv) if (Math.abs(v - spot) <= move * 3) half = Math.max(half, Math.abs(v - spot) * 1.08);
+    basis = `±1.5 × 1-week move (≈ ±$${move.toFixed(2)}, realized vol of the chart candles), widened to the walls / king node / zero-γ`;
+  } else if (lv.length) {
+    half = Math.max(...lv.map((v) => Math.abs(v - spot))) * 1.25;
+    basis = 'no candles for a vol estimate — band spans the walls / king node / zero-γ (+25%)';
+  } else {
+    half = spot * 0.05;
+    basis = 'no candles or levels — ±5% of spot';
+  }
+  half = Math.min(spot * 0.25, Math.max(spot * 0.015, half));
+  return { lo: spot - half, hi: spot + half, pct: (half / spot) * 100, move, basis };
+}
 
 /**
  * Cell metrics. 'gexAdj' is Δ-adjusted GEX (docs/GAMMA_RAW_VS_ADJUSTED.md):
