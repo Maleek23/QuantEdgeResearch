@@ -157,6 +157,9 @@ export interface ConvictionPick {
   calledAt?: string | null;
   /** When price first traded through the trigger (exact ISO), if it has. */
   triggeredAt?: string | null;
+  /** The idea's own exit deadline / entry window (stored columns) — shared/setup-lifecycle.ts. */
+  exitBy?: string | null;
+  entryValidUntil?: string | null;
   /** Server board position (0 = top) — set only when BOARD_SORT is not 'score'. */
   boardRank?: number;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
@@ -2855,6 +2858,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // Exact call and trigger times (operator: "we need the EXACT time these are called").
       calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
       triggeredAt: readOracleExecutionAudit(idea.convergenceSignalsJson)?.triggerObservedAt ?? null,
+      // Carry-over policy reads the idea's own deadlines (shared/setup-lifecycle.ts).
+      exitBy: idea.exitBy ?? null,
+      entryValidUntil: idea.entryValidUntil ?? null,
     });
   }
 

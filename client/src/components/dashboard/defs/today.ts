@@ -31,7 +31,7 @@ export const TODAY_TOOLS: ToolDef[] = [
   },
   {
     id: 'today-ranked-book', category: 'Ideas', title: 'Ranked Book',
-    what: 'The rest of the live book ranked by evidence, one card and one plain-English reason each (starts at #3 when Best idea is on the dashboard).',
+    what: 'The rest of the live book in the NEXUS board order (server BOARD_SORT; stale setups sink), one card and one plain-English reason each (starts at #3 when Best idea is on the dashboard).',
     units: 'evidence 0–100, price $, R:R', source: BOOK,
     backing: `SigCard (components/landing/live-widgets.tsx) ← ${BOOK_API}`,
     defaultSize: { w: 8, h: 12 }, minSize: { w: 4, h: 6 }, Component: lazyTool(today, 'TodayRankedBookTool'),

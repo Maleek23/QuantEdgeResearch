@@ -35,14 +35,14 @@ import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { useTheme } from '@/components/theme-provider';
-import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupMarker, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
+import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupHref, pmSetupLabel, pmSetupTitle, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
 import { SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
 import { RotationIdeasRow } from '@/components/sectors/rotation-ideas';
 import {
-  Ladder, WeekMap, explain, fmt, newest,
+  BOARD_ORDER_LABEL, Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
 } from '@/components/dashboard/tools/today/today-model';
 import '@/styles/nexus.css';
@@ -146,9 +146,9 @@ function PremarketStrip({ dirOf, now }: { dirOf: Map<string, string>; now: numbe
                     {dir && al !== 'flat' && <em className={al}>{al === 'confirms' ? `confirms ${dir}` : `against ${dir}`}</em>}
                   </Link>
                   {gp.setup && (
-                    <Link href={nexusIdeaHref({ ideaId: gp.setup.ideaId, symbol: gp.symbol })} className={`tl-pm-setup ${gp.setup.status}`}
-                      title={`Pre-market setup${gp.setup.status === 'triggered' ? ' — triggered, open in NEXUS' : ' — WATCH for the open'}: ${gp.setup.summary} · measuring (unproven)`}>
-                      setup {pmSetupMarker(gp.setup)}
+                    <Link href={pmSetupHref(gp.symbol, gp.setup)} className={`tl-pm-setup ${gp.setup.status}`}
+                      title={pmSetupTitle(gp.setup)}>
+                      {pmSetupLabel(gp.setup)}
                     </Link>
                   )}
                   </span>
@@ -423,7 +423,7 @@ export default function TodayPage() {
                   <Link href={play ? `/r/${symbol}` : `/r/${symbol}?tab=chart`} className={`td-index-row${play ? ' live' : ''}`} key={symbol}>
                     <div><strong>{symbol}</strong><small>{play ? `${play.setup?.replaceAll('_', ' ') ?? 'index setup'}${play.isPowerHour ? ' · power hour' : ''}` : indexDesk.isLoading ? 'reading…' : 'monitoring levels'}</small></div>
                     <span className={play?.direction === 'short' ? 'down' : play ? 'up' : ''}>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
-                    <b>{play?.confidence != null ? `${Math.round(play.confidence)}/100` : '—'}</b>
+                    <b title="The scanner's own raw confidence at publish — not the NEXUS evidence grade">{play?.confidence != null ? `scanner ${Math.round(play.confidence)}` : '—'}</b>
                     <em>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'No active call'}</em>
                   </Link>
                 );
@@ -493,7 +493,7 @@ export default function TodayPage() {
           {best && bestX ? (
             <div className="feature">
               <div className="reveal">
-                <div className="feature-num">TOP RANKED SETUP · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
+                <div className="feature-num">TOP OF THE NEXUS BOARD · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}{book.life.get(best.ideaId) ? ` · ${book.life.get(best.ideaId)!.life.label}` : ''}</div>
                 <h3 className="feature-title">{bestX.headline}</h3>
                 {bestX.against && <p className="feature-desc"><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</p>}
                 <div className="feature-list">
@@ -532,7 +532,7 @@ export default function TodayPage() {
           <div className="container">
             <div className="reveal tl-book-head">
               <div>
-                <div className="sec-eyebrow">Active book · ranked by evidence</div>
+                <div className="sec-eyebrow">Active book · {BOARD_ORDER_LABEL[book.boardSort]}</div>
                 <h2 className="lsec-title">Ranked setups</h2>
               </div>
               <button type="button" className="tl-link-btn" aria-pressed={cardCharts}

@@ -90,6 +90,9 @@ export interface ConvictionPick {
   calledAt?: string | null;
   /** Exact time price traded through the trigger (ISO). */
   triggeredAt?: string | null;
+  /** The idea's own exit deadline / entry window (stored columns) — shared/setup-lifecycle.ts. */
+  exitBy?: string | null;
+  entryValidUntil?: string | null;
 
   /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record. */
   boardRank?: number;
