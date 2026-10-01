@@ -15,6 +15,13 @@
  * .nexus-vars root, via useTheme().theme === 'nexus-light'); every other
  * mode → `html.dark.terminal-nexus`.
  *
+ * SYSTEM (2026-09-30): the stored PREFERENCE may also be 'system' — follow
+ * prefers-color-scheme (light → light, else dark) and track OS changes live.
+ * It is the default for a device that never chose (a first-time visitor on
+ * the landing page gets their OS mode). The public pages' Light / Dark /
+ * System picker (components/landing/theme-picker.tsx) and Settings › Display
+ * write the SAME key, so a visitor who signs in keeps the mode they picked.
+ *
  * Persisted PER DEVICE in localStorage (`qe-mode`), every access in
  * try/catch (private mode / blocked storage → the default, never a throw).
  * client/index.html applies the saved mode before first paint with the same
@@ -55,6 +62,17 @@ export const MODE_KEY = 'qe-mode';
 /** The pre-2026-09-29 theme key (ThemeProvider storageKey). Read once to migrate. */
 export const LEGACY_KEY = 'quantedge-theme';
 export const DEFAULT_MODE: VisualMode = 'dark';
+/** A stored preference: a concrete mode, or follow the OS. */
+export type ModePref = VisualMode | 'system';
+/** No stored choice → follow the OS (operator 2026-09-30: landing default = System). */
+export const DEFAULT_PREF: ModePref = 'system';
+export const isModePref = (v: unknown): v is ModePref => v === 'system' || isVisualMode(v);
+
+function systemMode(): VisualMode {
+  try { return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; } catch { return DEFAULT_MODE; }
+}
+/** The concrete mode a preference paints. */
+export function resolvePref(p: ModePref): VisualMode { return p === 'system' ? systemMode() : p; }
 
 /** Browser chrome colour per mode (<meta name="theme-color">) = the mode's ground. */
 const THEME_COLOR: Record<VisualMode, string> = {
@@ -75,13 +93,15 @@ export function fromLegacyTheme(t: string | null | undefined): VisualMode {
   return DEFAULT_MODE;
 }
 
-function readStored(): VisualMode {
+function readStoredPref(): ModePref {
   try {
     const m = localStorage.getItem(MODE_KEY);
-    if (isVisualMode(m)) return m;
-    return fromLegacyTheme(localStorage.getItem(LEGACY_KEY));
+    if (isModePref(m)) return m;
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (!legacy || legacy === 'system') return DEFAULT_PREF;
+    return fromLegacyTheme(legacy);
   } catch {
-    return DEFAULT_MODE;
+    return DEFAULT_PREF;
   }
 }
 
@@ -99,7 +119,8 @@ export function applyMode(mode: VisualMode) {
   version++;
 }
 
-let state: VisualMode = typeof window === 'undefined' ? DEFAULT_MODE : readStored();
+let pref: ModePref = typeof window === 'undefined' ? DEFAULT_PREF : readStoredPref();
+let state: VisualMode = typeof window === 'undefined' ? DEFAULT_MODE : resolvePref(pref);
 /** Bumps on every apply — canvas painters cache resolved colours against it. */
 let version = 0;
 export const modeVersion = () => version;
@@ -107,25 +128,50 @@ const listeners = new Set<() => void>();
 
 export function getMode(): VisualMode { return state; }
 
-export function setMode(mode: VisualMode) {
-  if (!isVisualMode(mode)) return;
-  state = mode;
-  try { localStorage.setItem(MODE_KEY, mode); } catch { /* private mode: this session only */ }
-  applyMode(mode);
+export function getModePref(): ModePref { return pref; }
+
+/** Store a preference (a mode or 'system') and paint what it resolves to. */
+export function setModePref(p: ModePref) {
+  if (!isModePref(p)) return;
+  pref = p;
+  state = resolvePref(p);
+  try { localStorage.setItem(MODE_KEY, p); } catch { /* private mode: this session only */ }
+  applyMode(state);
   listeners.forEach((l) => l());
 }
 
-/** The rail's one-click ☀/☾: light ↔ the dark-ground mode the viewer came from. */
-let lastDarkGround: VisualMode = 'dark';
+/** Choose a concrete mode (Settings › Display). Ends 'system' following. */
+export function setMode(mode: VisualMode) {
+  if (!isVisualMode(mode)) return;
+  setModePref(mode);
+}
+
+const subscribe = (cb: () => void) => { listeners.add(cb); return () => { listeners.delete(cb); }; };
+
+/** [preference, setPreference] — for the Light / Dark / System pickers. */
+export function useModePref(): [ModePref, (p: ModePref) => void] {
+  const p = useSyncExternalStore(subscribe, () => pref, () => DEFAULT_PREF);
+  return [p, setModePref];
+}
+
 export function useVisualMode(): [VisualMode, (m: VisualMode) => void] {
-  const mode = useSyncExternalStore(
-    (cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; },
-    () => state,
-    () => DEFAULT_MODE,
-  );
+  const mode = useSyncExternalStore(subscribe, () => state, () => DEFAULT_MODE);
   return [mode, setMode];
 }
 
 // Re-assert on module load: index.html already applied it pre-paint; this
 // covers a page that skipped that script (tests, an embedded build).
-if (typeof window !== 'undefined') applyMode(state);
+if (typeof window !== 'undefined') {
+  applyMode(state);
+  // 'system': repaint when the OS flips (sunset auto-switch, Control Centre).
+  try {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (pref !== 'system') return;
+      const next = systemMode();
+      if (next === state) return;
+      state = next;
+      applyMode(state);
+      listeners.forEach((l) => l());
+    });
+  } catch { /* old Safari without addEventListener on MediaQueryList: no live follow */ }
+}

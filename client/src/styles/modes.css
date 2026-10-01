@@ -366,3 +366,38 @@ html[data-mode="contrast"] :focus-visible {
 .qe-mode-opt.on svg { color: var(--lx-accent-text); }
 .qe-mode-opt:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
 .qc-row.qc-row-stack { flex-direction: column; align-items: stretch; }
+
+/* ── Light / Dark / System picker (components/landing/theme-picker.tsx) ──
+   Here (global) not in nexus.css: login is a Tailwind page. Reads the lux tokens so it works in the .landing
+   header and on the Tailwind login page alike. Targets ≥ 32px, AA text. */
+.qe-theme-picker{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--lx-line-hi,rgba(59,140,255,0.2));border-radius:8px;background:var(--lx-bg-2,transparent)}
+.qe-theme-opt{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:32px;min-height:32px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--lx-dim,#8b93a3);font:600 12px/1 'Inter',system-ui,sans-serif;cursor:pointer}
+.qe-theme-picker.compact .qe-theme-opt{padding:0}
+.qe-theme-opt:hover{color:var(--lx-text,#e8ecf3);background:var(--lx-hover-strong,rgba(255,255,255,0.08))}
+.qe-theme-opt.on{color:var(--lx-text,#e8ecf3);background:var(--lx-active-bg,rgba(59,140,255,0.16));border-color:var(--lx-line-hi,rgba(59,140,255,0.3))}
+.qe-theme-opt.on svg{color:var(--lx-accent-text,#7fb2ff)}
+.qe-theme-opt:focus-visible{outline:2px solid var(--lx-accent,#3b8cff);outline-offset:1px}
+.landing .lnav-theme{flex:none}
+
+/* ── LIGHT safety net for legacy Tailwind accents (2026-09-30 theme audit) ──
+   128 `text-<hue>-200/300/400` literals in 28 legacy files (admin, trade-audit,
+   broker import, about, error boundary…) are tuned for a dark ground: 1.5–2.6:1
+   on white. On the light ground each hue steps down to its 700/800 shade
+   (≥ 4.6:1 on #fff and #f2f5f9). `dark:` variants are untouched. */
+html[data-mode=light] .text-emerald-200,html[data-mode=light] .text-emerald-300,html[data-mode=light] .text-emerald-400{color:#047857}
+html[data-mode=light] .text-green-200,html[data-mode=light] .text-green-300,html[data-mode=light] .text-green-400{color:#15803d}
+html[data-mode=light] .text-red-200,html[data-mode=light] .text-red-300,html[data-mode=light] .text-red-400{color:#b91c1c}
+html[data-mode=light] .text-amber-200,html[data-mode=light] .text-amber-300,html[data-mode=light] .text-amber-400{color:#92400e}
+html[data-mode=light] .text-yellow-200,html[data-mode=light] .text-yellow-300,html[data-mode=light] .text-yellow-400{color:#854d0e}
+html[data-mode=light] .text-cyan-200,html[data-mode=light] .text-cyan-300,html[data-mode=light] .text-cyan-400{color:#155e75}
+html[data-mode=light] .text-sky-200,html[data-mode=light] .text-sky-300,html[data-mode=light] .text-sky-400{color:#0369a1}
+html[data-mode=light] .text-purple-200,html[data-mode=light] .text-purple-300,html[data-mode=light] .text-purple-400{color:#7e22ce}
+html[data-mode=light] .text-blue-200,html[data-mode=light] .text-blue-300,html[data-mode=light] .text-blue-400{color:#1d4ed8}
+html[data-mode=light] .text-teal-200,html[data-mode=light] .text-teal-300,html[data-mode=light] .text-teal-400{color:#0f766e}
+html[data-mode=light] .text-lime-200,html[data-mode=light] .text-lime-300,html[data-mode=light] .text-lime-400{color:#3f6212}
+html[data-mode=light] .text-orange-200,html[data-mode=light] .text-orange-300,html[data-mode=light] .text-orange-400{color:#c2410c}
+html[data-mode=light] .text-rose-200,html[data-mode=light] .text-rose-300,html[data-mode=light] .text-rose-400{color:#be123c}
+html[data-mode=light] .text-pink-200,html[data-mode=light] .text-pink-300,html[data-mode=light] .text-pink-400{color:#be185d}
+html[data-mode=light] .text-indigo-200,html[data-mode=light] .text-indigo-300,html[data-mode=light] .text-indigo-400{color:#4338ca}
+html[data-mode=light] .text-violet-200,html[data-mode=light] .text-violet-300,html[data-mode=light] .text-violet-400{color:#6d28d9}
+html[data-mode=light] .text-fuchsia-200,html[data-mode=light] .text-fuchsia-300,html[data-mode=light] .text-fuchsia-400{color:#a21caf}

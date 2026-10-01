@@ -31,6 +31,8 @@ import { reasonOf } from '@/lib/optimistic';
 import { authHref, clearStashedReturnTo, readReturnTo, stashReturnTo } from '@/lib/return-to';
 import NextSteps from '@/components/landing/next-steps';
 import { DISCORD_INVITE_URL } from '@/lib/public-config';
+import { ThemePicker } from '@/components/landing/theme-picker';
+import { useTheme } from '@/components/theme-provider';
 
 /** The server's rule (server/routes.ts /api/auth/signup) — shown, not changed. */
 const MIN_PASSWORD = 6;
@@ -85,6 +87,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function 
 });
 
 export default function Signup() {
+  const isLight = useTheme().theme === 'nexus-light';
   const params = typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search);
   const initialCode = (params.get('code') || params.get('invite') || '').trim();
   const [returnTo] = useState(() => (typeof window === 'undefined' ? null : readReturnTo(window.location.search)));
@@ -132,7 +135,7 @@ export default function Signup() {
   const errs = form.formState.errors;
 
   return (
-    <div className="landing nexus-vars lp auth-page">
+    <div className={`landing nexus-vars lp auth-page${isLight ? ' light' : ''}`}>
       <nav className="lnav" aria-label="Main">
         <div className="lnav-inner">
           <Link href="/" className="brand" aria-label="QuantEdge home">
@@ -140,6 +143,7 @@ export default function Signup() {
             <span className="brand-name">QUANTEDGE</span>
           </Link>
           <div className="lnav-spacer" />
+          <ThemePicker compact className="lnav-theme" />
           <Link href={authHref('/login', returnTo)} className="btn btn-ghost" data-testid="link-login">Sign in</Link>
         </div>
       </nav>

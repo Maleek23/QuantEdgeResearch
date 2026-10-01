@@ -8,6 +8,24 @@ import { Link } from 'wouter';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useQuery } from '@tanstack/react-query';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { useVisualMode } from '@/lib/visual-mode';
+
+/** Canvas can't read CSS variables: resolve `var(--x)` (or a hex) against an
+ *  element to an [r,g,b] triple, so the canvases follow the display mode. */
+function rgbOf(el: Element | null, c: string, fallback: [number, number, number]): [number, number, number] {
+  let v = c.trim();
+  const m = /^var\((--[\w-]+)\)$/.exec(v);
+  if (m) v = el ? getComputedStyle(el).getPropertyValue(m[1]).trim() : '';
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].split('').map((x) => x + x).join('') : hex[1];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const rgb = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/i.exec(v);
+  if (rgb) return [+rgb[1], +rgb[2], +rgb[3]];
+  return fallback;
+}
+const rgba = ([r, g, b]: [number, number, number], a: number) => `rgba(${r},${g},${b},${a})`;
 
 export interface Bar { time: number; open: number; high: number; low: number; close: number }
 export interface Sector { etf: string; name: string; change: number; relChange?: number; fiveDayChange?: number; rsRatio?: number; rsMomentum?: number; state?: string; rank?: number }
@@ -31,6 +49,7 @@ export const fetchJson = (url: string) => async () => {
 /* ── Interactive sparkline: real series, hover crosshair + tooltip ── */
 export function Spark({ bars, color, height = 60, label }: { bars: Bar[]; color: string; height?: number; label?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mode] = useVisualMode();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -48,31 +67,33 @@ export function Spark({ bars, color, height = 60, label }: { bars: Bar[]; color:
     const range = max - min || 1;
     const X = (i: number) => (i / (data.length - 1)) * w;
     const Y = (v: number) => h - ((v - min) / range) * h * 0.85 - h * 0.05;
+    const c = rgbOf(canvas, color, [110, 231, 183]);
+    const ink = rgbOf(canvas, 'var(--text)', [232, 236, 243]);
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
+    grad.addColorStop(0, rgba(c, 0.25)); grad.addColorStop(1, rgba(c, 0));
     ctx.beginPath();
     data.forEach((v, i) => { i === 0 ? ctx.moveTo(X(i), Y(v)) : ctx.lineTo(X(i), Y(v)); });
     ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
     ctx.fillStyle = grad; ctx.fill();
     ctx.beginPath();
     data.forEach((v, i) => { i === 0 ? ctx.moveTo(X(i), Y(v)) : ctx.lineTo(X(i), Y(v)); });
-    ctx.strokeStyle = color; ctx.lineWidth = 1.3;
-    ctx.shadowColor = color; ctx.shadowBlur = 6;
+    ctx.strokeStyle = rgba(c, 1); ctx.lineWidth = 1.3;
+    ctx.shadowColor = rgba(c, 1); ctx.shadowBlur = mode === 'light' || mode === 'contrast' ? 0 : 6;
     ctx.stroke(); ctx.shadowBlur = 0;
     if (hoverIdx != null && data[hoverIdx] != null) {
       const hx = X(hoverIdx); const hy = Y(data[hoverIdx]);
-      ctx.strokeStyle = 'rgba(232,236,243,0.25)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = rgba(ink, 0.3); ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx, h); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = color;
+      ctx.fillStyle = rgba(c, 1);
       ctx.beginPath(); ctx.arc(hx, hy, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.strokeStyle = rgba(ink, 0.6);
       ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.stroke();
     }
   };
 
-  useEffect(() => { draw(null); /* eslint-disable-next-line */ }, [bars, color]);
+  useEffect(() => { draw(null); /* eslint-disable-next-line */ }, [bars, color, mode]);
 
   const onMove = (e: React.MouseEvent) => {
     const canvas = canvasRef.current; const wrap = wrapRef.current;
@@ -119,6 +140,7 @@ export function useDaily(symbol: string, range: string, interval: string, enable
 /* Real rotation quadrant: rsRatio × rsMomentum, gentle cosmetic drift only. */
 export function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [mode] = useVisualMode();
   useEffect(() => {
     let raf = 0;
     const pts = sectors.filter((s) => Number.isFinite(s.rsRatio) && Number.isFinite(s.rsMomentum));
@@ -126,7 +148,14 @@ export function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?:
     const xs = pts.map((s) => s.rsRatio!); const ys = pts.map((s) => s.rsMomentum!);
     const xMax = Math.max(1, ...xs.map(Math.abs)); const yMax = Math.max(1, ...ys.map(Math.abs));
     const phase = new Map(pts.map((s, i) => [s.etf, i * 1.7]));
-    const colorOf = (s: Sector) => (s.rsRatio! >= 0 && s.rsMomentum! >= 0) ? '#6ee7b7' : (s.rsRatio! < 0 && s.rsMomentum! >= 0) ? '#3b8cff' : (s.rsRatio! >= 0) ? '#facc15' : '#ff6b3d';
+    // Quadrant colours = the mode's semantic tokens (leading gain · improving accent · weakening caution · lagging loss).
+    const el = ref.current;
+    const pal = {
+      lead: rgbOf(el, 'var(--green)', [110, 231, 183]), improve: rgbOf(el, 'var(--cyan)', [59, 140, 255]),
+      weak: rgbOf(el, 'var(--amber)', [250, 204, 21]), lag: rgbOf(el, 'var(--red)', [255, 107, 61]),
+      ink: rgbOf(el, 'var(--text)', [255, 255, 255]), axis: rgbOf(el, 'var(--cyan)', [59, 140, 255]),
+    };
+    const colorOf = (s: Sector) => (s.rsRatio! >= 0 && s.rsMomentum! >= 0) ? pal.lead : (s.rsRatio! < 0 && s.rsMomentum! >= 0) ? pal.improve : (s.rsRatio! >= 0) ? pal.weak : pal.lag;
     const drawFrame = (t: number) => {
       const canvas = ref.current;
       if (!canvas) return;
@@ -136,26 +165,25 @@ export function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?:
       canvas.width = w * devicePixelRatio; canvas.height = h * devicePixelRatio;
       const ctx = canvas.getContext('2d')!;
       ctx.scale(devicePixelRatio, devicePixelRatio);
-      ctx.strokeStyle = 'rgba(59,140,255,0.15)'; ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = rgba(pal.axis, 0.2); ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
       ctx.setLineDash([]);
       pts.forEach((s) => {
         const px = w / 2 + (s.rsRatio! / xMax) * (w * 0.42) + Math.sin(t * 0.0005 + phase.get(s.etf)!) * 1.5;
         const py = h / 2 - (s.rsMomentum! / yMax) * (h * 0.42) + Math.cos(t * 0.0007 + phase.get(s.etf)!) * 1.5;
         const c = colorOf(s);
-        const r = parseInt(c.slice(1, 3), 16); const g = parseInt(c.slice(3, 5), 16); const b = parseInt(c.slice(5, 7), 16);
         const grad = ctx.createRadialGradient(px, py, 0, px, py, 12);
-        grad.addColorStop(0, `rgba(${r},${g},${b},0.5)`); grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        grad.addColorStop(0, rgba(c, 0.5)); grad.addColorStop(1, rgba(c, 0));
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = rgba(c, 1); ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = rgba(pal.ink, 1); ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.textAlign = 'center';
         ctx.fillText(s.etf, px, py - 10);
       });
       raf = requestAnimationFrame(drawFrame);
     };
     raf = requestAnimationFrame(drawFrame);
     return () => cancelAnimationFrame(raf);
-  }, [sectors]);
+  }, [sectors, mode]);
   const hasPts = sectors.some((pt) => Number.isFinite(pt.rsRatio) && Number.isFinite(pt.rsMomentum));
   if (!hasPts) {
     return <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontStyle: 'italic' }}>loading map…</div>;
@@ -172,7 +200,8 @@ export function SigCard({ p, chart = true, href }: { p: Pick; chart?: boolean; h
   const bars = data?.data ?? [];
   const band = (p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0);
   const dir = (p.direction ?? 'long').toLowerCase();
-  const bandColor = band === 'S' ? '#fbbf24' : band === 'A' ? '#3b8cff' : band === 'B' ? '#facc15' : '#8b93a3';
+  // Mode tokens, not literals: #fbbf24 / #facc15 were 1.6–1.8:1 as text on the light ground.
+  const bandColor = band === 'S' || band === 'B' ? 'var(--amber)' : band === 'A' ? 'var(--cyan)' : 'var(--text-dim)';
   const live = p.currentPrice; const entry = p.entryPrice;
   const pnl = live != null && entry ? ((live - entry) / entry) * (dir === 'short' ? -100 : 100) : null;
   const fmt = (v?: number | null) => v == null ? '—' : `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2)}`;
@@ -181,14 +210,14 @@ export function SigCard({ p, chart = true, href }: { p: Pick; chart?: boolean; h
       title={`Open ${p.symbol} selected on NEXUS`}>
       <div className="lsig-head">
         <div className="lsig-ticker">{p.symbol}</div>
-        <div className="lsig-band" style={{ background: `${bandColor}26`, color: bandColor, border: `1px solid ${bandColor}4d` }}>{band}</div>
+        <div className="lsig-band" style={{ background: `color-mix(in srgb, ${bandColor} 11%, transparent)`, color: bandColor, border: `1px solid color-mix(in srgb, ${bandColor} 30%, transparent)` }}>{band}</div>
         <div className="lsig-ev">{typeof p.convictionScore === 'number' ? <><b>{convictionDisplayPercent(p.convictionScore)}</b>/100 evidence</> : <b>open position</b>}{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
       </div>
       <div className="lsig-type">
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
         <span className="kind">· {p.tradeType ?? 'swing'}{p.thesis ? ` · ${p.thesis.split('.')[0].slice(0, 34)}` : ''}</span>
       </div>
-      {chart && <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? '#ff6b3d' : '#6ee7b7'} height={56} /></div>}
+      {chart && <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? 'var(--red)' : 'var(--green)'} height={56} /></div>}
       <div className="lsig-levels">
         <div className="lsig-level"><div className="l">Entry</div><div className="v">{fmt(p.entryPrice)}</div></div>
         <div className="lsig-level"><div className="l">Stop</div><div className="v stop">{fmt(p.stopLoss)}</div></div>

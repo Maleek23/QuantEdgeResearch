@@ -141,7 +141,7 @@ export function LiveStatsBar() {
       <div className="flex items-center gap-1.5" data-testid="stat-watchlist">
         <Eye className="h-3.5 w-3.5 text-purple-400" />
         <span className="text-muted-foreground">Watchlist:</span>
-        <span className="text-purple-400 font-medium">{watchlistCount}</span>
+        <span className="text-purple-700 dark:text-purple-400 font-medium">{watchlistCount}</span>
       </div>
       
       <div className="h-3 w-px bg-muted" />

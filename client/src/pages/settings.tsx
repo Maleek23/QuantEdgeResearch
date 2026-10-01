@@ -35,7 +35,7 @@ import { LuxButton, LuxPage, LuxPageHeader, LuxPanel, LuxSegmented, LuxTag } fro
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { MODE_SWATCH, VISUAL_MODES, useVisualMode, type VisualMode } from '@/lib/visual-mode';
+import { MODE_SWATCH, VISUAL_MODES, useModePref, useVisualMode, resolvePref, type VisualMode } from '@/lib/visual-mode';
 import { MODE_ICON, useIsAdmin } from '@/components/shell/mode-menu';
 import { usePrefs as useBoardPrefs, setPrefs as setBoardPrefs } from '@/lib/board-prefs';
 import { readDefaultHorizon, writeDefaultHorizon, type HorizonFilterValue } from '@/components/ideas/horizon-filter';
@@ -209,6 +209,7 @@ function ModePreview({ id }: { id: VisualMode }) {
 
 function DisplaySection() {
   const [mode, setMode] = useVisualMode();
+  const [pref, setPref] = useModePref();
   const board = useBoardPrefs();
   const [jp, setJp] = useJournalPrefs();
   const localZone = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'this device'; } }, []);
@@ -237,6 +238,11 @@ function DisplaySection() {
           );
         })}
       </div>
+      <Row label="Match this device" help={pref === 'system'
+          ? <>Following the device&rsquo;s light/dark setting — {mode === 'light' ? 'Light' : 'Dark'} right now. Pick a mode above to fix one.</>
+          : 'Switch between Light and Dark with the device (the public pages’ System choice).'} scope="device">
+        <Switch on={pref === 'system'} onChange={(v) => setPref(v ? 'system' : resolvePref('system'))} label="Match this device" />
+      </Row>
       <Row label="Text size" help="Scales type across the whole app." scope="device">
         <LuxSegmented label="Text size" value={board.textSize} onChange={(v) => setBoardPrefs({ textSize: v })}
           options={[{ value: 'm', label: 'Standard' }, { value: 'l', label: 'Large' }, { value: 'xl', label: 'Extra large' }]} />

@@ -34,6 +34,7 @@ import { Clamp } from '@/components/ui/qe-phone';
 import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useTickFlash } from '@/lib/use-tick-flash';
+import { useTheme } from '@/components/theme-provider';
 import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupMarker, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
@@ -222,6 +223,9 @@ function TapeItem({ t }: { t: { sym: string; price: string; px: number | null; c
 }
 
 export default function TodayPage() {
+  // The landing-style bands re-root .nexus-vars, so they must carry .light
+  // themselves (the frame's .light does not reach a nested .nexus-vars).
+  const isLight = useTheme().theme === 'nexus-light';
   const now = useNow();
   const wp = useWeeklyPath();
   const g = useSpyGex();
@@ -291,7 +295,7 @@ export default function TodayPage() {
   const volLabel = wp.data?.volSource === 'realized-20d' ? `realized ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}%` : wp.data?.volSource === 'vix' ? `VIX ${((wp.data?.annualVol ?? 0) * 100).toFixed(1)}` : 'est.';
 
   return (
-    <div className="landing nexus-vars today-l today-page">
+    <div className={`landing nexus-vars today-l today-page${isLight ? ' light' : ''}`}>
       {/* HERO — the week in one sentence and one chart */}
       <section className="hero">
         <div className="container">
@@ -354,7 +358,7 @@ export default function TodayPage() {
                   <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <span className="live" title={spy.source ? `quote source: ${spy.source}` : undefined}>{ageLabel(spy.asOf, now)}</span> : <span>no quote</span>}</div>
                   <div className="t-price"><span className={spyFlash}>SPY {fmt(spyPx)}</span></div>
                   <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
-                  <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={54} /></div>
+                  <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'} height={54} /></div>
                   {spy?.source && <div className="t-src">{spy.source}</div>}
                 </div>
                 <div className="t-panel">
