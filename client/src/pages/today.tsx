@@ -30,7 +30,8 @@ import { regimeFromLegacy } from '@shared/gex-regime';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
-import { Clamp, InfoSheet } from '@/components/ui/qe-phone';
+import { Clamp, InfoSheet, QuoteFreshChip } from '@/components/ui/qe-phone';
+import { useQuotes, type Quote as TickerQuote } from '@/components/ticker/ticker-data';
 import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useTickFlash } from '@/lib/use-tick-flash';
@@ -213,7 +214,10 @@ function ZeroDteBand({ now }: { now: number }) {
   );
 }
 
-function TapeItem({ t }: { t: { sym: string; price: string; px: number | null; chg: number } }) {
+const TAPE_INDEX = ['SPX', 'SPY', 'QQQ'];
+type TapeRow = { sym: string; price: string; px: number | null; chg: number; fresh?: TickerQuote };
+
+function TapeItem({ t }: { t: TapeRow }) {
   const chgFlash = useTickFlash(t.chg, { resetKey: t.sym });
   const pxFlash = useTickFlash(t.px, { resetKey: t.sym });
   return (
@@ -221,6 +225,7 @@ function TapeItem({ t }: { t: { sym: string; price: string; px: number | null; c
       <span className="ltape-sym">{t.sym}</span>
       {t.price && <span className={`ltape-price ${pxFlash}`}>{t.price}</span>}
       <span className={`ltape-chg ${t.chg >= 0 ? 'up' : 'down'} ${chgFlash}`}>{t.chg >= 0 ? '+' : ''}{t.chg.toFixed(2)}%</span>
+      {t.fresh && <QuoteFreshChip q={t.fresh} className="ltape-fresh" />}
       <span className="ltape-sep">·</span>
     </div>
   );
@@ -276,12 +281,19 @@ export default function TodayPage() {
     const maxAbs = Math.max(0.1, ...sorted.map((x) => Math.abs(x.relChange ?? 0)));
     return { top: sorted.slice(0, 2), bottom: sorted.slice(-2).reverse(), maxAbs };
   }, [sectors]);
+  // Index levels lead the tape, each with its own freshness chip — SPX outside RTH
+  // or behind CBOE's 15-minute delay is a labelled proxy, never passed off as live.
+  const idxQ = useQuotes(TAPE_INDEX);
   const tape = useMemo(() => {
-    const rows: { sym: string; price: string; px: number | null; chg: number }[] = [];
+    const rows: TapeRow[] = [];
+    TAPE_INDEX.forEach((s) => {
+      const q = idxQ.data?.[s];
+      if (q?.price) rows.push({ sym: s, price: q.price >= 1000 ? Math.round(q.price).toLocaleString() : q.price.toFixed(2), px: q.price, chg: Number.isFinite(q.changePercent) ? q.changePercent : 0, fresh: q });
+    });
     sectors.forEach((x) => rows.push({ sym: x.etf, price: '', px: null, chg: x.change }));
     (pulse.data?.assets ?? []).forEach((x) => rows.push({ sym: x.symbol, price: `$${Math.round(x.price).toLocaleString()}`, px: x.price, chg: x.change24h ?? 0 }));
     return rows;
-  }, [sectors, pulse.data]);
+  }, [sectors, pulse.data, idxQ.data]);
 
   // Sections rest visible; the reveal only adds motion as they scroll in.
   useEffect(() => {
@@ -366,9 +378,9 @@ export default function TodayPage() {
                     : <div className="tl-map-empty">{feedDown ? 'Options feed down — retrying' : 'Reading dealer positioning…'}</div>}
                 </div>
                 <div className="t-panel">
-                  <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <span className="live" title={spy.source ? `quote source: ${spy.source}` : undefined}>{ageLabel(spy.asOf, now)}</span> : <span>no quote</span>}</div>
+                  <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <QuoteFreshChip q={spy} now={now} /> : <span>no quote</span>}</div>
                   <div className="t-price"><span className={spyFlash}>SPY {fmt(spyPx)}</span></div>
-                  <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
+                  <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : spy.session === 'overnight' ? 'overnight vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
                   <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'} height={54} /></div>
                   {spy?.source && <div className="t-src">{spy.source}</div>}
                 </div>

@@ -21,6 +21,7 @@ import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { useQuotes } from '@/components/ticker/ticker-data';
+import { QuoteFreshChip } from '@/components/ui/qe-phone';
 import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
@@ -362,8 +363,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   const boardPx = selected.currentPrice && selected.currentPrice > 0 && Math.abs(selected.currentPrice - selected.entryPrice) > 1e-9 ? selected.currentPrice : 0;
   const liveQuote = lq?.price && lq.price > 0 ? lq.price : boardPx;
   const live = liveQuote || selected.entryPrice;
-  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
-  const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
+  const liveStamp = lq?.price ? [lq.source, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
+  // Flash on the price actually shown (was selected.currentPrice, which only moves on a board rebuild).
+  const liveFlash = useTickFlash(live, { resetKey: selected.ideaId });
   const progress = selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
     : 0;
@@ -403,7 +405,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-levels">
-        <div title={liveStamp ?? undefined}><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
+        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Last known'}</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
@@ -534,17 +536,6 @@ function EvidenceRing({ score, band, support, against }: { score: number; band: 
   );
 }
 
-/** Which US session a quote belongs to, ET. */
-function sessionLabel(now = new Date()): string {
-  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
-  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
-  const wd = g('weekday'); const m = (Number(g('hour')) % 24) * 60 + Number(g('minute'));
-  if (wd === 'Sat' || wd === 'Sun') return 'market closed';
-  if (m >= 570 && m < 960) return 'live';
-  if (m >= 240 && m < 570) return 'pre-market';
-  if (m >= 960 && m < 1200) return 'after hours';
-  return 'overnight';
-}
 function ageOf(iso: string): string {
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
   if (!Number.isFinite(s)) return '';

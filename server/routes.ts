@@ -5746,10 +5746,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quotesMap = await getRealtimeBatchQuotes(
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
+      // Freshest honest print (docs/DATA_LATENCY.md): extended-hours/overnight
+      // prints for equities, realtime proxies for stale cash-index levels. Copies,
+      // so the shared quote cache keeps the provider's own values.
+      const freshMap = new Map(Array.from(quotesMap.entries()).map(([k, v]) => [k, { ...v }]));
+      try {
+        const { overlayExtendedHours, overlayIndexProxies } = await import('./extended-quote');
+        await Promise.all([overlayExtendedHours(freshMap, symbolList), overlayIndexProxies(freshMap, symbolList)]);
+      } catch (e) {
+        logger.debug(`[quotes/batch] freshness overlay skipped: ${(e as Error).message}`);
+      }
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number | null; volume: number; asOf: string; source: string | null; session: string | null; previousClose: number | null; delayed: boolean; stale: boolean }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number | null; volume: number; asOf: string; source: string | null; session: string | null; previousClose: number | null; delayed: boolean; delayedSec: number; proxy: boolean; underlyingPrice: number | null; underlyingAsOf: string | null; stale: boolean }> = {};
       for (const symbol of symbolList) {
-        const q = quotesMap.get(symbol);
+        const q = freshMap.get(symbol);
         if (q && q.price) {
           quotes[symbol] = {
             symbol,
@@ -5767,7 +5777,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // after-hours move; surfaces label it from this field.
             session: q.session ?? null,
             previousClose: q.previousClose ?? null,
-            delayed: !!q.delayed,
+            delayed: !!q.delayed || (q.delayedSec ?? 0) >= 60,
+            // Known feed lag in seconds (CBOE 900, Alpaca delayed_sip 900); 0 = realtime.
+            delayedSec: q.delayedSec ?? (q.delayed ? 900 : 0),
+            // Estimated from SPY/QQQ/IWM or ES/NQ/RTY futures — never the index print itself.
+            proxy: !!q.proxy,
+            underlyingPrice: q.underlyingPrice ?? null,
+            underlyingAsOf: q.underlyingAsOf ? q.underlyingAsOf.toISOString() : null,
             stale: !!q.stale,
           };
         }
