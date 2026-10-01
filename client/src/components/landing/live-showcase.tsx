@@ -488,7 +488,8 @@ export default function LiveShowcase() {
           <span className="lp-dots" aria-hidden="true"><i /><i /><i /></span>
           <span className="lp-url">{PANELS[active].url}</span>
           <span className="sc-status" aria-live="polite">
-            {failed && !data ? 'Live data unavailable' : data ? <><span className="sc-live-dot" />Live data</> : 'Loading live data…'}
+            {/* "Live" only while the poll is succeeding — a failed refresh never keeps the badge on (audit item 8). */}
+            {failed ? (data ? 'Refresh failed · showing the last read' : 'Live data unavailable') : data ? <><span className="sc-live-dot" />Live data</> : 'Loading live data…'}
           </span>
         </div>
         <div className="sc-track" ref={trackRef} onScroll={onScroll}>

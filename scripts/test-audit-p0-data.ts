@@ -167,5 +167,25 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   ok(clampToBaseline('2026-07-01') === OUTCOME_BASELINE_DATE && clampToBaseline(null) === null, 'clamp helper');
 }
 
+// ── Item 8: public honesty ───────────────────────────────────────────────────
+{
+  const { LANDING_FAQ } = await import('../shared/landing-faq');
+  const { pickShowcaseIdeas } = await import('../server/public-showcase');
+  const cost = LANDING_FAQ.find((f) => f.id === 'cost')!.a;
+  ok(!/Advanced unlocks real-time/i.test(cost), 'FAQ / JSON-LD no longer claims Advanced is real-time');
+  ok(/delayed/i.test(cost) && /Pro/.test(cost) && /coming soon/i.test(cost), 'FAQ says Advanced is delayed; real-time is Pro, coming soon');
+  const rows = [
+    { symbol: 'A', timestamp: '2026-09-29T14:00:00Z', outcome: 'open' },
+    { symbol: 'B', timestamp: '2026-09-28T14:00:00Z', outcome: 'hit_stop' },
+    { symbol: 'A', timestamp: '2026-09-27T14:00:00Z', outcome: 'hit_target' },
+    { symbol: 'C', timestamp: '2026-09-26T14:00:00Z', outcome: 'hit_target' },
+    { symbol: 'D', timestamp: '2026-08-01T14:00:00Z', outcome: 'hit_target' },
+  ];
+  const pick = pickShowcaseIdeas(rows);
+  ok(pick.map((r) => r.symbol).join(',') === 'A,B,C', 'landing ideas are the most recent, in order, with no preference for closed/winning ideas');
+  ok(pick[0].outcome === 'open', 'an open idea is not skipped for a winner');
+  ok(!pickShowcaseIdeas(rows, 10).some((r) => r.symbol === 'D'), 'pre-baseline ideas never appear');
+}
+
 console.log(`audit-p0-data: ${n} checks passed`);
 process.exit(0);
