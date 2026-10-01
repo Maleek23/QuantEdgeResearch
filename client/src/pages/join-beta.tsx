@@ -198,12 +198,12 @@ export default function JoinBeta() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <img src="/favicon.svg" alt="" width={40} height={40} className="w-10 h-10" />
-            <span className="text-xl font-bold text-white tracking-tight">QuantEdge</span>
+            <span className="text-xl font-bold text-foreground tracking-tight">QuantEdge</span>
           </div>
-          <h1 className="text-xl font-semibold text-white mb-1" data-testid="text-join-beta-title">
+          <h1 className="text-xl font-semibold text-foreground mb-1" data-testid="text-join-beta-title">
             {step === "verify" ? "Verify Your Access" : "Complete Your Profile"}
           </h1>
-          <p className="text-neutral-500 text-sm">
+          <p className="text-muted-foreground text-sm">
             {step === "verify" ? "Enter your email and access code to continue" : "Tell us about your trading experience"}
           </p>
         </div>
@@ -212,23 +212,23 @@ export default function JoinBeta() {
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-sky-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-[var(--trade-bullish)]"}`}>
             {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
           </div>
-          <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-sky-500" : "bg-neutral-800"}`} />
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-sky-500 text-black shadow-lg" : "bg-neutral-900 border border-neutral-800 text-neutral-600"}`}>
+          <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-sky-500" : "bg-muted"}`} />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-sky-500 text-black shadow-lg" : "bg-muted border border-border text-muted-foreground"}`}>
             2
           </div>
         </div>
 
         {step === "verify" ? (
-          <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
                   <Shield className="w-4 h-4 text-sky-400" />
                 </div>
-                <CardTitle className="text-white text-lg">Enter Your Details</CardTitle>
+                <CardTitle className="text-foreground text-lg">Enter Your Details</CardTitle>
               </div>
-              <CardDescription className="text-neutral-500">
+              <CardDescription className="text-muted-foreground">
                 Use the email where you received your invite.
               </CardDescription>
             </CardHeader>
@@ -239,7 +239,7 @@ export default function JoinBeta() {
                 autoComplete="off"
               >
                 <div>
-                  <label htmlFor="jb-email" className="block text-neutral-300 text-sm font-medium mb-2">Email</label>
+                  <label htmlFor="jb-email" className="block text-foreground text-sm font-medium mb-2">Email</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
@@ -258,7 +258,7 @@ export default function JoinBeta() {
                 </div>
                 
                 <div>
-                  <label htmlFor="jb-token" className="block text-neutral-300 text-sm font-medium mb-2">Invite code</label>
+                  <label htmlFor="jb-token" className="block text-foreground text-sm font-medium mb-2">Invite code</label>
                   <div className="relative">
                     <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
@@ -294,12 +294,12 @@ export default function JoinBeta() {
             </CardContent>
           </div>
         ) : (
-          <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-white text-lg">Your Profile</CardTitle>
+                  <CardTitle className="text-foreground text-lg">Your Profile</CardTitle>
                   <CardDescription className="text-sky-400">
                     {verifiedEmail}
                   </CardDescription>
@@ -308,7 +308,7 @@ export default function JoinBeta() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setStep("verify")}
-                  className="text-neutral-400 hover:text-white hover:bg-neutral-800"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1" />
                   Back
@@ -321,9 +321,9 @@ export default function JoinBeta() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="jb-first" className="block text-neutral-300 text-sm font-medium mb-2">First name</label>
+                      <label htmlFor="jb-first" className="block text-foreground text-sm font-medium mb-2">First name</label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
                         <input
                           type="text"
                           id="jb-first"
@@ -338,7 +338,7 @@ export default function JoinBeta() {
                       )}
                     </div>
                     <div>
-                      <label htmlFor="jb-last" className="block text-neutral-300 text-sm font-medium mb-2">Last name</label>
+                      <label htmlFor="jb-last" className="block text-foreground text-sm font-medium mb-2">Last name</label>
                       <input
                         type="text"
                         id="jb-last"
@@ -354,7 +354,7 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label htmlFor="jb-occ" className="block text-neutral-300 text-sm font-medium mb-2">Occupation (optional)</label>
+                    <label htmlFor="jb-occ" className="block text-foreground text-sm font-medium mb-2">Occupation (optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. Software Engineer"
@@ -373,16 +373,16 @@ export default function JoinBeta() {
                       name="tradingExperienceLevel"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-neutral-300">Experience</FormLabel>
+                          <FormLabel className="text-foreground">Experience</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-experience">
+                              <SelectTrigger className="bg-background border-border text-foreground focus:border-sky-500" data-testid="select-experience">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-[#1a1a2e] border-neutral-700">
+                            <SelectContent className="bg-background border-border">
                               {EXPERIENCE_LEVELS.map(level => (
-                                <SelectItem key={level.value} value={level.value} className="text-white">{level.label}</SelectItem>
+                                <SelectItem key={level.value} value={level.value} className="text-foreground">{level.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -395,16 +395,16 @@ export default function JoinBeta() {
                       name="riskTolerance"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-neutral-300">Risk Tolerance</FormLabel>
+                          <FormLabel className="text-foreground">Risk Tolerance</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-risk">
+                              <SelectTrigger className="bg-background border-border text-foreground focus:border-sky-500" data-testid="select-risk">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-[#1a1a2e] border-neutral-700">
+                            <SelectContent className="bg-background border-border">
                               {RISK_TOLERANCES.map(risk => (
-                                <SelectItem key={risk.value} value={risk.value} className="text-white">{risk.label}</SelectItem>
+                                <SelectItem key={risk.value} value={risk.value} className="text-foreground">{risk.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -419,16 +419,16 @@ export default function JoinBeta() {
                     name="investmentGoals"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-neutral-300">Investment Goal</FormLabel>
+                        <FormLabel className="text-foreground">Investment Goal</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-goals">
+                            <SelectTrigger className="bg-background border-border text-foreground focus:border-sky-500" data-testid="select-goals">
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent className="bg-[#1a1a2e] border-neutral-700">
+                          <SelectContent className="bg-background border-border">
                             {INVESTMENT_GOALS.map(goal => (
-                              <SelectItem key={goal.value} value={goal.value} className="text-white">{goal.label}</SelectItem>
+                              <SelectItem key={goal.value} value={goal.value} className="text-foreground">{goal.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -442,7 +442,7 @@ export default function JoinBeta() {
                     name="knowledgeFocus"
                     render={() => (
                       <FormItem>
-                        <FormLabel className="text-neutral-300">Areas of Interest</FormLabel>
+                        <FormLabel className="text-foreground">Areas of Interest</FormLabel>
                         <div className="grid grid-cols-2 gap-2 mt-2">
                           {KNOWLEDGE_AREAS.map((area) => (
                             <FormField
@@ -450,7 +450,7 @@ export default function JoinBeta() {
                               control={onboardingForm.control}
                               name="knowledgeFocus"
                               render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2 space-y-0 p-2 rounded-lg bg-[#1a1a2e]/50 border border-neutral-800/50 hover:border-neutral-700 transition-colors">
+                                <FormItem className="flex items-center space-x-2 space-y-0 p-2 rounded-lg bg-background/50 border border-border/50 hover:border-border transition-colors">
                                   <FormControl>
                                     <Checkbox
                                       checked={field.value?.includes(area.value)}
@@ -464,7 +464,7 @@ export default function JoinBeta() {
                                       data-testid={`checkbox-${area.value}`}
                                     />
                                   </FormControl>
-                                  <FormLabel className="text-sm text-neutral-300 font-normal cursor-pointer">
+                                  <FormLabel className="text-sm text-foreground font-normal cursor-pointer">
                                     {area.label}
                                   </FormLabel>
                                 </FormItem>
@@ -477,11 +477,11 @@ export default function JoinBeta() {
                     )}
                   />
 
-                  <div className="pt-2 border-t border-neutral-800">
+                  <div className="pt-2 border-t border-border">
                     <div>
-                      <label htmlFor="jb-pw" className="block text-neutral-300 text-sm font-medium mb-2">Password</label>
+                      <label htmlFor="jb-pw" className="block text-foreground text-sm font-medium mb-2">Password</label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
                         <input
                           type="password"
                           id="jb-pw"
@@ -492,7 +492,7 @@ export default function JoinBeta() {
                           {...onboardingForm.register("password")}
                         />
                       </div>
-                      <p id="jb-pw-rule" className="text-neutral-500 text-xs mt-1">{PASSWORD_RULE_TEXT}</p>
+                      <p id="jb-pw-rule" className="text-muted-foreground text-xs mt-1">{PASSWORD_RULE_TEXT}</p>
                       {onboardingForm.formState.errors.password && (
                         <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
                       )}
@@ -500,9 +500,9 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label htmlFor="jb-pw2" className="block text-neutral-300 text-sm font-medium mb-2">Confirm password</label>
+                    <label htmlFor="jb-pw2" className="block text-foreground text-sm font-medium mb-2">Confirm password</label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
                       <input
                         type="password"
                         id="jb-pw2"
@@ -518,7 +518,7 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label htmlFor="jb-ref" className="block text-neutral-300 text-sm font-medium mb-2">How did you find us? (optional)</label>
+                    <label htmlFor="jb-ref" className="block text-foreground text-sm font-medium mb-2">How did you find us? (optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. Twitter, Friend, Google"
@@ -549,7 +549,7 @@ export default function JoinBeta() {
           </div>
         )}
 
-        <p className="text-center text-neutral-600 text-xs mt-6">
+        <p className="text-center text-muted-foreground text-xs mt-6">
           By signing up, you agree to our <a href="/terms" className="underline">Terms of Service</a> and <a href="/privacy" className="underline">Privacy Policy</a>, and acknowledge that QuantEdge is an
           educational research tool, not investment advice. Trading stocks, options and crypto involves substantial risk of loss.
         </p>

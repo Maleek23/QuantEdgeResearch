@@ -78,7 +78,7 @@ export function WaitlistPromptModal({
           <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center mb-4">
             <Sparkles className="h-8 w-8 text-sky-400" />
           </div>
-          <DialogTitle className="text-2xl font-bold text-white">{title}</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-foreground">{title}</DialogTitle>
           <DialogDescription className="text-muted-foreground">
             {description}
           </DialogDescription>
@@ -93,7 +93,7 @@ export function WaitlistPromptModal({
                   <benefit.icon className={`h-4 w-4 ${benefit.color}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{benefit.title}</p>
+                  <p className="text-sm font-medium text-foreground">{benefit.title}</p>
                   <p className="text-xs text-muted-foreground">{benefit.description}</p>
                 </div>
               </div>
@@ -105,7 +105,7 @@ export function WaitlistPromptModal({
             <div className="flex items-start gap-2">
               <Check className="h-4 w-4 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
               <p className="text-xs text-foreground/80">
-                <span className="font-medium text-white">Invite-only beta.</span>{" "}
+                <span className="font-medium text-foreground">Invite-only beta.</span>{" "}
                 Have an invite code? Create your account to open the terminal.
                 No code yet? Join the waitlist on the same page.
               </p>

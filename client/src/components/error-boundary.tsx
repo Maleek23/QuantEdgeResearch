@@ -61,14 +61,14 @@ export class ErrorBoundary extends Component<Props, State> {
       // Friendly UI for chunk load errors (stale deployment)
       if (this.state.isChunkError) {
         return (
-          <div className="min-h-screen bg-card text-white flex items-center justify-center p-8">
+          <div className="min-h-screen bg-card text-foreground flex items-center justify-center p-8">
             <div className="max-w-md text-center">
               <div className="mb-6">
                 <svg className="h-16 w-16 mx-auto text-sky-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
-              <h1 className="text-xl font-bold text-white mb-2">Updating QuantEdge…</h1>
+              <h1 className="text-xl font-bold text-foreground mb-2">Updating QuantEdge…</h1>
               <p className="text-muted-foreground mb-6 text-sm">
                 A new version is out. Reloading to get it.
               </p>
@@ -85,7 +85,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Generic error UI for non-chunk errors
       return (
-        <div className="min-h-screen bg-card text-white p-8">
+        <div className="min-h-screen bg-card text-foreground p-8">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">This screen hit an error</h1>
             <p className="text-sm text-muted-foreground mb-4">Reload the page to try again. Your data is safe. If it keeps happening, send the details below to support.</p>

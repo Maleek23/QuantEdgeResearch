@@ -65,7 +65,7 @@ export function ProtectedRoute({
   if (!user) {
     return (
       <>
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
           <div className="text-center">
             <Lock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">
@@ -158,7 +158,7 @@ export function ProtectedRoute({
     };
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <Card className="w-full max-w-md glass-card border-amber-500/20">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
@@ -259,7 +259,7 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
 
   if (!user || !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="text-center">
           <h1 className="text-6xl font-bold text-muted-foreground mb-4">404</h1>
           <h2 className="text-xl font-semibold text-foreground mb-2">Page Not Found</h2>
