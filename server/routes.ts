@@ -32826,6 +32826,9 @@ Use this checklist before entering any trade:
     // Holy Grail (Raschke ADX/EMA20) — last cycle + per-symbol active setups (server/holy-grail.ts; engine off unless HOLY_GRAIL=true)
     const { registerHolyGrailRoutes } = await import('./holy-grail');
     registerHolyGrailRoutes(app, requireBetaAccess);
+    // 0DTE flow ignition — fired/watch rows + forward-log report (server/zero-dte-flow.ts; publishes only with ZERO_DTE_FLOW=true)
+    const { registerZeroDteFlowRoutes } = await import('./zero-dte-flow');
+    registerZeroDteFlowRoutes(app, requireBetaAccess);
     // GEX wall-touch — walls, live touch rows, forward-log report (server/wall-touch.ts; engine off unless WALL_TOUCH=true)
     const { registerWallTouchRoutes } = await import('./wall-touch');
     registerWallTouchRoutes(app, requireBetaAccess);

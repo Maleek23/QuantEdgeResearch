@@ -637,7 +637,7 @@ async function alpacaJson(url: string): Promise<any | null> {
 export type BarsLoader = (dateKey: string, symbols: string[]) => Promise<Map<string, MinuteBar[]>>;
 export type OptBarsLoader = (dateKey: string, occs: string[]) => Promise<Map<string, OptMinute[]>>;
 
-const loadStockDay: BarsLoader = async (dateKey, symbols) => {
+export const loadStockDay: BarsLoader = async (dateKey, symbols) => {
   const out = new Map<string, MinuteBar[]>();
   const start = new Date(etWallMs(dateKey, 570)).toISOString(); const end = new Date(etWallMs(dateKey, 960)).toISOString();
   for (let i = 0; i < symbols.length; i += 100) {
