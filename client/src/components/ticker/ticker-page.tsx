@@ -32,6 +32,7 @@ import { getPeerSet } from '@shared/sector-peers';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
+import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
 import { LuxButton, LuxPage, LuxTag } from '@/components/lux';
 import {
   INDEX_ETFS, age, atr14, fmtBig, fmtPct, fmtPx, getJson, num, rsi14, shortDate, useQuotes, useTickerData,
@@ -376,6 +377,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
             sub={earn ? `${earn.session === 'pre' ? 'before open' : earn.session === 'post' ? 'after close' : 'time n/a'} · ${earn.daysAway}d` : 'Nasdaq calendar'} unit={!earn}
             tone={earn && earn.daysAway <= 7 ? 'caution' : undefined} />
         </div>
+        <WallTouchBadge symbol={sym} />
       </div>
 
       <div className="tk-chart" id="chart">

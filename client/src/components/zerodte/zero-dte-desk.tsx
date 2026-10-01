@@ -26,6 +26,7 @@ import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
 import { ZeroDteIdeas, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
 import { SectorIgnitionPanel } from '@/components/sector-ignition/sector-ignition';
+import { WallsStrip } from '@/components/walls/walls-strip';
 import './zero-dte-desk.css';
 
 /* ── wire types (server/zero-dte-desk.ts DeskPayload) ── */
@@ -305,6 +306,7 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
     <div className={`zd ${dense ? 'zd-dense' : ''}`}>
       <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
+      <WallsStrip />
       <SniperSection />
       <section className="zd-section" aria-label="Sector ignition, intraday">
         <h4><Waves size={13} aria-hidden /> Sector ignition — intraday</h4>
