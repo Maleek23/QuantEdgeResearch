@@ -336,3 +336,6 @@ console.log('discord forum checks passed');
 
 // Screenshots (vision, mocked model), Mine mapping + broker dedupe, FIFO pairing, parser fixes.
 await import('./test-forum-vision');
+
+// Author attribution (thread creator ≠ journal author), ticker stop-list, re-import repair plan.
+await import('./test-discord-attribution');

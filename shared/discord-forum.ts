@@ -21,6 +21,7 @@ import {
 import { mergeMessageLegs, textLeg, visionLegs, type ForumLeg, type VisionImageRecord } from './forum-vision';
 import { pairForumLegs, type ForumTrade, type LegUpdate, type Leftover } from './forum-pairing';
 import { TRADER_SLUG_RE } from './journal-sources';
+import { filterTickers, type TickerUniverse } from './ticker-stoplist';
 
 /** Discord channel types a thread list can hang off (text, announcement, forum, media). */
 export const THREAD_PARENT_TYPES = new Set([0, 5, 15, 16]);
@@ -211,20 +212,155 @@ export function readExportMeta(data: unknown): ExportMeta {
   };
 }
 
-/** The thread's main author — its creator when known, else whoever posted most. */
-export function primaryAuthor(msgs: DiscordMsg[], ownerId: string | null): { authorId: string; authorName: string } | null {
-  if (ownerId) {
-    const m = msgs.find((x) => x.authorId === ownerId);
-    if (m) return { authorId: ownerId, authorName: m.authorName };
-  }
-  const n = new Map<string, { authorId: string; authorName: string; c: number }>();
-  for (const m of msgs) {
-    const e = n.get(m.authorId) ?? { authorId: m.authorId, authorName: m.authorName, c: 0 };
+/** Who a thread is meant to belong to (the trader it is mapped to). */
+export interface AuthorTarget {
+  slug?: string | null;
+  name?: string | null;
+  /** Extra words that mean this trader (KNOWN_TRADERS aliases; the operator's words for Mine). */
+  aliases?: readonly string[];
+  /** traders.discord_author_id — the strongest signal after an explicit override. */
+  discordAuthorId?: string | null;
+}
+
+export type AuthorVia = 'override' | 'stored_id' | 'name' | 'dominant' | 'creator_tiebreak' | 'only';
+
+export interface ResolvedAuthor {
+  authorId: string;
+  authorName: string;
+  via: AuthorVia;
+  /** Messages by the chosen author / all messages with an author. */
+  share: number;
+  /** The thread creator, when known and different from the chosen author (shown in the preview). */
+  creatorId: string | null;
+}
+
+/** Name → lower-case alphanumerics ("Ayotheone" → "ayotheone", "uzo🃏" → "uzo"). */
+const squash = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '');
+
+/**
+ * Does a Discord display/user name look like this trader? A slug/name/alias of
+ * 3+ characters that the squashed author name equals or starts with
+ * ("femi" ↔ "Femi_trades", "ayo" ↔ "Ayotheone"). Shorter words must be exact.
+ */
+export function authorNameMatches(authorName: string, target: AuthorTarget): boolean {
+  const a = squash(authorName);
+  if (!a) return false;
+  const words = [target.slug, target.name, ...(target.aliases ?? [])].map((w) => squash(w ?? '')).filter(Boolean);
+  return words.some((w) => a === w || (w.length >= 3 && a.startsWith(w)));
+}
+
+/** Below this share a name match alone does not beat the dominant author. */
+const NAME_MATCH_MIN_SHARE = 0.2;
+
+/**
+ * The thread's main author (fix/discord-import-attribution, 2026-09-30).
+ *
+ * The old rule preferred the thread CREATOR. Uzo created Femi's and Ayo's
+ * threads, so Uzo's 48 comments were stored as Femi's journal and Femi's 672
+ * posts as comments (docs/FEMI_JOURNAL_ANALYSIS_2026-09-30.md). Now, in order:
+ *   1. override          the operator picked the author in the preview
+ *   2. stored_id         the mapped trader's traders.discord_author_id posted here
+ *   3. name              an author whose name matches the mapped trader (slug,
+ *                        name, aliases) and wrote ≥20% of the thread, or the most
+ *   4. dominant          whoever wrote the most messages
+ *   5. creator_tiebreak  the creator, only among authors tied for the most
+ * Never the trader's stored HANDLE: on femi/ayo the bug wrote it.
+ */
+export function resolvePrimaryAuthor(
+  msgs: DiscordMsg[],
+  opts: { ownerId?: string | null; target?: AuthorTarget | null; overrideAuthorId?: string | null } = {},
+): ResolvedAuthor | null {
+  const counts = new Map<string, { authorId: string; authorName: string; c: number; first: number }>();
+  msgs.forEach((m, i) => {
+    if (!m.authorId) return;
+    const e = counts.get(m.authorId) ?? { authorId: m.authorId, authorName: m.authorName, c: 0, first: i };
     e.c++;
-    n.set(m.authorId, e);
+    counts.set(m.authorId, e);
+  });
+  let total = 0;
+  for (const e of counts.values()) total += e.c;
+  if (!total) return null;
+  const ranked = [...counts.values()].sort((a, b) => b.c - a.c || a.first - b.first);
+  const owner = opts.ownerId ?? null;
+  const pick = (id: string, via: AuthorVia): ResolvedAuthor => {
+    const e = counts.get(id)!;
+    return { authorId: e.authorId, authorName: e.authorName, via, share: Math.round((e.c / total) * 1000) / 1000, creatorId: owner && owner !== id ? owner : null };
+  };
+  if (opts.overrideAuthorId && counts.has(opts.overrideAuthorId)) return pick(opts.overrideAuthorId, 'override');
+  if (counts.size === 1) return pick(ranked[0].authorId, 'only');
+  const t = opts.target;
+  if (t?.discordAuthorId && counts.has(t.discordAuthorId)) return pick(t.discordAuthorId, 'stored_id');
+  if (t) {
+    const best = ranked.find((e) => authorNameMatches(e.authorName, t) && (e === ranked[0] || e.c / total >= NAME_MATCH_MIN_SHARE));
+    if (best) return pick(best.authorId, 'name');
   }
-  const best = [...n.values()].sort((a, b) => b.c - a.c)[0];
-  return best ? { authorId: best.authorId, authorName: best.authorName } : null;
+  const top = ranked[0].c;
+  const tied = ranked.filter((e) => e.c === top);
+  if (tied.length > 1 && owner && tied.some((e) => e.authorId === owner)) return pick(owner, 'creator_tiebreak');
+  return pick(ranked[0].authorId, 'dominant');
+}
+
+/** Back-compat: the main author with no trader context (dominant; the creator only breaks ties). */
+export function primaryAuthor(msgs: DiscordMsg[], ownerId: string | null): { authorId: string; authorName: string } | null {
+  const r = resolvePrimaryAuthor(msgs, { ownerId });
+  return r ? { authorId: r.authorId, authorName: r.authorName } : null;
+}
+
+/** The AuthorTarget for a mapped book: the trader row (if any) + KNOWN_TRADERS aliases; Mine = the operator's words. */
+export function authorTargetFor(
+  slug: string | null | undefined,
+  trader?: { slug: string; name: string; discordAuthorId?: string | null } | null,
+): AuthorTarget | null {
+  if (!slug) return null;
+  if (isMineSlug(slug)) return { slug: MINE_SLUG, name: null, aliases: MINE_WORDS };
+  const k = KNOWN_TRADERS.find((x) => x.slug === slug);
+  return { slug, name: trader?.name ?? k?.name ?? null, aliases: k?.aliases ?? [], discordAuthorId: trader?.discordAuthorId ?? null };
+}
+
+/** The main author for a thread mapped to `slug` (sorted the way buildThreadImport sorts). */
+export function resolveThreadAuthor(
+  thread: { ownerId: string | null },
+  msgs: DiscordMsg[],
+  slug: string | null | undefined,
+  trader: { slug: string; name: string; discordAuthorId?: string | null } | null,
+  overrideAuthorId: string | null = null,
+): ResolvedAuthor | null {
+  const sorted = [...msgs].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp) || a.id.localeCompare(b.id));
+  return resolvePrimaryAuthor(sorted, { ownerId: thread.ownerId, target: authorTargetFor(slug, trader), overrideAuthorId });
+}
+
+export interface TraderRowLike {
+  source: string | null;
+  handle: string | null;
+  discordChannelId: string | null;
+  discordAuthorId: string | null;
+}
+
+/**
+ * What the forum import changes on an EXISTING trader row.
+ *   handle            set when empty, or when it is a Discord name from this
+ *                     thread (an importer wrote it: on femi/ayo the bug wrote the
+ *                     creator, Uzo). A handle an admin typed that matches no
+ *                     author here is kept.
+ *   discordAuthorId   always the chosen main author.
+ *   discordChannelId / source   filled when empty.
+ */
+export function traderPatchFor(
+  have: TraderRowLike,
+  primary: { authorId: string; authorName: string } | null,
+  threadId: string,
+  threadAuthorNames: string[],
+): Partial<TraderRowLike> {
+  const patch: Partial<TraderRowLike> = {};
+  if (!have.source) patch.source = 'discord';
+  if (primary) {
+    const h = have.handle?.trim().toLowerCase() ?? '';
+    const fromDiscord = !!h && threadAuthorNames.some((n) => n.trim().toLowerCase() === h);
+    if ((!h || fromDiscord) && have.handle !== primary.authorName) patch.handle = primary.authorName;
+    if (have.discordAuthorId !== primary.authorId) patch.discordAuthorId = primary.authorId;
+  }
+  if (!have.discordChannelId && /^\d{15,22}$/.test(threadId)) patch.discordChannelId = threadId;
+  return patch;
 }
 
 export type ReviewReason =
@@ -312,7 +448,7 @@ export interface ThreadPost {
 export interface ReviewItem { messageId: string; at: string; reason: ReviewReason; excerpt: string; link: string | null }
 
 export interface ThreadImport {
-  primary: { authorId: string; authorName: string } | null;
+  primary: ResolvedAuthor | null;
   authors: { authorId: string; authorName: string; messages: number }[];
   posts: ThreadPost[];
   /** Parsed from the main author's messages only (comments by others are posts, never trades). */
@@ -361,10 +497,19 @@ export const imageAttachments = (m: Pick<DiscordMsg, 'attachments'>) => m.attach
 export function buildThreadImport(
   thread: { id: string; name: string; guildId: string | null; ownerId: string | null },
   msgs: DiscordMsg[],
-  opts: { vision?: Map<string, VisionImageRecord[]> } = {},
+  opts: {
+    vision?: Map<string, VisionImageRecord[]>;
+    /** Who the thread is mapped to (resolves the main author — resolvePrimaryAuthor). */
+    target?: AuthorTarget | null;
+    /** The operator's pick in the preview; wins when that author posted in the thread. */
+    authorId?: string | null;
+    /** Ticker universe for post symbols and watchlist notes (null / cold = stop-lists only). */
+    universe?: TickerUniverse;
+  } = {},
 ): ThreadImport {
   const sorted = [...msgs].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp) || a.id.localeCompare(b.id));
-  const primary = primaryAuthor(sorted, thread.ownerId);
+  const primary = resolvePrimaryAuthor(sorted, { ownerId: thread.ownerId, target: opts.target, overrideAuthorId: opts.authorId });
+  const symbolsOf = (p: ParsedMessage, extra: string[] = []) => filterTickers([...extra, ...p.tickers], opts.universe, new Set([...extra, ...p.explicitTickers]));
   const own = primary ? sorted.filter((m) => m.authorId === primary.authorId) : [];
   const parsed = new Map(sorted.map((m) => [m.id, parseDiscordMessage(m)]));
 
@@ -411,7 +556,7 @@ export function buildThreadImport(
     if (!lo && body.length < MIN_NOTE_CHARS && !m.attachments.length && !p.tickers.length) { ignored++; continue; }
     notes.push({
       messageId: m.id, authorId: m.authorId, postedAt: m.timestamp, day: discordDayKey(m.timestamp),
-      symbols: lo?.symbol && !p.tickers.includes(lo.symbol) ? [lo.symbol, ...p.tickers] : p.tickers,
+      symbols: symbolsOf(p, lo?.symbol ? [lo.symbol] : []),
       body, attachments: m.attachments, reason: (lo?.reason ?? 'analysis') as DiscordNoteReason,
     });
   }
@@ -438,7 +583,7 @@ export function buildThreadImport(
       postedAt: m.timestamp,
       day: discordDayKey(m.timestamp),
       body: text || '(attachment)',
-      symbols: [...new Set([...p.tickers, ...visionSymbols])].filter((t) => SYMBOL_OK.test(t)).slice(0, 12),
+      symbols: symbolsOf(p, visionSymbols).filter((t) => SYMBOL_OK.test(t)).slice(0, 12),
       attachments: m.attachments,
       meta: {
         kind: 'discord_post',

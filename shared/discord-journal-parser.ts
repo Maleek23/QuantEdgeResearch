@@ -40,6 +40,8 @@
  * Everything that isn't a trade leg (analysis, charts, commentary) becomes a
  * note linked to the tickers it mentions and the New York day it was posted.
  */
+import { ENGLISH_CAPS, isTickerJargon } from './ticker-stoplist';
+
 
 // ─── Input normalisation ─────────────────────────────────────
 
@@ -227,8 +229,10 @@ export interface ParsedMessage {
   qty: number | null;
   /** Instrument side for an entry (short = shorted stock / sold-to-open). */
   side: 'long' | 'short';
-  /** Every ticker the message mentions (notes are linked to these). */
+  /** Every ticker the message mentions (notes are linked to these). Chart jargon and English caps are dropped. */
   tickers: string[];
+  /** The subset of `tickers` the writer marked as an instrument ($X, a contract, "X calls", a leading "X:"). */
+  explicitTickers: string[];
   setup: string | null;
   /** Cleaned text (markdown/emoji/mentions stripped). */
   text: string;
@@ -358,7 +362,7 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   const lead = text.replace(/^[^A-Za-z0-9$]+/, '');
   const base: ParsedMessage = {
     msg, kind: 'note', symbol: null, assetType: null, optionType: null, strike: null, expiry: null,
-    price: null, pct: null, qty: null, side: 'long', tickers: [], setup: null, text,
+    price: null, pct: null, qty: null, side: 'long', tickers: [], explicitTickers: [], setup: null, text,
     stop: null, target: null, confidence: 0, tradeLooking: false,
   };
 
@@ -379,18 +383,28 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   }
 
   const tickers = new Set<string>();
-  if (base.symbol) tickers.add(base.symbol);
-  for (const m of text.matchAll(DOLLAR_TICKER_RE)) tickers.add(m[1].toUpperCase());
+  const explicit = new Set<string>();
+  const mark = (t: string) => { tickers.add(t); explicit.add(t); };
+  if (base.symbol) mark(base.symbol);
+  for (const m of text.matchAll(DOLLAR_TICKER_RE)) mark(m[1].toUpperCase());
+  // "CRWD: golden pocket…" — a ticker leading a line with a colon. Explicit for
+  // jargon purposes (BB, BE, MA are real names), never for English words.
+  for (const m of text.matchAll(/(?:^|\n)\s*([A-Z]{1,5})\s*:(?!\d)/g)) {
+    if (!ENGLISH_CAPS.has(m[1]) && !STOPWORDS.has(m[1])) mark(m[1]);
+  }
+  // Bare capitals in prose: never chart jargon (HH, HTF, RR, OI…) or English caps (HOLY…).
   for (const m of text.matchAll(/\b([A-Z]{2,5})\b/g)) {
     const w = m[1];
-    if (CRYPTO.has(w) || !STOPWORDS.has(w)) tickers.add(w);
+    if (CRYPTO.has(w)) { tickers.add(w); continue; }
+    if (!STOPWORDS.has(w) && !isTickerJargon(w)) tickers.add(w);
   }
   // A single capital letter is a ticker with a $ (F, T, X…), or when the words
   // around it say it is an instrument: "100 shares of F", "F calls", "T puts".
   const ctx = CONTEXT_TICKER_RE.exec(text) ?? CONTEXT_TICKER_AFTER_RE.exec(text);
   const ctxTicker = ctx && !STOPWORDS.has(ctx[1]) && !VERB_WORDS.has(ctx[1].toLowerCase()) ? ctx[1] : null;
-  if (ctxTicker) tickers.add(ctxTicker);
+  if (ctxTicker) mark(ctxTicker);
   base.tickers = [...tickers];
+  base.explicitTickers = [...explicit];
 
   // Stock instrument: $TICKER, or TICKER right after a verb.
   if (!base.symbol) {

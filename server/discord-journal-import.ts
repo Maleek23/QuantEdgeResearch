@@ -31,6 +31,7 @@ import {
   discordAuthors, normalizeDiscordExport, pairDiscordMessages,
   type DiscordMsg, type DiscordNote, type DiscordTrade, type NormalizeResult,
 } from '@shared/discord-journal-parser';
+import { acceptTicker, type TickerUniverse } from '@shared/ticker-stoplist';
 
 // ─── Path 1: Discord REST (bot token) ────────────────────────
 
@@ -132,12 +133,17 @@ function tradeLine(t: DiscordTrade): string {
   return `${t.direction === 'short' ? 'short ' : ''}${contract}@${px(t.entryPrice)}${exit}`.trim();
 }
 
-/** Fold parsed trades + analysis notes into one watchlist candidate per ticker. */
-export function watchCandidates(trades: DiscordTrade[], notes: DiscordNote[]) {
+/**
+ * Fold parsed trades + analysis notes into one watchlist candidate per ticker.
+ * Symbols arrive already stop-listed by the parser (shared/ticker-stoplist.ts);
+ * `universe` (server/known-tickers.ts) additionally drops anything that is not
+ * a real ticker (CES, HOLY…) when it is known.
+ */
+export function watchCandidates(trades: DiscordTrade[], notes: DiscordNote[], universe?: TickerUniverse) {
   const by = new Map<string, { symbol: string; mentions: number; lastAt: string; note: string }>();
   const touch = (sym: string, at: string, line: string) => {
     const symbol = sym.toUpperCase().replace(/^\$/, '');
-    if (!SYMBOL_OK.test(symbol)) return;
+    if (!SYMBOL_OK.test(symbol) || !acceptTicker(symbol, { universe, explicit: true })) return;
     const cur = by.get(symbol);
     if (!cur) { by.set(symbol, { symbol, mentions: 1, lastAt: at, note: line }); return; }
     cur.mentions++;
@@ -188,11 +194,13 @@ export async function buildDiscordPreview(input: PreviewInput) {
   const selected = input.authorId && authors.some((a) => a.authorId === input.authorId) ? input.authorId : null;
   const msgs: DiscordMsg[] = selected ? norm.messages.filter((m) => m.authorId === selected) : norm.messages;
   const { trades, notes, stats } = pairDiscordMessages(msgs);
+  const { loadKnownTickers } = await import('./known-tickers');
+  const universe = await loadKnownTickers();
 
   const trader = await traderBySlug(input.traderSlug);
   const existing = await db.select().from(traderWatchlistItems).where(eq(traderWatchlistItems.traderId, trader.id));
   const have = new Map(existing.map((r) => [r.symbol, r]));
-  const candidates: WatchCandidate[] = watchCandidates(trades, notes).map((c) => {
+  const candidates: WatchCandidate[] = watchCandidates(trades, notes, universe).map((c) => {
     const prev = have.get(c.symbol);
     return { ...c, state: !prev ? 'new' : prev.note === c.note ? 'unchanged' : 'update' };
   });
@@ -250,11 +258,11 @@ export async function commitDiscordPreview(token: string, actorId: string, trade
  * The same watchlist fold for callers that already hold parsed trades/notes
  * (the forum import): one row per ticker, note = their latest call.
  */
-export async function upsertTraderWatchlist(traderId: string, trades: DiscordTrade[], notes: DiscordNote[], actorId: string) {
+export async function upsertTraderWatchlist(traderId: string, trades: DiscordTrade[], notes: DiscordNote[], actorId: string, universe?: TickerUniverse) {
   const existing = await db.select().from(traderWatchlistItems).where(eq(traderWatchlistItems.traderId, traderId));
   const have = new Map(existing.map((r) => [r.symbol, r]));
   let added = 0, updated = 0, unchanged = 0;
-  for (const c of watchCandidates(trades, notes)) {
+  for (const c of watchCandidates(trades, notes, universe)) {
     const prev = have.get(c.symbol);
     if (!prev) {
       await db.insert(traderWatchlistItems).values({ traderId, symbol: c.symbol, note: c.note, addedBy: actorId }).onConflictDoNothing();

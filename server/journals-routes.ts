@@ -504,6 +504,8 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       slug: z.string().trim().toLowerCase().regex(TRADER_SLUG_RE).nullable(),
       /** Required when slug is a NEW trader: the operator's confirmation, with the display name. */
       createName: z.string().trim().min(1).max(60).nullish(),
+      /** The operator's main-author pick for the thread (Discord user id). Omitted = resolved server-side. */
+      authorId: z.string().trim().regex(/^[\w:-]{1,40}$/).nullish(),
     }).strict()).min(1).max(200),
   }).strict();
 
