@@ -13,12 +13,15 @@ import { initClientObservability } from "./lib/observability";
 import { installStaleBundleGuard } from "./lib/stale-bundle";
 import { armBoot } from "./lib/boot";
 import { isDisposedChartError } from "./components/charting/tv/chart-guard";
+import { captureFirstTouch } from "./lib/attribution";
 
 // Initialize observability immediately (before any other code can throw)
 void initClientObservability();
 // After a deploy an open tab can load a chunk that no longer exists, or mix old
 // and new code ("useRef is not defined"). Detect it, say so, reload once.
 installStaleBundleGuard();
+// First-touch referrer / landing path / utm_* for waitlist + sign-up captures.
+captureFirstTouch();
 
 // Signal to diagnostic script that the module loaded successfully
 (window as any).__QE_LOADED = true;

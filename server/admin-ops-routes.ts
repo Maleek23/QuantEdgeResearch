@@ -13,7 +13,10 @@
  *   GET    /api/admin/ops/invites                list with status + who redeemed
  *   POST   /api/admin/ops/invites/generate       { count, email?, tierOverride?, expiryDays?, note? }
  *   POST   /api/admin/ops/invites/:id/revoke
- *   POST   /api/admin/ops/waitlist/approve       { ids[], tierOverride?, expiryDays? } → email-locked codes
+ *   GET    /api/admin/ops/waitlist               entries + their invite (code, link, emailed at / email error) + sender status
+ *   POST   /api/admin/ops/waitlist/approve       { ids[], tierOverride?, expiryDays?, sendEmail? } → email-locked codes,
+ *                                                 emailed through Resend unless sendEmail:false (server/invite-mailer.ts)
+ *   POST   /api/admin/ops/waitlist/approve-all   { confirm:'approve-all-pending', expectedCount, … } → oldest 100 pending
  *   GET    /api/admin/ops/traders                trader books with passcode set / unset
  *   GET    /api/admin/ops/audit                  admin action log, newest first
  */
@@ -28,6 +31,10 @@ import {
   type AdminUserRow,
 } from './admin-ops';
 import { appendAdminAudit, auditActor, codeTail, readAdminAudit } from './admin-audit';
+import {
+  approveWaitlistEntries, checkApproveAllConfirmation, currentInviteSender, inviteSenderConfig, DEFAULT_DISCORD_URL,
+  type ApproveDeps, type ApproveResult,
+} from './invite-mailer';
 
 const fail = (res: Response, err: unknown, context: string) => {
   logger.error(`[ADMIN-OPS] ${context} failed`, { error: (err as Error)?.message });
@@ -323,42 +330,130 @@ export function registerAdminOpsRoutes(app: Express, requireAdmin: RequestHandle
   });
 
   // ── Waitlist ────────────────────────────────────────────
-  // Approve → an email-locked code per entry (no email is sent; the operator
-  // copies the code or link). An entry that already has an unused code gets
-  // that code back instead of a second one.
+  // Approve → an email-locked code per entry, emailed through Resend (unless
+  // sendEmail:false). An entry that already has an unused code gets that code
+  // back; a code that was already emailed is not emailed again.
+  const approveDeps = async (): Promise<ApproveDeps> => {
+    const { storage } = await import('./storage');
+    const { db } = await import('./db');
+    let emailColsMissing = false;
+    return {
+      getOpenInvite: (email) => storage.getBetaInviteByEmail(email),
+      createInvite: (input) => createCode({ email: input.email, tierOverride: input.tierOverride, expiresAt: input.expiresAt, notes: input.notes }),
+      setWaitlistStatus: (id, status, inviteId) => storage.updateWaitlistStatus(id, status, inviteId),
+      markInviteSent: (inviteId) => storage.markBetaInviteSent(inviteId),
+      recordEmailResult: async (inviteId, r) => {
+        if (emailColsMissing) return;
+        try {
+          await db.execute(sql`UPDATE beta_invites SET email_error = ${r.error}, email_message_id = ${r.messageId} WHERE id = ${inviteId}`);
+        } catch (e) {
+          if ((e as { code?: string })?.code === '42703') emailColsMissing = true; // migration 0006 not applied
+          else logger.warn('[ADMIN-OPS] invite email status write failed', { error: (e as Error)?.message });
+        }
+      },
+      isUnused: (inv) => inviteDisplayStatus(inv) === 'unused',
+      send: currentInviteSender(),
+    };
+  };
+
+  const runApprove = async (req: Request, entries: { id: string; email: string; status: string | null }[], body: Record<string, unknown>) => {
+    const opts = parseGenerateInvitesInput({ tierOverride: body.tierOverride, expiryDays: body.expiryDays ?? DEFAULT_INVITE_EXPIRY_DAYS });
+    if (!opts.ok) return { error: opts.error } as const;
+    const sender = inviteSenderConfig();
+    const results = await approveWaitlistEntries(entries, {
+      origin: origin(req),
+      tierOverride: opts.value.tierOverride,
+      expiresAt: inviteExpiryDate(opts.value.expiryDays),
+      sendEmail: body.sendEmail !== false,
+      sender,
+      discordUrl: process.env.DISCORD_INVITE_URL || DEFAULT_DISCORD_URL,
+    }, await approveDeps());
+    return { results, sender, tierOverride: opts.value.tierOverride } as const;
+  };
+
+  const auditApprove = (req: Request, action: 'waitlist.approve' | 'waitlist.approve_all', results: ApproveResult[], tierOverride: string | null) => {
+    appendAdminAudit({
+      action, actor: actorOf(req), target: `${results.length} entries`,
+      detail: {
+        emails: results.map((r) => r.email),
+        created: results.filter((r) => r.code && !r.reused).length,
+        emailed: results.filter((r) => r.emailed).length,
+        emailFailed: results.filter((r) => r.emailError).map((r) => ({ email: r.email, error: r.emailError })),
+        tierOverride: tierOverride ?? 'none',
+      },
+      ip: req.ip ?? null,
+    });
+  };
+
+  app.get('/api/admin/ops/waitlist', requireAdmin, async (req, res) => {
+    try {
+      const { storage } = await import('./storage');
+      const { db } = await import('./db');
+      const [entries, invites] = await Promise.all([storage.getAllWaitlistEntries(), storage.getAllBetaInvites()]);
+      const byId = new Map(invites.map((i) => [i.id, i]));
+      // Attribution + email error columns exist only once migration 0006 is applied.
+      const attr = new Map<string, { referrer: string | null; landingPath: string | null; utm: Record<string, string> | null }>();
+      try {
+        const r = await db.execute(sql`SELECT id, referrer, landing_path, utm FROM beta_waitlist`);
+        for (const row of (r as unknown as { rows: { id: string; referrer: string | null; landing_path: string | null; utm: Record<string, string> | null }[] }).rows ?? []) {
+          attr.set(row.id, { referrer: row.referrer, landingPath: row.landing_path, utm: row.utm });
+        }
+      } catch { /* 0006 not applied */ }
+      const emailErr = new Map<string, string>();
+      try {
+        const r = await db.execute(sql`SELECT id, email_error FROM beta_invites WHERE email_error IS NOT NULL`);
+        for (const row of (r as unknown as { rows: { id: string; email_error: string }[] }).rows ?? []) emailErr.set(row.id, row.email_error);
+      } catch { /* 0006 not applied */ }
+      const base = origin(req);
+      const now = Date.now();
+      res.set('Cache-Control', 'no-store');
+      res.json({
+        count: entries.length,
+        sender: inviteSenderConfig(),
+        entries: entries.map((e) => {
+          const inv = e.inviteId ? byId.get(e.inviteId) : undefined;
+          return {
+            id: e.id, email: e.email, source: e.source, referralCode: e.referralCode, status: e.status ?? 'pending',
+            createdAt: e.createdAt, ...(attr.get(e.id) ?? { referrer: null, landingPath: null, utm: null }),
+            invite: inv ? {
+              id: inv.id, code: inv.token, link: inviteLink(base, inv.token), status: inviteDisplayStatus(inv, now),
+              sentAt: inv.sentAt, expiresAt: inv.expiresAt, emailError: emailErr.get(inv.id) ?? null,
+            } : null,
+          };
+        }),
+      });
+    } catch (err) { fail(res, err, 'Waitlist list'); }
+  });
+
   app.post('/api/admin/ops/waitlist/approve', requireAdmin, async (req, res) => {
     try {
       const ids: unknown = req.body?.ids;
       if (!Array.isArray(ids) || !ids.length || ids.length > MAX_INVITES_PER_BATCH || ids.some((x) => typeof x !== 'string' || !ID_RE.test(x))) {
         return res.status(400).json({ error: `ids: 1–${MAX_INVITES_PER_BATCH} waitlist entry ids` });
       }
-      const opts = parseGenerateInvitesInput({ tierOverride: req.body?.tierOverride, expiryDays: req.body?.expiryDays ?? DEFAULT_INVITE_EXPIRY_DAYS });
-      if (!opts.ok) return res.status(400).json({ error: opts.error });
-      const { storage } = await import('./storage');
       const { db } = await import('./db');
       const entries = await db.select().from(betaWaitlist).where(sql`${betaWaitlist.id} IN (${sql.join((ids as string[]).map((x) => sql`${x}`), sql`, `)})`);
-      const base = origin(req);
-      const expiresAt = inviteExpiryDate(opts.value.expiryDays);
-      const results: { id: string; email: string; code: string | null; link: string | null; reused: boolean; skipped?: string }[] = [];
-      for (const e of entries) {
-        if (e.status === 'joined') { results.push({ id: e.id, email: e.email, code: null, link: null, reused: false, skipped: 'already joined' }); continue; }
-        const existing = await storage.getBetaInviteByEmail(e.email);
-        if (existing && inviteDisplayStatus(existing) === 'unused') {
-          await storage.updateWaitlistStatus(e.id, e.status === 'invited' ? 'invited' : 'approved', existing.id);
-          results.push({ id: e.id, email: e.email, code: existing.token, link: inviteLink(base, existing.token), reused: true });
-          continue;
-        }
-        const inv = await createCode({ email: e.email.toLowerCase(), tierOverride: opts.value.tierOverride, expiresAt, notes: 'waitlist approval' });
-        await storage.updateWaitlistStatus(e.id, 'approved', inv.id);
-        results.push({ id: e.id, email: e.email, code: inv.token, link: inviteLink(base, inv.token), reused: false });
-      }
-      appendAdminAudit({
-        action: 'waitlist.approve', actor: actorOf(req), target: `${results.length} entries`,
-        detail: { emails: results.map((r) => r.email), created: results.filter((r) => r.code && !r.reused).length, tierOverride: opts.value.tierOverride ?? 'none' },
-        ip: req.ip ?? null,
-      });
-      res.json({ ok: true, results, notFound: (ids as string[]).length - entries.length });
+      const out = await runApprove(req, entries, req.body ?? {});
+      if ('error' in out) return res.status(400).json({ error: out.error });
+      auditApprove(req, 'waitlist.approve', out.results, out.tierOverride);
+      res.json({ ok: true, results: out.results, notFound: (ids as string[]).length - entries.length, sender: { configured: out.sender.configured, from: out.sender.from, problem: out.sender.problem } });
     } catch (err) { fail(res, err, 'Waitlist approval'); }
+  });
+
+  app.post('/api/admin/ops/waitlist/approve-all', requireAdmin, async (req, res) => {
+    try {
+      const { storage } = await import('./storage');
+      const pending = (await storage.getAllWaitlistEntries())
+        .filter((e) => (e.status ?? 'pending') === 'pending')
+        .sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+      const check = checkApproveAllConfirmation(req.body, pending.length);
+      if (!check.ok) return res.status(check.status).json({ error: check.error, pending: pending.length });
+      const batch = pending.slice(0, MAX_INVITES_PER_BATCH);
+      const out = await runApprove(req, batch, req.body ?? {});
+      if ('error' in out) return res.status(400).json({ error: out.error });
+      auditApprove(req, 'waitlist.approve_all', out.results, out.tierOverride);
+      res.json({ ok: true, results: out.results, remaining: pending.length - batch.length, sender: { configured: out.sender.configured, from: out.sender.from, problem: out.sender.problem } });
+    } catch (err) { fail(res, err, 'Approve all pending'); }
   });
 
   // ── Trader books ────────────────────────────────────────

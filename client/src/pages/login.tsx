@@ -57,6 +57,8 @@ export default function Login() {
     if (error) {
       const errorMessages: Record<string, string> = {
         'invite_required': 'This is an invite-only beta. Join the waitlist to request access.',
+        // Google sign-in without an invite: the server already put the email on the list.
+        'invite_waitlisted': 'QuantEdge is invite-only for now. Your Google email is on the beta list — we’ll email you when a spot opens.',
         'google_auth_failed': 'Google sign-in failed. Please try again.',
         'no_user': 'Could not retrieve your account. Please try again.',
         'login_failed': 'Login failed. Please try again.',

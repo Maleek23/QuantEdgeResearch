@@ -45,6 +45,14 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
   if (req.path.startsWith('/api/auth/')) {
     return next();
   }
+
+  // Public waitlist join: unauthenticated, idempotent (dedupe by email) and
+  // rate-limited per IP. A missing/stale csrf_token cookie (blocked cookies,
+  // privacy browsers, a page open past the cookie's 24 h) answered 403 here —
+  // before the handler — so the email was dropped without a trace.
+  if (req.method === 'POST' && req.path === '/api/waitlist/join') {
+    return next();
+  }
   
   // Exempt breakout scanner GET routes (read-only scanning)
   if (req.path.startsWith('/api/breakout')) {
