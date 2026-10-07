@@ -161,10 +161,12 @@ export function WeekMap({ wp, snap, narrow }: { wp: WeeklyPath; snap?: GexSnap; 
   // instead of shrinking with the viewBox.
   const W = narrow ? 380 : 760, H = narrow ? 320 : 380, padL = 8, padR = narrow ? 92 : 118, padT = 18, padB = 46;
   // Only measured dealer levels — the model's extrapolated ones stay off the map.
+  // Narrow: the wall basis ("all exp") is in the keys above the map; in the 92px label
+  // gutter it was clipped (device pass 2026-10-06).
   const measured = [
-    snap?.callWall && { price: snap.callWall, label: `Call wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bull' },
+    snap?.callWall && { price: snap.callWall, label: `Call wall${snap.wallBasis && !narrow ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bull' },
     snap?.maxGammaStrike && { price: snap.maxGammaStrike, label: 'King node', tone: 'magnet' },
-    snap?.putWall && { price: snap.putWall, label: `Put wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bear' },
+    snap?.putWall && { price: snap.putWall, label: `Put wall${snap.wallBasis && !narrow ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bear' },
   ].filter(Boolean) as { price: number; label: string; tone: string }[];
   const pctAt = (k: number) => snap?.levels?.find((l) => Math.abs(l.strike - k) < 0.01)?.gammaPct;
   // Scale to the week SPY can realistically travel (±2σ of the implied move),

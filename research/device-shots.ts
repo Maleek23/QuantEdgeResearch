@@ -32,6 +32,13 @@ export const PAGES: Array<{ slug: string; path: string; admin?: boolean; out?: b
   { slug: 'crypto', path: '/t?tab=crypto' },
   { slug: 'journal', path: '/t?tab=journal' },
   { slug: 'journal-daily', path: '/t?tab=journal&jtab=daily' },
+  { slug: 'gex', path: '/t?tab=gex' },
+  { slug: 'chart', path: '/t?tab=chart' },
+  { slug: 'leaps', path: '/t?tab=leaps' },
+  { slug: 'catalysts', path: '/t?tab=catalyst' },
+  { slug: 'bot', path: '/t?tab=bot' },
+  { slug: 'positions', path: '/t?tab=positions' },
+  { slug: 'alerts', path: '/alerts' },
   { slug: 'settings', path: '/settings' },
   { slug: 'admin', path: '/admin', admin: true },
   { slug: 'landing', path: '/', out: true },
@@ -41,6 +48,7 @@ export const PAGES: Array<{ slug: string; path: string; admin?: boolean; out?: b
   { slug: 'how-to', path: '/how-to' },
 ];
 const SIZES = [
+  { w: 360, h: 780, phone: true },
   { w: 375, h: 812, phone: true },
   { w: 390, h: 844, phone: true },
   { w: 768, h: 1024, phone: false, touch: true },
@@ -124,6 +132,31 @@ function probe(phone: boolean) {
   };
 }
 
+
+/** Phone "big and tight" read: type-size histogram, oversized text, boxes nested 3 deep. Runs in the page. */
+function sleekStats() {
+  const vis = (el: Element) => { const r = el.getBoundingClientRect(); const st = getComputedStyle(el); return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+  const cls = (el: Element) => `${el.tagName.toLowerCase()}.${(el.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 2).join('.')}`;
+  const hist: Record<string, number> = {}; const big: Record<string, number> = {};
+  const main = document.querySelector('#main-content') ?? document.body;
+  const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT); const seen = new Set<Element>();
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement; if (!el || seen.has(el) || !(n.textContent || '').trim() || el.closest('[data-harness],svg,canvas') || !vis(el)) continue; seen.add(el);
+    const fs = Math.round(parseFloat(getComputedStyle(el).fontSize) * 2) / 2;
+    hist[fs] = (hist[fs] ?? 0) + 1;
+    if (fs >= 17) { const k = `${cls(el)} ${fs}px`; big[k] = (big[k] ?? 0) + 1; }
+  }
+  const isBox = (el: Element) => { const st = getComputedStyle(el); const bw = parseFloat(st.borderTopWidth) + parseFloat(st.borderLeftWidth); return (bw > 0 && st.borderTopStyle !== 'none' && st.borderLeftStyle !== 'none') || (st.backgroundColor !== 'rgba(0, 0, 0, 0)' && parseFloat(st.borderTopLeftRadius) > 0); };
+  const deep: Record<string, number> = {};
+  for (const el of Array.from(main.querySelectorAll('*'))) {
+    if (!isBox(el) || !vis(el) || el.getBoundingClientRect().width < 120) continue;
+    let d = 0; for (let p = el.parentElement; p && p !== main; p = p.parentElement) if (isBox(p)) d++;
+    if (d >= 2) { const k = cls(el); deep[k] = (deep[k] ?? 0) + 1; }
+  }
+  const top = (o: Record<string, number>) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ×${v}`);
+  return { typeHist: hist, bigText: top(big), nestedBoxes: top(deep) };
+}
+
 async function shoot(browser: any, s: (typeof SIZES)[number], mode: string, pages: typeof PAGES, report: Record<string, unknown>) {
   // One context per size × mode so the dev server's module graph is cached across pages.
   const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h }, deviceScaleFactor: 1, isMobile: s.phone, hasTouch: s.phone || !!(s as any).touch });
@@ -148,7 +181,7 @@ async function shoot(browser: any, s: (typeof SIZES)[number], mode: string, page
       // Settle: wait for page/tool skeletons to leave (cold vite compiles are slow), then a beat.
       await page.waitForFunction(() => !document.querySelector('.qe-skel, .qe-skel-block, #app-loader'), null, { timeout: 15_000 }).catch(() => {});
       await page.waitForTimeout(1500);
-      report[key] = { ...(await page.evaluate(probe, s.phone)), errors: [...new Set(errors)].slice(0, 12) };
+      report[key] = { ...(await page.evaluate(probe, s.phone)), ...(s.phone ? await page.evaluate(sleekStats) : {}), errors: [...new Set(errors)].slice(0, 12) };
       // Pages scroll inside the shell's <main>, not the document: grow the viewport by the
       // scroller's hidden height so one image shows the whole page (capped at 5000px).
       const extra = await page.evaluate(() => {
@@ -177,7 +210,7 @@ async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const only = process.env.SHOTS_PAGES?.split(',');
   const pages = PAGES.filter((p) => !only || only.includes(p.slug));
-  const sizes = process.env.SHOTS_SIZES ? SIZES.filter((s) => process.env.SHOTS_SIZES!.split(',').includes(String(s.w))) : SIZES;
+  const sizes = SIZES.filter((s) => (process.env.SHOTS_SIZES || '375,390,768,1366').split(',').includes(String(s.w)));
   const modes = (process.env.SHOTS_MODES || 'dark,light').split(',');
   const report: Record<string, unknown> = {};
   const jobs = sizes.flatMap((s) => modes.map((m) => () => shoot(browser, s, m, pages, report)));

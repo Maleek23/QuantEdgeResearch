@@ -6,6 +6,7 @@ import "./index.css";
 import "./components/lux/lux.css";
 import "./styles/phone-density.css"; // phone content density — ⓘ sheets, compact stamps, clamps (components/ui/qe-phone.tsx)
 import "./styles/modes.css"; // visual modes — html[data-mode] token overrides (lib/visual-mode.ts)
+import "./styles/phone-sleek.css"; // ONE phone type scale + spacing (DESIGN_SYSTEM §10) — loads after the base sheets
 import "./lib/visual-mode"; // applies the saved mode (index.html already did, pre-paint)
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
