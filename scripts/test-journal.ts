@@ -315,6 +315,13 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
   assert.match(read('server/journal-sources.ts'), /verifyDeskRows\(pairs, ledger\)/);
   assert.match(read('server/routes.ts'), /loadJournal\(j, \{ includeUnverified \}\)/);
   assert.match(read('client/src/components/journal/journal-switcher.tsx'), /UNVERIFIED — recorded/);
+  // The verifier is read-only: one READ ONLY transaction, rolled back, and no write statement anywhere.
+  const verifier = read('research/verify-nexus-book.ts');
+  assert.match(verifier, /BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY/);
+  assert.match(verifier, /query\('ROLLBACK'\)/);
+  assert.equal(/\b(UPDATE|INSERT INTO|DELETE FROM|TRUNCATE|ALTER TABLE)\b/.test(verifier.replace(/\/\*[\s\S]*?\*\//g, '')), false, 'no write SQL in the verifier');
+  const dry = read('research/repair-nexus-book-dryrun.ts');
+  assert.equal(/from 'pg'|server\/db/.test(dry), false, 'the repair proposal never opens a DB connection');
 }
 
 // ── Discord parser: sample messages ──
