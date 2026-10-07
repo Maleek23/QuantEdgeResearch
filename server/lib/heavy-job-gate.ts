@@ -25,7 +25,8 @@
  * main slot (index-0dte "done in 71.9s" = ~60 s gate wait + a 12 s chain wait
  * that timed out). `lane: 'index'` gives the index engine (and its pre-open
  * chain warm) a slot of its own — one job at a time inside the lane, never
- * waiting for the main lane.
+ * waiting for the main lane. Since 2026-10-06 the 0DTE flow engine's batched
+ * chain read ('zero-dte-flow:chains', one job per 2-min cycle) shares it too.
  *
  * OPEN QUIET WINDOW (2026-10-01). 09:30–09:45 ET on weekdays, the deferrable
  * low-value jobs below (magnet ranking, sector board, conviction warm, non-index
