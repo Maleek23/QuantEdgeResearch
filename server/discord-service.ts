@@ -609,6 +609,35 @@ export function markTradeIdeaShared(idea: TradeIdea): void {
   markTradeIdeaSent(idea.symbol, idea.direction || 'long', idea.assetType || 'stock', (idea as any).optionType, (idea as any).strikePrice || (idea as any).strike);
 }
 
+/**
+ * QuantEdge Labs Discord (operator's own server, 2026-10-07). When set, these
+ * take precedence over the legacy channel routing below:
+ *   DISCORD_WEBHOOK_0DTE_IDEAS  — index / SPX / 0–1 DTE ideas and index scalps (#0dte-ideas)
+ *   DISCORD_WEBHOOK_ROTATION_IDEAS — sector_rotation / sector_ignition / leaders ideas (#sector-rotation)
+ *   DISCORD_WEBHOOK_SWING_IDEAS — swing / position ideas (#swing-ideas)
+ *   DISCORD_WEBHOOK_NEXUS_IDEAS — every other NEXUS trade idea (#nexus-trade-ideas)
+ */
+function isZeroDteIdea(idea: TradeIdea): boolean {
+  const src = String((idea as any).source || '');
+  if (['orb_scanner', 'spx_session', 'index_scalp', 'index-scalp', 'zero_dte_desk', 'zero_dte_flow'].includes(src)) return true;
+  const exp = (idea as any).expiryDate;
+  if (String(idea.assetType || '') === 'option' && exp) {
+    const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+    const days = (Date.parse(String(exp).slice(0, 10)) - Date.parse(et)) / 86_400_000;
+    if (Number.isFinite(days) && days <= 1) return true;
+  }
+  return ['SPX', 'SPXW'].includes(String(idea.symbol));
+}
+function labsIdeaWebhook(idea: TradeIdea): string | undefined {
+  const env = process.env;
+  if (isZeroDteIdea(idea) && env.DISCORD_WEBHOOK_0DTE_IDEAS) return env.DISCORD_WEBHOOK_0DTE_IDEAS;
+  const src = String((idea as any).source || '');
+  if (['sector_rotation', 'sector_ignition', 'leaders'].includes(src) && env.DISCORD_WEBHOOK_ROTATION_IDEAS) return env.DISCORD_WEBHOOK_ROTATION_IDEAS;
+  const hold = String((idea as any).holdingPeriod || '').toLowerCase();
+  if ((hold === 'swing' || hold === 'position') && env.DISCORD_WEBHOOK_SWING_IDEAS) return env.DISCORD_WEBHOOK_SWING_IDEAS;
+  return env.DISCORD_WEBHOOK_NEXUS_IDEAS || undefined;
+}
+
 export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<{ sent: boolean; reason?: string }> {
   if (DISCORD_DISABLED) return { sent: false, reason: 'Discord disabled' };
 
@@ -634,7 +663,10 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
     (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
 
-  if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
+  const labs = labsIdeaWebhook(idea);
+  if (labs) {
+    webhookUrl = labs;
+  } else if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
     // Oracle is the published research stream. Keep it separate from generic
     // options traffic so a reader can distinguish a called signal from a bot fill.
     webhookUrl = process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS;
@@ -698,6 +730,8 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
  * SPX/0DTE → SPX, else QUANTFLOOR). Returns undefined if none configured.
  */
 function resolveTradeWebhook(idea: TradeIdea): string | undefined {
+  const labs = labsIdeaWebhook(idea);
+  if (labs) return labs;
   const assetTypeStr = String(idea.assetType || 'stock');
   const ideaSource = (idea as any).source || '';
 
@@ -1968,6 +2002,7 @@ export async function sendIndexScalpToDiscord(
   }
 
   const webhookUrl =
+    process.env.DISCORD_WEBHOOK_0DTE_IDEAS ||
     process.env.DISCORD_WEBHOOK_SPX ||
     process.env.DISCORD_WEBHOOK_LOTTO ||
     process.env.DISCORD_WEBHOOK_OPTIONSTRADES ||
