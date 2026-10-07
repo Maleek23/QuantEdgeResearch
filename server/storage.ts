@@ -2875,6 +2875,25 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // 💵 Budget contract (shared/budget-contract.ts): beside the primary contract,
+    // pick + store a whole-contract, liquid option the $500–1,000 risk budget can
+    // actually buy (never a fraction of the primary). BUDGET_CONTRACT=off disables.
+    if (
+      !ALWAYS_INSERT.has(src) &&
+      (idea as any).sessionContext !== "backfill" &&
+      (idea as any).status !== "draft" &&
+      String((idea as any).assetType) === "option"
+    ) {
+      try {
+        const { attachBudgetContract } = await import("./lib/budget-contract-attach");
+        const bc = await attachBudgetContract(idea as any);
+        idea = bc.idea as InsertTradeIdea;
+        logger.info(`[BUDGET] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${bc.pick ? bc.reason : `no budget contract — ${bc.reason}`}`);
+      } catch (e: any) {
+        logger.warn(`[BUDGET] ${(idea as any).symbol}: attach failed — ${e?.message ?? e}`);
+      }
+    }
+
     // 0DTE never becomes shares (shared/short-dated-option.ts): a same-day
     // engine idea that reaches this point without a concrete option contract
     // (converted, or published without a strike) is withheld, reason logged.

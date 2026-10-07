@@ -16,6 +16,7 @@
     "test:redirects": "tsx scripts/verify-redirects.ts",
     "test:journal": "tsx scripts/test-journal.ts",
     "test:risk-sizing": "tsx scripts/test-risk-sizing.ts",
+    "test:budget-contract": "tsx scripts/test-budget-contract.ts",
     "test:managed-replay": "tsx scripts/test-managed-replay.ts",
     "test:verify-book-sources": "tsx scripts/test-verify-book-sources.ts",
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",

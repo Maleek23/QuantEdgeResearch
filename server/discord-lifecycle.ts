@@ -51,6 +51,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { logger } from './logger';
 import { readNexusRiskDollars, riskSizedFromPct } from '@shared/position-sizing';
+import { budgetLine, primaryLine, readBudgetContract } from '@shared/budget-contract';
 import { sharedDir, sharedFile, writeSharedSync } from './lib/shared-state';
 
 // ─── Channels & routing ─────────────────────────────────────────────────
@@ -189,7 +190,11 @@ export interface Card {
   /** Exit $ at the NEXUS risk size (shared/position-sizing.ts riskSizedFromPct; NEXUS_RISK_DOLLARS, default $500). */
   riskPnl?: number | null;
   riskDollars?: number;
-  /** Follow-up replies already queued (dedupe keys): 'peak', 'runner'. */
+  /** Budget contract line (shared/budget-contract.ts): what the $ budget actually buys, beside the primary. */
+  budget?: string | null;
+  /** "Primary: 11/20 1100C $39.65 (over budget)" when the budget contract exists. */
+  primary?: string | null;
+  /** Follow-up replies already queued (dedupe keys): 'peak', 'runner', 'budget_t1', 'budget_stop'. */
   followUps?: string[];
 }
 export interface BotRecord { positionId: string; day: string; entryAt?: number; exitAt?: number; label: string; pnl?: number | null; pct?: number | null; reason?: string | null }
@@ -438,6 +443,9 @@ export function buildCardPayload(c: Card): Record<string, unknown> {
   if (c.isOption) {
     fields.push({ name: 'Contract', value: `${c.label}${c.plan.expiry ? ` · exp ${c.plan.expiry}` : ''}${c.plan.premium != null ? ` · ${money(c.plan.premium)} premium at publish ${etHm(c.publishedAt)} (publish-time quote, not live)` : ''}`.slice(0, 1024), inline: false });
   }
+  if (c.isOption && c.budget) {
+    fields.push({ name: 'Budget contract', value: `${c.primary ? `${c.primary}\n` : ''}${c.budget} (publish-time quote, not live)`.slice(0, 1024), inline: false });
+  }
   if (c.grade) fields.push({ name: 'NEXUS grade', value: `${c.grade} at publish · actionability score, not a win probability`, inline: true });
   fields.push({ name: 'Timeline', value: c.events.map((e) => e.line).join('\n').slice(0, 1024) || '—', inline: false });
   fields.push({ name: 'Data', value: DATA_LABEL, inline: false });
@@ -563,6 +571,11 @@ export async function onIdeaPublished(i: IdeaLike, opts: PublishOpts = {}): Prom
         events: [{ kind: 'publish', at: publishedAt, line: `${etHm(publishedAt)} published` }],
         messageId: null, channelId: null, guildId: null,
       };
+      const bc = readBudgetContract(i.convergenceSignalsJson);
+      if (bc && card.isOption) {
+        card.budget = budgetLine(bc);
+        card.primary = primaryLine({ expiry: i.expiryDate, strike: num(i.strikePrice), optionType: i.optionType, entryPremium: num(i.entryPremium) }, bc.budget);
+      }
       s.cards[card.ideaId] = card;
       enqueue(s, { channel, kind: 'card', ideaId: card.ideaId });
       return logPublish(i, ch, 'queued', card.grade ?? '0DTE');
@@ -722,7 +735,7 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
  * One follow-up reply under a resolved idea's card, once per key: the after-close
  * peak ("peak $5.45 at 10:12 · exit $4.22") or the runner's close. No card → no-op.
  */
-export async function onIdeaFollowUp(ev: { ideaId: string; key: 'peak' | 'runner'; line: string }): Promise<EventResult> {
+export async function onIdeaFollowUp(ev: { ideaId: string; key: 'peak' | 'runner' | 'budget_t1' | 'budget_stop'; line: string }): Promise<EventResult> {
   try {
     if (!lifecycleEnabled()) return 'off';
     const s = load();
@@ -730,7 +743,7 @@ export async function onIdeaFollowUp(ev: { ideaId: string; key: 'peak' | 'runner
     if (!c) return 'no_card';
     if ((c.followUps ?? []).includes(ev.key)) return 'duplicate';
     c.followUps = [...(c.followUps ?? []), ev.key];
-    enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: `${ev.key === 'runner' ? '🏃' : '🏔️'} ${c.label} · ${ev.line}` });
+    enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: `${ev.key === 'runner' ? '🏃' : ev.key.startsWith('budget') ? '💵' : '🏔️'} ${c.label} · ${ev.line}` });
     save(s);
     kick();
     return 'queued';

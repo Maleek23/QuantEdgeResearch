@@ -262,7 +262,7 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
     genConvictionScore: tradeIdeas.genConvictionScore, genScoringLayers: tradeIdeas.genScoringLayers,
     generationTimestamp: tradeIdeas.generationTimestamp, holdingPeriod: tradeIdeas.holdingPeriod, exitBy: tradeIdeas.exitBy,
     // Only the plan snapshot + the logged grade — the full JSON is large and this reads every desk row.
-    convergenceSignalsJson: sql<unknown>`json_build_object('planSnapshot', (${tradeIdeas.convergenceSignalsJson})::jsonb -> 'planSnapshot')`,
+    convergenceSignalsJson: sql<unknown>`json_build_object('planSnapshot', (${tradeIdeas.convergenceSignalsJson})::jsonb -> 'planSnapshot', 'budgetContract', (${tradeIdeas.convergenceSignalsJson})::jsonb -> 'budgetContract')`,
     nexusGradeAtPublish: sql<{ letter?: string; score?: number } | null>`(${tradeIdeas.convergenceSignalsJson})::jsonb -> 'nexusGradeAtPublish'`,
     exitPremiumBasis: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-premium:(touch_bar|pass|withheld)\\]')`,
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).

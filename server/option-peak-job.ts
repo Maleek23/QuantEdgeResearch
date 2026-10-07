@@ -32,6 +32,7 @@ import { etParts, etWallToMs } from '@shared/loss-rules';
 import { readOracleExecutionAudit } from '@shared/oracle-lifecycle';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
 import { daysToExpiry, sleeveOfPosition } from '@shared/bot-sleeves';
+import { budgetContractEnabled, budgetLine, readBudgetContract, trackBudgetContract } from '@shared/budget-contract';
 
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const num = (x: unknown): number | null => (x == null || x === '' ? null : Number.isFinite(Number(x)) ? Number(x) : null);
@@ -239,6 +240,63 @@ export async function runRunnerPass(opts: { nowMs?: number; dryRun?: boolean } =
   return out;
 }
 
+export interface BudgetPassResult { ideas: number; updated: number; skipped: Record<string, number> }
+
+/**
+ * BUDGET CONTRACT pass (shared/budget-contract.ts): every idea carrying
+ * convergenceSignalsJson.budgetContract, published in the lookback, is followed
+ * on the budget contract's OWN 1-minute bars from entry: peak (MFE) and the first
+ * touch of its premium T1 / T2 / stop. Written back into
+ * convergenceSignalsJson.budgetContract.tracking — the primary's outcome is never
+ * touched. Runs intraday (live status) and after the close.
+ */
+export async function runBudgetPass(opts: { nowMs?: number; lookbackDays?: number; limit?: number; dryRun?: boolean } = {}): Promise<BudgetPassResult> {
+  const nowMs = opts.nowMs ?? Date.now();
+  const out: BudgetPassResult = { ideas: 0, updated: 0, skipped: {} };
+  if (!budgetContractEnabled(process.env)) return out;
+  const skip = (k: string) => { out.skipped[k] = (out.skipped[k] ?? 0) + 1; };
+  const lookbackDays = opts.lookbackDays ?? Math.max(1, Math.min(30, Number(process.env.OPTION_PEAK_LOOKBACK_DAYS ?? 5) || 5));
+  const { db } = await import('./db');
+  const { tradeIdeas } = await import('@shared/schema');
+  const { and, gte, eq, sql, desc } = await import('drizzle-orm');
+  const since = new Date(nowMs - lookbackDays * 86_400_000).toISOString();
+  const rows = await db.select().from(tradeIdeas).where(and(
+    eq(tradeIdeas.assetType, 'option'), gte(tradeIdeas.timestamp, since),
+    sql`${tradeIdeas.convergenceSignalsJson} ? 'budgetContract'`,
+  )).orderBy(desc(tradeIdeas.timestamp)).limit(opts.limit ?? 100) as any[];
+  out.ideas = rows.length;
+  for (const i of rows) {
+    try {
+      const bc = readBudgetContract(i.convergenceSignalsJson);
+      if (!bc) { skip('unreadable'); continue; }
+      const fin0 = bc.tracking?.outcome;
+      if ((fin0 === 'hit_t2' || fin0 === 'hit_stop' || fin0 === 'expired') && bc.tracking?.peak) { skip('final'); continue; }
+      if (String(i.resolutionReason ?? '').startsWith('missed_entry')) { skip('never_entered'); continue; }
+      const entryMs = ideaEntryMs(i);
+      if (entryMs == null) { skip('no_times'); continue; }
+      const expiryClose = sessionBounds(Date.parse(`${bc.expiry}T16:00:00Z`)).closeMs;
+      const toMs = Math.min(nowMs - BAR_LAG_MS, expiryClose);
+      if (toMs <= entryMs) { skip('pending'); continue; }
+      const cb = await contractMinuteBars({ symbol: bc.symbol, expiry: bc.expiry, optionType: bc.optionType, strike: bc.strike, fromMs: entryMs, toMs, nowMs });
+      if (!cb.bars.length) { skip('no_bars'); continue; }
+      const prevT = bc.tracking ?? {};
+      const tr = trackBudgetContract(bc, cb.bars, entryMs, toMs, cb.source, nowMs);
+      if (JSON.stringify({ ...tr, updatedAt: 0, lastMark: 0, lastMarkAt: 0 }) === JSON.stringify({ ...prevT, updatedAt: 0, lastMark: 0, lastMarkAt: 0 }) && prevT.lastMarkAt === tr.lastMarkAt) { skip('no_change'); continue; }
+      out.updated++;
+      if (opts.dryRun) continue;
+      const csj = (i.convergenceSignalsJson && typeof i.convergenceSignalsJson === 'object') ? i.convergenceSignalsJson : {};
+      await db.update(tradeIdeas).set({ convergenceSignalsJson: { ...csj, budgetContract: { ...bc, tracking: tr } } } as any).where(eq(tradeIdeas.id, i.id));
+      const line = budgetLine({ ...bc, tracking: tr });
+      if (line && tr.t1HitAt != null && prevT.t1HitAt == null) void import('./discord-lifecycle').then((m) => m.onIdeaFollowUp({ ideaId: i.id, key: 'budget_t1', line })).catch(() => {});
+      else if (line && tr.stopHitAt != null && prevT.stopHitAt == null && tr.t1HitAt == null) void import('./discord-lifecycle').then((m) => m.onIdeaFollowUp({ ideaId: i.id, key: 'budget_stop', line })).catch(() => {});
+    } catch (err) {
+      skip('error');
+      logger.warn(`[BUDGET] idea ${i.symbol} ${i.id}: ${(err as Error).message}`);
+    }
+  }
+  return out;
+}
+
 /** Worker registration (server/background-jobs.ts). */
 export async function scheduleOptionPeakJob(log: (m: string) => void): Promise<void> {
   const cron = (await import('./guarded-cron')).default;
@@ -248,6 +306,8 @@ export async function scheduleOptionPeakJob(log: (m: string) => void): Promise<v
       const rr = await runHeavy('runner-pass', () => runRunnerPass(), { priority: 'low' });
       if (rr && (rr.open || rr.closed)) logger.info(`[RUNNER] ${why}: ${rr.open} open · closed ${rr.closed} · still open ${rr.stillOpen} · ${JSON.stringify(rr.skipped)}`);
       const r = await runHeavy('option-peak', () => runPeakPass(), { priority: 'low' });
+      const b = await runHeavy('budget-pass', () => runBudgetPass(), { priority: 'low' });
+      if (b && (b.ideas || b.updated)) logger.info(`[BUDGET] ${why}: ${b.ideas} ideas · updated ${b.updated} · ${JSON.stringify(b.skipped)}`);
       if (r) logger.info(`[OPTION-PEAK] ${why}: ideas ${r.ideas} → peaks ${r.ideaPeaks} · positions ${r.positions} → peaks ${r.positionPeaks} · pending ${r.pending} · skipped ${JSON.stringify(r.skipped)}`);
     } catch (err) {
       logger.error('[OPTION-PEAK] pass failed:', err);
@@ -261,6 +321,10 @@ export async function scheduleOptionPeakJob(log: (m: string) => void): Promise<v
     try {
       const rr = await runHeavy('runner-pass', () => runRunnerPass(), { priority: 'low' });
       if (rr?.closed) logger.info(`[RUNNER] closed ${rr.closed} runner(s) · still open ${rr.stillOpen}`);
+      if (m % 15 === 5) { // budget contract live status every 15 min (light: cached bars, ≤100 ideas)
+        const b = await runHeavy('budget-pass', () => runBudgetPass(), { priority: 'low' });
+        if (b?.updated) logger.info(`[BUDGET] intraday: updated ${b.updated} of ${b.ideas}`);
+      }
     } catch (err) { logger.warn('[RUNNER] intraday pass failed:', err); }
   }, { timezone: 'America/New_York' });
   log('🏔️  Option peak job scheduled — 16:30 ET + 09:15 ET peak backfill (Massive prior-day → Alpaca → Yahoo); runner pass every 5 min in session');

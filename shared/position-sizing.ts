@@ -9,13 +9,15 @@
  *
  *   stocks / ETFs   qty = floor(risk$ / |entry − stop|)        (whole shares)
  *   crypto          qty = risk$ / |entry − stop|               (fractional)
- *   options         contracts = floor(risk$ / ((entryPremium − premiumStop) × 100))
+ *   options         contracts = floor(budget$ / (entryPremium × 100))   (whole only)
  *                   premiumStop = the plan's premium stop when it has one, else
  *                   −40% of premium for 0DTE, −50% for anything longer.
  *
- * When even ONE contract (or share) risks more than risk$ to its stop, the
- * position is FRACTIONALLY sized (qty = risk$ / risk-per-unit, e.g. 0.31
- * contracts) and labelled "scaled" — its P&L is the 1-unit P&L × that fraction.
+ * OPTIONS ARE NEVER FRACTIONAL (operator 2026-10-07): when one contract's debit
+ * exceeds the budget the idea is "over budget" (ok:false, overBudget) and the
+ * budget contract (shared/budget-contract.ts) is what the budget buys. A STOCK
+ * whose single share risks more than risk$ is still fractionally sized
+ * ("scaled") — its P&L is the 1-unit P&L × that fraction.
  * No trade may lose more than its risk budget: a recorded exit WORSE than the
  * stop (gap, held past the premium stop) is capped at −risk-to-stop and
  * labelled "capped at stop" (it assumes the stop filled at its level); the
@@ -69,7 +71,12 @@ export type SizeResult =
     /** Fractional: 1 unit risked more than the budget, so P&L is the 1-unit P&L × qty (< 1). */
     scaled: boolean;
   }
-  | { ok: false; reason: string; riskPerUnit: number | null };
+  | { ok: false; reason: string; riskPerUnit: number | null;
+    /** Options: one contract's debit exceeds the budget — never fractionalized; the budget contract (shared/budget-contract.ts) carries the trade. */
+    overBudget?: boolean; debitPerContract?: number };
+
+/** Skip reason for an option whose single contract costs more than the budget. */
+export const OVER_BUDGET_REASON = 'primary contract over budget (1 contract debit > budget; see budget contract)';
 
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 
@@ -117,10 +124,14 @@ export function sizeForRisk(b: RiskBasis, riskDollars: number): SizeResult {
     if (!ps) return { ok: false, reason: 'no entry premium to size from', riskPerUnit: null };
     const perContract = (b.entryPremium! - ps.stop) * 100;
     if (!(perContract > 0)) return { ok: false, reason: 'premium stop is not below the entry premium', riskPerUnit: null };
-    const whole = Math.floor(riskDollars / perContract + 1e-9);
-    const scaled = whole < 1;
-    const n = scaled ? Math.floor((riskDollars / perContract) * 1e4) / 1e4 : whole;
-    return { ok: true, qty: n, riskPerUnit: perContract, riskDollars: n * perContract, notional: n * b.entryPremium! * 100, premiumStop: ps.stop, premiumStopBasis: ps.basis, scaled };
+    // Whole contracts only, and the DEBIT must fit the budget (operator 2026-10-07:
+    // never a fractional contract). debit ≥ risk-to-stop, so risk ≤ budget too.
+    const debitPer = b.entryPremium! * 100;
+    const n = Math.floor(riskDollars / debitPer + 1e-9);
+    if (n < 1) {
+      return { ok: false, reason: OVER_BUDGET_REASON, riskPerUnit: perContract, overBudget: true, debitPerContract: debitPer };
+    }
+    return { ok: true, qty: n, riskPerUnit: perContract, riskDollars: n * perContract, notional: n * debitPer, premiumStop: ps.stop, premiumStopBasis: ps.basis, scaled: false };
   }
   if (!fin(b.entry) || b.entry <= 0) return { ok: false, reason: 'no entry price', riskPerUnit: null };
   if (!fin(b.stop) || b.stop <= 0) return { ok: false, reason: 'no stop — cannot size to risk', riskPerUnit: null };

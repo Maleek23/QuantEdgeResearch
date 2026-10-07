@@ -66,6 +66,8 @@ export interface ConvictionPick {
   expiryDate: string | null;
   /** Liquidity-gate snapshot recorded at publish (shared/option-liquidity.ts). */
   contractLiquidity?: import('@shared/option-liquidity').ContractLiquiditySnapshot | null;
+  /** Whole-contract option the $500–1,000 budget buys, beside the primary (shared/budget-contract.ts). */
+  budgetContract?: import('@shared/budget-contract').BudgetContract | null;
 
   convictionScore: number;
   convictionBand: 'S' | 'A' | 'B' | 'C';

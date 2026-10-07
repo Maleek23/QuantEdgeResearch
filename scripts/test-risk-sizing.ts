@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import {
   DEFAULT_SIZING, MAX_RISK_DOLLARS, clampRiskDollars, effectivePremiumStop, parsePremiumStopTag, parseSizingParam,
-  readNexusRiskDollars, riskSizedFromPct, riskSizedPnl, sizeForRisk, sizingParam,
+  OVER_BUDGET_REASON, readNexusRiskDollars, riskSizedFromPct, riskSizedPnl, sizeForRisk, sizingParam,
 } from '../shared/position-sizing';
 import { applyDeskView, parseSizingChoice, type DeskViewRow } from '../shared/desk-view';
 import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
@@ -24,19 +24,21 @@ t('shorts size the same way', () => {
   const s = sizeForRisk({ assetType: 'stock', entry: 50, stop: 52 }, 1000);
   assert.ok(s.ok); assert.equal(s.qty, 500);
 });
-t('options: contracts = floor(risk / ((premium − premium stop) × 100)), plan stop first', () => {
+t('options: contracts = floor(budget / (premium × 100)), whole only; plan stop first', () => {
   const s = sizeForRisk({ assetType: 'option', entry: 0, stop: null, entryPremium: 2.0, premiumStop: 1.2 }, 500);
-  assert.ok(s.ok); assert.equal(s.qty, 6); assert.equal(s.premiumStopBasis, 'plan premium stop');
+  assert.ok(s.ok); assert.equal(s.qty, 2); assert.equal(s.premiumStopBasis, 'plan premium stop'); assert.equal(s.riskDollars, 160);
 });
 t('options default premium stop: −40% 0DTE, −50% swing', () => {
   assert.equal(effectivePremiumStop({ entryPremium: 1, zeroDte: true })!.stop, 0.6);
   assert.equal(effectivePremiumStop({ entryPremium: 1, zeroDte: false })!.stop, 0.5);
   const z = sizeForRisk({ assetType: 'option', entry: 0, stop: null, entryPremium: 1.0, zeroDte: true }, 500);
-  assert.ok(z.ok); assert.equal(z.qty, 12); // 500 / 40
+  assert.ok(z.ok); assert.equal(z.qty, 5); // floor(500 / 100 debit)
 });
-t('one contract over budget → fractional, labelled scaled', () => {
+t('one contract over budget → NEVER fractional: over budget, not sized', () => {
   const s = sizeForRisk({ assetType: 'option', entry: 0, stop: null, entryPremium: 20, zeroDte: false }, 500);
-  assert.ok(s.ok); assert.equal(s.scaled, true); assert.equal(s.qty, 0.5); assert.equal(s.riskDollars, 500);
+  assert.equal(s.ok, false); assert.ok(!s.ok && s.overBudget === true && s.debitPerContract === 2000);
+  const mu = sizeForRisk({ assetType: 'option', entry: 1028.59, stop: null, entryPremium: 39.65 }, 1000);
+  assert.equal(mu.ok, false); // MU 11/20 1100C $3,965 > $1,000
 });
 t('no stop → not sizeable (reason, never a guess)', () => {
   const s = sizeForRisk({ assetType: 'stock', entry: 100, stop: null }, 500);
@@ -80,23 +82,24 @@ const idea = (over: Partial<DeskIdea>): DeskIdea => ({
 });
 const rowOf = (i: DeskIdea) => { const m = mapDeskIdea(i); assert.ok('row' in m, 'scored'); return m.row; };
 
-t('−$1,617 one-contract loss shows ≤ −$500 at the default', () => {
+t('−$1,617 one-contract loss on a $25 contract: over a $500/$1,000 budget → not fractionalized, counted out', () => {
   const row = rowOf(idea({}));
   assert.equal(row.realizedPnL, -1617);
   assert.ok(row.riskBasis && row.riskBasis.entryPremium === 25 && row.riskBasis.unitQty === 1);
-  const v = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: DEFAULT_SIZING });
-  const r = v.rows[0];
-  assert.ok(r.realizedPnL! >= -500 - 1e-9, `got ${r.realizedPnL}`);
-  assert.equal(r.realizedPnL, -500);
-  assert.equal(r.sizedAs!.scaled, true); assert.equal(r.sizedAs!.capped, true);
-  assert.equal(r.quantity, 0.4); // −50% swing stop on a $25 contract = $1,250 risk → 0.4 contracts
-  assert.equal(v.scaled, 1); assert.equal(v.capped.count, 1);
-  // $1,000 budget: still ≤ the budget
-  const k = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars: 1000 } }).rows[0];
-  assert.ok(k.realizedPnL! >= -1000);
+  for (const riskDollars of [500, 1000]) {
+    const v = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars } });
+    assert.equal(v.rows.length, 0);
+    assert.equal(v.skipped[0].reason, OVER_BUDGET_REASON);
+  }
   // Unit view keeps the recorded number untouched
   const u = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'unit', riskDollars: 0 } }).rows[0];
   assert.equal(u.realizedPnL, -1617);
+});
+t('affordable contract: whole contracts, loss capped at risk to stop', () => {
+  const row = rowOf(idea({ id: 'c', entryPremium: 4, exitPremium: 1 })); // unit −$300
+  const r = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: DEFAULT_SIZING }).rows[0];
+  assert.equal(r.quantity, 1); assert.equal(r.sizedAs!.scaled, false);
+  assert.equal(r.realizedPnL, -200); assert.equal(r.sizedAs!.capped, true); // −50% stop on $400 debit
 });
 t('no closed risk-sized trade loses more than its budget (property)', () => {
   const rows: DeskViewRow[] = [];
@@ -116,12 +119,15 @@ t('no closed risk-sized trade loses more than its budget (property)', () => {
   }
   for (const budget of [500, 750, 1000]) {
     const v = applyDeskView(rows, { view: 'recorded', sizing: { mode: 'risk', riskDollars: budget } });
-    assert.equal(v.rows.length, rows.length);
+    // Over-budget option rows are counted out (never fractionalized); everything else is sized.
+    const over = v.skipped.find((x) => x.reason === OVER_BUDGET_REASON)?.count ?? 0;
+    assert.equal(v.rows.length + over, rows.length);
+    for (const r of v.rows) assert.ok(r.quantity === Math.floor(r.quantity) || r.riskBasis?.assetType !== 'option', `fractional contracts ${r.id}`);
     for (const r of v.rows) assert.ok((r.realizedPnL ?? 0) >= -budget - 0.01, `${r.id} ${r.realizedPnL} at ${budget}`);
   }
 });
 t('risk sizing keeps the sign of every recorded result', () => {
-  const win = rowOf(idea({ id: 'w', exitPremium: 31, outcomeStatus: 'hit_target', exitPrice: 1130 }));
+  const win = rowOf(idea({ id: 'w', entryPremium: 4, exitPremium: 6, outcomeStatus: 'hit_target', exitPrice: 1130 }));
   const v = applyDeskView([win as DeskViewRow], { view: 'recorded', sizing: DEFAULT_SIZING }).rows[0];
   assert.ok(v.realizedPnL! > 0); assert.equal(v.outcome, 'win');
 });
@@ -141,8 +147,10 @@ t('rows with no stop are counted out of the risk view, never dropped silently', 
 
 // ── Discord exit posts ──
 t('Discord: option exit $ at $500 risk never below −$500', () => {
-  const r = riskSizedFromPct({ isOption: true, entry: 1100, stop: 1085, premium: 25, zeroDte: false, underlyingPct: -1.8, optionPct: -64.7 }, 500)!;
-  assert.equal(r.pnl, -500); assert.equal(r.scaled, true); assert.equal(r.capped, true);
+  const r = riskSizedFromPct({ isOption: true, entry: 1100, stop: 1085, premium: 4, zeroDte: false, underlyingPct: -1.8, optionPct: -75 }, 500)!;
+  assert.equal(r.pnl, -200); assert.equal(r.scaled, false); assert.equal(r.capped, true); assert.equal(r.qty, 1);
+  // over budget: no $ figure, never a fraction of a contract
+  assert.equal(riskSizedFromPct({ isOption: true, entry: 1100, stop: 1085, premium: 25, zeroDte: false, underlyingPct: -1.8, optionPct: -64.7 }, 500), null);
   const s = riskSizedFromPct({ isOption: false, entry: 100, stop: 98, premium: null, zeroDte: false, underlyingPct: 4, optionPct: null }, 500)!;
   assert.equal(s.pnl, 1000);
 });

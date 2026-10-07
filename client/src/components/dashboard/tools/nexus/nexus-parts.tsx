@@ -35,6 +35,7 @@ import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
 import { stripConflictingTargetClaims } from '@shared/plan-narrative';
 import type { ContractLiquiditySnapshot } from '@shared/option-liquidity';
+import { primaryLine, shortContract, type BudgetContract } from '@shared/budget-contract';
 import { gradeFromLife, gradePick, whyRankedHere, whyShort, whyThisGrade, nexusGradeCaveat, formatNexusGrade, type NexusGrade } from '@shared/nexus-grade';
 import { nexusGradeTitle, LegacyScoreDiagnostics, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
@@ -427,6 +428,22 @@ export function ContractLiquidityBlock({ snap }: { snap: ContractLiquiditySnapsh
   );
 }
 
+/** Primary vs budget contract (shared/budget-contract.ts): what the $ budget can actually buy, followed like the primary. */
+export function BudgetContractBlock({ bc, primary }: { bc: BudgetContract; primary: { expiry: string | null; strike: number | null; optionType: string | null; entryPremium: number | null } }) {
+  const p = primaryLine(primary, bc.budget);
+  const tr = bc.tracking;
+  const status = !tr ? 'tracking starts after entry' : tr.outcome === 'hit_t2' ? 'T2 hit' : tr.outcome === 'hit_t1' ? 'T1 hit' : tr.outcome === 'hit_stop' ? 'stopped' : tr.outcome === 'expired' ? 'expired' : 'open';
+  return (
+    <div className="nxp-spx-expression live" title={`${bc.rationale}. Premium levels: ${bc.mapping}. Entry premium is the publish-time mid, not live.`}>
+      <span>Budget contract · ${bc.budget}</span>
+      {p && <small>{p}</small>}
+      <strong>{shortContract(bc.expiry, bc.strike, bc.optionType)} ×{bc.qty} @ {money(bc.entryPremium)} · {money(bc.debit)} debit</strong>
+      <small>T1 {money(bc.premiumT1)}{bc.premiumT2 != null ? ` · T2 ${money(bc.premiumT2)}` : ''} · stop {money(bc.premiumStop)} · Δ{Math.abs(bc.delta).toFixed(2)} · {bc.dte} DTE at pick</small>
+      <small>{status}{tr?.peak ? ` · peak ${money(tr.peak.premium)} at ${fmtExactET(new Date(tr.peak.atMs).toISOString()) ?? ''}` : ''}{tr?.lastMark != null ? ` · last bar ${money(tr.lastMark)}${tr.lastMarkAt ? ` (${fmtExactET(new Date(tr.lastMarkAt).toISOString()) ?? ''})` : ''}` : ''}</small>
+    </div>
+  );
+}
+
 export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, life, now, chartHeight = 238 }: {
   selected: ConvictionPick;
   /** the SPX chain answer (only rendered when the selected setup is SPY) */
@@ -555,6 +572,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
           <aside className="nxp-execution">
             <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? (offHoursContract ? 'Underlying plan · suggested contract' : 'Option-backed') : selected.assetType}</small></div>
             <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span>{offHoursContract && <span title="Called outside the regular session: option ideas are not published after the close, so the plan is on the underlying and this contract is a suggestion whose premium is read at the next open, not at the call.">Suggested contract — priced at next open</span>}</div></div>
+            {selected.budgetContract && <BudgetContractBlock bc={selected.budgetContract} primary={{ expiry: selected.expiryDate, strike: selected.strikePrice, optionType: selected.optionType, entryPremium: selected.entryPremium }} />}
             {selected.contractLiquidity && <ContractLiquidityBlock snap={selected.contractLiquidity} />}
             {selected.spxMirror && <SpxMirrorBlock mirror={selected.spxMirror} />}
             {selected.symbol === 'SPY' && !selected.spxMirror && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}

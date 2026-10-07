@@ -23,6 +23,7 @@
  *   - Skips fundamentals enrichment when symbol count > 30 (rate-limit safety)
  */
 
+import { readBudgetContract } from '@shared/budget-contract';
 import { db } from "./db";
 import { tradeIdeas, type ConvergenceAnalysis } from "@shared/schema";
 import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/oracle-lifecycle";
@@ -124,6 +125,8 @@ export interface ConvictionPick {
   expiryDate: string | null;
   /** Liquidity-gate snapshot recorded at publish (shared/option-liquidity.ts) — NEXUS "contract liquidity". */
   contractLiquidity?: import('../shared/option-liquidity').ContractLiquiditySnapshot | null;
+  /** Whole-contract option the $ budget buys, beside the primary (shared/budget-contract.ts). */
+  budgetContract?: import('../shared/budget-contract').BudgetContract | null;
 
   /** Total conviction score 0-100 (sum of layer points, capped). */
   convictionScore: number;
@@ -2861,6 +2864,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       optionDte: idea.optionDte != null ? Number(idea.optionDte) : null,
       expiryDate: idea.expiryDate ?? null,
       contractLiquidity: (idea.convergenceSignalsJson as any)?.contractLiquidity ?? null,
+      budgetContract: readBudgetContract(idea.convergenceSignalsJson),
       convictionScore: 0, // filled below
       convictionBand: "C",
       layerCount: layers.length,

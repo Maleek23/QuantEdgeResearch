@@ -77,6 +77,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
     ...(trade.afterStop ? [['After the stop', `${trade.afterStop} (hindsight — still a loss)`] as [string, React.ReactNode]] : []),
     ...(trade.runner ? [['Runner', trade.runner] as [string, React.ReactNode]] : []),
     ...(trade.peakLine ? [['Peak', `${trade.peakLine} (hindsight — the P&L is the exit)`] as [string, React.ReactNode]] : []),
+    ...(trade.budgetLine ? [['Contracts', `${trade.primaryLine ? `${trade.primaryLine} · ` : ''}${trade.budgetLine}`] as [string, React.ReactNode]] : []),
     ['Held', fmtDuration(t.durationMs)],
     ['Source', trade.broker || 'manual'],
   ];

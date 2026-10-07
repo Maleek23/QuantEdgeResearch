@@ -46,6 +46,9 @@ export interface JournalTradeRow {
   afterStop?: string | null;
   /** Option rows: "peak $5.45 at 10:12 · exit $4.22" — the contract's best price after entry (shared/option-peak.ts). */
   peakLine?: string | null;
+  /** Budget contract beside the primary (shared/budget-contract.ts). */
+  primaryLine?: string | null;
+  budgetLine?: string | null;
   peakPremium?: number | null;
   /** 0DTE desk rows under the runner policy: "½ at T1 $4.22 · runner $5.10 (…) · blended $4.66". */
   runner?: string | null;
