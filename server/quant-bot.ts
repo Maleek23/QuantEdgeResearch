@@ -13,8 +13,9 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { gradePick } from '@shared/nexus-grade';
 import {
-  executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
+  executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closeOptionPositionAtBid,
   recordEquitySnapshot,
   getOpenPositions,
 } from './paper-trading-service';
@@ -52,7 +53,6 @@ export interface BotConfig {
   /** Minimum modeled contract return when the underlying reaches T1. */
   minContractRoiAtT1Pct: number;
   /** Do not simulate delayed-quote fills before this New York minute. */
-  delayedFillNotBeforeEtMinutes: number;
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -74,7 +74,6 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   minContractRoiAtT1Pct: 30,
   // Opening prints and delayed option chains are especially stale/wide. SNOW's
   // $420C was booked at 09:38 ET for $25.18 after being published near $15.78.
-  delayedFillNotBeforeEtMinutes: 10 * 60,
 };
 
 function easternMinutes(date = new Date()): number {
@@ -297,8 +296,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       if (expiryDay === today && etMinute < 15 * 60 + 55) continue;
       if (expiryDay === today && etMinute < 16 * 60) {
         const markedExit = Number(pos.currentPrice ?? 0);
-        await closePosition(pos.id, markedExit, '0dte_eod_exit');
-        await announceExit(pos, markedExit, '0DTE time exit before close');
+        const result = await closeOptionPositionAtBid(pos.id, '0dte_eod_exit');
+        if (!result.success) continue;
+        await announceExit(pos, Number(result.position?.exitPrice ?? markedExit), '0DTE time exit before close');
         closed.push({ symbol: pos.symbol, reason: '0DTE time exit before close' });
         continue;
       }
@@ -412,8 +412,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
       logger.info(describeGapExit(pos.symbol, signal));
       const mark = Number(pos.currentPrice ?? pos.entryPrice);
-      await closePosition(pos.id, mark, 'gap_magnet');
-      await announceExit(pos, mark, `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
+      const result = await closeOptionPositionAtBid(pos.id, 'gap_magnet');
+      if (!result.success) continue;
+      await announceExit(pos, Number(result.position?.exitPrice ?? mark), `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
       closed.push({ symbol: pos.symbol, reason: `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%` });
       gapWatch.push({ symbol: pos.symbol, level: signal.gapLevel ?? 0 });
     }
@@ -479,9 +480,10 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
       const flip = byOppDir.get(`${pos.symbol}:${opposite}`);
       if (flip && flip.convictionScore >= cfg.minConviction) {
-        await closePosition(pos.id, mark, 'thesis_flip');
+        const result = await closeOptionPositionAtBid(pos.id, 'thesis_flip');
+        if (!result.success) continue;
         const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (score ${flip.convictionScore}) — ${pnlWord}`;
-        await announceExit(pos, mark, why);
+        await announceExit(pos, Number(result.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
         continue;
       }
@@ -495,10 +497,11 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       // stronger claim than tape skew.)
       const fx = flowAgainst?.get(`${pos.symbol}:${opposite}`);
       if (fx && (pos.unrealizedPnL ?? 0) < 0) {
-        await closePosition(pos.id, mark, 'flow_reversal');
+        const result = await closeOptionPositionAtBid(pos.id, 'flow_reversal');
+        if (!result.success) continue;
         const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
         const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;
-        await announceExit(pos, mark, why);
+        await announceExit(pos, Number(result.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
       }
     }
@@ -712,16 +715,17 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
               continue;
             }
 
-            const { getOptionMark } = await import('./tradier-api');
+            const { getOptionMark, optionMarkExecutionIssue } = await import('./tradier-api');
             const q = await getOptionMark({
               underlying: idea.symbol,
               optionType: idea.optionType,
               strike: Number(idea.strikePrice),
               expiryDate: expiry,
             }).catch(() => null);
-            if (!q || !(q.bid > 0 && q.ask > 0)) {
+            const quoteIssue = q ? optionMarkExecutionIssue(q) : 'quote unavailable';
+            if (!q || quoteIssue) {
               skipped++;
-              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no executable quote for published 0DTE contract`);
+              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: published 0DTE contract has no executable quote (${quoteIssue})`);
               continue;
             }
             const spreadPct = q.mid > 0 ? (q.ask - q.bid) / q.mid : Number.POSITIVE_INFINITY;
@@ -731,9 +735,10 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
               logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: 0DTE spread/debit gate failed (${(spreadPct * 100).toFixed(1)}%, $${totalDebit.toFixed(0)})`);
               continue;
             }
+            const quoteObservedAt = new Date().toISOString();
             tradeable = {
               ...idea,
-              catalyst: `[INDEX 0DTE · ${q.source}${q.delayed ? ' · delayed' : ''}] ${idea.catalyst ?? idea.analysis ?? ''}`,
+              catalyst: `[INDEX 0DTE · entry ask=${q.ask.toFixed(4)} bid=${q.bid.toFixed(4)} source=${q.source} feed=${q.feed ?? 'unknown'} delayed=${q.delayed} quoteTime=${q.quoteTime ?? 'unknown'} observedAt=${quoteObservedAt}] ${idea.catalyst ?? idea.analysis ?? ''}`,
               assetType: 'option',
               __maxContracts: packageQuantity,
               currentPrice: q.ask,
@@ -779,7 +784,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             continue;
           }
 
-          const { getOptionMark } = await import('./tradier-api');
+          const { getOptionMark, optionMarkExecutionIssue } = await import('./tradier-api');
           const q = await getOptionMark({
             underlying: idea.symbol,
             optionType: selected.optionType,
@@ -787,10 +792,11 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             expiryDate: selected.expiry,
           }).catch(() => null);
 
-          if (!q) {
+          const quoteIssue = q ? optionMarkExecutionIssue(q) : 'quote unavailable';
+          if (!q || quoteIssue) {
             skipped++;
-            noteBotSkip(pick, 'no_quote', 'no contract mark from any source');
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
+            noteBotSkip(pick, 'non_executable', `no fresh live option quote (${quoteIssue})`);
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no fresh live option quote (${quoteIssue})`);
             continue;
           }
           const quoteMid = Number(q.mid ?? 0);
@@ -803,23 +809,17 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
             continue;
           }
-          if (q.delayed && easternMinutes() < cfg.delayedFillNotBeforeEtMinutes) {
-            skipped++;
-            noteBotSkip(pick, 'delayed_quote', 'delayed option quote during opening-price discovery');
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: delayed option quote during opening-price discovery`);
-            continue;
-          }
-
           // A long option crosses the spread. Filling at midpoint systematically
-          // overstates performance, especially in thin contracts; paper execution
-          // therefore pays the ask and records the delayed source explicitly.
+          // overstates performance, especially in thin contracts; simulated entry
+          // therefore pays the ask and records the quote provenance.
           const premium = quoteAsk;
           // Premium-based management: a -50% premium stop and a +100% target are the
           // desk-standard bracket for a directional long option, and they're expressed in
           // the same units as the fill so P&L is coherent.
+          const quoteObservedAt = new Date().toISOString();
           tradeable = {
             ...idea,
-            catalyst: `[${selection.recommendedTier} · ${selected.grade} · mark: ${q.source}${q.delayed ? ' · delayed' : ''}] ${selected.rationale}`,
+            catalyst: `[${selection.recommendedTier} · ${selected.grade} · entry ask=${quoteAsk.toFixed(4)} bid=${quoteBid.toFixed(4)} source=${q.source} feed=${q.feed ?? 'unknown'} delayed=${q.delayed} quoteTime=${q.quoteTime ?? 'unknown'} observedAt=${quoteObservedAt}] ${selected.rationale}`,
             assetType: 'option',
             optionType: selected.optionType,
             strikePrice: selected.strike,
@@ -847,14 +847,15 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
         // Rule 5 — measurement: the fill carries the rule-set version and the
         // evidence families that cleared it (paper_positions.entry_signals).
-        if (rules.botConfluence || rules.botEntryWindow || rules.dteFit) {
-          const fams = confluenceOf.get(pick.ideaId);
-          tradeable.qualitySignals = [
-            ...(Array.isArray(tradeable.qualitySignals) ? tradeable.qualitySignals : []),
-            LOSS_RULES_TAG,
-            ...(fams?.length ? [`confluence:${fams.join('+')}`] : []),
-          ];
-        }
+        const fams = confluenceOf.get(pick.ideaId);
+        const nexusGrade = gradePick(pick);
+        tradeable.qualitySignals = [
+          ...(Array.isArray(tradeable.qualitySignals) ? tradeable.qualitySignals : []),
+          `nexus-grade:${nexusGrade.version}:${nexusGrade.letter}:${nexusGrade.score}`,
+          ...nexusGrade.factors.map((f) => `nexus-factor:${f.key}:${f.points}/${f.max}`),
+          ...(rules.botConfluence || rules.botEntryWindow || rules.dteFit ? [LOSS_RULES_TAG] : []),
+          ...(fams?.length ? [`confluence:${fams.join('+')}`] : []),
+        ];
 
         const selectedMaxContracts = tradeable.assetType === 'option'
           ? Math.max(1, Number((tradeable as any).__maxContracts ?? 1))
@@ -997,10 +998,10 @@ export interface BotStatus {
   lastCycle: BotCycleStamp | null;
 }
 
-export interface BotCycleStamp { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string }
+export interface BotCycleStamp { at: string; origin: string; opened: number; closed: number; skipped: number; openCount: number; error?: string }
 let lastCycle: BotCycleStamp | null = null;
 export function noteBotCycle(origin: string, r: BotRunResult | null, error?: string): void {
-  lastCycle = { at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, openCount: r?.openCount ?? 0, error };
+  lastCycle = { at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, skipped: r?.skipped ?? 0, openCount: r?.openCount ?? 0, error };
 }
 // One re-price at a time, at most once a minute. The status endpoint used to
 // re-price the whole book on EVERY read (2–33 s each on prod) and three

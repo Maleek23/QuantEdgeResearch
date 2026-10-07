@@ -10,8 +10,8 @@
  *      through postDiscordWebhook's own rate gate.
  *   3. IDEAS: the same bar, written through storage.createTradeIdea — the exact
  *      entry point gex_scanner ideas use, so the shared validation gate and the
- *      spine dedup apply unchanged. source='gex_magnet'. The ingest gate, the
- *      convictions engine and storage validation are NOT touched here.
+ *      spine dedup apply unchanged. source='gex_magnet'. It persists through
+ *      the prepared-plan ingestion gate and centralized storage validation.
  *
  * Nothing here claims an edge: the score is an ordering (server/gex-magnet.ts),
  * and every alert/idea says so.
@@ -93,7 +93,6 @@ async function sendDiscord(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
 
 async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   if (!s.expiry) return false;
-  const { storage } = await import('./storage');
   const long = s.side === 'call';
   const entry = r.spot;
   const target = s.strike;
@@ -101,14 +100,10 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   // INTO the strike"; losing half that distance means the pull is not there.
   const rawStop = long ? entry - (target - entry) / 2 : entry + (entry - target) / 2;
   // Hold label from the contract's DTE and the shared 1.25× ATR swing floor —
-  // this path writes through storage.createTradeIdea and bypassed the
-  // ingestion gate (SR 11-7 v6 F-7/F-8). Same helper as gex_scanner.
-  const { optionPublishPlan } = await import('./lib/option-publish-plan');
-  const plan = await optionPublishPlan({
-    symbol: s.symbol, direction: long ? 'long' : 'short', entry, stop: rawStop, target,
-    expiryDate: s.expiry, fallbackHolding: (s.dte ?? 99) <= 0 ? 'day' : 'swing',
-  });
-  const stop = plan.stopLoss;
+  // DTE sets the hold horizon; the prepared-plan ingestion gate applies the
+  // shared cross-source, loss-cooldown, and ATR stop policies before storage.
+  const { holdingPeriodForDte, calendarDaysToExpiry } = await import('@shared/option-expiry');
+  const holdingPeriod = holdingPeriodForDte(calendarDaysToExpiry(s.expiry, Date.now()), { fallback: (s.dte ?? 99) <= 0 ? 'day' : 'swing' });
   const premium = s.premium?.mid ?? s.premium?.last ?? null;
   const idea: Record<string, any> = {
     symbol: s.symbol,
@@ -116,21 +111,21 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     direction: long ? 'long' : 'short',
     entryPrice: +entry.toFixed(2),
     targetPrice: +target.toFixed(2),
-    stopLoss: +stop.toFixed(2),
-    riskRewardRatio: plan.riskRewardRatio,
+    stopLoss: +rawStop.toFixed(2),
+    riskRewardRatio: Math.abs(target - entry) / Math.abs(entry - rawStop),
     ...(premium != null && premium > 0 ? { entryPremium: +premium.toFixed(2) } : {}),
     optionType: s.side,
     strikePrice: s.strike,
     expiryDate: s.expiry,
     catalyst: `GEX ${s.side} magnet — ${s.strike}${long ? 'C' : 'P'} exp ${s.expiry}, strike ${s.distPct >= 0 ? '+' : ''}${s.distPct.toFixed(1)}% ${long ? 'above' : 'below'} spot`,
-    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, target = strike, stop at half the distance.${plan.note ? ` ${plan.note}` : ''}`,
+    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, target = strike, stop at half the distance.`,
     source: 'gex_magnet',
     dataSourceUsed: `GEX_magnet_${s.side}_${r.dataSource}`,
     sessionContext: 'regular',
     timestamp: new Date().toISOString(),
     outcomeStatus: 'open',
     confidenceScore: Math.min(70, s.score),
-    holdingPeriod: plan.holdingPeriod,
+    holdingPeriod,
     qualitySignals: [
       `magnet_score:${s.score}`,
       'score_uncalibrated',
@@ -144,8 +139,8 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     ].filter(Boolean),
   };
   try {
-    await storage.createTradeIdea(idea as any);
-    return true;
+    const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+    return await persistPreparedTradeIdea(idea);
   } catch (e: any) {
     logger.warn(`[GEX-MAGNET] idea rejected ${s.symbol} ${s.strike}${long ? 'C' : 'P'}: ${e?.message}`);
     return false;

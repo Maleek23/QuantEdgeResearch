@@ -28,7 +28,8 @@ import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
-import { gradeFromLife, gradePick, whyRankedHere, NEXUS_GRADE_POINTS, type NexusGrade } from '@shared/nexus-grade';
+import { stripConflictingTargetClaims } from '@shared/plan-narrative';
+import { gradeFromLife, gradePick, whyRankedHere, type NexusGrade } from '@shared/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -59,7 +60,7 @@ export async function get<T>(url: string): Promise<T> {
 }
 
 export const money = (value?: number | null) => value == null || !Number.isFinite(value) ? '—' : `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const stateLabel = (pick: ConvictionPick) => pick.isBotHeld ? 'Bot held' : pick.lifecycleState === 'pending_trigger' ? 'Waiting' : pick.lifecycleState === 'closed' ? 'Closed' : 'In play';
+export const stateLabel = (pick: ConvictionPick) => pick.isBotHeld ? 'Bot held' : pick.lifecycleState === 'pending_trigger' ? 'Waiting' : pick.lifecycleState === 'invalidated' ? 'Invalidated before trigger' : pick.lifecycleState === 'closed' ? 'Closed' : 'In play';
 
 export function patternDecision(hit: PatternHit, current?: number) {
   const l = hit.levels ?? {};
@@ -225,13 +226,13 @@ export function lifecycleLine(pick: ConvictionPick, sl: SetupLife, now: number):
   const parts: string[] = [life.state === 'carried' && life.session != null && life.sessions != null ? `CARRIED s${life.session}/${life.sessions}` : life.label];
   if (pick.publishedConvictionScore != null) {
     const was = convictionPercent(pick.publishedConvictionScore), is = convictionPercent(pick.convictionScore);
-    parts.push(was === is ? `grade ${is} (unchanged)` : `graded ${was} → now ${is}`);
+    parts.push(was === is ? `evidence ${is} (unchanged)` : `evidence ${was} → now ${is}`);
   }
   if (mark && pick.entryPrice > 0) {
     const vs = (mark.price / pick.entryPrice - 1) * 100;
     parts.push(`$${mark.price.toFixed(2)} ${vs >= 0 ? '+' : ''}${vs.toFixed(1)}% vs entry · ${ageLabel(mark.asOf, now)}`);
   }
-  const title = `${life.label}: ${life.reason}.${pick.publishedConvictionScore != null ? ` Evidence grade at publish ${convictionPercent(pick.publishedConvictionScore)}, re-graded live by the board ${convictionPercent(pick.convictionScore)}.` : ''}${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
+  const title = `${life.label}: ${life.reason}.${pick.publishedConvictionScore != null ? ` Evidence score at publish ${convictionPercent(pick.publishedConvictionScore)}, current evidence score ${convictionPercent(pick.convictionScore)}.` : ''}${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
   return { text: parts.join(' · '), title };
 }
 
@@ -243,22 +244,24 @@ export function publishStamp(iso: string, now: number): string {
   return etDay(d.getTime()) === etDay(now) ? time : `${d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' })} ${time}`;
 }
 
-/** NEXUS grade chip text + tooltip (BOARD_SORT=grade only). */
+/** NEXUS actionability grade chip text; it is not an outcome probability. */
 export function gradeTitle(g: NexusGrade): string {
-  return `NEXUS grade ${g.letter} · ${g.score}/100 (unvalidated — an actionability order, not a predicted outcome). Why ranked here: ${whyRankedHere(g)}. Sector-rotation +${NEXUS_GRADE_POINTS.rotation} is an operator prior, not validated.`;
+  return `NEXUS grade ${g.letter} · ${g.score}/100 (unvalidated — a plan quality and actionability score, not a predicted outcome). ${g.factors.map((f) => `${f.label}: ${f.points}/${f.max}`).join(' · ')}.`;
 }
 
 export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
   const t = now ?? Date.now();
   const line = life ? lifecycleLine(pick, life, t) : null;
   // Live re-grade on the same lifecycle read the board order uses (lib/setup-lifecycle.ts boardOrder).
-  const grade = pick.nexusGrade && !pick.isBotHeld ? (life ? gradeFromLife(life.life, pick, t) : pick.nexusGrade) : null;
+  // Show one consistently defined actionability grade regardless of board sort.
+  // The sort setting controls ordering only; it must not change what grade means.
+  const grade = !pick.isBotHeld ? (life ? gradeFromLife(life.life, pick, t) : gradePick(pick, t)) : null;
   const title = [line?.title, grade ? gradeTitle(grade) : null].filter(Boolean).join('\n');
   return (
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
       <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && <small className="nxp-why">why here: {whyRankedHere(grade)}</small>}</span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} of 100, unvalidated`}>{grade.letter} <b>{Math.round(grade.score)}</b></span> : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} of 100, unvalidated`}>{grade.letter} <b>{Math.round(grade.score)}</b></span> : convictionPercent(pick.convictionScore)}</strong><small>{grade ? 'NEXUS grade' : ''}{grade && (pick.calledAt ?? pick.generatedAt) ? ' · ' : ''}{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -390,17 +393,20 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
 }
 
 /* ── selected setup detail: head, chart, levels, tabs ── */
-export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, chartHeight = 238 }: {
+export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, life, now, chartHeight = 238 }: {
   selected: ConvictionPick;
   /** the SPX chain answer (only rendered when the selected setup is SPY) */
   spxExpression?: SpxExpression;
   spxLoading: boolean;
   tab: DetailTab;
   onTab: (t: DetailTab) => void;
+  life?: SetupLife;
+  now?: number;
   chartHeight?: number;
 }) {
   const reduceMotion = useReducedMotion();
   const positive = selected.direction === 'long';
+  const cleanThesis = stripConflictingTargetClaims(selected.thesis, selected.targetPrice);
   const quotesQ = useQuotes([selected.symbol]);
   // Live, not carried: a session-aware quote (pre/post included) beats the board's
   // currentPrice, which is only refreshed when the board rebuilds. When neither
@@ -421,13 +427,16 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   const challenge = selected.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points);
   const pendingEntry = selected.lifecycleState === 'pending_trigger' || selected.lifecycleState === 'coverage' || selected.lifecycleState === 'thesis';
   const spx = selected.symbol === 'SPY' ? spxExpression : undefined;
-  // BOARD_SORT=grade: the same grade the board orders by, re-read on the live quote.
-  const grade = selected.nexusGrade ? gradePick({ ...selected, currentPrice: liveQuote > 0 ? liveQuote : selected.currentPrice ?? null }, Date.now()) : null;
+  // The same actionability grade shown on every NEXUS row; sorting is configured separately.
+  const gradeNow = now ?? Date.now();
+  const grade = !selected.isBotHeld
+    ? life ? gradeFromLife(life.life, selected, gradeNow) : gradePick(selected, gradeNow)
+    : null;
   return (
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
         <div>
-          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span><span>{selected.convictionBand} evidence</span></div>
+          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span></div>
           <p className="nxp-times">
             <span>Called <strong>{fmtExactET(selected.calledAt ?? selected.generatedAt) ?? '—'}</strong></span>
             {selected.triggeredAt ? <span> · Triggered <strong>{fmtExactET(selected.triggeredAt)}</strong></span> : selected.lifecycleState === 'pending_trigger' ? <span> · not triggered yet</span> : null}
@@ -439,9 +448,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         </div>
         {selected.isBotHeld
           ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
-          : grade
-            ? <div className="nxp-head-scores"><GradeBox grade={grade} /><EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} /></div>
-            : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
+          : <GradeBox grade={grade ?? gradePick(selected, gradeNow)} />}
       </div>
 
       <div className="nxp-chart-card">
@@ -474,7 +481,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         {tab === 'overview' && <div className="nxp-bottom-grid">
           <article className="nxp-thesis">
             <div className="nxp-section-title"><span>Decision brief</span><small>{selected.layerCount} measured layers</small></div>
-            <h3>{selected.thesis || 'The scanner returned evidence without a written thesis.'}</h3>
+            <h3>{cleanThesis || 'The scanner returned evidence without a written thesis.'}</h3>
             <div className="nxp-evidence">
               {support.slice(0, 4).map((layer) => <div key={`${layer.kind}-${layer.label}`}><span>+{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
               {challenge.slice(0, 1).map((layer) => <div className="against" key={`${layer.kind}-${layer.label}`}><span>{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
@@ -566,43 +573,17 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
 }
 
 /**
- * NEXUS grade box (BOARD_SORT=grade): the letter the board ranks by and its top three
- * contributors — "why ranked here". UNVALIDATED (shared/nexus-grade.ts): it orders by
- * whether the plan is still takeable as published and how much window is left, plus the
- * operator's bounded with-rotation prior; it does not predict which setup wins.
+ * NEXUS composite grade: one score with its full breakdown. It is unvalidated
+ * and ranks plan quality/actionability; it does not predict which setup wins.
  */
 function GradeBox({ grade }: { grade: NexusGrade }) {
   return (
     <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} out of 100, unvalidated. Why ranked here: ${whyRankedHere(grade)}`}>
       <strong className="nxp-grade-letter">{grade.letter}</strong>
-      <span>NEXUS grade (unvalidated) · {grade.score}/100</span>
+      <span>NEXUS grade · {grade.score}/100 · unvalidated</span>
       <ul className="nxp-grade-why" aria-label="Why ranked here">
-        {grade.top.map((f) => <li key={f.key}>{f.label}{f.basis === 'operator prior' && f.points > 0 ? ' *' : ''} <b>+{f.points}</b></li>)}
+        {grade.factors.map((f) => <li key={f.key}>{f.label} <b>{f.points}/{f.max}</b></li>)}
       </ul>
-    </div>
-  );
-}
-
-/**
- * Evidence score as a ring gauge: arc = score / 100, colour by band, with the
- * count of layers for and against underneath. Labelled UNVALIDATED: on the
- * bar-verified record (2026-08-26 → 09-30) a higher score did not mean a better
- * outcome — docs/SCORE_V2_STUDY.md. It is a count of evidence, not a ranking.
- */
-function EvidenceRing({ score, band, support, against }: { score: number; band: string; support: number; against: number }) {
-  const r = 30, c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score)) / 100;
-  const tone = band === 'S' || band === 'A' ? 'var(--p)' : band === 'B' ? 'var(--accent, #6aa9ff)' : 'var(--text-mute)';
-  return (
-    <div className="nxp-score nxp-ring" role="img" title="Unvalidated: on the bar-verified record a higher evidence score did not mean a better outcome. A count of evidence, not a ranking." aria-label={`Evidence (unvalidated) ${score} out of 100, band ${band}, ${support} layers for, ${against} against`}>
-      <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden>
-        <circle cx="38" cy="38" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="6" />
-        <circle cx="38" cy="38" r={r} fill="none" stroke={tone} strokeWidth="6" strokeLinecap="round"
-          strokeDasharray={`${c * pct} ${c}`} transform="rotate(-90 38 38)" />
-        <text x="38" y="43" textAnchor="middle" className="nxp-ring-n">{score}</text>
-      </svg>
-      <span>evidence (unvalidated) · {band}</span>
-      <span className="nxp-ring-split"><b className="bull">{support}</b> for · <b className="bear">{against}</b> against</span>
     </div>
   );
 }

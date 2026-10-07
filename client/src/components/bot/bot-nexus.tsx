@@ -211,8 +211,12 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
     const closedInView = inView
       .filter((t) => t.status !== 'open')
       .sort((a, b) => Date.parse(b.closedAt ?? '') - Date.parse(a.closedAt ?? ''));
+    const measured = closedInView.filter((t) => t.assetType === 'option' && t.row.measurementStatus === 'verified');
+    const verifiedWins = measured.filter((t) => t.netPnl > 0).length;
+    const verifiedLosses = measured.filter((t) => t.netPnl < 0).length;
+    const unverifiedOptions = closedInView.filter((t) => t.assetType === 'option' && t.row.measurementStatus !== 'verified').length;
     const sel: RunRecord = runPick ? all.runs.find((r) => r.runId === runPick) ?? all.combined : all.combined;
-    return { all, sel, closedInView };
+    return { all, sel, closedInView, measurement: { measured: measured.length, wins: verifiedWins, losses: verifiedLosses, decided: verifiedWins + verifiedLosses, winRate: verifiedWins + verifiedLosses ? verifiedWins / (verifiedWins + verifiedLosses) : null, unverified: unverifiedOptions } };
   }, [ledgerRows, runPick]);
 
   /* ── the real jobs, status from their own output freshness ── */
@@ -427,7 +431,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               </>
             ) : <span>—</span>}
             <span>floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
-            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin})` : 'none in this process'}</span>
+            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin}) · ${book.lastCycle.opened} opened · ${book.lastCycle.skipped} skipped` : 'none in this process'}</span>
           </div>
         </div>
         {openByRun.map(({ r, pos }) => (
@@ -526,13 +530,14 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               n={record.sel.closed} closed · {runPick ? (botRuns.find((r) => r.id === runPick)?.short ?? 'run') : `all ${botRuns.length} runs`}
             </span>
             <span>realized <b style={{ color: record.sel.netPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtMoney(record.sel.netPnl)}</b></span>
+            <span title="Only option outcomes with saved fresh entry ask and exit bid (or exact intrinsic expiry settlement), timestamps, and P&L reconciliation count here.">quote-audited <b>{record.measurement.wins}W–{record.measurement.losses}L</b> · n={record.measurement.decided} · {record.measurement.winRate == null ? 'rate unavailable' : `${(record.measurement.winRate * 100).toFixed(1)}%`}</span>
           </div>
         </div>
         <div style={{ padding: '6px 12px 10px', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
             <thead>
               <tr style={{ color: 'var(--text-mute)', textAlign: 'right' }}>
-                <th style={{ textAlign: 'left', fontWeight: 500 }}>Run</th><th style={{ fontWeight: 500 }}>n closed</th><th style={{ fontWeight: 500 }}>W–L</th><th style={{ fontWeight: 500 }}>Win rate</th><th style={{ fontWeight: 500 }}>Realized</th><th style={{ fontWeight: 500 }}>Open</th>
+                <th style={{ textAlign: 'left', fontWeight: 500 }}>Run</th><th style={{ fontWeight: 500 }}>n closed</th><th style={{ fontWeight: 500 }}>Ledger W–L</th><th style={{ fontWeight: 500 }}>Ledger rate</th><th style={{ fontWeight: 500 }}>Realized</th><th style={{ fontWeight: 500 }}>Open</th>
               </tr>
             </thead>
             <tbody>
@@ -544,7 +549,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
             </tbody>
           </table>
           <div style={{ marginTop: 5, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
-            Same rows and metrics as the journal's Bot book. Win = realized P&L &gt; 0; win rate withheld under n={MIN_N}. Open P&L is unrealized at the last mark, never counted as realized.
+            Ledger W–L uses every realized paper result. Quote-audited W–L requires a reconciled fresh entry ask and exit bid, or exact intrinsic settlement; {record.measurement.unverified} closed option outcomes are unverified and excluded from that rate. Open P&L is unrealized at the last mark, never counted as realized.
           </div>
         </div>
         {record.closedInView.slice(0, 40).map((t) => {
@@ -565,7 +570,8 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               </div>
               <div className="bp-kv">in<b>${c.entryPrice}</b></div>
               <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
-              <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
+              <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}${c.measurementNote ? ` · measurement: ${c.measurementNote}` : ''}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
+              {c.assetType === 'option' && <div className="bp-kv" title={c.measurementNote ?? undefined}>measurement<b style={{ color: c.measurementStatus === 'verified' ? 'var(--green)' : 'var(--amber)' }}>{c.measurementStatus ?? 'unverified'}</b></div>}
               <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
                 {pnl >= 0 ? '+' : ''}${Math.round(pnl)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
               </div>

@@ -29,6 +29,7 @@ import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/ora
 import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
+import { stripConflictingTargetClaims } from "@shared/plan-narrative";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
 import { gradePick, type NexusGrade } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
@@ -2849,7 +2850,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         idea.genConvictionBand === "B" || idea.genConvictionBand === "C"
           ? idea.genConvictionBand
           : null,
-      thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+      thesis: stripConflictingTargetClaims(
+        idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+        Number(idea.targetPrice),
+      ),
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
       generatedAt: idea.generationTimestamp ?? idea.timestamp,

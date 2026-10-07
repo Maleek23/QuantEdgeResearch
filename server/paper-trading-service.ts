@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
-import { getOptionQuote, getTradierHistoryOHLC } from "./tradier-api";
+import { getOptionMark, getTradierHistoryOHLC, optionMarkExecutionIssue } from "./tradier-api";
 import { logger } from "./logger";
 import { isUSMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { analyzeTrade, recordWin } from "./loss-analyzer-service";
@@ -507,6 +507,42 @@ export async function closePosition(
   }
 }
 
+/** Close a long option only at a quoted sell-side price. A midpoint or cached
+ * mark is useful for display, but it is not an executable exit fill. */
+export async function closeOptionPositionAtBid(
+  positionId: string,
+  exitReason: string,
+): Promise<ClosePositionResult> {
+  const position = await storage.getPaperPositionById(positionId);
+  if (!position) return { success: false, error: "Position not found" };
+  if (position.assetType !== "option" || !position.optionType || !position.strikePrice || !position.expiryDate) {
+    return { success: false, error: "Option contract metadata is incomplete" };
+  }
+
+  const quote = await getOptionMark({
+    underlying: position.symbol,
+    expiryDate: position.expiryDate,
+    optionType: position.optionType as "call" | "put",
+    strike: position.strikePrice,
+  }).catch(() => null);
+  const quoteIssue = quote ? optionMarkExecutionIssue(quote) : 'quote unavailable';
+  if (!quote || quoteIssue) {
+    logger.warn(`[PAPER] Refusing option close without a fresh live two-sided quote (${quoteIssue}): ${position.symbol} ${position.optionType} $${position.strikePrice}`);
+    return { success: false, error: `No executable option quote (${quoteIssue}); position left open` };
+  }
+
+  const observedAt = new Date();
+  const quoteTimeNumeric = quote.quoteTime == null ? NaN : Number(quote.quoteTime);
+  const quoteTimeMs = Number.isFinite(quoteTimeNumeric)
+    ? quoteTimeNumeric < 1e12 ? quoteTimeNumeric * 1000 : quoteTimeNumeric
+    : Date.parse(String(quote.quoteTime ?? ''));
+  const quoteAgeSeconds = Number.isFinite(quoteTimeMs)
+    ? Math.round((observedAt.getTime() - quoteTimeMs) / 1000)
+    : null;
+  const audit = `[fill bid=${quote.bid.toFixed(4)} ask=${quote.ask.toFixed(4)} source=${quote.source} feed=${quote.feed ?? 'unknown'} delayed=${quote.delayed} quoteTime=${quote.quoteTime ?? 'unknown'} quoteAgeSeconds=${quoteAgeSeconds ?? 'unknown'} observedAt=${observedAt.toISOString()}]`;
+  return closePosition(positionId, quote.bid, `${exitReason} ${audit}`);
+}
+
 /**
  * Fetch current price for a position
  * For options, we MUST fetch the actual option premium, NEVER fall back to stock prices
@@ -530,53 +566,27 @@ async function fetchCurrentPrice(
         return fallbackPrice || null;
       }
       
-      // Fetch actual option premium from Tradier
-      const quote = await getOptionQuote({
+      // Stop/target decisions must use the same fresh live quote standard as
+      // entries and closes. getOptionQuote strips source, delay and timestamp;
+      // accepting it here let delayed CBOE marks be stamped as fresh and
+      // trigger an exit decision even though they could not be filled.
+      const quote = await getOptionMark({
         underlying: optionDetails.underlying,
         expiryDate: optionDetails.expiryDate,
         optionType: optionDetails.optionType,
         strike: optionDetails.strike,
       });
-      
-      if (quote) {
-        // Mark to BID, not mid. These are long positions and the exit path fills
-        // at the bid (see closePosition), so marking the open book at mid while
-        // closing it at bid overstates every unrealized gain by half the spread.
-        // On the $0.05-$1.00 premium this bot actually trades that is 5-10% of
-        // the position. Open and closed have to be valued by the same rule or the
-        // two halves of the book cannot be compared to each other.
-        const price = quote.bid > 0 ? quote.bid : (quote.mid > 0 ? quote.mid : quote.last);
-        if (price > 0) {
-          logger.info(`📊 [PAPER] Option price for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
-          return price;
-        }
-      }
-      
-      // Tradier is the primary option quote source and returns 401 on an unfunded account,
-      // so this path was ALWAYS falling through to the entry price — which is why every
-      // paper option position sat at exactly +$0.00 / +0.0% and the bot looked frozen.
-      // A position that can't be marked to market can't be managed: stops and targets
-      // never trigger either. CBOE's delayed chain needs no key and prices the same
-      // contract, so try it before giving up.
-      try {
-        const { getContractQuote } = await import('./cboe-options-fallback');
-        const cboe = await getContractQuote(
-          optionDetails.underlying,
-          optionDetails.optionType,
-          optionDetails.strike,
-          optionDetails.expiryDate,
-        );
-        if (cboe && cboe.mid > 0) {
-          logger.info(`📊 [PAPER] CBOE mark for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${cboe.mid.toFixed(2)} (bid $${cboe.bid} / ask $${cboe.ask}, delayed)`);
-          return cboe.mid;
-        }
-      } catch (err: any) {
-        logger.warn(`📊 [PAPER] CBOE fallback failed for ${symbol}: ${err?.message}`);
+      const quoteIssue = quote ? optionMarkExecutionIssue(quote) : 'quote unavailable';
+      if (quote && !quoteIssue && quote.bid > 0) {
+        // Mark long options at the quoted bid, the side the bot could sell at.
+        logger.info(`📊 [PAPER] Executable option bid for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${quote.bid.toFixed(2)} (ask: $${quote.ask}, source: ${quote.source}, feed: ${quote.feed ?? 'unknown'})`);
+        return quote.bid;
       }
 
-      // Genuinely no mark available — hold the last known value rather than inventing one.
-      logger.warn(`📊 [PAPER] No option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate} - using fallback: $${fallbackPrice?.toFixed(2) || 'null'}`);
-      return fallbackPrice || null;
+      // Keep the previous mark and its original timestamp. A delayed, stale,
+      // one-sided, or undated quote is not allowed to refresh P&L or trigger exits.
+      logger.info(`📊 [PAPER] No eligible option mark for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate}: ${quoteIssue}; retaining last mark`);
+      return null;
     } else {
       // Only use stock prices for actual stocks
       const data = await fetchStockPrice(symbol);
@@ -742,7 +752,13 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
       
       // For options, only check stops/targets if market is open (real prices available)
       const isOption = position.assetType === 'option';
-      const canUsePrice = !isOption || marketStatus.isOpen;
+      const lastMarkAtMs = Date.parse(String(position.lastPriceUpdate ?? ''));
+      const markAgeMs = Number.isFinite(lastMarkAtMs) ? Date.now() - lastMarkAtMs : Number.POSITIVE_INFINITY;
+      const optionMarkFresh = markAgeMs >= -5_000 && markAgeMs <= 60_000;
+      const canUsePrice = !isOption || (marketStatus.isOpen && optionMarkFresh);
+      if (isOption && marketStatus.isOpen && !optionMarkFresh) {
+        logger.info(`[PAPER] Skipping option stop/target check for ${position.symbol}: last eligible mark is ${Number.isFinite(markAgeMs) ? `${Math.round(markAgeMs / 1000)}s old` : 'undated'}`);
+      }
       
       // Check if current price is stale (equals entry price, suggesting no real update)
       const priceIsStale = isOption && 
@@ -895,28 +911,9 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
         // This prevents P&L inflation from using stale/assumed prices
         let realExitPrice = position.currentPrice;
         
-        if (position.assetType === 'option' && position.strikePrice && position.optionType && position.expiryDate) {
-          try {
-            const freshQuote = await getOptionQuote({
-              underlying: position.symbol,
-              expiryDate: position.expiryDate,
-              optionType: position.optionType as 'call' | 'put',
-              strike: position.strikePrice,
-            });
-            
-            if (freshQuote && freshQuote.bid > 0) {
-              // Use BID price for selling (realistic fill)
-              realExitPrice = freshQuote.bid;
-              logger.info(`📊 [REAL-PRICE] ${position.symbol}: Closing at REAL bid $${realExitPrice.toFixed(2)} (was $${position.currentPrice?.toFixed(2)})`);
-            } else {
-              logger.warn(`📊 [REAL-PRICE] ${position.symbol}: No fresh quote available, using cached price $${position.currentPrice?.toFixed(2)}`);
-            }
-          } catch (quoteErr) {
-            logger.warn(`📊 [REAL-PRICE] ${position.symbol}: Quote fetch failed, using cached price`, { error: quoteErr });
-          }
-        }
-        
-        const result = await closePosition(position.id, realExitPrice, exitReason);
+        const result = position.assetType === 'option'
+          ? await closeOptionPositionAtBid(position.id, exitReason)
+          : await closePosition(position.id, realExitPrice, exitReason);
         if (result.success && result.position) {
           closedPositions.push(result.position);
         }

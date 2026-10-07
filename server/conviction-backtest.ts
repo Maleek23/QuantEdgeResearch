@@ -26,6 +26,7 @@ import { logger } from "./logger";
 import { buildConvictions } from "./convictions-engine";
 import { getRealtimeBatchQuotes } from "./realtime-pricing-service";
 import { classifyGradeCohort } from "@shared/grade-provenance";
+import { classifyOutcomeV2 } from "@shared/constants";
 
 export interface BandStats {
   band: "S" | "A" | "B" | "C";
@@ -226,14 +227,16 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
     C: emptyBand("C"),
   };
   const bandGains: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
+  const bandRGains: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
   const bandRisks: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
   const bandRealized: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
+  const bandRealizedRGains: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
   const bandUnrealized: Record<string, number[]> = { S: [], A: [], B: [], C: [] };
 
   // Aggregate by source
   const sourceMap = new Map<
     string,
-    { count: number; wins: number; gains: number[]; risks: number[] }
+    { count: number; wins: number; gains: number[]; rGains: number[]; risks: number[] }
   >();
 
   let scoredCount = 0;
@@ -269,10 +272,13 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
 
     const direction = pick.direction;
 
-    // Determine pctGain
+    // Determine the return in the instrument actually selected. For option
+    // ideas, underlying drift is not a contract return and cannot grade the
+    // conviction band; missing or tracker-only option prices stay unmeasured.
     let pctGain: number;
     let isClosed = false;
     if (idea.outcomeStatus === "open") {
+      if (String(idea.assetType ?? '').toLowerCase() === 'option') continue;
       const live = liveQuoteMap.get(idea.symbol);
       if (!live) continue; // no live price, can't proxy
       pctGain = computeUnrealizedPct(idea, live.price, direction);
@@ -281,15 +287,24 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
       idea.outcomeStatus === "hit_target" ||
       idea.outcomeStatus === "hit_stop" ||
       idea.outcomeStatus === "manual_exit" ||
-      idea.outcomeStatus === "expired"
+      idea.outcomeStatus === "expired" ||
+      idea.outcomeStatus === "timeout" ||
+      idea.outcomeStatus === "closed_horizon"
     ) {
       isClosed = true;
       closedCount++;
-      const stored = Number(idea.percentGain);
+      const outcome = classifyOutcomeV2(idea);
+      const stored = String(idea.assetType ?? '').toLowerCase() === 'option'
+        ? Number(idea.optionPercentGain)
+        : Number(idea.percentGain);
+      if (outcome === 'unresolved') {
+        unmeasuredClosed++;
+        continue;
+      }
       if (Number.isFinite(stored)) {
-        // Some legacy rows have percentGain stored as a multiplier (not a
-        // percent), or as raw P&L dollars. Clamp to a sane equity range
-        // so a single bad row doesn't poison the band averages.
+        // Some legacy underlying rows have percentGain stored as a multiplier
+        // or raw P&L dollars. Clamp only that equity series; premium returns are
+        // already contract percentages with their own measured provenance.
         pctGain = Math.max(-100, Math.min(500, stored));
       } else {
         // A status label is not a measured return. Exclude unresolved rows
@@ -301,7 +316,7 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
       continue;
     }
 
-    const isWin = pctGain > 0;
+    const isWin = isClosed ? classifyOutcomeV2(idea) === 'win' : pctGain > 0;
     if (isWin) actualWinnerCount++;
     if (isWin && (pick.convictionBand === "S" || pick.convictionBand === "A")) {
       topGradedWinners++;
@@ -321,10 +336,16 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
     if (isClosed) bandRealized[bandKey].push(pctGain);
     else bandUnrealized[bandKey].push(pctGain);
 
-    // Risk distance for R-expectancy
+    // Stock-level stops are not option-premium risk. Keep those units out of
+    // the R expectancy denominator until a premium stop-risk model is recorded.
+    const isOption = String(idea.assetType ?? '').toLowerCase() === 'option';
+    if (!isOption) {
+      bandRGains[bandKey].push(pctGain);
+      if (isClosed) bandRealizedRGains[bandKey].push(pctGain);
+    }
     const entry = Number(idea.entryPrice);
     const stop = Number(idea.stopLoss);
-    if (Number.isFinite(entry) && Number.isFinite(stop) && entry > 0) {
+    if (!isOption && Number.isFinite(entry) && Number.isFinite(stop) && entry > 0) {
       const riskPct = Math.abs((entry - stop) / entry) * 100;
       if (riskPct > 0) bandRisks[bandKey].push(riskPct);
     }
@@ -332,13 +353,14 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
     // Per-source
     const source = idea.source || "unknown";
     if (!sourceMap.has(source)) {
-      sourceMap.set(source, { count: 0, wins: 0, gains: [], risks: [] });
+      sourceMap.set(source, { count: 0, wins: 0, gains: [], rGains: [], risks: [] });
     }
     const srcStats = sourceMap.get(source)!;
     srcStats.count++;
     if (isWin) srcStats.wins++;
     srcStats.gains.push(pctGain);
-    if (Number.isFinite(entry) && Number.isFinite(stop) && entry > 0) {
+    if (!isOption) srcStats.rGains.push(pctGain);
+    if (!isOption && Number.isFinite(entry) && Number.isFinite(stop) && entry > 0) {
       srcStats.risks.push(Math.abs((entry - stop) / entry) * 100);
     }
   }
@@ -367,9 +389,9 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
           ? bandUnrealized[key].reduce((s, x) => s + x, 0) / bandUnrealized[key].length
           : 0;
       // Expectancy based on closed trades only (don't let unrealized inflate)
-      b.expectancyR = bandRealized[key].length >= 3
-        ? estimateExpectancy(bandRealized[key], bandRisks[key])
-        : estimateExpectancy(bandGains[key], bandRisks[key]);
+      b.expectancyR = bandRealizedRGains[key].length >= 3
+        ? estimateExpectancy(bandRealizedRGains[key], bandRisks[key])
+        : estimateExpectancy(bandRGains[key], bandRisks[key]);
     }
   }
 
@@ -384,7 +406,7 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
         stats.gains.length > 0
           ? stats.gains.reduce((s, x) => s + x, 0) / stats.gains.length
           : 0,
-      expectancyR: estimateExpectancy(stats.gains, stats.risks),
+      expectancyR: estimateExpectancy(stats.rGains, stats.risks),
     });
   });
   sources.sort((a, b) => b.expectancyR - a.expectancyR);

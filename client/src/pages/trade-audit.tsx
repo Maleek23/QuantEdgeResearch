@@ -31,6 +31,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
+import { CanonGrade, gradeColor } from "@/components/canon/score";
+import { displayedGrade, displayedScore } from "@/lib/conviction-display";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
 interface AuditTrailData {
@@ -190,22 +192,6 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
   );
 }
 
-function getLetterGrade(score: number): string {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'B+';
-  if (score >= 80) return 'B';
-  if (score >= 75) return 'C+';
-  if (score >= 70) return 'C';
-  return 'D';
-}
-
-function getGradeColor(score: number): string {
-  if (score >= 85) return 'text-[var(--trade-bullish)]';
-  if (score >= 70) return 'text-[var(--trade-neutral)]';
-  return 'text-[var(--trade-bearish)]';
-}
-
 function getSignalInfo(signal: string): { points: number; description: string; color: string } {
   const signalMap: Record<string, { points: number; description: string; color: string }> = {
     'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-[var(--trade-bullish)]' },
@@ -225,10 +211,10 @@ function getSignalInfo(signal: string): { points: number; description: string; c
 }
 
 function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
-  const score = idea.confidenceScore || 0;
-  const grade = getLetterGrade(score);
+  const score = displayedScore(idea);
+  const grade = displayedGrade(idea);
+  const gradeTint = gradeColor(grade);
   const signals = idea.qualitySignals || [];
-  const totalPoints = signals.reduce((sum, s) => sum + getSignalInfo(s).points, 0);
   
   return (
     <Card className="glass-card">
@@ -242,9 +228,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
             <CardTitle className="text-lg">Scoring Breakdown</CardTitle>
           </div>
           <div className="text-right">
-            <div className={cn("text-3xl font-bold font-mono", getGradeColor(score))}>
-              {grade}
-            </div>
+            <CanonGrade idea={idea} className="text-3xl" />
             <div className="text-xs text-muted-foreground">{score}pts</div>
           </div>
         </div>
@@ -253,16 +237,13 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {/* Score Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Signal Strength</span>
-            <span className={cn("font-semibold", getGradeColor(score))}>{score}/100</span>
+            <span className="text-muted-foreground">Canonical setup score</span>
+            <span className="font-semibold" style={{ color: gradeTint }}>{score}/100</span>
           </div>
           <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full rounded-full transition-all duration-500",
-                score >= 85 ? "bg-[var(--trade-bullish)]" : score >= 70 ? "bg-amber-500" : "bg-red-500"
-              )}
-              style={{ width: `${score}%` }}
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ backgroundColor: gradeTint, width: `${score}%` }}
             />
           </div>
         </div>
@@ -271,7 +252,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {signals.length > 0 && (
           <div className="pt-3 border-t border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-              Quality Signals ({signals.length}/5) • {totalPoints} pts
+              Supporting signals ({signals.length}/5) · supplementary, not included in the grade
             </p>
             <div className="space-y-2">
               {signals.map((signal, idx) => {
@@ -283,7 +264,6 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
                       <p className="text-sm font-medium truncate">{signal}</p>
                       <p className="text-xs text-muted-foreground">{info.description}</p>
                     </div>
-                    <Badge variant="outline" className="text-xs">+{info.points}</Badge>
                   </div>
                 );
               })}

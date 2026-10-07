@@ -50,7 +50,7 @@ export interface QuantBotStatus {
   runs?: BotRunStatusView[];
   config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number; maxProgressPct?: number };
   repricedAt?: string | null;
-  lastCycle?: { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string } | null;
+  lastCycle?: { at: string; origin: string; opened: number; closed: number; skipped: number; openCount: number; error?: string } | null;
 }
 
 class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }

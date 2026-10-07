@@ -123,9 +123,14 @@ export async function getHistoricalOptionMinutes(
       const high = finite(quote.high?.[i]);
       const low = finite(quote.low?.[i]);
       const close = finite(quote.close?.[i]);
-      if (open == null || high == null || low == null || close == null) continue;
+      const volume = finite(quote.volume?.[i]);
+      // Yahoo fills empty option minutes with zero-valued OHLC rows. They are
+      // not $0 trades or worthless contracts; only a positive-price print with
+      // reported volume is a historical observation.
+      if (open == null || high == null || low == null || close == null || volume == null || volume <= 0 ||
+          open <= 0 || high <= 0 || low <= 0 || close <= 0) continue;
       const timestamp = new Date(timestamps[i] * 1000).toISOString();
-      const bar = { timestamp, open, high, low, close, volume: Math.max(0, finite(quote.volume?.[i]) ?? 0) };
+      const bar = { timestamp, open, high, low, close, volume };
       const key = timestamp.slice(0, 16);
       const prior = byMinute.get(key);
       if (!prior || bar.volume >= prior.volume) byMinute.set(key, bar);
@@ -144,10 +149,13 @@ export async function getHistoricalOptionMinutes(
   }
 }
 
-export function optionMarkAtOrAfter(bars: OptionMinuteBar[], at: string): OptionMinuteBar | null {
+export function optionMarkAtOrAfter(bars: OptionMinuteBar[], at: string, maxDelayMs = 60_000): OptionMinuteBar | null {
   const target = Date.parse(at);
   if (!Number.isFinite(target)) return null;
-  return bars.find((bar) => Date.parse(bar.timestamp) >= target) ?? null;
+  const mark = bars.find((bar) => Date.parse(bar.timestamp) >= target) ?? null;
+  if (!mark) return null;
+  const markMs = Date.parse(mark.timestamp);
+  return Number.isFinite(markMs) && markMs - target <= maxDelayMs ? mark : null;
 }
 
 export function replayOptionMarks(args: { series: OptionMinuteSeries; entryAt: string; exitAt: string }) {

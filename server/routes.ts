@@ -11,6 +11,7 @@ import { buildMonotoneCalibration, interpolateCalibration } from "@shared/isoton
 import { parseJournalFilters, countJournalFilters } from "@shared/journal-filters";
 import { readExitPolicy, exitPolicyPlan } from "@shared/exit-policy";
 import { WATCHLIST_ORDER_PAGE, applyWatchlistOrder, sanitizeWatchlistOrder } from "@shared/watchlist-order";
+import { isRealWin } from "@shared/constants";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
 // LAZY-LOADED: diagnostic-export — imported via await import() in handlers
@@ -12004,7 +12005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       resolvedIdeas.forEach(idea => {
         // Use ACTUAL signal count from qualitySignals array
         const signalCount = idea.qualitySignals?.length || 0;
-        const isWin = idea.outcomeStatus === 'hit_target';
+        const isWin = isRealWin(idea);
         
         const band = bands.find(b => signalCount >= b.minSignals && signalCount <= b.maxSignals);
         if (band) {
@@ -12159,16 +12160,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const bucket = buckets.get(bucketKey);
         if (bucket) {
-          const isWin = idea.outcomeStatus === 'hit_target';
+          const isWin = isRealWin(idea);
           if (isWin) bucket.wins++;
           else bucket.losses++;
-          bucket.totalPnL += idea.percentGain || 0;
+          bucket.totalPnL += (idea.assetType === 'option' ? idea.optionPercentGain : idea.percentGain) || 0;
           bucket.trades.push({
             symbol: idea.symbol,
             source: idea.source,
             confidence: idea.confidenceScore,
             outcome: idea.outcomeStatus,
-            pnl: idea.percentGain
+            pnl: idea.assetType === 'option' ? idea.optionPercentGain : idea.percentGain
           });
         }
       });
@@ -12227,17 +12228,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let brierCount = 0;
       resolvedIdeas.forEach(idea => {
         const predictedProb = (idea.confidenceScore || 50) / 100; // Convert to 0-1
-        const actualOutcome = idea.outcomeStatus === 'hit_target' ? 1 : 0;
+        const actualOutcome = isRealWin(idea) ? 1 : 0;
         brierSum += Math.pow(predictedProb - actualOutcome, 2);
         brierCount++;
       });
       const brierScore = brierCount > 0 ? Math.round((brierSum / brierCount) * 1000) / 1000 : 0;
       
       // Calculate Brier skill score (relative to baseline of just using overall win rate)
-      const baselineWinRate = resolvedIdeas.filter(i => i.outcomeStatus === 'hit_target').length / resolvedIdeas.length;
+      const baselineWinRate = resolvedIdeas.filter(isRealWin).length / resolvedIdeas.length;
       let baselineBrierSum = 0;
       resolvedIdeas.forEach(idea => {
-        const actualOutcome = idea.outcomeStatus === 'hit_target' ? 1 : 0;
+        const actualOutcome = isRealWin(idea) ? 1 : 0;
         baselineBrierSum += Math.pow(baselineWinRate - actualOutcome, 2);
       });
       const baselineBrier = brierCount > 0 ? baselineBrierSum / brierCount : 0;
@@ -12901,13 +12902,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allIdeas = await storage.getAllTradeIdeas();
       // Expired-without-exit policy: an expiry carrying the 0.00 default is not a
       // resolved trade — excluded from the distribution/averages and counted apart.
-      const { isUnmeasuredExpiry } = await import('@shared/constants');
+      const { isUnmeasuredExpiry, hasMeasuredOptionOutcome, classifyOutcomeV2 } = await import('@shared/constants');
       const unmeasuredExpired = allIdeas.filter(t => isUnmeasuredExpiry(t)).length;
-      const resolvedTrades = allIdeas.filter(t => 
-        t.outcomeStatus && ['hit_target', 'hit_stop', 'expired', 'manual_exit'].includes(t.outcomeStatus) &&
-        t.percentGain !== null && t.percentGain !== undefined &&
-        !isUnmeasuredExpiry(t)
-      );
+      const outcomeOf = (t: any) => classifyOutcomeV2(t);
+      const resolvedTrades = allIdeas.filter(t => outcomeOf(t) === 'win' || outcomeOf(t) === 'loss');
 
       if (resolvedTrades.length === 0) {
         return res.json({
@@ -12920,20 +12918,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Categorize trades - using 3% threshold for real losses (matches unified methodology)
-      const LOSS_THRESHOLD = -3;
-      const wins = resolvedTrades.filter(t => t.outcomeStatus === 'hit_target');
-      const realLosses = resolvedTrades.filter(t => 
-        t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
-      );
-      const breakeven = resolvedTrades.filter(t => 
-        t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) > LOSS_THRESHOLD
-      );
+      const measuredPnl = (t: any) => t.assetType === 'option' ? t.optionPercentGain : t.percentGain;
+      const wins = resolvedTrades.filter(t => outcomeOf(t) === 'win');
+      const realLosses = resolvedTrades.filter(t => outcomeOf(t) === 'loss');
+      const breakeven = allIdeas.filter(t => t.assetType === 'option' && hasMeasuredOptionOutcome(t) && Math.abs(Number(t.optionPercentGain)) <= 0.05);
+      const unresolvedClosed = allIdeas.filter(t => t.outcomeStatus !== 'open' && outcomeOf(t) === 'unresolved');
       const expired = resolvedTrades.filter(t => t.outcomeStatus === 'expired');
 
       // Calculate statistics
-      const winGains = wins.map(t => t.percentGain ?? 0);
-      const lossGains = realLosses.map(t => t.percentGain ?? 0);
+      const winGains = wins.map(t => Number(measuredPnl(t) ?? 0));
+      const lossGains = realLosses.map(t => Number(measuredPnl(t) ?? 0));
       
       const avgWin = winGains.length > 0 ? winGains.reduce((a, b) => a + b, 0) / winGains.length : 0;
       const avgLoss = lossGains.length > 0 ? lossGains.reduce((a, b) => a + b, 0) / lossGains.length : 0;
@@ -12959,14 +12953,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const distribution = gainBuckets.map((bucket, i) => {
         const nextBucket = gainBuckets[i + 1] ?? Infinity;
         const tradesInBucket = resolvedTrades.filter(t => {
-          const gain = t.percentGain ?? 0;
+          const gain = Number(measuredPnl(t) ?? 0);
           return gain >= bucket && gain < nextBucket;
         });
         return {
           range: nextBucket === Infinity ? `${bucket}%+` : `${bucket}% to ${nextBucket}%`,
           count: tradesInBucket.length,
-          wins: tradesInBucket.filter(t => t.outcomeStatus === 'hit_target').length,
-          losses: tradesInBucket.filter(t => t.outcomeStatus === 'hit_stop').length,
+          wins: tradesInBucket.filter(t => outcomeOf(t) === 'win').length,
+          losses: tradesInBucket.filter(t => outcomeOf(t) === 'loss').length,
         };
       });
 
@@ -12976,10 +12970,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // By asset type breakdown
       const byAssetType = ['stock', 'option', 'crypto', 'futures'].map(assetType => {
         const trades = resolvedTrades.filter(t => (t.assetType || 'stock') === assetType);
-        const assetWins = trades.filter(t => t.outcomeStatus === 'hit_target');
-        const assetLosses = trades.filter(t => 
-          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
-        );
+        const assetWins = trades.filter(t => outcomeOf(t) === 'win');
+        const assetLosses = trades.filter(t => outcomeOf(t) === 'loss');
         const assetDecided = assetWins.length + assetLosses.length;
         return {
           assetType,
@@ -12988,7 +12980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           losses: assetLosses.length,
           winRate: assetDecided > 0 ? Math.round((assetWins.length / assetDecided) * 1000) / 10 : 0,
           avgGain: trades.length > 0 
-            ? Math.round((trades.reduce((a, t) => a + (t.percentGain ?? 0), 0) / trades.length) * 100) / 100 
+            ? Math.round((trades.reduce((a, t) => a + Number(measuredPnl(t) ?? 0), 0) / trades.length) * 100) / 100
             : 0,
         };
       }).filter(a => a.totalTrades > 0);
@@ -12997,10 +12989,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sources = [...new Set(resolvedTrades.map(t => t.source || 'unknown'))];
       const bySource = sources.map(source => {
         const trades = resolvedTrades.filter(t => (t.source || 'unknown') === source);
-        const srcWins = trades.filter(t => t.outcomeStatus === 'hit_target');
-        const srcLosses = trades.filter(t => 
-          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
-        );
+        const srcWins = trades.filter(t => outcomeOf(t) === 'win');
+        const srcLosses = trades.filter(t => outcomeOf(t) === 'loss');
         const srcDecided = srcWins.length + srcLosses.length;
         return {
           source,
@@ -13009,7 +12999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           losses: srcLosses.length,
           winRate: srcDecided > 0 ? Math.round((srcWins.length / srcDecided) * 1000) / 10 : 0,
           avgGain: trades.length > 0 
-            ? Math.round((trades.reduce((a, t) => a + (t.percentGain ?? 0), 0) / trades.length) * 100) / 100 
+            ? Math.round((trades.reduce((a, t) => a + Number(measuredPnl(t) ?? 0), 0) / trades.length) * 100) / 100
             : 0,
         };
       }).filter(s => s.totalTrades > 0);
@@ -13021,6 +13011,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wins: wins.length,
         losses: realLosses.length,
         breakeven: breakeven.length,
+        unresolved: allIdeas.filter(t => outcomeOf(t) === 'unresolved').length,
+        unresolvedClosed: unresolvedClosed.length,
         expired: expired.length,
         winRate: Math.round(winRate * 10) / 10,
         winRateCI: wilsonCI,
@@ -13047,7 +13039,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/win-loss/stop-loss-sim", requireAdminJWT, async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
-      const resolvedTrades = allIdeas.filter(t => 
+      // This endpoint has outcome totals but no point-in-time option NBBO path,
+      // so its sensitivity is share-price-only and cannot recommend an option stop.
+      const excludedOptionRows = allIdeas.filter(t => t.assetType === 'option' &&
+        t.outcomeStatus && ['hit_target', 'hit_stop'].includes(t.outcomeStatus) &&
+        t.percentGain !== null && t.percentGain !== undefined).length;
+      const resolvedTrades = allIdeas.filter(t => t.assetType !== 'option' &&
         t.outcomeStatus && ['hit_target', 'hit_stop'].includes(t.outcomeStatus) &&
         t.percentGain !== null && t.percentGain !== undefined
       );
@@ -13056,7 +13053,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           simulations: [],
           optimalThreshold: null,
-          message: "Insufficient trades for simulation (minimum 10 required)"
+          excludedOptionRows,
+          message: "Insufficient share-price outcomes for sensitivity (minimum 10 required); options are excluded without executable premium paths"
         });
       }
 
@@ -13105,23 +13103,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      // Find optimal threshold (max expectancy with sufficient sample)
-      const validSims = simulations.filter(s => s.decidedTrades >= 30);
-      const optimalSim = validSims.length > 0 
-        ? validSims.reduce((best, s) => s.expectancy > best.expectancy ? s : best, validSims[0])
-        : null;
-
       res.json({
         simulations,
-        optimalThreshold: optimalSim ? {
-          thresholdPercent: optimalSim.thresholdPercent,
-          expectedWinRate: optimalSim.winRate,
-          expectancy: optimalSim.expectancy,
-          profitFactor: optimalSim.profitFactor,
-          rationale: `At ${optimalSim.thresholdPercent}% stop-loss threshold, expected win rate is ${optimalSim.winRate}% with ${optimalSim.expectancy}% expectancy per trade.`,
-        } : null,
+        optimalThreshold: null,
+        validatesStrategy: false,
+        reason: 'Historical final outcomes do not reconstruct intratrade stop paths or executable fills; this table is a loss-cutoff sensitivity, not a stop-loss backtest.',
+        excludedOptionRows,
         totalTrades: resolvedTrades.length,
-        sampleReliability: resolvedTrades.length >= 100 ? 'high' : resolvedTrades.length >= 30 ? 'medium' : 'low',
+        sampleReliability: 'diagnostic_only',
       });
     } catch (error) {
       logger.error("Stop-loss simulation error:", error);
@@ -13133,16 +13122,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/win-loss/export", requireAdminJWT, async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
-      const resolvedTrades = allIdeas.filter(t => 
-        t.outcomeStatus && ['hit_target', 'hit_stop'].includes(t.outcomeStatus) &&
-        t.percentGain !== null && t.percentGain !== undefined
-      );
+      const { classifyOutcomeV2 } = await import('@shared/constants');
+      const resolvedTrades = allIdeas.filter(t => {
+        const outcome = classifyOutcomeV2(t);
+        return outcome === 'win' || outcome === 'loss';
+      });
 
       // Extract features for ML training
       const trainingData = resolvedTrades.map(trade => ({
         // Target variable
-        outcome: trade.outcomeStatus === 'hit_target' ? 1 : 0,
-        percentGain: trade.percentGain,
+        outcome: classifyOutcomeV2(trade) === 'win' ? 1 : 0,
+        percentGain: trade.assetType === 'option' ? trade.optionPercentGain : trade.percentGain,
+        outcomeMeasurement: trade.assetType === 'option'
+          ? String(trade.outcomeNotes ?? '').match(/\[(?:exit-premium|expiry-premium):([a-z_]+)\]/i)?.[1] ?? 'missing'
+          : 'underlying',
         
         // Trade setup features
         symbol: trade.symbol,
@@ -14527,6 +14520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const format = req.query.format as string || 'json';
       const allIdeas = await storage.getAllTradeIdeas();
+      const { isUnmeasuredExpiry, classifyOutcomeV2 } = await import('@shared/constants');
       
       // Sort by timestamp descending (newest first)
       allIdeas.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -14595,6 +14589,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Performance
           percentGain: idea.percentGain ?? null,
+          entryPremium: idea.entryPremium ?? null,
+          exitPremium: idea.exitPremium ?? null,
+          optionPercentGain: idea.optionPercentGain ?? null,
+          outcomeNotes: idea.outcomeNotes ?? null,
+          optionExitMeasurement: String(idea.outcomeNotes ?? '').match(/\[(?:exit-premium|expiry-premium):([a-z_]+)\]/i)?.[1] ?? null,
+          measuredOutcome: classifyOutcomeV2(idea),
           
           // Source and confidence
           source: idea.source,
@@ -14607,11 +14607,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate summary stats
       // Expired-without-exit policy (@shared/constants isUnmeasuredExpiry): the
       // 0.00-default expiries stay in the export rows but out of both rates.
-      const { isUnmeasuredExpiry } = await import('@shared/constants');
       const unmeasuredExpired = auditRecords.filter(i => isUnmeasuredExpiry(i));
-      const closedIdeas = auditRecords.filter(i => i.outcomeStatus !== 'open' && !isUnmeasuredExpiry(i));
-      const wins = auditRecords.filter(i => i.outcomeStatus === 'hit_target');
-      const losses = auditRecords.filter(i => i.outcomeStatus === 'hit_stop');
+      const closedIdeas = auditRecords.filter(i => i.measuredOutcome === 'win' || i.measuredOutcome === 'loss');
+      const wins = closedIdeas.filter(i => i.measuredOutcome === 'win');
+      const losses = closedIdeas.filter(i => i.measuredOutcome === 'loss');
+      const unresolvedClosedIdeas = auditRecords.filter(i => i.outcomeStatus !== 'open' && i.measuredOutcome === 'unresolved');
       const expired = auditRecords.filter(i => i.outcomeStatus === 'expired');
       
       const summary = {
@@ -14619,6 +14619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalIdeas: auditRecords.length,
         closedIdeas: closedIdeas.length,
         openIdeas: auditRecords.filter(i => i.outcomeStatus === 'open').length,
+        unresolvedClosedIdeas: unresolvedClosedIdeas.length,
         wins: wins.length,
         losses: losses.length,
         expired: expired.length,
@@ -14634,7 +14635,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'Idea Time (CT)', 'Idea Day', 'Idea Session',
           'Entry Price', 'Target', 'Stop Loss',
           'Outcome', 'Exit Time (CT)', 'Exit Day', 'Exit Session', 'Exit Price',
-          'Percent Gain', 'Source', 'Confidence', 'Holding Period', 'Catalyst'
+          'Percent Gain', 'Measured Outcome', 'Option Entry Premium', 'Option Exit Premium',
+          'Option Return %', 'Option Exit Measurement', 'Outcome Notes', 'Source', 'Confidence', 'Holding Period', 'Catalyst'
         ];
         
         const csvRows = [headers.join(',')];
@@ -14662,6 +14664,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             r.exitSession || '',
             r.exitPrice || '',
             r.percentGain ?? '',
+            r.measuredOutcome,
+            r.entryPremium ?? '',
+            r.exitPremium ?? '',
+            r.optionPercentGain ?? '',
+            r.optionExitMeasurement ?? '',
+            r.outcomeNotes ? `"${r.outcomeNotes.replace(/"/g, '""')}"` : '',
             r.source,
             r.confidenceScore || '',
             r.holdingPeriod || '',
@@ -14703,7 +14711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decidedTrades = getDecidedTrades(filteredIdeas);
       
       // Independently count wins and losses using the same criteria
-      const independentWins = decidedTrades.filter(i => i.outcomeStatus === 'hit_target').length;
+      const independentWins = decidedTrades.filter(isRealWin).length;
       const independentLosses = decidedTrades.filter(i => isRealLoss(i)).length;
       const independentDecided = independentWins + independentLosses;
       const independentWinRate = independentDecided > 0 
@@ -14753,7 +14761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         outcomeStatus: trade.outcomeStatus,
         percentGain: trade.percentGain,
         source: trade.source || 'unknown',
-        countedAsWin: trade.outcomeStatus === 'hit_target',
+        countedAsWin: isRealWin(trade),
         countedAsLoss: isRealLoss(trade),
       }));
       
@@ -14821,7 +14829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bandStats = new Map<string, { wins: number; losses: number; total: number }>();
       
       resolvedIdeas.forEach(idea => {
-        const isWin = idea.outcomeStatus === 'hit_target';
+        const isWin = isRealWin(idea);
         const engine = idea.source || 'unknown';
         const symbol = idea.symbol;
         const confidence = idea.confidenceScore || 0;
@@ -19307,76 +19315,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auto-feed surges to Trade Desk
   app.post("/api/market-scanner/surges/feed", isAuthenticated, async (req: any, res) => {
     try {
-      const { scanForSurges, getHighPrioritySurges } = await import('./market-scanner');
-      const { ingestTradeIdea } = await import('./trade-idea-ingestion');
-      
-      // Scan for fresh surges
-      await scanForSurges(true);
-      const surges = getHighPrioritySurges();
-      
-      let ingested = 0;
-      let skipped = 0;
-      
-      for (const surge of surges) {
-        // Only ingest CRITICAL and HIGH severity surges
-        if (surge.severity !== 'CRITICAL' && surge.severity !== 'HIGH') {
-          skipped++;
-          continue;
-        }
-        
-        // Create distinct signal types based on signal descriptions
-        const signals = surge.signals.map((s, idx) => {
-          // Determine signal type from description
-          let signalType = surge.surgeType;
-          if (s.includes('VOLUME')) signalType = 'VOLUME_SURGE';
-          else if (s.includes('MAJOR MOVE') || s.includes('breakout')) signalType = 'PRICE_BREAKOUT';
-          else if (s.includes('momentum')) signalType = 'MOMENTUM';
-          else if (s.includes('52-WEEK')) signalType = 'TECHNICAL_BREAKOUT';
-          else if (s.includes('PRE-SURGE')) signalType = 'PRE_SURGE';
-          
-          return {
-            type: signalType,
-            weight: idx === 0 ? (surge.severity === 'CRITICAL' ? 18 : 14) : 10,
-            description: s
-          };
-        });
-        
-        // Add a primary signal for the surge type itself
-        if (signals.length === 0) {
-          signals.push({
-            type: surge.surgeType,
-            weight: surge.severity === 'CRITICAL' ? 18 : 14,
-            description: `${surge.surgeType}: ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% with ${surge.volumeRatio.toFixed(1)}x volume`
-          });
-        }
-        
-        const result = await ingestTradeIdea({
-          source: 'market_scanner',
-          symbol: surge.symbol,
-          assetType: 'stock',
-          direction: surge.priceChangePercent > 0 ? 'bullish' : 'bearish',
-          signals,
-          holdingPeriod: surge.surgeType === 'PRE_SURGE' ? 'swing' : 'day',
-          currentPrice: surge.currentPrice,
-          catalyst: surge.signals.slice(0, 2).join(' | '),
-          analysis: `${surge.surgeType} detected: ${surge.name} with ${surge.volumeRatio.toFixed(1)}x volume and ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% move. Score: ${surge.score}/100.`,
-        });
-        
-        if (result.success) {
-          ingested++;
-          logger.info(`[SURGE->TRADE-DESK] Fed ${surge.symbol} (${surge.severity}): ${surge.surgeType}`);
-        } else {
-          skipped++;
-        }
-      }
-      
-      res.json({
-        success: true,
-        message: `Fed ${ingested} surge alerts to Trade Desk`,
-        ingested,
-        skipped,
-        totalSurges: surges.length
-      });
+      const { promoteLiveLeadership } = await import('./live-leadership-promoter');
+      const result = await promoteLiveLeadership(true);
+      res.json({ success: true, ...result });
     } catch (error) {
       logError(error as Error, { context: 'POST /api/market-scanner/surges/feed' });
       res.status(500).json({ error: "Failed to feed surges to Trade Desk" });
@@ -24683,10 +24624,6 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const { positionId } = req.params;
       const { exitPrice } = req.body;
       
-      if (typeof exitPrice !== 'number' || exitPrice <= 0) {
-        return res.status(400).json({ error: "Valid exitPrice is required" });
-      }
-      
       const position = await storage.getPaperPositionById(positionId);
       if (!position) {
         return res.status(404).json({ error: "Position not found" });
@@ -24697,7 +24634,13 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const result = await (await getPaperTradingService()).closePosition(positionId, exitPrice, 'manual');
+      const paper = await getPaperTradingService();
+      const result = position.assetType === 'option'
+        ? await paper.closeOptionPositionAtBid(positionId, 'manual')
+        : typeof exitPrice === 'number' && exitPrice > 0
+          ? await paper.closePosition(positionId, exitPrice, 'manual')
+          : null;
+      if (!result) return res.status(400).json({ error: "Valid exitPrice is required" });
       
       if (!result.success) {
         return res.status(400).json({ error: result.error });

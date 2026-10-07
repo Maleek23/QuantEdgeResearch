@@ -597,6 +597,17 @@ app.use((req, res, next) => {
         } catch (e) { logger.error('Base reclaim ingest failed', e as Error); }
       });
 
+      // Live leaders must be able to enter Nexus while the tape is moving.
+      // The promoter joins intraday momentum to measured daily structure and
+      // refuses late entries after the remaining reward/risk deteriorates.
+      flagCron.default.schedule('*/5 9-16 * * 1-5', async () => {
+        try {
+          const { promoteLiveLeadership } = await import('./live-leadership-promoter');
+          const r = await promoteLiveLeadership(true);
+          if (r.ingested > 0) log(`⚡ Live leadership: promoted ${r.ingested}/${r.qualified} qualified setup(s)`);
+        } catch (e) { logger.error('Live leadership promotion failed', e as Error); }
+      }, { timezone: 'America/New_York' });
+
       log('🚩🐻🔄 Flag + base-reclaim ingest scheduled (weekends included — daily-bar setups do not expire at the close)');
     }
 

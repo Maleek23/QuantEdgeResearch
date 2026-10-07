@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
+import { capturePlanSnapshot, freezePlanFields, planRiskRewardRatio, readPlanSnapshot } from "@shared/plan-snapshot";
 
 import type {
   MarketData,
@@ -186,7 +187,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealWin, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
@@ -281,9 +282,10 @@ export function getDecidedTrades(ideas: any[], options: { includeAllVersions?: b
   }
   
   // Filter to decided trades only (wins + real losses)
-  return filtered.filter(idea => 
-    idea.outcomeStatus === 'hit_target' || isRealLoss(idea)
-  );
+  return filtered.filter(idea => {
+    if (String(idea.assetType ?? '').toLowerCase() === 'option') return isRealWin(idea) || isRealLoss(idea);
+    return idea.outcomeStatus === 'hit_target' || isRealLoss(idea);
+  });
 }
 
 /**
@@ -299,9 +301,10 @@ export function getDecidedTradesByResolution(ideas: any[], options: { includeAll
   }
   
   // Filter to decided trades only (auto-resolved wins + real losses)
-  return filtered.filter(idea => 
-    idea.resolutionReason === 'auto_target_hit' || isRealLossByResolution(idea)
-  );
+  return filtered.filter(idea => {
+    if (String(idea.assetType ?? '').toLowerCase() === 'option') return isRealWin(idea) || isRealLossByResolution(idea);
+    return idea.resolutionReason === 'auto_target_hit' || isRealLossByResolution(idea);
+  });
 }
 
 /**
@@ -1598,6 +1601,19 @@ export class MemStorage implements IStorage {
       confidenceScore: cappedConfidence,
       outcomeStatus: 'open'
     } as TradeIdea;
+    tradeIdea.convergenceSignalsJson = idea.status === 'draft' ? idea.convergenceSignalsJson : capturePlanSnapshot(idea.convergenceSignalsJson, {
+      direction: idea.direction,
+      holdingPeriod: idea.holdingPeriod ?? 'day',
+      entryPrice: idea.entryPrice,
+      targetPrice: idea.targetPrice,
+      stopLoss: idea.stopLoss,
+      riskRewardRatio: idea.riskRewardRatio,
+      entryPremium: idea.entryPremium,
+      optionType: idea.optionType,
+      strikePrice: idea.strikePrice,
+      expiryDate: idea.expiryDate,
+    });
+    tradeIdea.riskRewardRatio = planRiskRewardRatio(idea.entryPrice, idea.targetPrice, idea.stopLoss);
     this.tradeIdeas.set(id, tradeIdea);
     return tradeIdea;
   }
@@ -1605,7 +1621,34 @@ export class MemStorage implements IStorage {
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
-    const updated = { ...existing, ...updates };
+    let safeUpdates = updates;
+    const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
+    if (frozen) {
+      safeUpdates = freezePlanFields(updates, frozen);
+      safeUpdates.convergenceSignalsJson = capturePlanSnapshot(
+        updates.convergenceSignalsJson ?? existing.convergenceSignalsJson,
+        frozen,
+        frozen.capturedAt,
+      ) as any;
+    } else if (updates.status === 'published' && existing.status !== 'published') {
+      const merged = { ...existing, ...updates };
+      safeUpdates = {
+        ...updates,
+        convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
+          direction: merged.direction,
+          holdingPeriod: merged.holdingPeriod ?? 'day',
+          entryPrice: merged.entryPrice,
+          targetPrice: merged.targetPrice,
+          stopLoss: merged.stopLoss,
+          riskRewardRatio: merged.riskRewardRatio,
+          entryPremium: merged.entryPremium,
+          optionType: merged.optionType,
+          strikePrice: merged.strikePrice,
+          expiryDate: merged.expiryDate,
+        }),
+      };
+    }
+    const updated = { ...existing, ...safeUpdates };
     this.tradeIdeas.set(id, updated);
     return updated;
   }
@@ -2789,9 +2832,22 @@ export class DatabaseStorage implements IStorage {
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedIdea = {
       ...ruled,
+      riskRewardRatio: planRiskRewardRatio(ruled.entryPrice, ruled.targetPrice, ruled.stopLoss),
       confidenceScore: ruled.confidenceScore
         ? Math.min(94, Math.max(0, ruled.confidenceScore))
-        : ruled.confidenceScore
+        : ruled.confidenceScore,
+      convergenceSignalsJson: ruled.status === 'draft' ? ruled.convergenceSignalsJson : capturePlanSnapshot(ruled.convergenceSignalsJson, {
+        direction: ruled.direction,
+        holdingPeriod: ruled.holdingPeriod ?? 'day',
+        entryPrice: ruled.entryPrice,
+        targetPrice: ruled.targetPrice,
+        stopLoss: ruled.stopLoss,
+        riskRewardRatio: ruled.riskRewardRatio,
+        entryPremium: ruled.entryPremium,
+        optionType: ruled.optionType,
+        strikePrice: ruled.strikePrice,
+        expiryDate: ruled.expiryDate,
+      }),
     };
     const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
     return created;
@@ -2856,8 +2912,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
+    const [existing] = await db.select({
+      status: tradeIdeas.status,
+      convergenceSignalsJson: tradeIdeas.convergenceSignalsJson,
+      direction: tradeIdeas.direction,
+      holdingPeriod: tradeIdeas.holdingPeriod,
+      entryPrice: tradeIdeas.entryPrice,
+      targetPrice: tradeIdeas.targetPrice,
+      stopLoss: tradeIdeas.stopLoss,
+      riskRewardRatio: tradeIdeas.riskRewardRatio,
+      entryPremium: tradeIdeas.entryPremium,
+      optionType: tradeIdeas.optionType,
+      strikePrice: tradeIdeas.strikePrice,
+      expiryDate: tradeIdeas.expiryDate,
+    }).from(tradeIdeas).where(eq(tradeIdeas.id, id)).limit(1);
+    if (!existing) return undefined;
+    let safeUpdates = updates;
+    const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
+    if (frozen) {
+      safeUpdates = freezePlanFields(updates, frozen);
+      safeUpdates.convergenceSignalsJson = capturePlanSnapshot(
+        updates.convergenceSignalsJson ?? existing.convergenceSignalsJson,
+        frozen,
+        frozen.capturedAt,
+      ) as any;
+    } else if (updates.status === 'published' && existing.status !== 'published') {
+      const merged = { ...existing, ...updates };
+      safeUpdates = {
+        ...updates,
+        convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
+          direction: merged.direction,
+          holdingPeriod: merged.holdingPeriod ?? 'day',
+          entryPrice: merged.entryPrice,
+          targetPrice: merged.targetPrice,
+          stopLoss: merged.stopLoss,
+          riskRewardRatio: merged.riskRewardRatio,
+          entryPremium: merged.entryPremium,
+          optionType: merged.optionType,
+          strikePrice: merged.strikePrice,
+          expiryDate: merged.expiryDate,
+        }),
+      };
+    }
     const [updated] = await db.update(tradeIdeas)
-      .set(updates)
+      .set(safeUpdates)
       .where(eq(tradeIdeas.id, id))
       .returning();
     return updated || undefined;
@@ -4328,6 +4426,8 @@ export class DatabaseStorage implements IStorage {
       optionType: position.optionType ?? undefined,
       strikePrice: position.strikePrice ?? undefined,
       expiryDate: position.expiryDate ?? undefined,
+      entryReason: position.entryReason ?? undefined,
+      entrySignals: position.entrySignals ?? undefined,
       targetPrice: position.targetPrice ?? undefined,
       stopLoss: position.stopLoss ?? undefined,
       currentPrice: position.currentPrice ?? undefined,

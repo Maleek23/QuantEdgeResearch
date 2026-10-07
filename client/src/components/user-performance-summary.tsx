@@ -213,8 +213,8 @@ export function UserPerformanceSummary({ query = "" }: { query?: string }) {
         <span>
           <strong>Option ideas are included</strong> — {tr.options.total} in this view, {tr.options.decided} decided, {tr.options.unresolved} open or unmeasurable.
           {' '}{tr.options.note}
-          {tr.options.pricedAtPass || tr.options.withheld
-            ? ` ${tr.options.pricedAtPass} decided option exits were priced at the tracker pass and ${tr.options.withheld} stops had their premium withheld (counted as losses, no P&L).`
+          {tr.options.pricedAtPass || tr.options.pricedAtTouchBar || tr.options.withheld
+            ? ` ${tr.options.pricedAtPass} exits used tracker-pass marks, ${tr.options.pricedAtTouchBar} used historical touch-bar prints, and ${tr.options.withheld} were withheld; these are unresolved, not option wins or losses.`
             : ''}
         </span>
       </div>

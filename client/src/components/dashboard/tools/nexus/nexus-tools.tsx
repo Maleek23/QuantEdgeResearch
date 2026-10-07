@@ -441,7 +441,7 @@ function DetailSetup({ id, tab, onTab }: { id?: string; tab: DetailTab; onTab: (
   const blocked = bookGate(convictions, 'live book');
   if (blocked) return blocked;
   if (!selected) return <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The engine published no setups in this read; pick a developing candidate or position instead.</p></div>;
-  return <SetupDetail selected={selected} spxExpression={spx.data} spxLoading={spx.isLoading} tab={tab} onTab={onTab} />;
+  return <SetupDetail selected={selected} life={life.get(selected.ideaId)} now={now} spxExpression={spx.data} spxLoading={spx.isLoading} tab={tab} onTab={onTab} />;
 }
 
 function DetailDeveloping({ symbol }: { symbol: string }) {

@@ -33,7 +33,6 @@
 import { readShared, writeSharedSync } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
-import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
 import { fetchYahooFinancePrice } from './market-api';
 import { getIntradayStructure } from './zero-dte-structure';
@@ -677,12 +676,11 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   };
 
   try {
-    const created = await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
-    const { isDedupedResult } = await import('./lib/instrument-dedup');
-    if (isDedupedResult(created)) {
+    const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+    if (!(await persistPreparedTradeIdea(tradeIdea, { cooldownMs: 30 * 60_000, dedupWindowHours: 0.5 }))) {
       // Same contract already open / published this session — no re-alert.
       recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
-      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not republished — existing idea ${(created as any)?.id}`);
+      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not published — a shared persistence gate blocked it`);
       return false;
     }
     recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
