@@ -2032,6 +2032,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   { const { registerDeskAdminRoutes } = await import('./desk-admin-routes'); registerDeskAdminRoutes(app, requireAdminJWT); }
   // Trader accounts: the operator creates his traders' logins (setup link or temp password) — docs/DESK_ADMINS.md.
   { const { registerTraderAccountRoutes } = await import('./trader-accounts-routes'); const { setupLinkLimiters } = await import('./rate-limiter'); registerTraderAccountRoutes(app, requireAdminJWT, { setup: setupLinkLimiters, login: [authLimiter, ...setupLinkLimiters] }); }
+  // Trader self-setup from the sign-in page (docs/DESK_ADMINS.md §Trader self-setup): name → book passcode → own password → /desk.
+  { const { registerTraderSelfSetupRoutes } = await import('./trader-self-setup-routes'); const { traderSelfSetupLimiters, traderSelfSetupNamesLimiters } = await import('./rate-limiter'); registerTraderSelfSetupRoutes(app, requireAdminJWT, { names: traderSelfSetupNamesLimiters, attempt: traderSelfSetupLimiters }); }
 
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
@@ -32778,6 +32780,36 @@ Use this checklist before entering any trade:
     const { listTracked } = await import('./nexus-tracked');
     res.json({ tracked: listTracked(), asOf: new Date().toISOString() });
   });
+  /**
+   * NEXUS "Resolved today" (shared/nexus-resolved.ts): automated ideas that
+   * closed this ET session. /api/convictions is open-only, so a 0DTE put that
+   * hit T1 at 10:05 used to vanish from the board.
+   */
+  app.get("/api/nexus/resolved-today", requireBetaAccess, async (_req, res) => {
+    try {
+      const { gte, ne, notInArray } = await import("drizzle-orm");
+      const { resolvedToday } = await import("@shared/nexus-resolved");
+      const now = Date.now();
+      const since = new Date(now - 20 * 3_600_000).toISOString();
+      const rows = await db.select({
+        ideaId: tradeIdeas.id, symbol: tradeIdeas.symbol, direction: tradeIdeas.direction, assetType: tradeIdeas.assetType,
+        source: tradeIdeas.source, optionType: tradeIdeas.optionType, strikePrice: tradeIdeas.strikePrice, expiryDate: tradeIdeas.expiryDate,
+        entryPrice: tradeIdeas.entryPrice, targetPrice: tradeIdeas.targetPrice, stopLoss: tradeIdeas.stopLoss, exitPrice: tradeIdeas.exitPrice,
+        entryPremium: tradeIdeas.entryPremium, exitPremium: tradeIdeas.exitPremium, percentGain: tradeIdeas.percentGain,
+        optionPercentGain: tradeIdeas.optionPercentGain, outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason,
+        timestamp: tradeIdeas.timestamp, exitDate: tradeIdeas.exitDate,
+      }).from(tradeIdeas).where(and(
+        gte(tradeIdeas.exitDate, since),
+        ne(tradeIdeas.outcomeStatus, 'open' as any),
+        notInArray(tradeIdeas.source, ['manual', 'user'] as any),
+      )).orderBy(desc(tradeIdeas.exitDate)).limit(300);
+      const ideas = resolvedToday(rows.filter((r) => r.exitDate) as any[], now);
+      res.json({ ideas, asOf: new Date(now).toISOString() });
+    } catch (e: any) {
+      logger.warn(`[NEXUS] resolved-today failed: ${e?.message ?? e}`);
+      res.status(500).json({ error: 'resolved-today failed' });
+    }
+  });
   app.post("/api/nexus/tracked", async (req, res) => {
     const { addTracked, TrackedInputError } = await import('./nexus-tracked');
     try {
@@ -32807,8 +32839,12 @@ Use this checklist before entering any trade:
           // NEXUS ideas: mark the 60 most recently opened open rows (memory/quote budget on the 2 GB box).
           const { loadJournal } = await import('./journal-sources');
           const all = (await loadJournal(j)).rows as any[];
+          // Open 0DTE / ≤1DTE option ideas first (shared/short-dated-option.ts): their mark moves fastest.
+          const { isShortDatedOptionIdea } = await import('@shared/short-dated-option');
+          const nowMs = Date.now();
+          const sd = (r: any) => (String(r.assetType) === 'option' && isShortDatedOptionIdea({ expiryDate: r.expiryDate, source: r.source ?? r.ideaSource ?? null }, nowMs) ? 1 : 0);
           rows = all.filter((r) => String(r.status).toLowerCase() === 'open')
-            .sort((a, b) => String(b.entryTime ?? '').localeCompare(String(a.entryTime ?? '')))
+            .sort((a, b) => sd(b) - sd(a) || String(b.entryTime ?? '').localeCompare(String(a.entryTime ?? '')))
             .slice(0, 60);
         } else if ((j.kind === 'mine' || j.kind === 'trader') && j.ownerId) {
           rows = await storage.getJournalTrades(j.ownerId);

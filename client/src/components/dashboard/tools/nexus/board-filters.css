@@ -1,0 +1,67 @@
+/* NEXUS board filter bar (board-filters.tsx) — one compact row + Filters popover / phone sheet.
+   Tokens only (--text, --text-mute, --nx-border-hi, --bg-2, --cyan). */
+.nxf-row{display:flex;align-items:center;gap:6px;padding:6px 8px;min-width:0;flex-wrap:wrap}
+.nxf-search{display:inline-flex;align-items:center;gap:6px;flex:1 1 140px;min-width:120px;max-width:260px;height:28px;padding:0 8px;border:1px solid var(--nx-border-hi);border-radius:6px;background:var(--bg-2);color:var(--text-mute)}
+.nxf-search:focus-within{border-color:color-mix(in srgb,var(--cyan) 55%,transparent)}
+.nxf-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font:600 11.5px 'JetBrains Mono',ui-monospace,monospace}
+.nxf-x{display:inline-grid;place-items:center;border:0;background:transparent;color:var(--text-mute);cursor:pointer;padding:2px}
+.nxf-seg{display:inline-flex;flex:none;border:1px solid var(--nx-border-hi);border-radius:6px;overflow:hidden}
+.nxf-seg button,.nxf-chip{height:28px;padding:0 9px;border:0;background:transparent;color:var(--text-dim);font:600 11px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s}
+.nxf-seg button+button{border-left:1px solid var(--nx-border-hi)}
+.nxf-seg button:hover,.nxf-chip:hover{color:var(--text)}
+.nxf-seg button.on,.nxf-chip.on{background:color-mix(in srgb,var(--cyan) 18%,transparent);color:var(--text)}
+.nxf-seg button:focus-visible,.nxf-chip:focus-visible,.nxf-opt:focus-visible,.nxf-clear:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.nxf-chip{flex:none;border:1px solid var(--nx-border-hi);border-radius:6px;font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700}
+.nxf-more{display:inline-flex;align-items:center;gap:5px;font-family:Inter,system-ui,sans-serif;font-weight:600}
+.nxf-badge{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--cyan);color:#04121f;font:700 10px 'JetBrains Mono',ui-monospace,monospace}
+.nxf-count{margin-left:auto;flex:none;font:700 10.5px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+
+/* popover (desktop) */
+.nxf-pop{z-index:80;width:min(380px,calc(100vw - 24px));max-height:min(72vh,560px);overflow:auto;padding:12px 14px;border:1px solid var(--nx-border-hi);border-radius:10px;background:var(--panel-solid);color:var(--text);box-shadow:0 14px 36px rgba(0,0,0,.4)}
+html[data-mode=light] .nxf-pop{box-shadow:0 14px 36px rgba(15,23,42,.16)}
+.nxf-body{display:flex;flex-direction:column;gap:12px}
+.nxf-body section{display:flex;flex-direction:column;gap:6px}
+.nxf-body h5{margin:0;font:700 10px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
+.nxf-opts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.nxf-opt{height:30px;padding:0 11px;border:1px solid var(--nx-border-hi);border-radius:15px;background:transparent;color:var(--text-dim);font:600 12px Inter,system-ui,sans-serif;cursor:pointer;transition:background-color .15s,color .15s,border-color .15s}
+.nxf-opt b{margin-left:4px;font-weight:600;opacity:.7}
+.nxf-opt:hover{color:var(--text)}
+.nxf-opt.on{border-color:color-mix(in srgb,var(--cyan) 55%,transparent);background:color-mix(in srgb,var(--cyan) 16%,transparent);color:var(--text)}
+.nxf-date{height:30px;padding:0 6px;border:1px solid var(--nx-border-hi);border-radius:6px;background:var(--bg-2);color:var(--text);font:600 11px 'JetBrains Mono',ui-monospace,monospace}
+.nxf-date.on{border-color:color-mix(in srgb,var(--cyan) 55%,transparent)}
+.nxf-body .nxp-trf{flex-wrap:wrap}
+.nxf-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--nx-border-hi);font:600 11px Inter,system-ui,sans-serif;color:var(--text-mute)}
+.nxf-clear{height:30px;padding:0 14px;border:1px solid var(--nx-border-hi);border-radius:6px;background:transparent;color:var(--text);font:600 12px Inter,system-ui,sans-serif;cursor:pointer}
+.nxf-clear:disabled{opacity:.45;cursor:default}
+
+/* resolved-today group */
+.nxr-head{display:flex;justify-content:space-between;gap:8px;padding:8px 8px 3px;font:700 10px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.nxr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 8px;margin:0 0 2px;border:1px dashed var(--nx-border);border-radius:5px;background:var(--bg-2);color:var(--text-dim);text-decoration:none}
+.nxr-row:hover{color:var(--text);border-color:var(--nx-border-hi)}
+.nxr-main{display:flex;flex-direction:column;gap:1px;min-width:0}
+.nxr-main strong{font:700 12px 'JetBrains Mono',ui-monospace,monospace}
+.nxr-main small{font:500 10px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nxr-side{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.nxr-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border:1px solid var(--nx-border-hi);border-radius:10px;font:700 10.5px 'JetBrains Mono',ui-monospace,monospace;white-space:nowrap}
+.nxr-chip.win{color:var(--green);border-color:color-mix(in srgb,var(--green) 40%,transparent)}
+.nxr-chip.loss{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.nxr-chip.flat{color:var(--text-dim)}
+.nxr-pnl{font:600 10px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+
+@media (max-width:767px){
+  /* row 1: search · A/B · Filters · count — row 2: Day | Side, each half width */
+  .nxf-row{flex-wrap:wrap;row-gap:6px;padding:6px 0}
+  .nxf-search{order:1;flex:1 1 0;min-width:0;max-width:none;height:44px}
+  .nxf-search input{font-size:16px}
+  .nxf-row>.nxf-chip{order:2;height:44px;min-width:44px;padding:0 10px;font-size:13px}
+  .nxf-count{order:3;margin-left:0}
+  .nxf-seg{order:4;flex:1 1 0;min-width:0}
+  .nxf-seg button{flex:1 1 0;min-width:0;height:44px;padding:0 4px;font-size:13px}
+  .nxf-more-l{display:none}
+  .nxf-opt,.nxf-clear,.nxf-date{height:44px;font-size:14px}
+  .nxr-row{padding:10px 8px;min-height:48px}
+  .nxr-main strong{font-size:14px}
+  .nxr-main small,.nxr-pnl{font-size:12px}
+  .nxr-chip{font-size:12px;padding:2px 8px}
+}
+.nxf-sheet .nxf-body{padding:4px 16px 16px}

@@ -18,6 +18,8 @@ export interface LiveMark {
   unrealizedPnL: number | null;
   unrealizedPct: number | null;
   note?: string;
+  /** Peak mark since entry — hook for the runners tracker (null until it supplies one). */
+  peak?: number | null;
 }
 
 export const MARKS_POLL_MS = 30_000;

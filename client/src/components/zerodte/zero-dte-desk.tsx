@@ -1,27 +1,26 @@
 /**
  * 0DTE DESK — the NEXUS "0DTE" view and the `nexus-0dte` dashboard tool.
  *
- * Reads GET /api/zero-dte/desk (server/zero-dte-desk.ts), /api/zero-dte/flow
- * and /api/zero-dte/sniper once a minute. Top to bottom, what to trade NOW first:
- *   • SESSION BANNER — pre / open / power hour / closed, ET clock, countdown to
- *     the next mark (entries open 09:45, power hour, entries close 15:45, close),
- *     policy A/B + entries chips, and the INDEX ENGINE health line (last SPY GEX
- *     snapshot age; red "BLIND" when it has none or it is > 10 min old);
- *   • FILTERS — All / Index / Mega-cap / Flow ignition, and Hide done;
- *   • NOW — every LIVE / ARMED row across ideas, flow ignition and the sniper:
- *     contract, entry mid + quote age, stop, targets, time left;
- *   • 0DTE IDEAS (zero-dte-ideas.tsx), FLOW IGNITION, SNIPER — every row carries
- *     ONE actionability state (shared/zero-dte-actionability.ts). Non-actionable
- *     rows are greyed with their reason, never hidden unless Hide done is on;
- *   • context: walls, sector ignition, per-name cards, 2–4 day swings, record.
+ * Built around ONE question (operator 2026-10-07: "0DTE page is so confusing"):
+ * what can I trade right now?
+ *   1. HEADER — session, countdown, index-engine health dot.
+ *   2. TRADE NOW — live / armed cards across desk ideas, flow ignition and the
+ *      sniper, plus entered trades still running (zd-trade-card.tsx): contract,
+ *      side, entry, stop / T1 / T2 on premium AND underlying, live contract mark
+ *      + live underlying (source + age, "delayed Nm"), progress to T1, time
+ *      left, grade, Details → the NEXUS Setup Detail (zd-setup-detail.tsx).
+ *   3. TODAY'S RESULTS — done trades greyed, ✓ T1 / ✕ stop / time exit (+ peak hook).
+ *   4. Everything else folded and closed by default: forming setups, SPX levels,
+ *      names in play (auto list: open / today's 0DTE ideas + flow triggers) and
+ *      any-ticker lookup (GET /api/zero-dte/read/:symbol), flow ignition, sniper,
+ *      walls, sector ignition, swings, record.
  *
- * Integrity: every block stamps its own age; a missing input renders "—",
- * never a placeholder number. Plans are model output, labelled unvalidated.
- * Method paragraphs live in "How it works" disclosures, not above the data.
+ * Reads GET /api/zero-dte/desk, /api/zero-dte/flow, /api/zero-dte/sniper once a minute.
+ * Integrity: every number is either live (stamped) or labelled as a past value.
  */
 import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { reasonOf } from '@/lib/optimistic';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { WatchStar } from '@/components/watch/watch-star';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -29,7 +28,12 @@ import { nexusIdeaHref } from '@/lib/nexus-link';
 import { Activity, Clock3, Crosshair, Gauge, History, Timer, Waves, Zap } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
-import { ZeroDteIdeas, ActBadge, ideaAct, ideaInFilter, contractLabel, minsTo, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
+import { ZeroDteIdeas, ActBadge, ideaAct, ideaInFilter, minsTo, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
+import { TradeCard, ResultRow, type CardModel, type ResultModel } from './zd-trade-card';
+import { bigContract, resultChip } from '@shared/zero-dte-trade-card';
+import { engineStampLabel, type AutoName } from '@shared/zero-dte-names';
+import { useQuotes, type Quote } from '@/components/ticker/ticker-data';
+import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SectorIgnitionPanel } from '@/components/sector-ignition/sector-ignition';
 import { WallsStrip } from '@/components/walls/walls-strip';
 import {
@@ -60,6 +64,8 @@ export interface DeskPayload {
   asOf: string; watch: string[]; phase: Phase; rows: Row[]; ideas: DeskIdea[]; ideasInfo: IdeasInfo; record: DeskRec; provenance: string; notes: string[];
   /** Index engine health inputs (server/zero-dte-desk.ts); absent on an older server. */
   indexEngine?: { scanAt: string | null; gexAt: string | null; wait: string | null };
+  /** Names with an open / today's short-dated idea or a flow trigger today (shared/zero-dte-names.ts). */
+  activeNames?: AutoName[];
 }
 
 const getJson = async <T,>(url: string): Promise<T> => {
@@ -94,125 +100,39 @@ const sideCls = (s: string | null | undefined) => (s === 'long' ? 'zd-up' : s ==
 
 const STATE_LABEL: { [k: string]: string } = { no_setup: 'No setup', armed: 'Setup armed', triggered: 'Triggered', in_trade: 'In trade', exited: 'Exited', closed: 'Closed' };
 
-/* ── session banner ── */
-const TRACK = [
-  { id: 'pre', label: 'Pre', w: '–09:30' },
-  { id: 'open_drive', label: 'Open drive', w: '09:30–10:00' },
-  { id: 'midday', label: 'Midday', w: '10:00–15:00' },
-  { id: 'power_hour', label: 'Power hour', w: '15:00–16:00' },
-];
-
-function SessionBanner({ phase, indexEngine }: { phase: Phase; indexEngine: DeskPayload['indexEngine'] }) {
+/* ── slim header: session · countdown · index engine health dot ── */
+function ZdHeader({ phase, indexEngine }: { phase: Phase; indexEngine: DeskPayload['indexEngine'] }) {
   const now = useZdNow(1000);
   const b = sessionBanner(now, phase.id);
   const h = indexHealth(indexEngine ?? null, now, phase.id);
+  const sub = b.id === 'pre' ? 'Pre-market · entries from 09:31 (open drive) / 09:45'
+    : b.id === 'closed' ? 'Session closed — next open 09:30 ET'
+    : phase.entriesOpen ? 'Entries open' : b.next === 'entries open 09:45' ? 'Open drive only until 09:45' : 'No new entries — manage open trades';
   return (
-    <section className={`zd-banner zd-banner-${b.id}`} aria-label="Session">
-      <div className="zd-banner-main">
-        <div className="zd-banner-phase">
-          <Clock3 size={15} aria-hidden />
-          <strong>{b.label}</strong>
-          <span className="zd-mono zd-banner-clock">{etClockS(now)} ET</span>
-        </div>
-        <div className="zd-banner-count" role="timer" aria-live="off">
-          {b.next
-            ? <><span>{b.next} in</span><strong className="zd-mono">{fmtCountdown(b.secondsLeft)}</strong></>
-            : <span>No session — next open is the next weekday 09:30 ET</span>}
-          {b.toCloseSec != null && b.next !== 'close 16:00' && <small className="zd-mono">close in {fmtCountdown(b.toCloseSec)}</small>}
-        </div>
-        <div className="zd-banner-chips">
-          <span className={`zd-chip ${phase.entriesOpen ? 'on' : ''}`}>{phase.entriesOpen ? 'entries open' : 'no new entries'}</span>
-          <span className={`zd-chip ${phase.policies.A ? 'on' : ''}`} title="Policy A — negative-gamma continuation">A {phase.policies.A ? 'open' : 'off'}</span>
-          <span className={`zd-chip ${phase.policies.B ? 'on' : ''}`} title="Policy B — positive-gamma wall fade / power-hour pin">B {phase.policies.B ? 'open' : 'off'}</span>
-        </div>
+    <header className={`zd-head zd-head-${b.id}`} aria-label="Session">
+      <div className="zd-head-l">
+        <Clock3 size={15} aria-hidden />
+        <strong>{b.label}</strong>
+        <span className="zd-mono">{etClockS(now)} ET</span>
       </div>
-      <p className={`zd-health zd-health-${h.tone}`}>
-        <Activity size={13} aria-hidden />
-        <b>Index engine</b>
-        <span>{h.tone === 'blind' ? '' : h.tone === 'warn' ? 'LAGGING · ' : h.tone === 'ok' ? 'OK · ' : ''}{h.text}</span>
-      </p>
-      <ol className="zd-track" aria-label="Session phases">
-        {TRACK.map((s) => <li key={s.id} className={phase.id === s.id ? 'now' : ''} aria-current={phase.id === s.id ? 'step' : undefined}><b>{s.label}</b><span>{s.w}</span></li>)}
-      </ol>
-      {phase.looksFor.length > 0 && (
-        <details className="zd-how"><summary>What the engine looks for now</summary>
-          <ul className="zd-looks">{phase.looksFor.map((l, i) => <li key={i}>{l}</li>)}</ul>
-        </details>
-      )}
-    </section>
+      <div className="zd-head-m" role="timer" aria-live="off">
+        {b.next ? <>{b.next} in <strong className="zd-mono">{fmtCountdown(b.secondsLeft)}</strong></> : 'No session'}
+      </div>
+      <span className={`zd-engine zd-engine-${h.tone}`} title={`Index engine (SPY gamma → SPX ideas): ${h.text}`} aria-label={`Index engine ${h.tone === 'ok' ? 'healthy' : h.tone === 'warn' ? 'lagging' : h.tone === 'blind' ? 'blind' : 'idle'}: ${h.text}`}>
+        <i aria-hidden /> Index engine {h.tone === 'ok' ? 'OK' : h.tone === 'warn' ? 'lagging' : h.tone === 'blind' ? 'blind' : 'idle'}
+      </span>
+      <p className="zd-head-sub">{sub}</p>
+    </header>
   );
 }
 
-/* ── filters ── */
-const FILTERS: Array<{ id: DeskFilter; label: string }> = [
-  { id: 'all', label: 'All' }, { id: 'index', label: 'Index' }, { id: 'mega', label: 'Mega-cap' }, { id: 'flow', label: 'Flow ignition' },
-];
-const FKEY = 'qe-zd-filter-v1';
-function readPrefs(): { filter: DeskFilter; hideDone: boolean } {
-  try {
-    const v = JSON.parse(localStorage.getItem(FKEY) ?? 'null');
-    if (v && FILTERS.some((f) => f.id === v.filter)) return { filter: v.filter, hideDone: !!v.hideDone };
-  } catch { /* storage blocked */ }
-  return { filter: 'all', hideDone: false };
-}
-function usePrefs() {
-  const [p, setP] = useState(readPrefs);
-  useEffect(() => { try { localStorage.setItem(FKEY, JSON.stringify(p)); } catch { /* storage blocked */ } }, [p]);
-  return [p, setP] as const;
-}
-
-function FilterBar({ filter, hideDone, onFilter, onHideDone, doneCount }: { filter: DeskFilter; hideDone: boolean; onFilter: (f: DeskFilter) => void; onHideDone: (v: boolean) => void; doneCount: number }) {
+/* ── folds: everything that is not "trade now" is one tap away, closed by default ── */
+function Fold({ title, hint, count, children, id }: { title: string; hint?: string; count?: number | string | null; children: ReactNode; id?: string }) {
   return (
-    <div className="zd-filters" role="toolbar" aria-label="Filter the desk">
-      <div className="zd-seg" role="group" aria-label="Lane">
-        {FILTERS.map((f) => (
-          <button key={f.id} type="button" className="zd-fchip" aria-pressed={filter === f.id} onClick={() => onFilter(f.id)}>{f.label}</button>
-        ))}
-      </div>
-      <button type="button" className="zd-fchip zd-fchip-toggle" aria-pressed={hideDone} onClick={() => onHideDone(!hideDone)}>
-        Hide done{doneCount ? ` (${doneCount})` : ''}
-      </button>
-    </div>
-  );
-}
-
-/* ── NOW: every LIVE / ARMED row ── */
-const shortLeft = (m: number | null) => (m == null ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m}m`);
-interface NowItem {
-  key: string; lane: 'idea' | 'flow' | 'sniper'; a: ActState; symbol: string; side: 'CALLS' | 'PUTS';
-  contract: string; mid: string; midAge: string; stop: string; targets: string; left: string; target: string | null;
-  /** Units of stop / targets: the underlying symbol, or "premium". */
-  unit: string;
-}
-
-function NowStrip({ items, phase, now }: { items: NowItem[]; phase: Phase; now: number }) {
-  const b = sessionBanner(now, phase.id);
-  const go = (id: string | null) => { if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  return (
-    <section className="zd-now" aria-label="Actionable now">
-      <h4><Zap size={14} aria-hidden /> Now <span className="zd-now-sub">live and armed rows across ideas, flow ignition and the sniper</span></h4>
-      {items.length === 0
-        ? <p className="zd-now-empty">Nothing actionable right now.{b.next ? ` Next: ${b.next} (in ${fmtCountdown(b.secondsLeft)}).` : ' The session is closed.'} Every other row below is greyed with its reason.</p>
-        : (
-          <ul className="zd-now-list">
-            {items.map((it) => (
-              <li key={it.key} className={`zd-now-card zd-a-${it.a.state}`}>
-                <button type="button" className="zd-now-btn" onClick={() => go(it.target)} aria-label={`${it.a.label} ${it.symbol} ${it.side} ${it.contract} — jump to the full row`}>
-                  <span className="zd-now-top"><ActBadge a={it.a} /><b className="zd-now-sym">{it.symbol}</b><span className={it.side === 'CALLS' ? 'zd-up' : 'zd-dn'}>{it.side}</span><span className="zd-now-lane">{it.lane === 'idea' ? '0DTE idea' : it.lane === 'flow' ? 'flow ignition' : 'sniper'}</span></span>
-                  <span className="zd-now-contract zd-mono">{it.contract}</span>
-                  <span className="zd-now-grid">
-                    <span><small>Entry mid</small><b className="zd-mono">{it.mid}</b><small>{it.midAge}</small></span>
-                    <span><small>Stop · {it.unit}</small><b className="zd-mono zd-dn">{it.stop}</b></span>
-                    <span><small>Targets · {it.unit}</small><b className="zd-mono zd-up">{it.targets}</b></span>
-                    <span><small>Time left</small><b className="zd-mono">{it.left || '—'}</b></span>
-                  </span>
-                  <span className="zd-reason">{it.a.reason}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-    </section>
+    <details className="zd-fold" id={id}>
+      <summary><span className="zd-fold-t">{title}</span>{count != null && count !== '' && <span className="zd-fold-n">{count}</span>}{hint && <span className="zd-fold-h">{hint}</span>}</summary>
+      <div className="zd-fold-body">{children}</div>
+    </details>
   );
 }
 
@@ -226,7 +146,7 @@ function Kv({ k, v, cls, title, href }: { k: string; v: string; cls?: string; ti
 const tickerHref = (sym: string) => `/r/${encodeURIComponent(sym)}`;
 const gexHref = (sym: string) => `/r/${encodeURIComponent(sym)}?tab=gex`;
 
-function NameCard({ r, now }: { r: Row; now: number }) {
+function NameCard({ r, now, phaseId }: { r: Row; now: number; phaseId: string }) {
   const L = r.levels; const em = r.expectedMove; const f = r.flow; const i = r.intraday;
   return (
     <article className="zd-card" aria-label={`${r.symbol} 0DTE`}>
@@ -242,7 +162,7 @@ function NameCard({ r, now }: { r: Row; now: number }) {
         <span className="zd-state-badge">{STATE_LABEL[r.engine.state] ?? r.engine.state}</span>
         <p>{r.engine.headline}</p>
         {r.engine.why.length > 0 && <ul>{r.engine.why.slice(0, 3).map((w, k) => <li key={k}>{w}</li>)}</ul>}
-        <span className="zd-foot">{r.owner} · evaluated {age(r.engine.evaluatedAgeSec)}</span>
+        <span className="zd-foot" title={r.owner}>{engineStampLabel(phaseId, r.engine.evaluatedAgeSec, now)}</span>
       </div>
 
       <div className="zd-grid">
@@ -429,6 +349,8 @@ interface FlowRowW {
   contract: { occ: string; strike: number; type: 'call' | 'put'; dte: number; bid: number | null; ask: number | null; mid: number | null; quoteAgeS: number | null; spreadPct: number | null; source: string } | null;
   plan: { entryPremium: number; t1Premium: number; t2Premium: number; stopPremium: number; t1Underlying: number | null; t2Underlying: number | null; stopUnderlying: number; stopBasis: string } | null;
   published: boolean; ideaId: string | null; reason: string | null; stateWhy: string | null; lastMid: number | null; lastMarkAt: string | null; text: string;
+  /** Peak contract mark so far — filled by the runners tracker when it lands (hook). */
+  peakPremium?: number | null;
 }
 interface FlowCycleW { at: string; skipped: string | null; inWindow: boolean; symbols: number; chains: { read: number; dropped: string[]; failed: string[] }; cycleMs: number; errors: string[] }
 interface FlowStateW { enabled: boolean; lastCycle: FlowCycleW | null; rows: FlowRowW[]; rules: { [k: string]: string }; honesty: string }
@@ -509,57 +431,170 @@ function FlowIgnitionSection({ q, phase, now, filter, hideDone }: { q: UseQueryR
   );
 }
 
-/* ── NOW items ── */
-function buildNow(d: DeskPayload, flow: FlowStateW | undefined, sn: SniperState | undefined, now: number, filter: DeskFilter): NowItem[] {
-  const out: NowItem[] = [];
-  const ctx = { nowMs: now, phaseId: d.phase.id, entriesOpen: d.phase.entriesOpen };
-  if (filter !== 'flow') {
-    for (const x of d.ideas ?? []) {
-      if (!ideaInFilter(x.symbol, filter)) continue;
-      const a = ideaAct(x, d, now); if (!a.actionable) continue;
-      const c = x.contract;
-      const entryLeft = minsTo(x.entryBy, now);
-      out.push({
-        key: `i-${x.key}`, lane: 'idea', a, symbol: x.symbol, side: x.side, unit: x.symbol,
-        // An SPX thesis is logged on SPY: name the SPXW mirror too, so the SPX-unit stop / targets read right.
-        contract: `${c ? contractLabel(c) : x.expiryLabel}${x.spxMirror?.contract ? ` · SPXW ${x.spxMirror.contract.strike}${x.spxMirror.contract.optionType === 'call' ? 'C' : 'P'}${x.spxMirror.premium?.mid != null ? ` est ${px(x.spxMirror.premium.mid)} (15m delayed)` : ''}` : ''}`,
-        mid: x.quote?.mid != null ? px(x.quote.mid) : '—', midAge: x.quote?.at ? ageIso(x.quote.at, now) : 'no quote',
-        stop: `${px(x.stop)}${c?.premiumStop != null ? ` (≈${px(c.premiumStop)})` : ''}`,
-        targets: `${px(x.target.price)}${x.target2 ? ` / ${px(x.target2.price)}` : ''}`,
-        left: a.state === 'live' ? (entryLeft != null ? `${shortLeft(entryLeft)} to enter` : '') : `trigger ${x.trigger ? px(x.trigger.price) : '—'}`,
-        target: `zi-${x.key}`,
-      });
-    }
-  }
+/* ── NOW cards + today's results (shared/zero-dte-trade-card.ts) ── */
+const hhmmIn = (s: string | null | undefined) => (s ? /(\d{1,2}:\d{2})/.exec(s)?.[1] ?? null : null);
+const etDayKey = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+const minsLeft = (m: number | null) => (m == null ? null : m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m}m`);
+const prem2 = (a: number | null | undefined, b: number | null | undefined) => (a != null && b != null && a !== b ? Math.abs(a - b) : null);
+
+function ideaCard(x: DeskIdea, a: ActState, now: number): CardModel | null {
+  const running = x.stage === 'in_play' && x.logged;
+  if (!a.actionable && !running) return null;
+  const c = x.contract; const q = x.quote;
+  const markV = q?.mid != null ? { value: q.mid, at: q.at, source: q.source } : null;
+  const entryIsLogged = x.loggedPremium != null;
+  const entryMid = entryIsLogged ? x.loggedPremium : q?.mid ?? null;
+  const day = etDayKey(now);
+  const root = c ? (c.root === 'SPXW' ? 'SPX' : c.root) : x.symbol;
+  const risk = prem2(entryMid, c?.premiumStop); const reward = prem2(c?.premiumT1, entryMid);
+  return {
+    key: `i-${x.key}`, lane: 'idea', a, running, symbol: x.symbol, underlying: x.logged ? x.vehicle : x.symbol,
+    contract: c ? bigContract(root, { strike: c.strike, optionType: c.optionType, dte: c.dte, expiry: c.expiry }, day) : `${x.symbol} ${x.expiryLabel}`,
+    side: x.side, direction: x.direction, trigger: x.trigger,
+    entryMid, entryMidNote: entryIsLogged ? `filled ${new Date(x.at).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })}` : 'live mid now',
+    // A not-yet-entered card's entry IS the live mid: one number, not two.
+    mark: entryIsLogged ? markV : null,
+    stopPrem: c?.premiumStop ?? null, stopUnd: x.stop, t1Prem: c?.premiumT1 ?? null, t1Und: x.target.price,
+    t2Prem: c?.premiumT2 ?? null, t2Und: x.target2?.price ?? null,
+    rr: risk && reward ? reward / risk : x.rr,
+    timeLeft: running ? (minsTo(x.exitBy, now) != null ? `${minsLeft(minsTo(x.exitBy, now))} to exit` : null) : a.state === 'live' ? (minsTo(x.entryBy, now) != null ? `${minsLeft(minsTo(x.entryBy, now))} to enter` : null) : x.distPct != null ? `${x.distPct.toFixed(2)}% from trigger` : null,
+    grade: x.grade, gradeWhy: x.gradeWhy.length ? `Structure grade (not a win probability): ${x.gradeWhy.join(' · ')}` : null,
+    ideaId: x.ideaId, peakPrem: x.peakPremium ?? null,
+  };
+}
+
+function flowCard(r: FlowRowW, a: ActState, c: FlowCycleW | null, now: number): CardModel | null {
+  const running = r.state === 'fired' && r.published && !a.actionable;
+  if ((!a.actionable && !running) || !r.plan) return null;
+  const p = r.plan;
+  const markV = r.lastMid != null ? { value: r.lastMid, at: r.lastMarkAt, source: r.contract?.source ?? null } : null;
+  const since = Math.round((now - Date.parse(r.at)) / 60_000);
+  return {
+    key: `f-${r.id}`, lane: 'flow', a, running, symbol: r.symbol, underlying: r.symbol,
+    contract: r.contract ? bigContract(r.symbol, { strike: r.contract.strike, type: r.contract.type, dte: r.contract.dte }) : r.symbol,
+    side: r.side === 'long' ? 'CALLS' : 'PUTS', direction: r.side, trigger: null,
+    entryMid: p.entryPremium, entryMidNote: `mid at ${r.atEt}`,
+    mark: markV ?? (r.contract?.mid != null ? { value: r.contract.mid, at: c ? new Date(Date.parse(c.at) - (r.contract.quoteAgeS ?? 0) * 1000).toISOString() : null, source: r.contract.source } : null),
+    stopPrem: p.stopPremium, stopUnd: p.stopUnderlying, t1Prem: p.t1Premium, t1Und: p.t1Underlying, t2Prem: p.t2Premium, t2Und: p.t2Underlying,
+    rr: p.entryPremium > p.stopPremium ? (p.t1Premium - p.entryPremium) / (p.entryPremium - p.stopPremium) : null,
+    timeLeft: running ? 'out by 15:30' : `${minsLeft(Math.max(0, ACT_CFG.FLOW_FRESH_MIN - since))} to enter`,
+    grade: null, gradeWhy: null, ideaId: r.ideaId, peakPrem: r.peakPremium ?? null,
+  };
+}
+
+function sniperCard(r: SniperRow, a: ActState, now: number): CardModel | null {
+  if (!a.actionable) return null;
+  const p = r.contracts[0];
+  const since = Math.round((now - Date.parse(r.triggerAt)) / 60_000);
+  return {
+    key: `s-${sniperKey(r)}`, lane: 'sniper', a, running: false, symbol: r.symbol, underlying: r.symbol,
+    contract: p ? bigContract(r.symbol, { strike: p.strike, type: p.type, expiry: p.expiry }, etDayKey(now)) : r.symbol,
+    side: r.side === 'long' ? 'CALLS' : 'PUTS', direction: r.side, trigger: { name: r.levelName, price: r.level },
+    entryMid: p?.ask ?? null, entryMidNote: `ask at ${r.triggerEt}`, mark: null,
+    stopPrem: null, stopUnd: r.level, t1Prem: null, t1Und: null, t2Prem: null, t2Und: null, rr: null,
+    timeLeft: `${minsLeft(Math.max(0, ACT_CFG.SNIPER_FRESH_MIN - since))} to enter`,
+    grade: null, gradeWhy: null, ideaId: r.ideaId,
+  };
+}
+
+function buildCards(d: DeskPayload, flow: FlowStateW | undefined, sn: SniperState | undefined, now: number): CardModel[] {
+  const out: CardModel[] = [];
+  for (const x of d.ideas ?? []) { const m = ideaCard(x, ideaAct(x, d, now), now); if (m) out.push(m); }
   const fc = flow?.lastCycle ?? null;
-  for (const r of flow?.rows ?? []) {
-    if (!(filter === 'all' || filter === 'flow' || ideaInFilter(r.symbol, filter))) continue;
-    const a = flowAct(r, fc, d.phase, now); if (!a.actionable) continue;
-    const since = Math.round((now - Date.parse(r.at)) / 60_000);
-    const qa = flowQuoteAge(r, fc, now);
+  for (const r of flow?.rows ?? []) { const m = flowCard(r, flowAct(r, fc, d.phase, now), fc, now); if (m) out.push(m); }
+  const ctx = { nowMs: now, phaseId: d.phase.id, entriesOpen: d.phase.entriesOpen };
+  for (const r of sniperRowsOf(sn).rows) { const m = sniperCard(r, sniperActionability({ status: r.status, triggerAt: r.triggerAt, contracts: r.contracts.length }, ctx), now); if (m) out.push(m); }
+  // actionable first (live → armed), then running trades
+  return out.sort((x, y) => Number(x.running) - Number(y.running) || x.a.rank - y.a.rank);
+}
+
+function buildResults(d: DeskPayload, flow: FlowStateW | undefined, now: number): ResultModel[] {
+  const out: ResultModel[] = [];
+  const day = etDayKey(now);
+  for (const x of d.ideas ?? []) {
+    if (x.stage !== 'done' || !x.logged) continue;
+    const a = ideaAct(x, d, now);
+    const c = x.contract;
     out.push({
-      key: `f-${r.id}`, lane: 'flow', a, symbol: r.symbol, unit: 'premium', side: r.side === 'long' ? 'CALLS' : 'PUTS', contract: flowContract(r),
-      mid: px(r.plan?.entryPremium ?? r.contract?.mid), midAge: qa != null ? `quote ${fmtAge(qa)} old` : 'no quote',
-      stop: px(r.plan?.stopPremium), targets: r.plan ? `${px(r.plan.t1Premium)} / ${px(r.plan.t2Premium)}` : '—',
-      left: `${shortLeft(Math.max(0, ACT_CFG.FLOW_FRESH_MIN - since))} to enter`, target: `zf-${domId(r.id)}`,
+      key: `i-${x.key}`, symbol: x.symbol, ideaId: x.ideaId, state: a.state, reason: x.doneReason, at: hhmmIn(x.doneReason),
+      contract: c ? bigContract(c.root === 'SPXW' ? 'SPX' : c.root, { strike: c.strike, optionType: c.optionType, dte: c.dte, expiry: c.expiry }, day) : x.symbol,
+      side: x.side, entryMid: x.loggedPremium, exitMid: null, peakPrem: x.peakPremium ?? null,
     });
   }
-  if (filter !== 'flow') {
-    for (const r of sniperRowsOf(sn).rows) {
-      if (!ideaInFilter(r.symbol, filter)) continue;
-      const a = sniperActionability({ status: r.status, triggerAt: r.triggerAt, contracts: r.contracts.length }, ctx); if (!a.actionable) continue;
-      const p = r.contracts[0];
-      const since = Math.round((now - Date.parse(r.triggerAt)) / 60_000);
-      out.push({
-        key: `s-${sniperKey(r)}`, lane: 'sniper', a, symbol: r.symbol, unit: r.symbol, side: r.side === 'long' ? 'CALLS' : 'PUTS',
-        contract: p ? `${r.symbol} ${p.strike}${p.type === 'call' ? 'C' : 'P'} ${p.expiry.slice(5)}` : '—',
-        mid: p ? `ask ${px(p.ask)}` : '—', midAge: `read at trigger ${r.triggerEt}`,
-        stop: `${r.levelName} ${px(r.level)}`, targets: 'see setup', left: `${shortLeft(Math.max(0, ACT_CFG.SNIPER_FRESH_MIN - since))} to enter`,
-        target: `zs-${domId(sniperKey(r))}`,
-      });
-    }
+  for (const r of flow?.rows ?? []) {
+    if (r.state !== 'reached' && r.state !== 'faded') continue;
+    if (!r.published) continue;
+    out.push({
+      key: `f-${r.id}`, symbol: r.symbol, ideaId: r.ideaId, state: r.state === 'reached' ? 'done_reached' : 'done_faded', reason: r.stateWhy, at: r.lastMarkAt ? new Date(r.lastMarkAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : null,
+      contract: r.contract ? bigContract(r.symbol, { strike: r.contract.strike, type: r.contract.type, dte: r.contract.dte }) : r.symbol,
+      side: r.side === 'long' ? 'CALLS' : 'PUTS', entryMid: r.plan?.entryPremium ?? null, exitMid: r.lastMid, peakPrem: r.peakPremium ?? null,
+    });
   }
-  return out.sort((x, y) => x.a.rank - y.a.rank);
+  return out;
+}
+
+const ZdSetupDetail = lazy(() => import('./zd-setup-detail'));
+
+function NowSection({ cards, quotes, phase, now, onDetails, forming }: { cards: CardModel[]; quotes: Record<string, Quote> | undefined; phase: Phase; now: number; onDetails: (m: { ideaId: string | null; symbol: string; contract: string }) => void; forming: number }) {
+  const b = sessionBanner(now, phase.id);
+  return (
+    <section className="zd-now2" aria-label="What you can trade now">
+      <h2 className="zd-h2"><Zap size={15} aria-hidden /> Trade now <span className="zd-h2-n">{cards.filter((c) => !c.running).length}</span></h2>
+      {cards.length === 0
+        ? (
+          <div className="zd-now-empty2">
+            <p><b>Nothing to trade right now.</b> {b.next ? `Next: ${b.next} (in ${fmtCountdown(b.secondsLeft)}).` : 'The session is closed.'}</p>
+            {forming > 0 && <p>{forming} setup{forming === 1 ? ' is' : 's are'} forming — open “Forming setups” below to watch {forming === 1 ? 'it' : 'them'}.</p>}
+          </div>
+        )
+        : <div className="zc-grid">{cards.map((m) => <TradeCard key={m.key} m={m} quote={quotes?.[m.underlying.toUpperCase()]} nowMs={now} onDetails={onDetails} />)}</div>}
+    </section>
+  );
+}
+
+function ResultsSection({ rows, onDetails }: { rows: ResultModel[]; onDetails: (r: ResultModel) => void }) {
+  if (!rows.length) return null;
+  const wins = rows.filter((r) => resultChip(r.state, r.reason).tone === 'win').length;
+  const losses = rows.filter((r) => resultChip(r.state, r.reason).tone === 'loss').length;
+  return (
+    <section className="zd-results" aria-label="Today's results">
+      <h2 className="zd-h2"><History size={15} aria-hidden /> Today's results <span className="zd-h2-n">{wins} ✓ · {losses} ✕</span></h2>
+      <ul className="zc-results">{rows.map((r) => <ResultRow key={r.key} r={r} onDetails={onDetails} />)}</ul>
+    </section>
+  );
+}
+
+/* ── names: auto list (open / today's 0DTE ideas + flow triggers) and any-ticker lookup ── */
+interface DeskRead { asOf: string; phase: Phase; row: Row }
+function useDeskRead(sym: string | null) {
+  return useQuery<DeskRead>({ queryKey: ['/api/zero-dte/read', sym], queryFn: () => getJson(`/api/zero-dte/read/${encodeURIComponent(sym!)}`), enabled: !!sym, staleTime: 30_000, refetchInterval: 60_000 });
+}
+function NameRead({ sym, phaseId, now }: { sym: string; phaseId: string; now: number }) {
+  const q = useDeskRead(sym);
+  if (q.isError && !q.data) return <QEError title={`${sym} read didn't load`} message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (!q.data) return <QELoading rows={4} label={`reading ${sym} — chain, levels, tape…`} />;
+  return <NameCard r={q.data.row} now={now} phaseId={phaseId} />;
+}
+function NamesPanel({ names, phaseId, now }: { names: AutoName[]; phaseId: string; now: number }) {
+  const [sym, setSym] = useState<string | null>(null);
+  const shown = sym ?? names[0]?.symbol ?? null;
+  return (
+    <div className="zd-names">
+      <div className="zd-names-bar">
+        <div className="zd-names-search"><TerminalTickerSearch value={shown ?? undefined} onSelect={(r) => setSym(r.symbol.toUpperCase())} compact /></div>
+        {names.length > 0 && (
+          <ul className="zd-names-list" aria-label="Names in play today">
+            {names.map((n) => (
+              <li key={n.symbol}><button type="button" aria-pressed={shown === n.symbol} className={shown === n.symbol ? 'on' : ''} onClick={() => setSym(n.symbol)} title={n.why}>
+                <b>{n.symbol}</b><small>{n.why}</small>
+              </button></li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {shown ? <NameRead key={shown} sym={shown} phaseId={phaseId} now={now} /> : <p className="zd-note">No 0DTE ideas or flow triggers yet today. Search any ticker above to read its same-day / nearest-expiry levels.</p>}
+    </div>
+  );
 }
 
 /** The whole desk. `dense` = inside a dashboard tile. */
@@ -568,51 +603,62 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const fq = useFlowIgnition();
   const sq = useSniper();
   const now = useZdNow(15_000);
-  const [prefs, setPrefs] = usePrefs();
   const d = q.data;
-  const nowItems = useMemo(() => (d ? buildNow(d, fq.data, sq.data, now, prefs.filter) : []), [d, fq.data, sq.data, now, prefs.filter]);
-  const doneCount = useMemo(() => {
-    if (!d) return 0;
-    const ctx = { nowMs: now, phaseId: d.phase.id, entriesOpen: d.phase.entriesOpen };
-    const fc = fq.data?.lastCycle ?? null;
-    return (d.ideas ?? []).filter((x) => isDoneLike(ideaAct(x, d, now).state)).length
-      + (fq.data?.rows ?? []).filter((r) => isDoneLike(flowAct(r, fc, d.phase, now).state)).length
-      + sniperRowsOf(sq.data).rows.filter((r) => { const st = sniperActionability({ status: r.status, triggerAt: r.triggerAt, contracts: r.contracts.length }, ctx).state; return isDoneLike(st) || st === 'passed'; }).length;
-  }, [d, fq.data, sq.data, now]);
+  const [detail, setDetail] = useState<{ ideaId: string; symbol: string; contract: string } | null>(null);
+  const cards = useMemo(() => (d ? buildCards(d, fq.data, sq.data, now) : []), [d, fq.data, sq.data, now]);
+  const results = useMemo(() => (d ? buildResults(d, fq.data, now) : []), [d, fq.data, now]);
+  const quotes = useQuotes(cards.map((c) => c.underlying));
   if (q.isError && !d) return <QEError title="The 0DTE desk didn't load" message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} className="fd-m" />;
-  // Pending (incl. a paused / not-yet-started fetch), never `q.data!` on undefined.
   if (!d) return <QELoading rows={6} label="reading chains, levels and the tape…" className="fd-pad" />;
-  const rows = d.rows.filter((r) => prefs.filter === 'all' || prefs.filter === 'flow' || (prefs.filter === 'index' ? isIndexSymbol(r.symbol) : !isIndexSymbol(r.symbol)));
+  const forming = (d.ideas ?? []).filter((x) => ideaAct(x, d, now).state === 'watch').length;
+  const indexRows = d.rows.filter((r) => isIndexSymbol(r.symbol));
+  const openDetails = (m: { ideaId: string | null; symbol: string; contract: string }) => { if (m.ideaId) setDetail({ ideaId: m.ideaId, symbol: m.symbol, contract: m.contract }); };
+  const flowN = fq.data?.rows?.length ?? 0;
+  const sniperN = sniperRowsOf(sq.data).rows.length;
   return (
-    <div className={`zd ${dense ? 'zd-dense' : ''}`}>
-      <SessionBanner phase={d.phase} indexEngine={d.indexEngine} />
-      <FilterBar filter={prefs.filter} hideDone={prefs.hideDone} doneCount={doneCount}
-        onFilter={(f) => setPrefs((p) => ({ ...p, filter: f }))} onHideDone={(v) => setPrefs((p) => ({ ...p, hideDone: v }))} />
-      <NowStrip items={nowItems} phase={d.phase} now={now} />
-      <ZeroDteIdeas d={d} nowMs={now} filter={prefs.filter} hideDone={prefs.hideDone} />
-      <FlowIgnitionSection q={fq} phase={d.phase} now={now} filter={prefs.filter} hideDone={prefs.hideDone} />
-      <SniperSection q={sq} phase={d.phase} now={now} filter={prefs.filter} hideDone={prefs.hideDone} />
-      <h3 className="zd-divider">Context — levels, walls, sectors, swings, record</h3>
-      <WallsStrip />
-      <section className="zd-section zd-si-host" aria-label="Sector ignition, intraday">
-        <h4><Waves size={13} aria-hidden /> Sector ignition — intraday</h4>
-        <details className="zd-how"><summary>How sector ignition feeds the desk</summary>
-          <p className="zd-note">Groups igniting since the open (VWAP breadth, ETF vs SPY, ORB breadth, 30-min flow cluster, pre-market gap). Igniting groups feed the ideas list above as WATCH (ETF or best laggard, same contract picker); logged only when the trigger prints. Measuring.</p>
-        </details>
+    <div className={`zd zd2 ${dense ? 'zd-dense' : ''}`}>
+      <ZdHeader phase={d.phase} indexEngine={d.indexEngine} />
+      <NowSection cards={cards} quotes={quotes.data} phase={d.phase} now={now} onDetails={openDetails} forming={forming} />
+      <ResultsSection rows={results} onDetails={openDetails} />
+      <h3 className="zd-divider">More — closed until you need it</h3>
+      <Fold title="Forming setups and every 0DTE idea today" hint="not tradable until the trigger prints" count={(d.ideas ?? []).length}>
+        <ZeroDteIdeas d={d} nowMs={now} />
+      </Fold>
+      <Fold title="SPX levels" hint="index card: walls, zero-gamma, expected move, VWAP" count={indexRows.map((r) => r.symbol).join(' · ')}>
+        {indexRows.length ? <div className="zd-cards">{indexRows.map((r) => <NameCard key={r.symbol} r={r} now={now} phaseId={d.phase.id} />)}</div> : <p className="zd-note">No index name on the desk watch list.</p>}
+      </Fold>
+      <Fold title="Names in play and ticker lookup" hint="names with 0DTE ideas or flow today · search any ticker" count={d.activeNames?.length ?? 0}>
+        <NamesPanel names={d.activeNames ?? []} phaseId={d.phase.id} now={now} />
+      </Fold>
+      <Fold title="Flow ignition triggers" hint="big opening option buying + price confirmation" count={flowN}>
+        <FlowIgnitionSection q={fq} phase={d.phase} now={now} filter="all" hideDone={false} />
+      </Fold>
+      <Fold title="Sniper triggers" hint="classic intraday setups across the board" count={sniperN}>
+        <SniperSection q={sq} phase={d.phase} now={now} filter="all" hideDone={false} />
+      </Fold>
+      <Fold title="Option walls" hint="where dealer positioning tends to stall price">
+        <WallsStrip />
+      </Fold>
+      <Fold title="Sector ignition" hint="which groups are moving since the open">
         <SectorIgnitionPanel horizons={['intraday']} dense />
-      </section>
-      {d.rows.length === 0
-        ? <QEEmpty title="No tracked names" message="The 0DTE watchlist is empty, so there are no index names to read." />
-        : rows.length === 0
-          ? <p className="zd-note">No tracked name in this lane ({d.rows.map((r) => r.symbol).join(', ')}).</p>
-          : <div className="zd-cards">{rows.map((r) => <NameCard key={r.symbol} r={r} now={now} />)}</div>}
-      <SwingTable rows={d.rows} />
-      <RecordBlock rec={d.record} />
-      <footer className="zd-prov">
-        <p><Gauge size={12} aria-hidden /> {d.provenance}</p>
-        {d.notes.map((n, i) => <p key={i}>{n}</p>)}
-        <p><Timer size={12} aria-hidden /> Desk built {etTime(d.asOf)} ({ageIso(d.asOf, now)}); refreshes every minute.</p>
-      </footer>
+      </Fold>
+      <Fold title="2–4 day swings" hint="model plans, unvalidated">
+        <SwingTable rows={d.rows} />
+      </Fold>
+      <Fold title="Track record and how it works" hint="this engine only">
+        <RecordBlock rec={d.record} />
+        {d.phase.looksFor.length > 0 && <ul className="zd-looks">{d.phase.looksFor.map((l, i) => <li key={i}>{l}</li>)}</ul>}
+        <footer className="zd-prov">
+          <p><Gauge size={12} aria-hidden /> {d.provenance}</p>
+          {d.notes.map((n, i) => <p key={i}>{n}</p>)}
+          <p><Timer size={12} aria-hidden /> Desk built {etTime(d.asOf)} ({ageIso(d.asOf, now)}); refreshes every minute.</p>
+        </footer>
+      </Fold>
+      {detail && (
+        <Suspense fallback={null}>
+          <ZdSetupDetail ideaId={detail.ideaId} symbol={detail.symbol} title={detail.contract} onClose={() => setDetail(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

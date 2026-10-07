@@ -341,6 +341,28 @@ export function readGradeInputs(x: unknown): GradeV3Inputs | null {
 // ══════════════════════════════════════════════════════════════════════════
 export function whyRankedHere(g: Pick<NexusGrade, 'top'>): string { return g.top.map((f) => `${f.label} +${f.points}`).join(' · '); }
 
+/** One factor label, short enough for a board row ("live", "85% window", "stop 1.4×ATR"). */
+export function shortFactorLabel(f: Pick<GradeFactor, 'key' | 'label'>): string {
+  const l = String(f.label);
+  switch (f.key) {
+    case 'lifecycle': return l === 'live & valid' ? 'live' : l.split(' ')[0];
+    case 'window': return l.replace(' of window left', ' window');
+    case 'session': return l === 'current session' ? 'today' : 'earlier';
+    case 'evidence': return l.replace('confluence ', 'confl ').replace('/100', '');
+    case 'technical': return l.replace('technical ', 'tech ').replace('/100', '');
+    case 'chase': return l.startsWith('chased') ? l.replace(' past entry', '') : l;
+    default: return l.length > 22 ? `${l.slice(0, 21)}…` : l;
+  }
+}
+/**
+ * The board row's "why" line: the top two drivers, short labels, no point
+ * arithmetic ("live · 85% window"). The full breakdown stays in the grade
+ * chip's title and the Setup Detail (whyThisGrade).
+ */
+export function whyShort(g: Pick<NexusGrade, 'top'>, n = 2): string {
+  return g.top.filter((f) => f.points > 0).slice(0, n).map(shortFactorLabel).join(' · ');
+}
+
 type PickExtras = { layers?: GradeInput['layers']; convictionScore?: number | null; gradeInputs?: unknown; riskRewardRatio?: number | null };
 
 export function gradeFromLife(

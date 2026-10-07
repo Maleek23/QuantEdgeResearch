@@ -35,6 +35,8 @@ export interface LiveMark extends MarkQuote {
   unrealizedPnL: number | null;
   unrealizedPct: number | null;
   note?: string;
+  /** Peak mark since entry — hook for the runners tracker (null until it supplies one). */
+  peak?: number | null;
 }
 
 export interface MarkableRow {

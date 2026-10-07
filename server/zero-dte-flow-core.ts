@@ -308,6 +308,13 @@ export interface FlowPlan {
   /** The nearest GEX wall in the trade's direction, if any (a level the move may stall at). */
   wallAhead: number | null;
   stopUnderlying: number; stopBasis: string;
+  /**
+   * The underlying stop the PUBLISHED idea is tracked on: the farther of the
+   * structure stop and the −40% premium stop mapped through delta. A 0DTE plan
+   * exits on premium; a VWAP 0.2 points away (GOOGL 345P 2026-10-07: entry
+   * 346.23, stop 346.43) would stop the idea out on noise the contract absorbs.
+   */
+  ideaStopUnderlying: number; ideaStopBasis: string;
   timeStopEt: string;
   mapping: string;
 }
@@ -325,11 +332,18 @@ export function planFor(side: Side, spot: number, mid: number, delta: number | n
   const cands = [{ v: vw, b: 'VWAP' }, { v: om, b: 'opening-range mid' }].filter((x) => (long ? x.v < spot : x.v > spot));
   const pick = cands.sort((a, b) => (long ? b.v - a.v : a.v - b.v))[0] ?? { v: long ? spot * 0.997 : spot * 1.003, b: '0.3% (VWAP / OR mid not on the stop side)' };
   const ahead = walls ? (long ? walls.callWall : walls.putWall) : null;
+  const premStopMove = move(FLOW_CFG.PREMIUM_STOP);
+  const premStopLvl = premStopMove == null ? null : +(long ? spot - premStopMove : spot + premStopMove).toFixed(2);
+  const structStop = +pick.v.toFixed(2);
+  const premFarther = premStopLvl != null && (long ? premStopLvl < structStop : premStopLvl > structStop);
   return {
     entryPremium: +mid.toFixed(2), t1Premium, t2Premium, stopPremium,
     t1Underlying: lvl(move(FLOW_CFG.T1_GAIN)), t2Underlying: lvl(move(FLOW_CFG.T2_GAIN)),
     wallAhead: ahead != null && (long ? ahead > spot : ahead < spot) ? ahead : null,
-    stopUnderlying: +pick.v.toFixed(2), stopBasis: pick.b, timeStopEt: '15:30',
+    stopUnderlying: structStop, stopBasis: pick.b,
+    ideaStopUnderlying: premFarther ? premStopLvl! : structStop,
+    ideaStopBasis: premFarther ? `premium −${Math.round(FLOW_CFG.PREMIUM_STOP * 100)}% mapped by delta ${d!.toFixed(2)}` : pick.b,
+    timeStopEt: '15:30',
     mapping: d ? `premium → underlying by delta ${d.toFixed(2)} (first order; gamma makes the real move smaller)` : 'no usable delta — underlying targets not mapped',
   };
 }

@@ -25,7 +25,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DESK_SLUG_RE } from '@shared/desk-admin';
 import {
-  SETUP_LINK_TTL_MS, isReservedLoginEmail, normalizeUsername, usernameFromDisplayName, usernameLoginEmail,
+  SETUP_LINK_TTL_MS, TRADER_ACCOUNT_DEFAULT_TIER, isReservedLoginEmail, normalizeUsername, usernameFromDisplayName, usernameLoginEmail,
   type CredentialMethod, type TraderAccountStatus,
 } from '@shared/trader-accounts';
 import { normalizeEmail } from './auth-hardening';
@@ -214,7 +214,7 @@ export function parseCreateTraderAccountInput(body: unknown): { ok: true; value:
     }
   }
 
-  const tierRaw = b.tier === undefined || b.tier === null || b.tier === '' ? 'free' : b.tier;
+  const tierRaw = b.tier === undefined || b.tier === null || b.tier === '' ? TRADER_ACCOUNT_DEFAULT_TIER : b.tier;
   const tier = parseAssignableTier(tierRaw);
   if (!tier) return { ok: false, error: 'Tier must be free, advanced or pro' };
 
