@@ -108,6 +108,9 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   })() : null;
   const excluded = (meta.excluded ?? []).filter((e) => e.count > 0);
   const nExcluded = excluded.reduce((s, e) => s + e.count, 0);
+  // NEXUS ideas: what the counted P&L is verified against; unverified rows listed, not counted.
+  const ver = meta.verification ?? null;
+  const usd = (v: number | null) => v == null ? '—' : `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   // The basis names its book first ("Trade desk — every idea…"); bold that part.
   const [head, ...rest] = meta.basis.split(' — ');
   const detail = (
@@ -130,6 +133,30 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
           {exp.unverified > 0 ? ' Unverified ones stay at $0 (no close available) — Import › Re-settle expired options retries them.' : ''}
         </div>
       )}
+      {ver && (
+        <div className="jr-basis-s">
+          <span className="jr-basis-k">Verified</span>{' '}
+          {ver.counted.verified} bar-verified ({usd(ver.counted.verifiedPnL)}) · {ver.counted.checked} integrity-checked only ({usd(ver.counted.checkedPnL)})
+          {ver.ledger ? ` · ledger ${ver.ledger.asOf.slice(0, 16).replace('T', ' ')}Z` : ' · no bar-verification ledger on this server'}
+        </div>
+      )}
+      {ver && ver.unverified.count > 0 && (
+        <details className="jr-basis-s">
+          <summary style={{ cursor: 'pointer' }}>
+            {ver.unverified.count} closed trade{ver.unverified.count === 1 ? '' : 's'} UNVERIFIED — recorded {usd(ver.unverified.recordedPnL)} {ver.includeUnverified ? 'shown, labelled' : 'not counted'}
+          </summary>
+          <ul style={{ margin: '4px 0 0 16px' }}>
+            {ver.unverified.byReason.map((r) => <li key={r.code} title={r.label}>{r.count} · {r.code} · recorded {usd(r.recordedPnL)} — {r.label}</li>)}
+          </ul>
+          <ul style={{ margin: '4px 0 0 16px', maxHeight: 220, overflowY: 'auto' }}>
+            {ver.unverified.rows.map((r) => (
+              <li key={r.id}>
+                {r.symbol} {r.entryTime.slice(0, 10)} · recorded {usd(r.recordedPnL)}{r.recomputedPnL != null ? ` · recomputed ${usd(r.recomputedPnL)}` : ''} · {r.reasons.map((x) => `${x.code} (${x.detail})`).join('; ')}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {nExcluded > 0 && (
         <details className="jr-basis-s">
           <summary style={{ cursor: 'pointer' }}>{nExcluded} source row{nExcluded === 1 ? '' : 's'} not scored — why</summary>
@@ -147,6 +174,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
         <summary>
           <span className="jr-basis-k">Computed on</span> <b>{head}</b>{' '}{n}
           {nExcluded > 0 && <span className="jr-n"> · {nExcluded} not scored</span>}
+          {ver && ver.unverified.count > 0 && <span className="jr-n"> · {ver.unverified.count} unverified ({usd(ver.unverified.recordedPnL)}) {ver.includeUnverified ? 'shown' : 'not counted'}</span>}
           {exp.n > 0 && <span className="jr-n"> · {expiryCountsText(exp)}</span>}
           <span className="jr-basis-more">details</span>
         </summary>

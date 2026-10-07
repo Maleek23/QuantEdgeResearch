@@ -21,8 +21,10 @@ import {
 } from '@shared/schema';
 import { OUTCOME_BASELINE_DATE } from '@shared/constants';
 import {
-  DESK_STOCK_NOTIONAL, assetOf, mapDeskIdea, minutesBetween, outcomeOf, r2, type DeskIdea, type JournalWireRow,
+  DESK_STOCK_NOTIONAL, assetOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
+  type DeskIdea, type JournalWireRow,
 } from './journal-row-maps';
+import { loadDeskVerifyLedger } from './desk-verify-ledger';
 import {
   journalKindOf, traderOwnerId, traderSlugOf,
   type JournalKey, type JournalSourceMeta,
@@ -235,7 +237,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
   };
 }
 
-async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<JournalSourceMeta> }> {
+async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireRow[]; meta: Partial<JournalSourceMeta> }> {
   const ideas = await db.select({
     id: tradeIdeas.id, symbol: tradeIdeas.symbol, assetType: tradeIdeas.assetType, direction: tradeIdeas.direction,
     entryPrice: tradeIdeas.entryPrice, targetPrice: tradeIdeas.targetPrice, stopLoss: tradeIdeas.stopLoss,
@@ -249,32 +251,47 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     highestPriceReached: tradeIdeas.highestPriceReached, lowestPriceReached: tradeIdeas.lowestPriceReached,
     // Only the lifecycle state, not the whole analysis blob.
     executionState: sql<string | null>`${tradeIdeas.convergenceSignalsJson}->'executionAudit'->>'state'`,
+    // Provenance for the integrity checks (shared/desk-integrity.ts).
+    dataSourceUsed: tradeIdeas.dataSourceUsed, sessionContext: tradeIdeas.sessionContext,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),
     or(eq(tradeIdeas.excludeFromTraining, false), isNull(tradeIdeas.excludeFromTraining)),
   ));
 
-  const rows: JournalWireRow[] = [];
+  const pairs: { idea: DeskIdea; row: JournalWireRow }[] = [];
   const excluded = new Map<string, number>();
   for (const i of ideas) {
     const res = mapDeskIdea(i as DeskIdea);
-    if ('row' in res) rows.push(res.row);
+    if ('row' in res) pairs.push({ idea: i as DeskIdea, row: res.row });
     else excluded.set(res.excluded, (excluded.get(res.excluded) ?? 0) + 1);
   }
+  // Audit 2026-10-06: only verified / integrity-checked P&L is counted by
+  // default; unverified closed rows are listed (meta.verification), or returned
+  // labelled with ?unverified=1.
+  const ledger = loadDeskVerifyLedger();
+  const split = verifyDeskRows(pairs, ledger);
+  const verification = deskVerificationMeta(split, ledger, includeUnverified);
+  const rows = includeUnverified ? [...split.counted, ...split.unverified] : split.counted;
+  const u = verification.unverified;
   return {
     rows,
     meta: {
       basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry once its trigger was hit (untriggered ideas are listed as awaiting entry, with no P&L)`,
-      sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
+      sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. ` +
+        (includeUnverified
+          ? `Showing ALL rows including ${u.count} unverified (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) — each labelled. `
+          : `Only verified P&L is counted: ${ledger ? `bar-verified by research/verify-nexus-book.ts (ledger ${ledger.asOf.slice(0, 10)}), ` : 'no bar-verification ledger on this server — '}rows passing every integrity check count${u.count ? `; ${u.count} closed row${u.count === 1 ? '' : 's'} (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) are unverified and not counted` : ''}. `) +
+        `Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
       excluded: [...excluded.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
+      verification,
     },
   };
 }
 
 // ─── Loader ──────────────────────────────────────────────────
 
-export async function loadJournal(j: ResolvedJournal): Promise<{ rows: JournalWireRow[]; meta: JournalSourceMeta }> {
+export async function loadJournal(j: ResolvedJournal, opts: { includeUnverified?: boolean } = {}): Promise<{ rows: JournalWireRow[]; meta: JournalSourceMeta }> {
   const now = Date.now();
   const base = { key: j.key, kind: j.kind, label: j.label, readOnly: j.readOnly, canWrite: j.canWrite, asOf: new Date(now).toISOString() };
   if (j.kind === 'bot') {
@@ -282,8 +299,8 @@ export async function loadJournal(j: ResolvedJournal): Promise<{ rows: JournalWi
     return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], runs: meta.runs ?? [] } };
   }
   if (j.kind === 'desk') {
-    const { rows, meta } = await loadDesk();
-    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [] } };
+    const { rows, meta } = await loadDesk(!!opts.includeUnverified);
+    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], verification: meta.verification } };
   }
   const rows = (await storage.getJournalTrades(j.ownerId!)) as unknown as JournalWireRow[];
   const basis = j.kind === 'mine'
