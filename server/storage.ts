@@ -224,6 +224,7 @@ import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrent
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
+import { shortDatedReason, sameDayContractMissing, SHORT_DATED_WITHHELD_CODE } from "@shared/short-dated-option";
 import { checkIdeaPriceScale, usesEquityQuote } from "@shared/idea-price-scale";
 import { logger } from "./logger";
 
@@ -2770,6 +2771,12 @@ export class DatabaseStorage implements IStorage {
     // as an underlying-only idea that says so. See shared/option-premium-guard.ts.
     const guarded = ensureScorableOptionIdea(sourced as any);
     if (guarded.converted) {
+      // A short-dated option without a premium is withheld, never shares.
+      const sd = shortDatedReason(sourced as any, Date.now());
+      if (sd) {
+        logger.warn(`[PREMIUM-GUARD] WITHHELD ${(sourced as any).source ?? "unknown"} ${sourced.symbol}: short-dated option (${sd}) has no entry premium — not published as an underlying-only stock idea`);
+        throw new Error(`Withheld trade idea: ${SHORT_DATED_WITHHELD_CODE}: short-dated option (${sd}) has no entry premium`);
+      }
       logger.warn(
         `[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`,
       );
@@ -2849,10 +2856,27 @@ export class DatabaseStorage implements IStorage {
       if (liq.action === "stepped" || liq.action === "underlying_only") {
         logger.info(`[LIQ-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${liq.note}`);
       }
+      // 0DTE / ≤1DTE ideas never become shares (shared/short-dated-option.ts):
+      // no liquid contract → withheld, with the reason logged.
+      if (liq.action === "withheld") {
+        logger.warn(`[LIQ-GATE] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${liq.note}`);
+        throw new Error(`Withheld trade idea: ${liq.note}`);
+      }
       idea = liq.idea as InsertTradeIdea;
       if (liq.action === "stepped") {
         const v3 = validateTradeIdeaForCreate(idea);
         if (!v3.ok) throw new Error(`Invalid trade idea after liquidity step: ${v3.reason}`);
+      }
+    }
+
+    // 0DTE never becomes shares (shared/short-dated-option.ts): a same-day
+    // engine idea that reaches this point without a concrete option contract
+    // (converted, or published without a strike) is withheld, reason logged.
+    if (!["manual", "user"].includes(String(src).toLowerCase()) && (idea as any).status !== "draft" && (idea as any).sessionContext !== "backfill") {
+      const missing = sameDayContractMissing(idea as any, Date.now());
+      if (missing) {
+        logger.warn(`[0DTE-GUARD] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${missing}`);
+        throw new Error(`Withheld trade idea: ${SHORT_DATED_WITHHELD_CODE}: ${missing}`);
       }
     }
 

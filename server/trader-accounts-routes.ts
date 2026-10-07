@@ -36,7 +36,8 @@ export interface TAUser {
   id: string; email: string; firstName?: string | null; lastName?: string | null; passwordHash?: string | null;
   subscriptionTier?: string | null; subscriptionStatus?: string | null; hasBetaAccess?: boolean | null; createdAt?: Date | string | null;
 }
-export interface TATrader { slug: string; name: string; linkedUserId: string | null }
+/** passcodeHash: bcrypt of the book's passcode (trader self-setup verifies against it) — never sent to a client. */
+export interface TATrader { slug: string; name: string; linkedUserId: string | null; passcodeHash?: string | null }
 export interface TASetupRow extends SetupRowLike { id: string; userId: string }
 
 export interface TraderAccountDeps {
@@ -63,7 +64,7 @@ export interface TraderAccountDeps {
   now: () => number;
 }
 
-async function defaultDeps(): Promise<TraderAccountDeps> {
+export async function defaultTraderAccountDeps(): Promise<TraderAccountDeps> {
   const { db } = await import('./db');
   const { users, traders, passwordResetTokens } = await import('@shared/schema');
   const { and, eq, gt, like, sql } = await import('drizzle-orm');
@@ -72,8 +73,8 @@ async function defaultDeps(): Promise<TraderAccountDeps> {
   const { establishSession } = await import('./auth-hardening');
   const { isProtectedAdmin } = await import('./admin-ops');
   const js = () => import('./journal-sources');
-  const toTrader = (t: { slug: string; name: string; linkedUserId: string | null } | null | undefined): TATrader | null =>
-    t ? { slug: t.slug, name: t.name, linkedUserId: t.linkedUserId ?? null } : null;
+  const toTrader = (t: { slug: string; name: string; linkedUserId: string | null; passcodeHash?: string | null } | null | undefined): TATrader | null =>
+    t ? { slug: t.slug, name: t.name, linkedUserId: t.linkedUserId ?? null, passcodeHash: t.passcodeHash ?? null } : null;
   return {
     listTraders: async () => (await (await js()).listTraders()).map((t) => toTrader(t)!),
     getTrader: async (slug) => toTrader(await (await js()).getTraderBySlug(slug)),
@@ -157,6 +158,38 @@ function toRow(u: TAUser, rows: SetupRowLike[], book: TATrader | undefined, now:
   };
 }
 
+/**
+ * Creates a trader's user and (deskAdmin) links it to the book — the ONE code
+ * path for the admin hub's "Add trader account" and the trader's own
+ * self-setup (server/trader-self-setup-routes.ts). Beta access on; the caller
+ * chooses the password hash ('pending$…' for a link / temp issue, bcrypt of the
+ * trader's own password for self-setup).
+ */
+export async function provisionTraderAccount(
+  d: TraderAccountDeps,
+  v: { displayName: string; loginEmail: string; traderSlug: string; tier: string; deskAdmin: boolean; passwordHash: string },
+): Promise<{ ok: true; user: TAUser; book: TATrader } | { ok: false; status: number; reason: 'no_book' | 'linked' | 'taken'; error: string }> {
+  const book = await d.getTrader(v.traderSlug);
+  if (!book) return { ok: false, status: 404, reason: 'no_book', error: 'No such trader book' };
+  if (v.deskAdmin && book.linkedUserId) {
+    return { ok: false, status: 409, reason: 'linked', error: `${book.name}'s desk already has a desk admin — remove them in Desk admins first, or untick "desk admin"` };
+  }
+  const username = usernameOfLoginEmail(v.loginEmail);
+  if (await d.getUserByEmail(v.loginEmail)) {
+    return { ok: false, status: 409, reason: 'taken', error: username ? `The username "${username}" is taken` : `An account with ${v.loginEmail} already exists — link it in Desk admins instead` };
+  }
+  let user: TAUser;
+  try {
+    user = await d.insertUser({ email: v.loginEmail, passwordHash: v.passwordHash, firstName: v.displayName, subscriptionTier: v.tier, hasBetaAccess: true });
+  } catch (e) {
+    // users.email is UNIQUE: of two racing creates for one username, exactly one inserts.
+    if ((e as { code?: string })?.code === '23505') return { ok: false, status: 409, reason: 'taken', error: 'That email or username was just taken' };
+    throw e;
+  }
+  if (v.deskAdmin) await d.setLinkedUser(v.traderSlug, user.id);
+  return { ok: true, user, book };
+}
+
 export function registerTraderAccountRoutes(
   app: Express,
   requireAdmin: RequestHandler,
@@ -165,7 +198,7 @@ export function registerTraderAccountRoutes(
 ) {
   let depsP: Promise<TraderAccountDeps> | null = null;
   const deps = async (): Promise<TraderAccountDeps> => {
-    if (!depsP) depsP = defaultDeps().then((d) => ({ ...d, ...injected }));
+    if (!depsP) depsP = defaultTraderAccountDeps().then((d) => ({ ...d, ...injected }));
     return depsP;
   };
   let dummyHash: Promise<string> | null = null;
@@ -234,24 +267,10 @@ export function registerTraderAccountRoutes(
       if (!parsed.ok) return res.status(400).json({ error: parsed.error });
       const v = parsed.value;
       const d = await deps();
-      const book = await d.getTrader(v.traderSlug);
-      if (!book) return res.status(404).json({ error: 'No such trader book' });
-      if (v.deskAdmin && book.linkedUserId) {
-        return res.status(409).json({ error: `${book.name}'s desk already has a desk admin — remove them in Desk admins first, or untick "desk admin"` });
-      }
-      if (await d.getUserByEmail(v.loginEmail)) {
-        return res.status(409).json({ error: v.username ? `The username "${v.username}" is taken` : `An account with ${v.email} already exists — link it in Desk admins instead` });
-      }
-
-      let user: TAUser;
-      try {
-        // No usable password until the trader sets one ('pending$…' never verifies).
-        user = await d.insertUser({ email: v.loginEmail, passwordHash: pendingPasswordHash(), firstName: v.displayName, subscriptionTier: v.tier, hasBetaAccess: true });
-      } catch (e) {
-        if ((e as { code?: string })?.code === '23505') return res.status(409).json({ error: 'That email or username was just taken' });
-        throw e;
-      }
-      if (v.deskAdmin) await d.setLinkedUser(v.traderSlug, user.id);
+      // No usable password until the trader sets one ('pending$…' never verifies).
+      const p = await provisionTraderAccount(d, { ...v, passwordHash: pendingPasswordHash() });
+      if (!p.ok) return res.status(p.status).json({ error: p.error });
+      const { user, book } = p;
       const { secret, credential } = await issue(d, user, v.method, req);
 
       hubAudit(req, 'trader_account.create', `${user.id} ${loginNameOf(user.email)}`, {

@@ -76,6 +76,9 @@ export function loginNameOf(email: string): string {
 // Credentials
 // ---------------------------------------------------------------------------
 
+/** The tier a trader account gets unless the admin picks another (admin form default; self-setup always). Beta access is on either way. */
+export const TRADER_ACCOUNT_DEFAULT_TIER = 'free' as const;
+
 export const SETUP_LINK_TTL_HOURS = 48;
 export const SETUP_LINK_TTL_MS = SETUP_LINK_TTL_HOURS * 3_600_000;
 

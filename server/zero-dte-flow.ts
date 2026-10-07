@@ -214,7 +214,7 @@ async function publishFlowIdea(r: FlowRow, nowMs: number): Promise<string | null
   const c = r.contract!; const p = r.plan!; const spot = r.spot!;
   const long = r.side === 'long';
   const target = p.t1Underlying ?? +(long ? spot * 1.003 : spot * 0.997).toFixed(2);
-  const pp = await optionPublishPlan({ symbol: r.symbol, direction: r.side, entry: spot, stop: p.stopUnderlying, target, expiryDate: c.expiry, fallbackHolding: 'day', nowMs });
+  const pp = await optionPublishPlan({ symbol: r.symbol, direction: r.side, entry: spot, stop: p.ideaStopUnderlying ?? p.stopUnderlying, target, expiryDate: c.expiry, fallbackHolding: 'day', nowMs });
   const created = await storage.createTradeIdea({
     symbol: r.symbol, assetType: 'option', direction: r.side,
     entryPrice: spot, targetPrice: target, stopLoss: pp.stopLoss, riskRewardRatio: pp.riskRewardRatio,
@@ -225,7 +225,7 @@ async function publishFlowIdea(r: FlowRow, nowMs: number): Promise<string | null
       r.structure ? `Structure: last ${r.structure.last?.toFixed(2)} vs VWAP ${r.structure.vwap?.toFixed(2)}, opening range ${r.structure.orLow?.toFixed(2)}–${r.structure.orHigh?.toFixed(2)}, broken and held ${r.structure.heldBars} bars.` : '',
       r.wall ? `Walls: ${r.wall}.` : '',
       `Contract: ${c.occ}, bid ${c.bid ?? '—'} / ask ${c.ask ?? '—'}, mid $${p.entryPremium.toFixed(2)} (${c.source}${c.quoteLabel ? ` · ${c.quoteLabel} — NOT a live quote` : ''}, quote ${c.quoteAgeS ?? '—'}s old, spread ${c.spreadPct != null ? (c.spreadPct * 100).toFixed(1) : '—'}%).`,
-      `Plan (premium): T1 $${p.t1Premium} (+50%)${p.t1Underlying != null ? ` ≈ underlying ${p.t1Underlying}` : ''}, T2 $${p.t2Premium} (+100%)${p.t2Underlying != null ? ` ≈ ${p.t2Underlying}` : ''}${p.wallAhead != null ? `; nearest wall ahead ${p.wallAhead}` : ''} — ${p.mapping}. Stop: underlying back through ${p.stopBasis} ${p.stopUnderlying} or premium $${p.stopPremium} (−40%). Time stop ${p.timeStopEt} ET.`,
+      `Plan (premium): T1 $${p.t1Premium} (+50%)${p.t1Underlying != null ? ` ≈ underlying ${p.t1Underlying}` : ''}, T2 $${p.t2Premium} (+100%)${p.t2Underlying != null ? ` ≈ ${p.t2Underlying}` : ''}${p.wallAhead != null ? `; nearest wall ahead ${p.wallAhead}` : ''} — ${p.mapping}. Stop: premium $${p.stopPremium} (−40%)${p.ideaStopUnderlying != null && p.ideaStopUnderlying !== p.stopUnderlying ? ` ≈ underlying ${p.ideaStopUnderlying} (tracked stop; ${p.stopBasis} ${p.stopUnderlying} is inside the premium stop)` : ` or underlying back through ${p.stopBasis} ${p.stopUnderlying}`}. Time stop ${p.timeStopEt} ET.`,
       pp.note,
       `Loss rules: ${FLOW_LOSS_RULES.join(' ')}`,
       'MEASURING — no edge is claimed; every trigger is forward-logged with its outcome.',

@@ -16,6 +16,8 @@ import {
   JOURNAL_PARAM, parseJournalKey, type JournalKey, type JournalNoteKind, type JournalSourceListItem, type JournalSourceMeta,
 } from '@shared/journal-sources';
 import { settleExpiredRows } from '@shared/journal-expiry';
+import { applyDeskView, parseDeskView, parseSizingChoice, type DeskView } from '@shared/desk-view';
+import { DEFAULT_SIZING, sizingParam, type SizingChoice } from '@shared/position-sizing';
 import { apiRequest } from '@/lib/queryClient';
 import { deferCommit, inverseOf, patchWhere, removeWhere } from '@/lib/optimistic';
 import { failToast, undoToast } from '@/lib/undo-toast';
@@ -181,10 +183,39 @@ export class JournalLockedError extends Error {
   constructor() { super('This journal is passcode-protected'); this.name = 'JournalLockedError'; }
 }
 
-export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine') {
+/** NEXUS ideas book only: which exits price the rows, and how they are sized (shared/desk-view.ts). */
+export interface DeskViewOpts { view: DeskView; sizing: SizingChoice }
+
+/** Query params the server analytics applies to the desk book so its insights match the client's rows. */
+export function deskViewQs(key: JournalKey, desk: DeskViewOpts | undefined): string {
+  if (key !== 'desk' || !desk) return '';
+  return `jsize=${encodeURIComponent(sizingParam(desk.sizing))}${desk.view === 'managed' ? '&jview=managed' : ''}`;
+}
+
+const usd0 = (v: number) => `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+/** The NEXUS-book sizing line for a desk view (null = the server's unit-book line stands). */
+export function deskSizingText(dv: ReturnType<typeof applyDeskView>): string | null {
+  const s = dv.sizing;
+  if (s.mode === 'unit' && dv.view === 'recorded' && !dv.skipped.length) return null;
+  const r = `$${s.riskDollars.toLocaleString('en-US')}`;
+  return [
+    s.mode === 'risk'
+      ? `Risk-sized: every idea risks ${r} to its stop — shares = ${r} ÷ |entry − stop|; contracts = ${r} ÷ ((premium − premium stop) × 100), premium stop = the plan's, else −40% 0DTE / −50% swing. `
+        + (dv.scaled ? `${dv.scaled} idea${dv.scaled === 1 ? '' : 's'} where 1 unit risks more than ${r} sized fractionally ("scaled"). ` : '')
+        + (dv.capped.count ? `${dv.capped.count} loss${dv.capped.count === 1 ? '' : 'es'} worse than the stop capped at −risk (assumes the stop filled; uncapped ${usd0(dv.capped.uncappedPnL)} → ${usd0(dv.capped.cappedPnL)}). ` : '')
+      : 'Unit-sized: 1 contract per option idea; $1,000 notional per stock idea. ',
+    dv.view === 'managed' ? 'Managed replay — replayed with current exit rules — not live fills. ' : '',
+    dv.skipped.length ? `Not in this view: ${dv.skipped.map((x) => `${x.count} ${x.reason}`).join('; ')}. ` : '',
+    'Journal win = positive closed P&L under the exits shown.',
+  ].join('');
+}
+
+export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine', desk?: DeskViewOpts) {
   const tradesQ = useQuery<JournalTradesPayload>(journalTradesQuery(key));
 
-  const qs = journalFiltersToParams(filters).toString();
+  const deskQs = deskViewQs(key, desk);
+  const qs = [journalFiltersToParams(filters).toString(), deskQs].filter(Boolean).join('&');
   const analyticsQ = useQuery<JournalAnalytics>({
     queryKey: [JOURNAL_ANALYTICS_KEY, key, qs],
     queryFn: async () => {
@@ -211,7 +242,13 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
   // Options that expired with no closing fill are settled at $0 (shared/journal-expiry.ts) —
   // left "open" they fell out of every number. Rows carry expiredAssumed so the basis line names them.
   const rawRows = tradesQ.data?.trades;
-  const allRows = useMemo(() => settleExpiredRows(rawRows ?? []), [rawRows]);
+  const settled = useMemo(() => settleExpiredRows(rawRows ?? []), [rawRows]);
+  // NEXUS ideas: equal-risk sizing (default Risk $500) and the Recorded | Managed
+  // replay view are applied HERE, before any filter / KPI / calendar / curve.
+  const deskView = useMemo(() => (key === 'desk'
+    ? applyDeskView(settled, { view: desk?.view ?? 'recorded', sizing: desk?.sizing ?? DEFAULT_SIZING })
+    : null), [settled, key, desk?.view, desk?.sizing.mode, desk?.sizing.riskDollars]); // eslint-disable-line react-hooks/exhaustive-deps
+  const allRows = deskView ? deskView.rows : settled;
   const rows = useMemo(() => allRows.filter((r) => matchesJournalFilters(r, filters)), [allRows, filters]);
   // Operator rule 2026-10-07: every called trade is SHOWN (listTrades — trade lists,
   // calendar day lists, activity), but the headline numbers and analytics (trades,
@@ -240,8 +277,10 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
     };
   }, [allRows, tradesQ.data]);
 
-  const meta = tradesQ.data?.journal ?? null;
-  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, listTrades, unverified, days, curve, metrics, options };
+  const rawMeta = tradesQ.data?.journal ?? null;
+  // The server describes the unit book; when the desk book is risk-sized / replayed the sizing line says so.
+  const meta = useMemo(() => (rawMeta && deskView ? { ...rawMeta, sizing: deskSizingText(deskView) ?? rawMeta.sizing } : rawMeta), [rawMeta, deskView]);
+  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, listTrades, unverified, days, curve, metrics, options, deskView };
 }
 
 export type JournalData = ReturnType<typeof useJournalData>;
@@ -440,6 +479,9 @@ export function noteKindLabel(reason: string | null, source: string): string {
 export interface JournalPrefs {
   /** Book opened when the URL names none. */
   defaultBook: JournalKey;
+  /** NEXUS ideas book: sizing (default Risk $500; Unit secondary) and exit view. */
+  deskSizing: SizingChoice;
+  deskView: DeskView;
   /** Show the book's sizing rule under the basis line, or tuck it away. */
   sizing: 'show' | 'hide';
   /** Clock used for times on notes and days (day buckets are always New York). */
@@ -448,7 +490,7 @@ export interface JournalPrefs {
 }
 
 const PREFS_KEY = 'qe-journal-prefs-v1';
-const DEFAULT_PREFS: JournalPrefs = { defaultBook: 'desk', sizing: 'show', timeDisplay: 'et', sidebarCollapsed: false };
+const DEFAULT_PREFS: JournalPrefs = { defaultBook: 'desk', deskSizing: DEFAULT_SIZING, deskView: 'recorded', sizing: 'show', timeDisplay: 'et', sidebarCollapsed: false };
 
 export function readJournalPrefs(): JournalPrefs {
   try {
@@ -457,6 +499,8 @@ export function readJournalPrefs(): JournalPrefs {
     const p = JSON.parse(raw) as Partial<JournalPrefs>;
     return {
       defaultBook: parseJournalKey(p.defaultBook ?? null),
+      deskSizing: parseSizingChoice(p.deskSizing),
+      deskView: parseDeskView(p.deskView),
       sizing: p.sizing === 'hide' ? 'hide' : 'show',
       timeDisplay: p.timeDisplay === 'local' ? 'local' : 'et',
       sidebarCollapsed: p.sidebarCollapsed === true,

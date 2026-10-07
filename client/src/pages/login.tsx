@@ -338,7 +338,7 @@ export default function Login() {
                           inputMode="email"
                           autoCapitalize="none"
                           spellCheck={false}
-                          placeholder="Email or username"
+                          placeholder="Email, username or trader name"
                           aria-label="Email or username"
                           autoComplete="username"
                           className="h-11 pl-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:border-gray-300 dark:focus:border-border focus:ring-0"
@@ -397,6 +397,13 @@ export default function Login() {
                 {loginMutation.isPending ? "Signing in..." : "Sign in"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                <Link href="/trader-setup">
+                  <span className="hover:text-foreground underline-offset-2 hover:underline transition-colors" data-testid="link-trader-setup">
+                    Trader? Set up your account
+                  </span>
+                </Link>
+              </p>
             </form>
           </Form>
           )}

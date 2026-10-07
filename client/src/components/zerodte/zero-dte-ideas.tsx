@@ -54,6 +54,8 @@ export interface DeskIdea {
   spxMirror?: SpxMirror | null;
   /** "stopped · later reached T1 at 11:42" — hindsight after a stop; the outcome stays a stop. */
   afterStop?: string | null;
+  /** Peak contract mark so far — filled by the runners tracker when it lands (hook). */
+  peakPremium?: number | null;
 }
 export interface IdeasInfo {
   evaluated: { [sym: string]: { at: string | null; eligibility: string; notes: string[] } };

@@ -35,7 +35,12 @@ import {
 } from './nexus-parts';
 import { TraderCallLine } from './trader-calls';
 import { TrackedRow } from './tracked-row';
-import { BoardTimeRangeFilter, EMPTY_CALLED_RANGE, filterByCalledRange, type CalledRange } from './board-time-filter';
+import { EMPTY_CALLED_RANGE, filterByCalledRange, type CalledRange } from './board-time-filter';
+import { BoardFilterBar } from './board-filters';
+import { BOARD_FILTER_DEFAULTS, showsResolvedToday, type BoardFilterState } from '@shared/board-filters';
+import { outcomeChip, resolvedInstrument, type ResolvedIdea } from '@shared/nexus-resolved';
+import { getIdeaSourceMeta } from '@shared/idea-sources';
+import { useQuery } from '@tanstack/react-query';
 import { useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { dayHeading, etDay, filterBoardByDay, type DayChip, type DayFilter } from '@shared/setup-lifecycle';
 import { useTraderCalls } from '@/lib/trader-calls';
@@ -202,13 +207,14 @@ export function NexusBoardTool() {
   const [rank, setRank] = useToolSetting<Rank>('rank', 'all');
   const [query, setQuery] = useToolSetting('query', '');
   const [view, setView] = useToolSetting<'list' | 'grid' | 'table'>('view', 'list');
-  // CRYPTO chip: only native/any crypto ideas (assetType 'crypto') — 24/7 book.
+  // CRYPTO: only native/any crypto ideas (assetType 'crypto') — 24/7 book.
   const [cryptoOnly, setCryptoOnly] = useToolSetting<boolean>('cryptoOnly', false);
   const [withRotation, setWithRotation] = useToolSetting<boolean>('withRotation', false);
   // Day filter (ET publish day): today | yesterday | week | all | YYYY-MM-DD — persisted per tool.
-  const [day, setDay] = useToolSetting<DayFilter>('day', 'all');
+  // 'dayV2' (2026-10-07): the default is TODAY; the old 'day' key defaulted to ALL.
+  const [day, setDay] = useToolSetting<DayFilter>('dayV2', 'today');
   const [showStale, setShowStale] = useToolSetting<boolean>('showStale', false);
-  // SPX chip: SPY/SPX index 0DTE ideas (the index engines publish SPX plays on SPY; SPY rows carry an SPXW mirror).
+  // SPX: SPY/SPX index 0DTE ideas (the index engines publish SPX plays on SPY; SPY rows carry an SPXW mirror).
   const [spxOnly, setSpxOnly] = useToolSetting<boolean>('spxOnly', false);
   // Called-time range (ET) — board-time-filter.tsx; applied to rankRows' output.
   const [calledRange, setCalledRange] = useToolSetting<CalledRange>('calledRange', EMPTY_CALLED_RANGE);
@@ -233,8 +239,21 @@ export function NexusBoardTool() {
     for (const v of Array.from(life.values())) { const d = v.life.publishedDay; if (d && (!m || d < m)) m = d; }
     return m;
   }, [life]);
+  // Resolved today (shared/nexus-resolved.ts): closed this session — greyed, never vanished.
+  const resolvedQ = useResolvedToday();
+  const resolved = useMemo(() => {
+    if (!showsResolvedToday(day)) return [];
+    const q = query.trim().toUpperCase();
+    return (resolvedQ.data?.ideas ?? []).filter((r) => {
+      if (side !== 'all' && r.direction !== side) return false;
+      if (q && !r.symbol.toUpperCase().includes(q)) return false;
+      if (cryptoOnly && String(r.assetType).toLowerCase() !== 'crypto') return false;
+      if (spxOnly && !['SPY', 'SPX'].includes(r.symbol.toUpperCase())) return false;
+      return true;
+    });
+  }, [resolvedQ.data, day, side, query, cryptoOnly, spxOnly]);
   useApplyUrlSelection(all, !!convictions.data);
-  useBookReport(convictions, `${rows.length} shown`);
+  useBookReport(convictions, `${rows.length} open${resolved.length ? ` · ${resolved.length} resolved today` : ''}`);
   const blocked = bookGate(convictions, 'live book');
   // Nothing chosen yet → the detail tool shows the top setup, so mark it.
   const topId = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' }, life)[0]?.ideaId, [all, life]);
@@ -245,53 +264,82 @@ export function NexusBoardTool() {
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   const row = (pick: ConvictionPick) => <SetupRow key={pick.ideaId} pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />;
   const dayLabel = isDateKey(day) ? `on ${dayHeading(day, now)}` : day === 'week' ? 'this week' : day;
-  const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); setSpxOnly(false); setCalledRange(EMPTY_CALLED_RANGE); };
+  const fstate: BoardFilterState = { day, side, rank, query, cryptoOnly, spxOnly, withRotation, showStale, calledRange: calledRange ?? EMPTY_CALLED_RANGE, view };
+  const onFilter = (p: Partial<BoardFilterState>) => {
+    if (p.day !== undefined) setDay(p.day);
+    if (p.side !== undefined) setSide(p.side);
+    if (p.rank !== undefined) setRank(p.rank);
+    if (p.query !== undefined) setQuery(p.query);
+    if (p.cryptoOnly !== undefined) setCryptoOnly(p.cryptoOnly);
+    if (p.spxOnly !== undefined) setSpxOnly(p.spxOnly);
+    if (p.withRotation !== undefined) setWithRotation(p.withRotation);
+    if (p.showStale !== undefined) setShowStale(p.showStale);
+    if (p.calledRange !== undefined) setCalledRange(p.calledRange ?? EMPTY_CALLED_RANGE);
+    if (p.view !== undefined) setView(p.view);
+  };
+  const resetAll = () => onFilter({ ...BOARD_FILTER_DEFAULTS, day: 'all' });
+  const resolvedBlock = resolved.length > 0 ? <ResolvedToday ideas={resolved} /> : null;
   return (
     <div className="fd-fill nxd nxd-board">
       {/* NEXUS workspace: the tracked row and rotation strip are tiles of their own; the board carries them only when they are not placed */}
-      {!dash.hasTool('nexus-tracked') && <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); setDay('all'); }} />}
+      {!dash.hasTool('nexus-tracked') && <TrackedRow picks={all} onFilter={(sym) => onFilter({ query: query === sym ? '' : sym, side: 'all', rank: 'all', cryptoOnly: false, withRotation: false, day: 'all' })} />}
       {!dash.hasTool('nexus-rotation') && <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>}
-      <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
-        <div className="of-seg" role="group" aria-label="Asset">
-          <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>
-          <button type="button" className={spxOnly ? 'on' : ''} aria-pressed={spxOnly} onClick={() => setSpxOnly(!spxOnly)} title="SPY / SPX index 0DTE ideas — SPX plays are published on SPY and carry an SPXW mirror (tracked as the SPY idea)">SPX</button>
-          <button type="button" className={withRotation ? 'on' : ''} aria-pressed={withRotation} onClick={() => setWithRotation(!withRotation)} title="Only ideas riding the current sector rotation (sector ignition read, plus ideas fired by the sector-rotation engine — measuring)">ROTATION</button>
-        </div>
-        <div className="of-seg" role="group" aria-label="View">
-          {(['list', 'grid', 'table'] as const).map((v) => <button key={v} type="button" className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v.toUpperCase()}</button>)}
-        </div>
-      </FilterBar>
-      <div className="of-controls nxd-controls nxd-days qp-row">
-        <div className="of-seg" role="group" aria-label="Published">
-          {DAY_CHIPS.map((c) => <button key={c.key} type="button" className={day === c.key ? 'on' : ''} aria-pressed={day === c.key} onClick={() => setDay(c.key)} title={c.help}>{c.label}<b>{byDay.counts[c.key]}</b></button>)}
-        </div>
-        <input type="date" className={`nxd-date${isDateKey(day) ? ' on' : ''}`} aria-label="Published on a past day (ET)" title="Any past day in the board's lookback (ET publish day)"
-          value={isDateKey(day) ? day : ''} min={earliest ?? undefined} max={today}
-          onChange={(e) => setDay(isDateKey(e.target.value) ? e.target.value : 'all')} />
-        {day === 'today' && (byDay.staleHidden > 0 || showStale) && (
-          <button type="button" className="nxd-stale-toggle" onClick={() => setShowStale(!showStale)} title="Stale = past its holding window, entry window closed, or price ran past entry without a fill (docs/SETUP_LIFECYCLE.md)">
-            {showStale ? 'hide stale' : `+${byDay.staleHidden} stale`}
-          </button>
-        )}
-        <BoardTimeRangeFilter value={calledRange ?? EMPTY_CALLED_RANGE} onChange={setCalledRange} count={rows.length} />
-      </div>
+      <BoardFilterBar state={fstate} onChange={onFilter} count={rows.length} counts={byDay.counts} staleHidden={byDay.staleHidden} earliest={earliest} today={today} />
       <DetailHint />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={cryptoOnly ? 'No open crypto idea on the board right now — the crypto engine scans every 30 minutes, 24/7.' : spxOnly ? 'No open SPY/SPX 0DTE idea on the board right now.' : pre.length > 0 && day !== 'all' ? `No live setups published ${dayLabel}${byDay.staleHidden ? ` (${byDay.staleHidden} stale hidden)` : ''} — ${pre.length} open on other days.` : all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
-            action={all.some((p) => !p.isBotHeld)
-              ? <button type="button" className="fd-btn" onClick={resetAll}>Show every setup</button>
-              : <Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />
+        ? (resolvedBlock
+            ? <div className="fd-scroll nxp-rows"><p className="nxd-open-none">No open setups {dayLabel}{byDay.staleHidden ? ` (${byDay.staleHidden} stale hidden)` : ''}.</p>{resolvedBlock}</div>
+            : <QEEmpty className="fd-m" message={cryptoOnly ? 'No open crypto idea on the board right now — the crypto engine scans every 30 minutes, 24/7.' : spxOnly ? 'No open SPY/SPX 0DTE idea on the board right now.' : pre.length > 0 && day !== 'all' ? `No live setups published ${dayLabel}${byDay.staleHidden ? ` (${byDay.staleHidden} stale hidden)` : ''} — ${pre.length} open on other days.` : all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
+                action={all.some((p) => !p.isBotHeld)
+                  ? <button type="button" className="fd-btn" onClick={resetAll}>Show every setup</button>
+                  : <Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />)
         : view === 'grid'
-          ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
+          ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} />{resolvedBlock}</div>
           : view === 'table'
-            ? <div className="fd-scroll fd-pad"><SignalTable picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
+            ? <div className="fd-scroll fd-pad"><SignalTable picks={rows} selectedId={activeId ?? null} onSelect={pickById} />{resolvedBlock}</div>
             : <div className="fd-scroll nxp-rows">{byDay.groups.map(([d, list]) => (
                 <section key={d ?? 'undated'} aria-label={dayHeading(d, now)}>
                   <div className="nxd-day-head"><span>{dayHeading(d, now)}</span><span>{list.length}</span></div>
                   {list.map(row)}
                 </section>
-              ))}</div>)}
+              ))}{resolvedBlock}</div>)}
     </div>
+  );
+}
+
+/* ── Resolved today (greyed, outcome chip + time) — shared/nexus-resolved.ts ── */
+interface ResolvedPayload { ideas: ResolvedIdea[]; asOf: string }
+function useResolvedToday() {
+  return useQuery<ResolvedPayload>({
+    queryKey: ['/api/nexus/resolved-today'],
+    queryFn: async () => { const r = await fetch('/api/nexus/resolved-today', { credentials: 'include' }); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); },
+    staleTime: 30_000, refetchInterval: 60_000,
+  });
+}
+const pctText = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? null : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
+const etHm = (iso: string) => { const t = Date.parse(iso); return Number.isFinite(t) ? new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'; };
+function ResolvedToday({ ideas }: { ideas: ResolvedIdea[] }) {
+  return (
+    <section className="nxr" aria-label="Resolved today">
+      <div className="nxr-head"><span>Resolved today</span><span>{ideas.length}</span></div>
+      {ideas.map((r) => {
+        const c = outcomeChip(r);
+        const pnl = pctText(r.optionPercentGain ?? r.percentGain);
+        const onPremium = r.optionPercentGain != null;
+        return (
+          <Link key={r.ideaId} href={`/r/${encodeURIComponent(r.symbol)}`} className="nxr-row" title={`${c.title}${c.at ? ` at ${c.at} ET` : ''} — open ${r.symbol}`}>
+            <span className="nxr-main">
+              <strong>{resolvedInstrument(r)} <span className={r.direction === 'short' ? 'nxp-dir bear' : 'nxp-dir bull'}>{r.direction === 'short' ? '▼' : '▲'}</span></strong>
+              <small>{getIdeaSourceMeta(r.source).label} · called {etHm(r.timestamp)}{r.exitPrice != null ? ` · exit ${r.exitPrice.toFixed(2)}` : ''}</small>
+            </span>
+            <span className="nxr-side">
+              <span className={`nxr-chip ${c.tone}`} aria-label={`${c.title}${c.at ? ` at ${c.at} Eastern` : ''}`}>{c.label}{c.at ? ` ${c.at}` : ''}</span>
+              {pnl && <span className="nxr-pnl" title={`P&L on the ${onPremium ? 'contract premium' : 'underlying'}`}>{pnl} {onPremium ? 'prem' : 'und'}</span>}
+            </span>
+          </Link>
+        );
+      })}
+    </section>
   );
 }
 

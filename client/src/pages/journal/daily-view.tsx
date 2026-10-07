@@ -82,7 +82,7 @@ export default function DailyView() {
   const notesUnavailable = data.key === 'bot' || data.key === 'desk';
   // Live marks for open rows (desk book: the 60 most recent open rows).
   const openTotal = useMemo(() => trades.filter((t) => t.status === 'open').length, [trades]);
-  const marks = useJournalMarks(data.key, openTotal);
+  const marks = useJournalMarks(data.key, openTotal, data.rows);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

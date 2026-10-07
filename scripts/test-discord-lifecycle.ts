@@ -244,13 +244,21 @@ t('resolution: target hit → card edit + "✅ … target hit 10:45 ET · +X%" r
   await L.flushOutbox();
   assert.equal(calls.filter((c) => c.method === 'PATCH').length, 1);
   assert.equal(posts().length, 1);
-  assert.match(posts()[0].body.content, /^✅ \*\*TARGET HIT\*\* · TSLA 380P 0DTE · 10:45 ET · \+42% option \(modeled from the contract bar, delayed quote\) \/ \+1\.6% underlying \(bar hit\)/);
+  assert.match(posts()[0].body.content, /^✅ \*\*TARGET HIT\*\* · TSLA 380P 0DTE · 10:45 ET · \+\$\d+ at \$500 risk \/ \+42% option \(modeled from the contract bar, delayed quote\) \/ \+1\.6% underlying \(bar hit\)/);
   const c = L.__lifecycleStateForTest().cards['idea-tsla-380p'];
   assert.equal(c.status, 'win'); assert.equal(c.verified, true);
+  // Risk-sized $ (NEXUS_RISK_DOLLARS default $500): positive, never above the 0DTE sizing of $500 risk.
+  assert.ok(typeof c.riskPnl === 'number' && c.riskPnl > 0 && c.riskDollars === 500);
   // Unverified time label when the hit time came from a poll.
   await L.onIdeaPublished(zdte({ id: 'q2', symbol: 'QQQ', strikePrice: 753 }));
   await L.onIdeaResolved({ ideaId: 'q2', outcomeStatus: 'hit_stop', exitDate: '2026-10-07T10:30:00-05:00', exitTimeSource: 'live', percentGain: -0.8 });
   assert.equal(L.__lifecycleStateForTest().cards.q2.verified, false);
+  // A blown-out option loss (−95% of premium) posts at most its risk to the stop (≤ $500), labelled capped.
+  await L.onIdeaPublished(zdte({ id: 'q3', symbol: 'IWM', strikePrice: 240 }));
+  await L.onIdeaResolved({ ideaId: 'q3', outcomeStatus: 'hit_stop', exitDate: '2026-10-07T10:40:00-05:00', exitTimeSource: 'bar_hit', percentGain: -1.2, optionPercentGain: -95 });
+  const q3 = L.__lifecycleStateForTest().cards.q3;
+  assert.ok(typeof q3.riskPnl === 'number' && q3.riskPnl >= -500 && q3.riskPnl < 0, `q3 ${q3.riskPnl}`);
+  assert.match(L.__lifecycleStateForTest().outbox.find((o) => o.ideaId === 'q3' && o.kind === 'reply')!.line!, /−\$\d+ at \$500 risk \(capped at stop\)/);
   assert.match(L.__lifecycleStateForTest().outbox.find((o) => o.ideaId === 'q2' && o.kind === 'reply')!.line!, /STOP HIT.*hit time unverified/);
 });
 
