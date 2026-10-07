@@ -13,7 +13,10 @@ import {
   afterClose, classifyAfterStop, formatAfterStopTag, parseAfterStop, withAfterStopTag, afterStopLabel, countMissedWinners, holdEndFor, type Bar,
 } from '../shared/after-stop';
 import { computeAtrStopFloor, nexusStopAtrK, ATR_STOP_FLOOR_K, type DailyBar } from '../server/lib/atr-stop-floor';
-import { walkForward, replayRule, renderWalkForward, WF_FALLBACK_MULT, type WfIdea, type RuleTrade } from '../research/losers-later-core';
+import {
+  walkForward, replayRule, renderWalkForward, WF_FALLBACK_MULT, walkForwardR, renderWalkForwardR, rStats, riskPctFor,
+  type WfIdea, type WfRIdea, type RuleTrade,
+} from '../research/losers-later-core';
 import { isStopExit } from '../shared/bot-sleeves';
 import { computeTrackRecord } from '../shared/track-record';
 
@@ -242,6 +245,66 @@ t('walkForward: too few ideas → 1.5× fallback, said so', () => {
   const w = walkForward([{ id: 'a', triggerMs: T0, pcts: { plan: 1, wide2: 2 } }], {});
   assert.equal(w.chosen.rule, null); assert.equal(w.chosen.mult, WF_FALLBACK_MULT);
   assert.match(w.chosen.basis, /not enough/);
+});
+
+// ── R-normalised walk-forward (equal-risk sizing) ──────────────────────────
+t('riskPctFor: each variant sized to its own stop distance', () => {
+  assert.equal(riskPctFor('plan', 1, 2), 1);
+  assert.equal(riskPctFor('atr1_5', 1, 2), 3);
+  assert.equal(riskPctFor('wide1', 3, 2), 3);   // structural further
+  assert.equal(riskPctFor('wide2', 1, 2), 4);
+  assert.equal(riskPctFor('time_only', 1, 2), 6); // disaster stop is the risk
+  assert.equal(riskPctFor('hyb_n6', 1, 2), 3);
+  assert.equal(riskPctFor('wide1_5', 1, null), null);
+  assert.equal(riskPctFor('close_stop', 1, 2), null);
+});
+t('rStats: expectancy, ex-top, profit factor, max drawdown (chronological)', () => {
+  const s = rStats([1, -1, -1, -1, 3, -1], 1);
+  assert.equal(s.n, 6); assert.equal(s.expR, 0); assert.equal(s.sumR, 0);
+  assert.equal(s.expRExTop, -0.6); // top (3) removed → (1−4)/5
+  assert.equal(s.profitFactor, 1); assert.equal(s.maxDdR, 3);
+  assert.equal(rStats([1, 2], 3).profitFactor, null);
+  assert.equal(rStats([], 3).expR, null);
+});
+t('walkForwardR: a % loser can be an R winner at equal risk — and is only chosen if it holds in both halves', () => {
+  // plan: 1% stop, T1 +2%: half the ideas −1% (−1R), half +2% (+2R) → E[R] +0.5.
+  // wide1_5 (3% stop, ATR 2%): converts every other plan loser into a +2% winner, the rest lose −3% (−1R).
+  //   unsized %: worse (−3% losers); in R: 3 of 4 trades ≈ +0.67R / −1R …
+  const ideas: WfRIdea[] = [];
+  for (let k = 0; k < 80; k++) {
+    const lose = k % 2 === 0;
+    const plan = lose ? -1 : 2;
+    const w15 = lose ? (k % 4 === 0 ? 2 : -3) : 2;
+    // wide2 helps only in half A
+    const w2 = k < 40 ? (lose ? 2 : 2) : (lose ? -4 : 2);
+    ideas.push({ id: String(k), triggerMs: T0 + k * 3_600_000, planRiskPct: 1, atrPct: 2, pcts: { plan, wide1: plan, wide1_5: w15, wide2: w2 } });
+  }
+  const w = walkForwardR(ideas, { topRemoved: 3, minPerHalf: 30 });
+  const row = (r: string) => w.rows.find((x) => x.rule === r)!;
+  // plan ex-top ≈ +0.43R; wide1_5: wins +0.667R, losers −1R → lower → must NOT hold
+  assert.equal(row('wide1_5').holdsBoth, false);
+  assert.equal(row('wide2').holdsBoth, false);   // half B fails
+  assert.equal(row('hyb_n3').missing, true);     // not in this input
+  assert.equal(w.chosen.mult, null);
+  assert.match(renderWalkForwardR(w, 1.5), /R-chosen: none/);
+  // now make wide1_5 clearly better in R in both halves
+  const better = ideas.map((i) => ({ ...i, pcts: { ...i.pcts, wide1_5: i.pcts.plan! < 0 ? 4.5 : 4.5 } }));
+  const w2r = walkForwardR(better, { topRemoved: 3, minPerHalf: 30 });
+  assert.equal(w2r.chosen.rule, 'wide1_5'); assert.equal(w2r.chosen.mult, 1.5);
+});
+t('hybrid replay: plan stop early, wide later; trail locks gains', () => {
+  // long 100, plan stop 99.5, ATR 1 → wide 98.5. Bar 1 dips to 99.4 (inside 3 bars → plan stop hit).
+  const early = mk([[100, 100.2, 99.8, 100], [100, 100.1, 99.4, 99.6], [99.6, 102.2, 99.5, 102]]);
+  const tr: RuleTrade = { dir: 'long', entry: 100, stop: 99.5, target: 102, atrD: 1, triggerMs: T0, holdEndMs: T0 + 99 * M5, holdComplete: true, bars: early };
+  assert.equal(replayRule('hyb_n3', tr).reason, 'stop');
+  // the same dip at bar 4 (after 3 bars) is inside the wide stop → target
+  const late = mk([[100, 100.2, 99.8, 100], [100, 100.2, 99.8, 100], [100, 100.2, 99.8, 100], [100, 100.1, 99.0, 99.6], [99.6, 102.2, 99.5, 102]]);
+  assert.equal(replayRule('hyb_n3', { ...tr, bars: late }).reason, 'target');
+  assert.equal(replayRule('plan', { ...tr, bars: late }).reason, 'stop');
+  // trail: run to 101.9 after bar 6, then fall → trail stop 100.4 (101.9 − 1.5) beats the wide 98.5
+  const run = mk([...Array(6).fill([100, 100.2, 99.8, 100]), [100, 101.9, 100, 101.8], [101.8, 101.8, 100, 100.1]] as [number, number, number, number][]);
+  const x = replayRule('hyb_trail6', { ...tr, bars: run });
+  assert.equal(x.reason, 'stop'); assert.equal(x.pct, 0.4);
 });
 
 console.log(`✓ wide-stops: ${n} tests passed`);
