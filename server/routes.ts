@@ -32981,6 +32981,9 @@ Use this checklist before entering any trade:
     registerSectorRotationRoutes(app, requireBetaAccess);
     const { registerSectorBoardRoutes } = await import('./sector-board');
     registerSectorBoardRoutes(app, requireBetaAccess);
+    // Monthly swings & LEAPS — research screen (server/swings-screener.ts; worker computes nightly, web reads the cache; admin refresh)
+    const { registerSwingsRoutes } = await import('./swings-screener');
+    registerSwingsRoutes(app, requireBetaAccess, requireAdminJWT);
   }
 
   /**

@@ -54,6 +54,7 @@ const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), 
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
+const SwingsPage    = lazyWithRetry(() => import("@/pages/swings"), "swings");
 // REMOVED — Market page consolidated, redirect to /home
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
 const AlertsPage = lazyWithRetry(() => import("@/pages/alerts"), "alerts");
@@ -161,6 +162,7 @@ const DevGexPhone = import.meta.env.DEV ? TerminalShell : null;
 const DevZeroDte = import.meta.env.DEV ? lazyWithRetry(() => import("@/dev/zerodte-harness"), "dev-zerodte") : null;
 const ProtectedResearchShell = withBetaProtection(ResearchShell);
 const ProtectedTodayPage = withBetaProtection(TodayPage);
+const ProtectedSwingsPage = withBetaProtection(SwingsPage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
 const ProtectedSettingsPage = withBetaProtection(SettingsPage);
 const ProtectedAlertsPage = withBetaProtection(AlertsPage);
@@ -266,6 +268,8 @@ function Router() {
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
         <Route path="/today"       component={ProtectedTodayPage} />
+        {/* Monthly Swings & LEAPS — research screen (server/swings-screener.ts) */}
+        <Route path="/swings"      component={ProtectedSwingsPage} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx
