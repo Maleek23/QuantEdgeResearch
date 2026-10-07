@@ -196,6 +196,34 @@ paths, forced change (no session before it, temp can't be kept or replayed), use
 disabled accounts, real per-IP limiter trips, and every issued secret is absent from the fake DB,
 the audit file and everything the process printed.
 
+## Trader self-setup: from the sign-in page (2026-10-07)
+
+For a trader whose book already has a **passcode** (the one Malik set and gave them out-of-band).
+Sign-in page → **Trader? Set up your account** → `/trader-setup`:
+
+1. **Pick your name** — only books with a passcode, **no linked account**, a slug that is a valid
+   unreserved username nobody holds, not closed per book. Never offered: Malik's / operator books
+   and system books (`mine`, `malik`, `leek`, `operator`, `bot`, `nexus`, `desk`, `quant…` as a
+   word of the slug or name — `shared/trader-self-setup.ts`), plus env `TRADER_SELF_SETUP_EXCLUDE`.
+2. **Enter the book passcode** — bcrypt-compared with `traders.passcode_hash`.
+3. **Choose a password** (password policy) → `provisionTraderAccount` (the same path as the hub's
+   "Add trader account"): username = the book's slug (`<slug>@login.quantedge.invalid`), the
+   default trader tier + beta access, **desk admin of that book**; a fresh session; `/desk`.
+
+One-time: once the book has a linked account it is closed for good — the trader signs in with their
+name/username; a forgotten password is a **Regenerate** in Trader accounts.
+
+Security: every refusal (wrong passcode, unknown name, set-up name, operator/bot book, closed book)
+is the same 403 and costs one bcrypt; **5 failed attempts per name per 15 min** lock that name (even
+the right passcode gets 429; non-existent names lock the same way); per-IP limits 10 / 15 min and
+30 / day (`traderSelfSetupLimiters`); the POSTs check the CSRF double-submit themselves (`/api/auth/*`
+is exempt from the global check); audit `trader_self_setup.fail|lockout|complete|config` +
+`desk.assign` (`via: trader_self_setup`) — never the passcode or password.
+
+Switches (no migration): env `TRADER_SELF_SETUP` (default on; `off` is a hard off), and in the hub
+(Trader accounts → Self-setup) a global switch and a per-book switch, kept in the shared-state file
+`trader-self-setup`. Routes: `server/trader-self-setup-routes.ts`. Tests: `npm run test:trader-self-setup`.
+
 ## Migrations to run before deploy
 
 Trader accounts need **no migration** (they reuse `users.email`, `users.password_hash` and
@@ -235,6 +263,8 @@ read) — so apply it before turning `DESK_ADMINS` on.
 |---|---|---|
 | `DESK_ADMINS` | off | `true` turns on desk portals, desk bots and book privacy |
 | `DESK_BOTS_MAX` | `3` | desk bots enabled at once (0–6) |
+| `TRADER_SELF_SETUP` | on | `off` closes trader self-setup from the sign-in page (the hub switch can't reopen it) |
+| `TRADER_SELF_SETUP_EXCLUDE` | — | comma-separated book slugs never offered for self-setup |
 
 The platform bot's own env (`BOT_0DTE_*`, `BOT_SWING_*`, `QUANT_BOT_DISCORD`, `ROLE`) also bounds
 every desk bot.

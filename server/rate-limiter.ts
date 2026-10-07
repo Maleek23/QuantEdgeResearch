@@ -248,6 +248,21 @@ export const setupLinkLimiters = [
     message: 'Too many attempts from this network today. Please try again tomorrow.' }),
 ];
 
+// Trader self-setup from the sign-in page (server/trader-self-setup-routes.ts).
+// Passcode attempts: 10 per 15 minutes and 30 per day per IP, every request
+// counted — on top of 5 failures per NAME per 15 minutes in the route itself.
+export const traderSelfSetupLimiters = [
+  makeStrictIpLimiter({ name: 'Trader self-setup (15m)', windowMs: 15 * 60 * 1000, max: 10,
+    message: 'Too many attempts. Please wait 15 minutes and try again.' }),
+  makeStrictIpLimiter({ name: 'Trader self-setup (day)', windowMs: 24 * 60 * 60 * 1000, max: 30,
+    message: 'Too many attempts from this network today. Please try again tomorrow.' }),
+];
+// The name list (step 1): read-only, but public — 60 per 15 minutes per IP.
+export const traderSelfSetupNamesLimiters = [
+  makeStrictIpLimiter({ name: 'Trader self-setup names (15m)', windowMs: 15 * 60 * 1000, max: 60,
+    message: 'Too many requests. Please wait a few minutes and try again.' }),
+];
+
 // Waitlist: each new email posts to the operator's Discord webhook, so cap it.
 export const waitlistLimiters = [
   makeStrictIpLimiter({ name: 'Waitlist (15m)', windowMs: 15 * 60 * 1000, max: 5,

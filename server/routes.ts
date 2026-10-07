@@ -2032,6 +2032,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   { const { registerDeskAdminRoutes } = await import('./desk-admin-routes'); registerDeskAdminRoutes(app, requireAdminJWT); }
   // Trader accounts: the operator creates his traders' logins (setup link or temp password) — docs/DESK_ADMINS.md.
   { const { registerTraderAccountRoutes } = await import('./trader-accounts-routes'); const { setupLinkLimiters } = await import('./rate-limiter'); registerTraderAccountRoutes(app, requireAdminJWT, { setup: setupLinkLimiters, login: [authLimiter, ...setupLinkLimiters] }); }
+  // Trader self-setup from the sign-in page (docs/DESK_ADMINS.md §Trader self-setup): name → book passcode → own password → /desk.
+  { const { registerTraderSelfSetupRoutes } = await import('./trader-self-setup-routes'); const { traderSelfSetupLimiters, traderSelfSetupNamesLimiters } = await import('./rate-limiter'); registerTraderSelfSetupRoutes(app, requireAdminJWT, { names: traderSelfSetupNamesLimiters, attempt: traderSelfSetupLimiters }); }
 
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
