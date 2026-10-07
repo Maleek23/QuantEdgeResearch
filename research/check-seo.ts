@@ -39,6 +39,8 @@ if (new Set(titles).size !== titles.length) fail('duplicate public page titles')
 const appSrc = readFileSync(resolve(here, '../client/src/App.tsx'), 'utf8');
 const routes = Array.from(appSrc.matchAll(/<Route\s+path="([^"]+)"/g)).map((m) => m[1]);
 for (const r of routes) {
+  // DEV-only harness routes (import.meta.env.DEV) never exist in production builds.
+  if (r.startsWith('/dev/') || r === '/__harness') continue;
   const sample = r.replace(/:[^/]+/g, 'SAMPLE');
   if (seoStatusFor(sample) !== 200) fail(`App.tsx route ${r} would get HTTP 404 — add it to APP_ROUTE_PATTERNS in server/seo-metadata.ts`);
 }
