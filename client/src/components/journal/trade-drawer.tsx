@@ -14,6 +14,7 @@ import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { OutcomeChip, Pnl, SideChip, useJournalPortalClass } from './parts';
 import { useJournal } from './journal-context';
 import { ScreenshotField } from './trade-editor';
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 
 const when = (iso?: string | null) => (iso
   ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET'
@@ -104,6 +105,18 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {onOpenPage && <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => onOpenPage(trade.id)}><Expand className="h-3.5 w-3.5" /> Full page</button>}
               {!readOnly && <button type="button" className="jr-btn jr-btn-sm" onClick={() => onEdit(trade)}><Pencil className="h-3.5 w-3.5" /> Edit trade</button>}
+              <AnalyzeWithQuantinum
+                onOpen={() => onOpenChange(false)}
+                target={{
+                  kind: 'journal', symbol: trade.symbol, label: `${trade.symbol} journal trade`,
+                  // Numbers only — the trade's notes never leave for a model.
+                  row: {
+                    direction: trade.direction, entry: trade.entryPrice ?? null, exit: trade.exitPrice ?? null, pnl: t.status === 'open' ? null : (Number.isFinite(t.netPnl) ? +t.netPnl.toFixed(2) : null),
+                    pnlPct: trade.realizedPnLPercent ?? null, status: t.status, optionType: isOpt ? trade.optionType ?? null : null, strike: isOpt ? trade.strikePrice ?? null : null,
+                    expiry: isOpt ? trade.expiryDate?.slice(0, 10) ?? null : null, openedAt: trade.entryTime?.slice(0, 16) ?? null, closedAt: trade.exitTime?.slice(0, 16) ?? null,
+                  },
+                }}
+              />
               {isOpt && onSimulate && (
                 <button type="button" className="jr-btn jr-btn-sm" onClick={() => onSimulate(trade.symbol)}><LineChart className="h-3.5 w-3.5" /> Simulate P&amp;L</button>
               )}

@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth, hasAuthHint } from "@/hooks/useAuth";
+import { AskQuantinumHost } from "@/components/quantinum/ask-quantinum-host";
 import { takeStashedReturnTo } from "@/lib/return-to";
 import { usePageTracking } from "@/hooks/use-analytics";
 import { RouteFallback } from "@/components/ui/qe-loading";
@@ -424,6 +425,7 @@ function App() {
                       <WhatsNewToast />
                       <Toaster />
                       <PhoneAutoClamp />
+                      <AskQuantinumHost />
                     </DensityProvider>
                   </ContentDensityProvider>
                 </PreferencesProvider>
@@ -463,6 +465,8 @@ function App() {
                     <WhatsNewToast />
                     <Toaster />
                     <PhoneAutoClamp />
+                    {/* Ask Quantinum (docs/ASK_QUANTINUM.md) — FAB + sheet; renders nothing unless the flag allows this account. */}
+                    <AskQuantinumHost />
                   </DensityProvider>
                 </ContentDensityProvider>
               </PreferencesProvider>

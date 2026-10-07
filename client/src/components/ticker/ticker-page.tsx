@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { planGateMessage } from '@/lib/optimistic';
 import { gradeOfLoosePick, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { fmtUsd } from '@/lib/format';
@@ -271,6 +272,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           No "TICKER" eyebrow — the breadcrumb already says Research / SYM. */}
       <div className="tk-line" aria-live="polite">
         <h1 className="tk-sym">{sym}</h1>
+        <AnalyzeWithQuantinum target={{ kind: 'ticker', symbol: sym, label: `${sym} · ticker page` }} />
         {q ? (
           <>
             <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>

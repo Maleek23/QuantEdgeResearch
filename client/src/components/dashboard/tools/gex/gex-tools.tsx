@@ -31,6 +31,7 @@ import {
   nearTermDisagrees, sessionClock, terminalAsOf, TERMINAL_TIMEOUT_MS,
   hasAdjusted, gexMetricOf, type GammaView,
 } from '@/components/gex/gex-model';
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { DealerStructureRail, GammaLevelsCompare, GammaProfileChart, GammaViewSeg, GexCellDrill } from '@/components/gex/gex-parts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
@@ -444,6 +445,10 @@ export function GexKeyLevelsTool() {
   const chainTime = chainAt ? new Date(chainAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
   // Net GEX / VEX are exposures: they print once, in Regime & Narrative, when that tile is on the page.
   const exposuresElsewhere = hasTool('gex-regime');
+  // Ask Quantinum on one level — the server rebuilds walls/quote/flow from its own data; the row is "as displayed".
+  const askLevel = (levelType: string, level: number | null | undefined) => (level != null && Number.isFinite(level)
+    ? <AnalyzeWithQuantinum compact target={{ kind: 'gex', symbol: g.symbol, label: `${g.symbol} ${levelType} ${level}`, row: { level, levelType, spot: +spot.toFixed(2) } }} />
+    : null);
   return (
     <div className="gx-tool fd-scroll">
       {/* THE spot of the GEX workspace (audit 2026-10-01, GEX #2): the live quote, big; the
@@ -461,22 +466,22 @@ export function GexKeyLevelsTool() {
       <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} names />
       <div className="context-grid gx-pad">
         <div className="context-item">
-          <div className="context-k" title="Strike ABOVE spot with the largest call gamma $ summed over all expiries. Typical resistance.">Call wall</div>
+          <div className="context-k" title="Strike ABOVE spot with the largest call gamma $ summed over all expiries. Typical resistance.">Call wall {askLevel('call wall', snap.callWall)}</div>
           <div className="context-v cyan">{px(snap.callWall, 0)}</div>
           <div className="context-sub">{dist(snap.callWall)} · largest call γ above{snap.callWallOI != null && snap.callWallOI !== snap.callWall ? ` · by OI $${snap.callWallOI}` : ''}</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Strike BELOW spot with the largest put gamma $ summed over all expiries. Typical support.">Put wall</div>
+          <div className="context-k" title="Strike BELOW spot with the largest put gamma $ summed over all expiries. Typical support.">Put wall {askLevel('put wall', snap.putWall)}</div>
           <div className="context-v red">{px(snap.putWall, 0)}</div>
           <div className="context-sub">{dist(snap.putWall)} · largest put γ below{snap.putWallOI != null && snap.putWallOI !== snap.putWall ? ` · by OI $${snap.putWallOI}` : ''}</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin).">King node · max γ</div>
+          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin).">King node · max γ {askLevel('king node', snap.maxGammaStrike)}</div>
           <div className="context-v" style={{ color: LEVEL_COLORS.magnet }}>{px(snap.maxGammaStrike, 0)}</div>
           <div className="context-sub">{dist(snap.maxGammaStrike)} · largest |GEX| strike</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target.">Zero-γ</div>
+          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target.">Zero-γ {askLevel('zero gamma', zg)}</div>
           <div className="context-v amber">{zg != null ? px(zg) : '—'}</div>
           <div className="context-sub">{zg != null ? `spot ${Math.abs((spot / zg - 1) * 100).toFixed(1)}% ${spot >= zg ? 'above' : 'below'}` : 'no crossing within ±20%'}</div>
         </div>
