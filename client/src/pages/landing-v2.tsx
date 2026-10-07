@@ -23,7 +23,7 @@
  * no profit or win-rate claims beyond the verified record; educational, not advice.
  * Styles: styles/landing-v2.css (dark-first, light equally finished).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import '@/styles/nexus.css';
 import '@/styles/landing-v2.css';
@@ -40,6 +40,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { reasonOf } from '@/lib/optimistic';
 import { DISCORD_INVITE_URL, DISCORD_SERVER_NAME } from '@/lib/public-config';
 import { useTheme } from '@/components/theme-provider';
+import { releaseLandingSkeleton } from '@/lib/boot';
 
 const ARROW = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" /></svg>;
 const CHECK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>;
@@ -227,6 +228,9 @@ export default function LandingV2() {
   useScrollReveal(rootRef);
   const cmdk = useCmdK();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  // This chunk resolves only after landing-v2.css has loaded (App.tsx importLanding),
+  // so the first committed frame is styled: drop the index.html skeleton before paint.
+  useLayoutEffect(() => { releaseLandingSkeleton(); }, []);
 
   // /pricing → /?section=pricing (legacy table + server 301) and /#pricing land on the section.
   useEffect(() => {

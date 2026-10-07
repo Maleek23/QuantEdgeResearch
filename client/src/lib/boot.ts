@@ -87,3 +87,21 @@ export function releaseBoot() {
   el.classList.add('out');
   setTimeout(() => el.remove(), 160);
 }
+
+/**
+ * LANDING SKELETON — `/` for a visitor skips the boot screen (client/index.html);
+ * instead an inline-styled, text-free skeleton of the landing's nav + hero
+ * (#qe-landing-skel, dark/light per html[data-mode]) covers the page until the
+ * landing has mounted WITH its stylesheet. pages/landing-v2.tsx calls this in a
+ * layout effect (before its first paint); App.tsx calls it when `/` resolves to
+ * another route; index.html removes it after 15 s regardless. Idempotent.
+ */
+export function releaseLandingSkeleton() {
+  if (typeof document === 'undefined') return;
+  const el = document.getElementById('qe-landing-skel');
+  if (!el || el.classList.contains('out')) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { el.remove(); return; }
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 160);
+}

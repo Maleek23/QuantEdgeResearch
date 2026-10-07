@@ -116,6 +116,35 @@
       #app-loader p{margin:0;font-size:11px;max-width:90vw}
       @keyframes qe-boot-slide{from{left:-40%}to{left:100%}}
       @media (prefers-reduced-motion:reduce){#app-loader{transition:none}#app-loader .qe-boot-track i{animation:none;left:30%}}
+      /* LANDING SKELETON — `/` for a visitor (critical CSS for the landing's first paint).
+         The landing's nav + hero as text-free blocks on the landing ground
+         (styles/landing-v2.css tokens), until the landing mounts with its stylesheet
+         (lib/boot.ts releaseLandingSkeleton). Dark unless html[data-mode=light]. */
+      #qe-landing-skel{--s-bg:#07080b;--s-bg2:#0b0d11;--s-line:rgba(255,255,255,.075);--s-blk:rgba(255,255,255,.07);--s-blk2:rgba(255,255,255,.035);--s-acc:rgba(37,99,235,.55);position:fixed;inset:0;z-index:9998;overflow:hidden;background:var(--s-bg);transition:opacity .15s ease-out}
+      html[data-mode=light] #qe-landing-skel{--s-bg:#fafaf8;--s-bg2:#f3f3f0;--s-line:rgba(12,18,32,.085);--s-blk:rgba(12,18,32,.075);--s-blk2:rgba(12,18,32,.04);--s-acc:rgba(29,95,214,.5)}
+      #qe-landing-skel.out{opacity:0;pointer-events:none}
+      #qe-landing-skel[hidden]{display:none}
+      #qe-landing-skel i{display:block;border-radius:8px;background:var(--s-blk)}
+      #qe-landing-skel .a{height:38px;border-bottom:1px solid var(--s-line);background:var(--s-bg2);display:flex;align-items:center;justify-content:center}
+      #qe-landing-skel .a i{width:min(420px,70vw);height:10px;background:var(--s-blk2)}
+      #qe-landing-skel .n{max-width:1180px;margin:0 auto;padding:10px 32px;min-height:64px;display:flex;align-items:center;gap:28px}
+      #qe-landing-skel .n .lg{width:120px;height:22px}
+      #qe-landing-skel .n .ln{width:64px;height:10px;background:var(--s-blk2)}
+      #qe-landing-skel .n .sp{flex:1;background:none}
+      #qe-landing-skel .n .bt{width:104px;height:40px;border-radius:10px;background:var(--s-acc)}
+      #qe-landing-skel .h{display:flex;flex-direction:column;align-items:center;padding:120px 32px 0}
+      #qe-landing-skel .h .bd{width:260px;height:30px;border-radius:999px;background:var(--s-blk2);border:1px solid var(--s-line)}
+      #qe-landing-skel .h .t1{width:min(400px,80vw);height:64px;margin-top:56px;border-radius:12px}
+      #qe-landing-skel .h .t2{width:min(540px,86vw);height:64px;margin-top:18px;border-radius:12px;background:var(--s-blk2)}
+      #qe-landing-skel .h .s{width:min(600px,88vw);height:14px;margin-top:40px;background:var(--s-blk2)}
+      #qe-landing-skel .h .s+.s{width:min(480px,72vw);margin-top:14px}
+      #qe-landing-skel .c{display:flex;gap:12px;margin-top:44px}
+      #qe-landing-skel .c i{width:164px;height:52px;border-radius:10px;background:var(--s-blk2);border:1px solid var(--s-line)}
+      #qe-landing-skel .c i:first-child{background:var(--s-acc);border:0}
+      #qe-landing-skel .h,#qe-landing-skel .n{animation:qe-skel-pulse 1.6s ease-in-out infinite}
+      @keyframes qe-skel-pulse{0%,100%{opacity:1}50%{opacity:.6}}
+      @media (max-width:760px){#qe-landing-skel .n{padding:10px 16px;gap:12px}#qe-landing-skel .n .ln{display:none}#qe-landing-skel .h{padding:64px 16px 0;align-items:flex-start}#qe-landing-skel .h .t1,#qe-landing-skel .h .t2{height:44px}#qe-landing-skel .c{flex-direction:column;width:100%}#qe-landing-skel .c i{width:100%}}
+      @media (prefers-reduced-motion:reduce){#qe-landing-skel{transition:none}#qe-landing-skel .h,#qe-landing-skel .n{animation:none}}
     </style>
   </head>
   <body>
@@ -125,10 +154,24 @@
       <div class="qe-boot-track" aria-hidden="true"><i></i></div>
       <p></p>
     </div>
+    <div id="qe-landing-skel" aria-hidden="true" hidden>
+      <div class="a"><i></i></div>
+      <div class="n"><i class="lg"></i><i class="ln"></i><i class="ln"></i><i class="ln"></i><i class="sp"></i><i class="bt"></i></div>
+      <div class="h"><i class="bd"></i><i class="t1"></i><i class="t2"></i><i class="s"></i><i class="s"></i><div class="c"><i></i><i></i><i></i></div></div>
+    </div>
     <script>
-      // `/` for a visitor (no "signed in last time" hint — hooks/useAuth.ts): no boot splash;
-      // the landing paints as soon as its chunk runs (App.tsx SmartLanding).
-      try { if ((location.pathname === '/' && localStorage.getItem('qe-auth-hint') !== '1') || (/[?&]qe-demo=1/.test(location.search) && window.top !== window.self)) { var bl = document.getElementById('app-loader'); if (bl) bl.remove(); } } catch (e) {}
+      // `/` for a visitor (no "signed in last time" hint — hooks/useAuth.ts): no boot splash.
+      // The text-free landing skeleton covers the page until the landing mounts with its
+      // stylesheet (lib/boot.ts releaseLandingSkeleton); 15 s cap so it can never trap anyone.
+      // A landing demo frame (?qe-demo=1 in an iframe) gets neither.
+      (function () {
+        var bl = document.getElementById('app-loader'), sk = document.getElementById('qe-landing-skel'), visitor = false;
+        try { visitor = location.pathname === '/' && localStorage.getItem('qe-auth-hint') !== '1'; } catch (e) { visitor = location.pathname === '/'; }
+        var demo = /[?&]qe-demo=1/.test(location.search) && window.top !== window.self;
+        if ((visitor || demo) && bl) bl.remove();
+        if (visitor && !demo && sk) { sk.hidden = false; setTimeout(function () { if (sk.parentNode) sk.remove(); }, 15000); }
+        else if (sk) sk.remove();
+      })();
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, ComponentType, lazy } from "react";
+import { Suspense, useEffect, useLayoutEffect, ComponentType, lazy } from "react";
 import { LEGACY_REDIRECT_PATTERN, resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -20,6 +20,7 @@ import { DensityProvider } from "@/components/ui/qe-density";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
+import { releaseLandingSkeleton } from "@/lib/boot";
 import { CommandPaletteHost } from "@/components/command-palette-host";
 import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 import { NexusFrame } from "@/components/shell/nexus-frame";
@@ -36,9 +37,18 @@ const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),            
 const HarnessIndex   = import.meta.env.DEV ? lazy(() => import("@/dev/harness-index")) : null;
 
 // The tenth reference mock: the wired marketing page. Prior landing stays at @/pages/landing.
-const Landing = lazyWithRetry(() => import("@/pages/landing-v2"), "landing");
-// `/` for a visitor: start fetching the landing chunk now, in parallel with the auth check.
-if (typeof window !== "undefined" && window.location.pathname === "/") void import("@/pages/landing-v2").catch(() => undefined);
+// ONE import promise for the landing, shared by the early prefetch and the lazy route.
+// Vite's preload helper only waits for a chunk's CSS on the FIRST import() of it; a
+// second import() sees the <link> already in the DOM and resolves as soon as the JS
+// runs — so with two separate import() calls React could paint the landing before
+// landing-v2.css had loaded (the unstyled-text flash on `/`, 2026-10-07). Reset on
+// failure so lazyWithRetry's retries re-import for real.
+let landingChunk: Promise<typeof import("@/pages/landing-v2")> | null = null;
+const importLanding = () => (landingChunk ??= import("@/pages/landing-v2").catch((e) => { landingChunk = null; throw e; }));
+const Landing = lazyWithRetry(importLanding, "landing");
+// `/` for a visitor: start fetching the landing chunk now, in parallel with the auth check
+// (index.html has already preloaded its JS + CSS — vite.config.ts landingPreload).
+if (typeof window !== "undefined" && window.location.pathname === "/") void importLanding().catch(() => undefined);
 const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
@@ -220,6 +230,10 @@ function useConsumeReturnTo() {
 function Router() {
   usePageTracking();
   useConsumeReturnTo();
+  // The landing skeleton (index.html) leaves when the landing mounts — or as soon as
+  // `/` resolves to anything else (a signed-in redirect), so it can never get stuck.
+  const [routePath] = useLocation();
+  useLayoutEffect(() => { if (routePath !== "/") releaseLandingSkeleton(); }, [routePath]);
 
   return (
     <Suspense fallback={<PageLoader />}>

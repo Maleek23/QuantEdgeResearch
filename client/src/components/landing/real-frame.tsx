@@ -76,6 +76,29 @@ function useDocMode() {
   return mode;
 }
 
+/**
+ * True once the landing itself has loaded and the main thread has an idle moment.
+ * Frames (even the eager hero device) start only then, so the embedded app — a
+ * second run of the whole bundle — never competes with the landing's first paint
+ * or holds up its load event. Until then the .rf-wait sheen shows, and an iframe
+ * stays at opacity 0 until it has loaded (.rf-app.on), so nothing flashes.
+ */
+let pageSettled = false;
+type IdleWindow = Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+function usePageSettled() {
+  const [ok, setOk] = useState(pageSettled);
+  useEffect(() => {
+    if (ok) return;
+    const w = window as IdleWindow;
+    let idle = 0; let t: ReturnType<typeof setTimeout> | undefined;
+    const done = () => { pageSettled = true; setOk(true); };
+    const go = () => { if (w.requestIdleCallback) idle = w.requestIdleCallback(done, { timeout: 1200 }); else t = setTimeout(done, 200); };
+    if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
+    return () => { window.removeEventListener('load', go); if (idle) w.cancelIdleCallback?.(idle); clearTimeout(t); };
+  }, [ok]);
+  return ok;
+}
+
 const PLAY = <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>;
 const PAUSE = <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>;
 const fmtRuntime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -91,6 +114,7 @@ export function RealFrame({ desk, onMeta, eager = false, viewport = 'auto' }: {
   const boxRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [near, setNear] = useState(eager);
+  const pageReady = usePageSettled();
   const [onScreen, setOnScreen] = useState(false);
   const [clip, setClip] = useState<Clip | null | undefined>(undefined);
   const [videoFailed, setVideoFailed] = useState(false);
@@ -114,15 +138,15 @@ export function RealFrame({ desk, onMeta, eager = false, viewport = 'auto' }: {
   }, []);
 
   useEffect(() => {
-    if (!near) return;
+    if (!near || !pageReady) return;
     let live = true;
     setClip(undefined); setVideoFailed(false); setLoaded(false);
     probeClip(route.file).then((c) => { if (live) setClip(c); });
     return () => { live = false; };
-  }, [near, route.file]);
+  }, [near, pageReady, route.file]);
 
   const useVideo = !!clip && !videoFailed;
-  const useLive = (near && clip === null) || (!!clip && videoFailed);
+  const useLive = (near && pageReady && clip === null) || (!!clip && videoFailed);
   useEffect(() => { if (useLive) onMeta?.({ kind: 'live', runtime: null }); }, [useLive, onMeta]);
 
   useEffect(() => {
