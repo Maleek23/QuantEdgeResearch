@@ -104,6 +104,8 @@ export interface ConvictionPick {
   boardRank?: number;
   /** NEXUS grade at board build (BOARD_SORT=grade only; shared/nexus-grade.ts). The client re-grades on the live lifecycle. Unvalidated. */
   nexusGrade?: import('@shared/nexus-grade').NexusGrade;
+  /** GRADE_VERSION=v3 only: server-measured quality inputs; their presence makes the client grade v3 (shared/nexus-grade.ts). */
+  gradeInputs?: import('@shared/nexus-grade').GradeV3Inputs | null;
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
@@ -139,6 +141,8 @@ export interface ConvictionsResponse {
   picks: ConvictionPick[];
   /** Board order chosen by env BOARD_SORT; absent = evidence score (shared/board-sort.ts). */
   boardSort?: 'score' | 'recency' | 'engine_record' | 'grade';
+  /** NEXUS grade version in force on the server (env GRADE_VERSION). */
+  gradeVersion?: 'g2' | 'v3';
 }
 
 // ─── Tier mapping: band + direction → MOMO-style tier word + tone ───────────

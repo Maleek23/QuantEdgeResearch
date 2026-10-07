@@ -16399,7 +16399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: p.direction,
           convictionScore: p.convictionScore,
           // The one grade (shared/nexus-grade.ts); the client shows only this.
-          nexusGrade: { letter: g.letter, score: g.score, breakdown: gradeBreakdown(g) },
+          nexusGrade: { letter: g.letter, score: g.score, breakdown: gradeBreakdown(g), version: g.version, ...(g.action ? { action: g.action } : {}) },
           holdingPeriod: p.holdingPeriod,
           entryPrice: p.entryPrice,
           currentPrice: p.currentPrice ?? null,

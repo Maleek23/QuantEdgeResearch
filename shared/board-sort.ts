@@ -17,6 +17,7 @@
  * so `recency` is the recommended setting; `engine_record` is offered as the other
  * neutral-ish order and is equally unvalidated.
  */
+import { gradeSortValue } from './nexus-grade';
 
 export type BoardSort = 'score' | 'recency' | 'engine_record' | 'grade';
 
@@ -57,7 +58,7 @@ export interface SortablePick {
   generatedAt?: string | null;
   ideaId?: string;
   /** Stamped in BOARD_SORT=grade (shared/nexus-grade.ts). */
-  nexusGrade?: { score: number } | null;
+  nexusGrade?: { score: number; action?: { state: 'actionable' | 'not_actionable'; rank: number } | null } | null;
 }
 
 const ts = (p: SortablePick) => {
@@ -70,7 +71,7 @@ export function boardComparator(mode: BoardSort): (a: SortablePick, b: SortableP
   const tie = (a: SortablePick, b: SortablePick) => ts(b) - ts(a) || String(a.ideaId ?? '').localeCompare(String(b.ideaId ?? ''));
   if (mode === 'recency') return tie;
   if (mode === 'engine_record') return (a, b) => engineRecordR(b.source) - engineRecordR(a.source) || tie(a, b);
-  if (mode === 'grade') return (a, b) => (b.nexusGrade?.score ?? -1) - (a.nexusGrade?.score ?? -1) || tie(a, b);
+  if (mode === 'grade') return (a, b) => gradeSortValue(b.nexusGrade) - gradeSortValue(a.nexusGrade) || tie(a, b);
   return (a, b) => b.convictionScore - a.convictionScore;
 }
 
