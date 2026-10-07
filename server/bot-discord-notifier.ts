@@ -13,7 +13,8 @@
  *   • equal to any other DISCORD_WEBHOOK_* (or *DISCORD*WEBHOOK*) value → refused, so the
  *     bot can never be pointed at the research / SPX / lotto channels by a copy-paste.
  * Delivery goes through postDiscordWebhook (shared per-channel rate gate + duplicate gate +
- * compliance disclaimer). Deduped per position id and event kind in-process.
+ * compliance disclaimer). Deduped per position id and event kind in the persisted
+ * lifecycle store (server/discord-lifecycle.ts) — survives restarts; gated sends retry.
  * Footer: "Paper trading · educational, not advice".
  */
 import { logger } from './logger';
@@ -96,6 +97,13 @@ export function quoteFromCatalyst(catalyst: string | null | undefined): { source
   const m = /\[INDEX 0DTE · (\w+)( · delayed)?\]/.exec(c) ?? /mark: (\w+)( · delayed)?/.exec(c);
   if (!m) return { source: null, delayed: null, ageSec: null };
   return { source: m[1], delayed: !!m[2], ageSec: null };
+}
+
+/** Exit fill provenance from the bot's close tag "[fill-mid … source=X delayed=true observedAt=…]". */
+export function exitQuoteLine(reason: string | null | undefined): string {
+  const m = /source=(\S+)[^\]]*?delayed=(true|false)/.exec(String(reason ?? ''));
+  if (!m) return 'paper fill · quote source not recorded — treat as delayed';
+  return quoteLine(m[1] === 'unknown' ? null : m[1], m[2] === 'true', null);
 }
 
 export interface BotEntryEvent {
@@ -185,8 +193,9 @@ export function buildExitPayload(e: BotExitEvent): Record<string, unknown> {
         { name: 'Contract', value: contract, inline: true },
         { name: 'Exit', value: `${money(e.entryPremium)} → ${money(e.exitPremium)} × ${e.quantity}`, inline: true },
         { name: 'P&L', value: `${signedPct(pct)} · ${signedMoney(pnl)}`, inline: true },
-        { name: 'Reason', value: `${kind}${e.reason ? ` — ${e.reason}` : ''}`.slice(0, 1000), inline: false },
+        { name: 'Reason', value: `${kind}${e.reason ? ` — ${e.reason.replace(/\s*\[[^\]]*\]/g, '').trim()}` : ''}`.slice(0, 1000), inline: false },
         { name: 'Hold', value: hold, inline: true },
+        { name: 'Exit quote', value: exitQuoteLine(e.reason), inline: true },
       ],
       footer: { text: BOT_NOTIFIER_FOOTER },
       timestamp: new Date(at).toISOString(),
@@ -197,41 +206,49 @@ export function buildExitPayload(e: BotExitEvent): Record<string, unknown> {
 // ─── Delivery ───────────────────────────────────────────────────────────
 
 export type NotifyResult = 'sent' | 'off' | 'refused' | 'duplicate' | 'gated' | 'failed';
-const seen = new Set<string>();
 type Poster = (url: string, init: RequestInit) => Promise<Response>;
-let poster: Poster | null = null;
-/** Test seam: replace the HTTP boundary (postDiscordWebhook). */
-export function __setBotNotifierPosterForTest(p: Poster | null): void { poster = p; seen.clear(); }
+let pendingSeam: Promise<void> | null = null;
+/**
+ * Test seam: replace the HTTP boundary (postDiscordWebhook) and run the shared
+ * dedupe store (server/discord-lifecycle.ts) in memory. null restores production.
+ */
+export function __setBotNotifierPosterForTest(p: Poster | null): void {
+  pendingSeam = import('./discord-lifecycle').then((m) => m.__setLifecycleTestMode(p ? { post: (u, i) => p(u, i) } : null));
+}
 
-async function deliver(key: string, payload: Record<string, unknown>): Promise<NotifyResult> {
+/**
+ * Delivery: one entry and one exit per position id, deduped in the persisted
+ * lifecycle store (survives restarts), sent through postDiscordWebhook (lane
+ * 'labs', shared rate gate + disclaimer). A gated / failed send stays in the
+ * lifecycle outbox and is retried — never re-announced.
+ */
+async function deliver(positionId: string, kind: 'entry' | 'exit', payload: Record<string, unknown>, summary: { label: string; pnl?: number | null; pct?: number | null; reason?: string | null; at?: number }): Promise<NotifyResult> {
   const { url, reason } = resolveBotWebhook();
   if (!url) {
     if (reason && !/unset/.test(reason)) logger.warn(`[BOT-DISCORD] ${reason}`);
     return reason && /refused/.test(reason) ? 'refused' : 'off';
   }
-  if (seen.has(key)) return 'duplicate';
-  seen.add(key);
-  if (seen.size > 2_000) seen.delete(seen.values().next().value as string);
   try {
-    const post: Poster = poster ?? (await import('./discord-service')).postDiscordWebhook;
-    const res = await post(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (res.status === 204) return 'gated'; // suppressed by the shared rate / duplicate gate
-    if (!res.ok) { logger.warn(`[BOT-DISCORD] ${key}: HTTP ${res.status}`); return 'failed'; }
-    return 'sent';
+    if (pendingSeam) await pendingSeam;
+    const { sendBotEvent } = await import('./discord-lifecycle');
+    return await sendBotEvent(url, positionId, kind, payload, summary);
   } catch (e: any) {
-    logger.warn(`[BOT-DISCORD] ${key}: ${e?.message ?? e}`);
+    logger.warn(`[BOT-DISCORD] ${kind}:${positionId}: ${e?.message ?? e}`);
     return 'failed';
   }
 }
 
 export async function notifyBotEntry(e: BotEntryEvent): Promise<NotifyResult> {
   if (!e?.positionId) return 'failed';
-  return deliver(`entry:${e.positionId}`, buildEntryPayload(e));
+  return deliver(e.positionId, 'entry', buildEntryPayload(e), { label: contractLabel(e, e.at ?? Date.now()), at: e.at });
 }
 
 export async function notifyBotExit(e: BotExitEvent): Promise<NotifyResult> {
   if (!e?.positionId) return 'failed';
-  return deliver(`exit:${e.positionId}`, buildExitPayload(e));
+  const mult = e.optionType ? 100 : 1;
+  const pct = e.entryPremium > 0 ? ((e.exitPremium - e.entryPremium) / e.entryPremium) * 100 : null;
+  const pnl = (e.exitPremium - e.entryPremium) * e.quantity * mult;
+  return deliver(e.positionId, 'exit', buildExitPayload(e), { label: contractLabel(e, e.at ?? Date.now()), pnl, pct, reason: e.reason, at: e.at });
 }
 
 // ─── Adapters from the bot's own objects (keep the call sites one line) ─────

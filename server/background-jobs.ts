@@ -296,6 +296,12 @@ export const JOBS: JobDef[] = [
     disabled: () => (process.env.AFTER_STOP_JOB === 'off' ? 'AFTER_STOP_JOB=off' : null),
     start: async ({ log }) => { await (await import('./after-stop-job')).scheduleAfterStopJob(log); },
   },
+  {
+    name: 'discord-lifecycle', role: 'worker', bootDelayMs: 360_000,
+    what: 'QuantEdge Labs Discord: outbox retry for gated card/reply posts every 30 s (local state file, no market data) + weekdays 16:20 ET per-channel recap',
+    disabled: () => (['off', 'false', '0'].includes(String(process.env.DISCORD_LIFECYCLE ?? '').toLowerCase()) ? 'DISCORD_LIFECYCLE=off' : null),
+    start: async ({ log }) => { await (await import('./discord-lifecycle')).scheduleDiscordLifecycle(log); },
+  },
 ];
 
 /** Worker start order: by bootDelayMs (missing = 0), registry order within a tie. */

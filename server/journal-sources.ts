@@ -28,7 +28,7 @@ import {
 import { loadDeskVerifyLedger } from './desk-verify-ledger';
 import {
   journalKindOf, traderOwnerId, traderSlugOf,
-  type JournalKey, type JournalSourceMeta, type DeskVerificationMeta,
+  type JournalKey, type JournalSourceMeta, type DeskVerificationMeta, type JournalExcludedRow,
 } from '@shared/journal-sources';
 
 // ─── Who is asking ───────────────────────────────────────────
@@ -278,29 +278,36 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
 
   const pairs: { idea: DeskIdea; row: JournalWireRow }[] = [];
   const excluded = new Map<string, number>();
+  const excludedRows: JournalExcludedRow[] = [];
   for (const i of ideas) {
     const res = mapDeskIdea(i as DeskIdea);
     if ('row' in res) pairs.push({ idea: i as DeskIdea, row: res.row });
-    else excluded.set(res.excluded, (excluded.get(res.excluded) ?? 0) + 1);
+    else {
+      excluded.set(res.excluded, (excluded.get(res.excluded) ?? 0) + 1);
+      excludedRows.push({ id: `desk:${i.id}`, symbol: i.symbol, entryTime: String(i.timestamp ?? ''), reason: res.excluded });
+    }
   }
-  // Audit 2026-10-06: only verified / integrity-checked P&L is counted by
-  // default; unverified closed rows are listed (meta.verification), or returned
-  // labelled with ?unverified=1.
+  // Audit 2026-10-06: the verified total counts only verified / integrity-checked
+  // P&L. Operator rule 2026-10-07: every called trade is still SHOWN — unverified
+  // closed rows ride along labelled (includeUnverified, the route default);
+  // includeUnverified=false (?unverified=0, the public record) drops them.
   const ledger = loadDeskVerifyLedger();
   const split = verifyDeskRows(pairs, ledger);
   const verification = deskVerificationMeta(split, ledger, includeUnverified);
   const rows = includeUnverified ? [...split.counted, ...split.unverified] : split.counted;
   const u = verification.unverified;
+  excludedRows.sort((a, b) => b.entryTime.localeCompare(a.entryTime));
   return {
     rows,
     meta: {
       basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry once its trigger was hit (untriggered ideas are listed as awaiting entry, with no P&L)`,
       sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. ` +
         (includeUnverified
-          ? `Showing ALL rows including ${u.count} unverified (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) — each labelled. `
+          ? `Every called trade is shown. Net P&L (verified) counts ${ledger ? `bar-verified (ledger ${ledger.asOf.slice(0, 10)}) and ` : ''}integrity-checked rows${u.count ? `; ${u.count} unverified closed row${u.count === 1 ? '' : 's'} (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) are listed with an amber "unverified" chip and shown separately as "incl. unverified"` : ''}. `
           : `Only verified P&L is counted: ${ledger ? `bar-verified by research/verify-nexus-book.ts (ledger ${ledger.asOf.slice(0, 10)}), ` : 'no bar-verification ledger on this server — '}rows passing every integrity check count${u.count ? `; ${u.count} closed row${u.count === 1 ? '' : 's'} (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) are unverified and not counted` : ''}. `) +
         `Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
       excluded: [...excluded.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
+      excludedRows: excludedRows.slice(0, 5000),
       verification,
     },
   };
@@ -327,7 +334,7 @@ export async function loadJournal(j: ResolvedJournal, opts: { includeUnverified?
   }
   if (j.kind === 'desk') {
     const { rows, meta } = await loadDesk(!!opts.includeUnverified);
-    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], verification: meta.verification } };
+    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], excludedRows: meta.excludedRows ?? [], verification: meta.verification } };
   }
   // origin: 'quantedge_idea' for a trade taken from a NEXUS idea ("I took this"), else 'own_idea'.
   const { journalOriginOf } = await import('@shared/desk-admin');

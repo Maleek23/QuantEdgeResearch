@@ -41,6 +41,7 @@
     "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",
     "test:admin-ops": "tsx scripts/test-admin-ops.ts",
     "test:desk-admins": "tsx scripts/test-desk-admins.ts",
+    "test:trader-accounts": "tsx scripts/test-trader-accounts.ts",
     "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:sector-board": "tsx scripts/test-sector-board.ts",
@@ -76,7 +77,8 @@
     "test:liquidity-gate": "tsx scripts/test-liquidity-gate.ts",
     "research:bot-diagnose": "tsx research/bot-diagnose.ts",
     "research:grade-audit": "tsx research/grade-audit.ts",
-    "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts"
+    "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts",
+    "test:discord-lifecycle": "tsx scripts/test-discord-lifecycle.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

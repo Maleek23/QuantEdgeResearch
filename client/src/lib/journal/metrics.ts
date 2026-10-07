@@ -65,6 +65,36 @@ export function toTrade(row: JournalTradeRow): JTrade {
   };
 }
 
+// ─── Unverified rows (NEXUS ideas book, operator rule 2026-10-07) ───
+
+/** A closed row whose recorded P&L failed verification: shown in lists, not in the verified total. */
+export function isUnverifiedTrade(t: Pick<JTrade, 'row'>): boolean {
+  return t.row.verification?.status === 'unverified';
+}
+
+/** Why a row is unverified, one line (the chip's hover text). */
+export function unverifiedReason(row: Pick<JournalTradeRow, 'verification'>): string {
+  const rs = row.verification?.reasons ?? [];
+  return rs.length ? rs.map((r) => r.detail || r.code).join('; ') : 'not verified';
+}
+
+export interface UnverifiedSummary {
+  /** Closed unverified trades in view. */
+  count: number;
+  /** Their recorded P&L (not in the verified total). */
+  netPnl: number;
+}
+
+export function unverifiedSummary(trades: JTrade[]): UnverifiedSummary {
+  let count = 0, netPnl = 0;
+  for (const t of trades) {
+    if (t.status === 'open' || !isUnverifiedTrade(t)) continue;
+    count++;
+    netPnl += Number.isFinite(t.netPnl) ? t.netPnl : 0;
+  }
+  return { count, netPnl };
+}
+
 // ─── Equity & days (from equity.ts) ─────────────────────────
 
 export interface EquityPoint { t: string; cumNetPnl: number; pnl: number; symbol?: string; id?: string }
@@ -77,6 +107,34 @@ export interface DayStats {
   wins: number;
   losses: number;
   breakevens: number;
+  /** Calendar only (withUnverifiedDays): unverified closes that day — listed, not in netPnl. */
+  unverified?: number;
+  unverifiedPnl?: number;
+}
+
+/**
+ * Calendar days with each day's unverified closes attached (count + recorded
+ * P&L), adding days that have ONLY unverified closes so they stay clickable.
+ * netPnl / trades stay verified-only.
+ */
+export function withUnverifiedDays(days: DayStats[], listTrades: JTrade[]): DayStats[] {
+  const extra = new Map<string, { n: number; pnl: number }>();
+  for (const t of closedByCloseTime(listTrades)) {
+    if (!isUnverifiedTrade(t)) continue;
+    const date = journalDayKey(t.closedAt);
+    if (!date) continue;
+    const e = extra.get(date) ?? { n: 0, pnl: 0 };
+    e.n++; e.pnl += t.netPnl;
+    extra.set(date, e);
+  }
+  if (!extra.size) return days;
+  const out = new Map(days.map((d) => [d.date, { ...d }]));
+  for (const [date, e] of extra) {
+    const d = out.get(date) ?? { date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 };
+    d.unverified = e.n; d.unverifiedPnl = e.pnl;
+    out.set(date, d);
+  }
+  return [...out.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 const closedByCloseTime = (trades: JTrade[]) =>
@@ -472,6 +530,7 @@ export function mergeDays(date: string, rows: DayStats[]): DayStats {
     wins: a.wins + d.wins,
     losses: a.losses + d.losses,
     breakevens: a.breakevens + d.breakevens,
+    ...(a.unverified || d.unverified ? { unverified: (a.unverified ?? 0) + (d.unverified ?? 0), unverifiedPnl: (a.unverifiedPnl ?? 0) + (d.unverifiedPnl ?? 0) } : {}),
   }), { date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 });
 }
 
@@ -505,7 +564,7 @@ export function calendarMonth(days: DayStats[], year: number, month: number): Ca
   const weeks: CalendarWeek[] = [];
   for (let i = 0; i < cells.length; i += 7) {
     const wd = cells.slice(i, i + 7);
-    const weekend = wd.slice(5).filter((d): d is DayStats => !!d && d.trades > 0);
+    const weekend = wd.slice(5).filter((d): d is DayStats => !!d && (d.trades > 0 || (d.unverified ?? 0) > 0));
     const weekdays = wd.slice(0, 5);
     // A row with no in-month weekday and no traded weekend day is empty — drop it.
     if (weekdays.every((d) => !d) && !weekend.length) continue;

@@ -10,6 +10,11 @@ import { barrierFill, firstBarrierTouch, formatExitDate, type TimedBar } from "@
 import { barsSinceEntry } from "./lib/exit-time-bars";
 import { logger } from "./logger";
 
+/** Discord lifecycle card events (server/discord-lifecycle.ts). Fire-and-forget; no card → no-op. */
+function discordEvent(fn: (m: typeof import("./discord-lifecycle")) => Promise<unknown>): void {
+  void import("./discord-lifecycle").then(fn).catch(() => {});
+}
+
 /**
  * TRIGGER OBSERVER
  *
@@ -154,6 +159,7 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
         triggerPrice: entry, triggerObservedAt: now.toISOString(), triggerObservedPrice: reached,
       });
       await db.update(tradeIdeas).set({ convergenceSignalsJson: audit as any }).where(eq(tradeIdeas.id, idea.id));
+      discordEvent((m) => m.onIdeaTriggered({ ideaId: idea.id, observedAt: now.toISOString(), observedPrice: reached, triggerPrice: entry, basis: "poll" }));
       observed++;
       continue;
     }
@@ -190,6 +196,7 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
         outcomeNotes: `[lifecycle] invalidated before trigger: ${path.interval ?? "bar"} path touched stop ${stop} before entry ${entry}`,
         convergenceSignalsJson: audit as any,
       }).where(eq(tradeIdeas.id, idea.id));
+      discordEvent((m) => m.onIdeaResolved({ ideaId: idea.id, outcomeStatus: "expired", resolutionReason: "missed_entry_invalidated_before_trigger", exitDate: observedAt, exitTimeSource: "bar_hit", exitPrice: observedPrice }));
       invalidated++;
       continue;
     }
@@ -208,6 +215,7 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     await db.update(tradeIdeas)
       .set({ convergenceSignalsJson: audit as any })
       .where(eq(tradeIdeas.id, idea.id));
+    discordEvent((m) => m.onIdeaTriggered({ ideaId: idea.id, observedAt, observedPrice, triggerPrice: entry, basis: path.interval ?? "bar" }));
     observed++;
   }
 
@@ -433,6 +441,7 @@ export async function expireStaleIdeas(): Promise<number> {
           `${ageDays.toFixed(1)}d ago, past its ${sessions}-session horizon. Never resolved to target or stop.`,
       })
       .where(eq(tradeIdeas.id, idea.id));
+    discordEvent((m) => m.onIdeaResolved({ ideaId: idea.id, outcomeStatus: "expired", resolutionReason: "horizon_expiry", exitDate: new Date(now).toISOString(), exitTimeSource: "deadline" }));
     expired++;
   }
 

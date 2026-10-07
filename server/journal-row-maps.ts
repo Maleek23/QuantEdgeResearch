@@ -185,11 +185,9 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   }
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   const option = i.assetType === 'option';
-  // Operator decision 2026-10-06: a contract exit priced at a LATER tracker pass is
-  // not the outcome-time price (live, not carried) — no journal P&L from it.
-  if (option && resolved && i.exitPremiumBasis === 'pass') {
-    return { excluded: 'option exit premium came from a later tracker pass, not the outcome time' };
-  }
+  // Operator rule 2026-10-07 (supersedes the 2026-10-06 exclusion): never hide a
+  // trade the platform called. A pass-priced contract exit keeps its row and P&L;
+  // verifyDeskRows labels it unverified (exit_premium_pass, shared/desk-integrity.ts).
   const short = planDirection === 'short';
 
   let entry: number, qty: number, exit: number | null = null, pnl: number | null = null, pct: number | null = null;
@@ -364,7 +362,8 @@ export function deskVerificationMeta(res: DeskVerifyResult, ledger: DeskLedger |
   }
   const rows: DeskUnverifiedItem[] = [...res.unverified]
     .sort((a, b) => Math.abs(b.realizedPnL ?? 0) - Math.abs(a.realizedPnL ?? 0))
-    .slice(0, 200)
+    // Every unverified row is listed (operator rule 2026-10-07: nothing silently disappears).
+    .slice(0, 5000)
     .map((r) => ({
       id: r.id, symbol: r.symbol, entryTime: r.entryTime, recordedPnL: r.realizedPnL ?? null,
       recomputedPnL: r.verification?.recomputedPnL ?? null, reasons: r.verification?.reasons ?? [],

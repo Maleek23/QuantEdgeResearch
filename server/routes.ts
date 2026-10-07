@@ -63,6 +63,8 @@ import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPassword } from "./userAuth";
+import { isReservedLoginEmail, resolveLoginIdentifier } from "@shared/trader-accounts";
+import { SETUP_TOKEN_PREFIX } from "./trader-accounts";
 import { randomBytes } from "crypto";
 import { getTierLimits, TierLimits } from "./tierConfig";
 import { tierGateDecision } from "./tier-gate";
@@ -725,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Normalize email to lowercase to prevent duplicate accounts
       const emailLower = normalizeEmail(email);
-      if (!emailLower) {
+      if (!emailLower || isReservedLoginEmail(emailLower)) {
         return res.status(400).json({ error: "Enter a valid email address" });
       }
 
@@ -832,21 +834,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { email, password, rememberMe } = req.body ?? {};
 
       if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
-        return res.status(400).json({ error: "Email and password are required" });
+        return res.status(400).json({ error: "Email (or username) and password are required" });
       }
 
-      // Normalize email to lowercase for consistent lookup
-      const emailLower = email.toLowerCase().trim();
+      // Email (lower-cased, as before) or a username (operator-created trader
+      // accounts, shared/trader-accounts.ts) → the address stored in users.email.
+      // Same limiter, same bcrypt check, same generic answer for both.
+      const emailLower = resolveLoginIdentifier(email);
 
       // No length minimum here (older accounts may have 6-character passwords);
       // the max only bounds bcrypt work.
-      const user = password.length <= 1024 ? await authenticateUser(emailLower, password) : null;
+      const user = emailLower && password.length <= 1024 ? await authenticateUser(emailLower, password) : null;
 
       if (!user) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Invalid email/username or password" });
       }
       if (isAccountDisabled(user)) {
         return res.status(403).json({ error: ACCOUNT_DISABLED_ERROR });
+      }
+      // A temporary password (admin-issued) never opens a session: the right
+      // password only earns the "set your own password" step (/api/auth/first-login).
+      if (user.mustChangePassword) {
+        return res.status(403).json({ error: "Set your own password to finish signing in", mustChangePassword: true });
       }
 
       // Sign in on a NEW session id (session fixation); extend to 30 days if
@@ -912,7 +921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailLower = email.toLowerCase().trim();
       
       // Always return success to prevent email enumeration attacks
-      const user = await getUserByEmail(emailLower);
+      const user = isReservedLoginEmail(emailLower) ? null : await getUserByEmail(emailLower);
       
       if (user) {
         // Invalidate any existing tokens for this user
@@ -946,6 +955,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!token || !password || typeof token !== 'string' || token.length > 256) {
         return res.status(400).json({ error: "Token and new password are required" });
+      }
+      // Trader-account setup rows share this table but store only a hash
+      // ('setup:<sha256>'); that value must never work as a reset token.
+      if (token.startsWith(SETUP_TOKEN_PREFIX)) {
+        return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
       }
       
       const passwordError = validatePassword(password);
@@ -2016,6 +2030,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   { const { registerAdminOpsRoutes } = await import('./admin-ops-routes'); registerAdminOpsRoutes(app, requireAdminJWT); }
   // Desk admins (docs/DESK_ADMINS.md, flag DESK_ADMINS): /api/desk/* (session + own desk) and /api/admin/ops/desks* (admin JWT).
   { const { registerDeskAdminRoutes } = await import('./desk-admin-routes'); registerDeskAdminRoutes(app, requireAdminJWT); }
+  // Trader accounts: the operator creates his traders' logins (setup link or temp password) — docs/DESK_ADMINS.md.
+  { const { registerTraderAccountRoutes } = await import('./trader-accounts-routes'); const { setupLinkLimiters } = await import('./rate-limiter'); registerTraderAccountRoutes(app, requireAdminJWT, { setup: setupLinkLimiters, login: [authLimiter, ...setupLinkLimiters] }); }
 
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
@@ -15611,6 +15627,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registered before /api/quantinum/:symbol so "ai" is never read as a ticker.
   // Flag QUANTINUM_AI=admin (default) | all | off; quota + spend cap inside.
   { const { registerQuantinumAiRoutes } = await import('./quantinum-ai-routes'); registerQuantinumAiRoutes(app, requireBetaAccess, requireAdminJWT); }
+
+  // ── QUANTEDGE LABS DISCORD — lifecycle cards, per-channel on/off (admin) ──
+  // server/discord-lifecycle.ts. Master switch is env DISCORD_LIFECYCLE (default on).
+  app.get('/api/admin/discord-lifecycle', requireAdminJWT, async (_req, res) => {
+    try { res.json((await import('./discord-lifecycle')).lifecycleStatus()); }
+    catch (e: any) { res.status(500).json({ error: e?.message ?? 'status failed' }); }
+  });
+  app.put('/api/admin/discord-lifecycle/channel', requireAdminJWT, async (req, res) => {
+    try {
+      const m = await import('./discord-lifecycle');
+      const ch = String(req.body?.channel ?? '') as import('./discord-lifecycle').LabsChannel;
+      if (!m.LABS_CHANNEL_KEYS.includes(ch)) return res.status(400).json({ error: `channel must be one of ${m.LABS_CHANNEL_KEYS.join(', ')}` });
+      if (typeof req.body?.on !== 'boolean') return res.status(400).json({ error: 'on must be true or false' });
+      m.setChannelEnabled(ch, req.body.on);
+      logger.info(`[DISCORD-LIFECYCLE] admin set ${ch} ${req.body.on ? 'ON' : 'OFF'}`);
+      res.json(m.lifecycleStatus());
+    } catch (e: any) { res.status(500).json({ error: e?.message ?? 'update failed' }); }
+  });
 
   // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
   // The universal search's brain: layer-by-layer evidence with signed points,
@@ -32651,9 +32685,10 @@ Use this checklist before entering any trade:
       const { parseJournalKey } = await import('@shared/journal-sources');
       try {
         const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
-        // NEXUS ideas book: unverified closed rows are left out of the default
-        // book; ?unverified=1 returns them too, each labelled (audit 2026-10-06).
-        const includeUnverified = req.query.unverified === '1' || req.query.unverified === 'true';
+        // NEXUS ideas book: every called trade is shown — unverified closed rows
+        // ride along labelled and are kept out of the verified total (operator
+        // rule 2026-10-07). ?unverified=1 still works; ?unverified=0 drops them.
+        const includeUnverified = !(req.query.unverified === '0' || req.query.unverified === 'false');
         const { rows, meta } = await loadJournal(j, { includeUnverified });
         res.json({ trades: rows, count: rows.length, journal: meta });
       } catch (err) {

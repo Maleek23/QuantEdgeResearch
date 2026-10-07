@@ -2919,6 +2919,12 @@ export class DatabaseStorage implements IStorage {
       }),
     };
     const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
+    // QuantEdge Labs Discord: the publish moment of every idea. The lifecycle module
+    // decides (0DTE: every one; others: NEXUS grade A/B) and dedupes per idea id.
+    // Fire-and-forget — a notification never blocks or fails a publish.
+    if (created && (created as any).status !== 'draft') {
+      void import('./discord-lifecycle').then((m) => m.onIdeaPublished(created as any)).catch(() => {});
+    }
     return created;
   }
 
