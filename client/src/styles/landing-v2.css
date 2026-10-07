@@ -375,3 +375,5 @@
 .lv2.lp .lv2-phone-stage{position:relative;aspect-ratio:390/844;border-radius:38px;overflow:hidden;background:var(--l-bg)}
 .lv2.lp .lv2-phone .dk-badge{top:-13px;bottom:auto;right:50%;transform:translateX(50%);background:var(--l-card)}
 @media (max-width:640px){ .lv2.lp .lv2-phone{width:min(300px,86vw)} .lv2.lp .lv2-phone-stage{aspect-ratio:390/844} }
+
+.lv2.lp .lv2-foot-bot a{display:inline-block;padding:4px 0}

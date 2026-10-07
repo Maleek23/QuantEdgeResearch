@@ -69,13 +69,13 @@ export function ProtectedRoute({
           <div className="text-center">
             <Lock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Account Required
+              Sign in to continue
             </h2>
             <p className="text-muted-foreground mb-4">
-              Create a free account to access this feature
+              QuantEdge is an invite-only beta. Have a code? Create your account. No code yet? Join the waitlist.
             </p>
             <Button onClick={() => setShowWaitlistModal(true)}>
-              Sign Up Free
+              Sign in or join
             </Button>
           </div>
         </div>

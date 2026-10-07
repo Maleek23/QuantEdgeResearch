@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { planGateMessage } from '@/lib/optimistic';
 import { gradeOfLoosePick, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { fmtUsd } from '@/lib/format';
 import { toggleWatch, useWatchlist, watchLabel } from '@/hooks/use-watchlist';
@@ -783,7 +784,9 @@ function NewsSection({ sym, earn, readThroughs }: { sym: string; earn: import('.
           ))}
         </ul>
       ) : (
-        <Empty>{cats.isLoading ? 'Loading news…' : `No ${sym} headlines on file — the news sentry covers a rotating slice, so absence is absence of coverage.`}</Empty>
+        <Empty>{cats.isLoading ? 'Loading news…'
+          : cats.error instanceof Error && cats.error.message === '403' ? planGateMessage('Advanced')
+          : `No ${sym} headlines on file — the news sentry covers a rotating slice, so absence is absence of coverage.`}</Empty>
       )}
       <p className="tk-footnote">Binary events (earnings, FDA, conferences) are counted as risk, never as direction.</p>
     </Section>
