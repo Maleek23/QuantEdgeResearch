@@ -259,6 +259,27 @@ export async function executeTradeIdea(
       }
     }
     
+    // 🛑 NEVER BOTH SIDES OF ONE SYMBOL — across every book this owner holds
+    // (the bot's runs, the lotto books). A long put + long call on MU was open
+    // at once on 2026-10-01: two theses cancelling, double the premium bleed.
+    try {
+      const { oppositeSideHeld, underlyingSide } = await import('@shared/bot-sleeves');
+      const side = underlyingSide(tradeIdea as any);
+      const owner = (portfolio as any).userId as string | undefined;
+      const books = owner ? await storage.getPaperPortfoliosByUser(owner) : [];
+      for (const b of (books?.length ? books : [portfolio])) {
+        const rows = b.id === portfolioId ? existingPositions : await storage.getPaperPositionsByPortfolio(b.id);
+        const clash = oppositeSideHeld(rows as any[], tradeIdea.symbol, side);
+        if (clash) {
+          logger.warn(`🛑 [OPPOSITE-SIDE] Rejecting ${tradeIdea.symbol} ${side} — ${clash.optionType ?? clash.direction} already open in "${b.name}"`);
+          return { success: false, error: `Already holding the opposite side of ${tradeIdea.symbol} (${clash.optionType ?? clash.direction} in ${b.name})` };
+        }
+      }
+    } catch (err) {
+      logger.warn('[PAPER] opposite-side check failed — refusing the fill', { error: err });
+      return { success: false, error: 'opposite-side check unavailable' };
+    }
+
     if (symbolPositions.length > 0) {
       // 🛑 ONE POSITION PER SYMBOL - Block any new trades on same underlying
       if (ONE_POSITION_PER_SYMBOL && tradeIdea.assetType === 'option') {
@@ -750,12 +771,13 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
   }
 }
 
-export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPosition[]> {
+export async function checkStopsAndTargets(portfolioId: string, opts?: { skipIds?: ReadonlySet<string> }): Promise<PaperPosition[]> {
   const closedPositions: PaperPosition[] = [];
   
   try {
     const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
-    const openPositions = positions.filter(p => p.status === 'open');
+    // skipIds: rows the caller manages with its own bracket (the bot's 0DTE sleeve).
+    const openPositions = positions.filter(p => p.status === 'open' && !opts?.skipIds?.has(p.id));
     
     // Check if market is open for options - needed for valid price-based closures
     const marketStatus = isOptionsMarketOpen();

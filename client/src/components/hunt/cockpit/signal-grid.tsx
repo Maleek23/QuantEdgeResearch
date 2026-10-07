@@ -77,10 +77,11 @@ export function SignalGrid({
   const wl = useWatchlist();
 
   const botVerdict = (p: ConvictionPick, px: number, pending: boolean): string => {
-    const floor = bot?.config?.minConviction ?? 18;
+    const minGrade = Number(bot?.sleeves?.swing?.minGrade ?? 65);
     const maxProg = bot?.config?.maxProgressPct ?? 35;
     if (held.has(p.symbol)) return 'held by Quantinum Bot ✓';
-    if ((p.convictionScore ?? 0) < floor) return `below bot floor (${p.convictionScore} < ${floor})`;
+    const g = gradeOfPick({ ...p, currentPrice: px });
+    if (g.score < minGrade) return `below the swing sleeve's grade floor (${formatNexusGrade(g)} < ${minGrade})`;
     if (pending) return 'pending trigger — bot won\'t front-run its own entry';
     if (p.direction === 'long' ? px <= (p.stopLoss ?? 0) : px >= (p.stopLoss ?? Infinity)) return 'invalidated — stop already traded';
     const span = p.direction === 'long' ? (p.targetPrice ?? 0) - (p.entryPrice ?? 0) : (p.entryPrice ?? 0) - (p.targetPrice ?? 0);

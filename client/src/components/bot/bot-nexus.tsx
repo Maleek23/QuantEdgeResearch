@@ -431,9 +431,22 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 <span>P&L <b style={{ color: activeRun.totalValue - activeRun.startingCapital >= 0 ? `var(--green)` : `var(--red)` }}>{fmtMoney(activeRun.totalValue - activeRun.startingCapital)} ({(((activeRun.totalValue - activeRun.startingCapital) / activeRun.startingCapital) * 100).toFixed(2)}%)</b></span>
               </>
             ) : <span>—</span>}
-            <span>floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
-            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin}) · ${book.lastCycle.opened} opened · ${book.lastCycle.skipped} skipped` : 'none in this process'}</span>
+            {book?.sleeves
+              ? <span title="Two sleeves, separate capacity: 0DTE/1DTE index + mega-cap (09:35–11:30 ET, −40% / +50% breakeven / +100%, flat 15:45) and swing (top NEXUS grade)">0DTE {book.sleeves['0dte']?.held ?? 0}/{book.sleeves['0dte']?.max ?? '—'} · swing {book.sleeves.swing?.held ?? 0}/{book.sleeves.swing?.max ?? '—'} · swing min grade {String(book.sleeves.swing?.minGrade ?? '—')}</span>
+              : <span>max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>}
+            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin}${book.lastCycle.role ? ` · ROLE=${book.lastCycle.role}` : ''}) · ${book.lastCycle.opened} opened · ${book.lastCycle.skipped ?? 0} skipped${book.lastCycle.error ? ` · ${book.lastCycle.error}` : ''}` : 'none seen'}</span>
           </div>
+          {book?.lastCycle?.skipSummary && book.lastCycle.skipSummary.total > 0 && (
+            <div className="book-meta" style={{ padding: '4px 0 0', flexWrap: 'wrap' }} aria-label="Why the last cycle skipped candidates">
+              <span style={{ color: 'var(--text-mute)' }}>skips by reason:</span>
+              {Object.entries(book.lastCycle.skipSummary.byReason).sort((a, b) => b[1] - a[1]).map(([code, n]) => (
+                <span key={code} title={Object.entries(book.lastCycle!.skipSummary!.bySleeve).map(([s, m]) => m[code] ? `${s} ${m[code]}` : '').filter(Boolean).join(' · ')}>{code.replaceAll('_', ' ')} <b>{n}</b></span>
+              ))}
+              {book.lastCycle.skipSummary.top.length > 0 && (
+                <span style={{ width: '100%', color: 'var(--text-dim)' }}>best refused: {book.lastCycle.skipSummary.top.map((t) => `${t.symbol} (${t.sleeve}) ${t.code.replaceAll('_', ' ')} — ${t.reason}`).join(' | ')}</span>
+              )}
+            </div>
+          )}
         </div>
         {openByRun.map(({ r, pos }) => (
           <div key={r.id}>
@@ -494,7 +507,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               );
             })}
             {pos.length === 0 && r.active && (
-              <div className="book-empty">Flat — {r.label} holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
+              <div className="book-empty">Flat — {r.label} holds nothing. 0DTE sleeve: index/mega-cap 0–2 DTE ideas 09:35–11:30 ET; swing sleeve: top NEXUS grade (≥ {String(book?.sleeves?.swing?.minGrade ?? '—')}). See "skips by reason" above for why nothing filled.</div>
             )}
           </div>
         ))}

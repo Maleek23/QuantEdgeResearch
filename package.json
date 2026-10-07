@@ -57,6 +57,8 @@
     "test:spx-mirror": "tsx scripts/test-spx-mirror.ts",
     "test:track-record": "tsx scripts/test-track-record.ts",
     "test:nexus-grade": "tsx scripts/test-nexus-grade.ts",
+    "test:bot-sleeves": "tsx scripts/test-bot-sleeves.ts",
+    "research:bot-diagnose": "tsx research/bot-diagnose.ts",
     "research:grade-audit": "tsx research/grade-audit.ts"
   },
   "dependencies": {
