@@ -16,9 +16,18 @@ import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 import { RETURN_TO_PARAM, clearStashedReturnTo, readReturnTo, stashReturnTo } from "@/lib/return-to";
 import { ThemePicker } from "@/components/landing/theme-picker";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, PASSWORD_RULE_TEXT, validatePassword } from "@shared/password-policy";
 
+/** The login answer for a temporary (admin-issued) password: no session until the trader sets their own. */
+function isMustChange(err: unknown): boolean {
+  const m = (err instanceof Error ? err.message : '').match(/^403: ([\s\S]*)$/);
+  if (!m) return false;
+  try { return JSON.parse(m[1])?.mustChangePassword === true; } catch { return false; }
+}
+
+// One field: an email, or the username an admin gave you (trader accounts — shared/trader-accounts.ts).
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
+  email: z.string().trim().min(2, "Enter your email or username").max(254),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -32,6 +41,10 @@ export default function Login() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  // Temp-password first sign-in: the typed login + temp password, held only in memory until the change.
+  const [mustChange, setMustChange] = useState<{ login: string; password: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   // Deep link the visitor was sent here from (sanitised: same-origin relative paths only).
   const [returnTo] = useState(() => (typeof window === "undefined" ? null : readReturnTo(window.location.search)));
   const landing = returnTo ?? "/t";
@@ -95,7 +108,12 @@ export default function Login() {
       clearStashedReturnTo();
       setTimeout(() => setLocation(landing), 100);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, vars: LoginFormData) => {
+      if (isMustChange(error)) {
+        setMustChange({ login: vars.email, password: vars.password });
+        form.setValue("password", "");
+        return;
+      }
       toast({
         title: "Login failed",
         description: reasonOf(error),
@@ -103,6 +121,34 @@ export default function Login() {
       });
     },
   });
+
+  const firstLoginMutation = useMutation({
+    mutationFn: async () => {
+      if (!mustChange) throw new Error("Sign in again");
+      const response = await apiRequest("POST", "/api/auth/first-login", { login: mustChange.login, password: mustChange.password, newPassword });
+      return response.json() as Promise<{ redirect?: string }>;
+    },
+    onSuccess: async (data) => {
+      setMustChange(null); setNewPassword(""); setConfirmPassword("");
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "Password set", description: "You're signed in." });
+      clearStashedReturnTo();
+      setTimeout(() => setLocation(data?.redirect === "/desk" ? "/desk" : landing), 100);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Not changed", description: reasonOf(error), variant: "destructive" });
+    },
+  });
+
+  const submitNewPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validatePassword(newPassword);
+    if (err) { toast({ title: "Password not accepted", description: `${err}.`, variant: "destructive" }); return; }
+    if (newPassword !== confirmPassword) { toast({ title: "Passwords don't match", variant: "destructive" }); return; }
+    if (mustChange && newPassword === mustChange.password) { toast({ title: "Choose a new password", description: "Not the temporary one.", variant: "destructive" }); return; }
+    firstLoginMutation.mutate();
+  };
 
   const onSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data);
@@ -249,11 +295,34 @@ export default function Login() {
               <div className="w-full border-t border-gray-200 dark:border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-background px-3 text-muted-foreground dark:text-muted-foreground">or continue with email</span>
+              <span className="bg-background px-3 text-muted-foreground dark:text-muted-foreground">or continue with email or username</span>
             </div>
           </div>
 
-          {/* Email/Password Form */}
+          {mustChange ? (
+            <form onSubmit={submitNewPassword} className="space-y-4" data-testid="form-first-login">
+              <div className="p-4 rounded-lg bg-white dark:bg-card border border-gray-200 dark:border-border">
+                <p className="text-sm text-foreground font-medium">Set your own password</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You signed in as <b>{mustChange.login}</b> with a temporary password. Choose your own to finish — the temporary one stops working. {PASSWORD_RULE_TEXT}
+                </p>
+              </div>
+              <Input type="password" placeholder="New password" aria-label="New password" autoComplete="new-password"
+                value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH}
+                className="h-11 bg-white dark:bg-card border-gray-200 dark:border-border" data-testid="input-first-new-password" />
+              <Input type="password" placeholder="Confirm new password" aria-label="Confirm new password" autoComplete="new-password"
+                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH}
+                className="h-11 bg-white dark:bg-card border-gray-200 dark:border-border" data-testid="input-first-confirm-password" />
+              <Button type="submit" className="w-full h-11 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 font-medium" disabled={firstLoginMutation.isPending}>
+                {firstLoginMutation.isPending ? "Saving..." : "Set password and sign in"}
+              </Button>
+              <button type="button" className="text-xs text-muted-foreground hover:text-foreground w-full min-h-11"
+                onClick={() => { setMustChange(null); setNewPassword(""); setConfirmPassword(""); }}>
+                Back to sign in
+              </button>
+            </form>
+          ) : (
+          // Email/Password Form
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -265,10 +334,13 @@ export default function Login() {
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
                         <Input
-                          type="email"
-                          placeholder="Email address"
-                          aria-label="Email address"
-                          autoComplete="email"
+                          type="text"
+                          inputMode="email"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          placeholder="Email or username"
+                          aria-label="Email or username"
+                          autoComplete="username"
                           className="h-11 pl-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:border-gray-300 dark:focus:border-border focus:ring-0"
                           {...field}
                         />
@@ -327,6 +399,7 @@ export default function Login() {
               </Button>
             </form>
           </Form>
+          )}
 
           {/* Waitlist CTA */}
           <div className="mt-8 text-center">

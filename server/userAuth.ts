@@ -3,6 +3,7 @@ import { db } from './db';
 import { users, type User } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from './logger';
+import { passwordState, verifiableHashOf } from './trader-accounts';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -10,9 +11,21 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+/**
+ * Checks a password against users.password_hash. Understands the trader-account
+ * states (server/trader-accounts.ts): 'mustchange$<bcrypt>' verifies against its
+ * bcrypt part; 'pending$…' (no password set yet) and anything else non-bcrypt
+ * never verifies.
+ */
+export async function verifyPassword(password: string, hash: string | null | undefined): Promise<boolean> {
+  const real = verifiableHashOf(hash);
+  if (!real) return false;
+  return bcrypt.compare(password, real);
 }
+
+/** Spent on unknown accounts too, so response time does not say whether an account exists. */
+let timingDummyHash: Promise<string> | null = null;
+const timingDummy = () => (timingDummyHash ??= bcrypt.hash('timing-dummy', BCRYPT_ROUNDS));
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   const [user] = await db.select().from(users).where(eq(users.email, email));
@@ -58,10 +71,11 @@ export async function createUser(
 export async function authenticateUser(
   email: string,
   password: string
-): Promise<Omit<User, 'passwordHash'> | null> {
+): Promise<(Omit<User, 'passwordHash'> & { mustChangePassword: boolean }) | null> {
   try {
     const user = await getUserByEmail(email);
-    if (!user || !user.passwordHash) {
+    if (!user || !verifiableHashOf(user.passwordHash)) {
+      await timingDummy().then((h) => bcrypt.compare(password, h)).catch(() => false);
       return null;
     }
 
@@ -72,8 +86,9 @@ export async function authenticateUser(
 
     logger.info('User authenticated successfully', { userId: user.id, email });
 
+    const mustChangePassword = passwordState(user.passwordHash) === 'must_change';
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as Omit<User, 'passwordHash'>;
+    return { ...(userWithoutPassword as Omit<User, 'passwordHash'>), mustChangePassword };
   } catch (error) {
     logger.error('Error authenticating user', { error, email });
     return null;
