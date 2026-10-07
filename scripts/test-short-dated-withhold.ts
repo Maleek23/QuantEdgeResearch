@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import { readLiquidityConfig, type StrikeRow } from '../shared/option-liquidity';
 import { decideIdeaLiquidity, applyLiquidityGate, type GateChain } from '../server/lib/liquidity-gate';
-import { shortDatedReason, isShortDatedOptionIdea, SHORT_DATED_WITHHELD_CODE } from '../shared/short-dated-option';
+import { shortDatedReason, isShortDatedOptionIdea, sameDayContractMissing, SHORT_DATED_WITHHELD_CODE } from '../shared/short-dated-option';
 import { planFor } from '../server/zero-dte-flow-core';
 
 let n = 0;
@@ -95,6 +95,24 @@ async function main() {
     const s = { vwap: 100.0, orMid: 99.5, orHigh: 101, orLow: 99, last: 101, heldBars: 3, ok: true } as any;
     const p = planFor('long', 101, 1.0, 0.5, s, null); // premium stop ≈ 100.2, VWAP 100.0 is farther
     assert.equal(p.ideaStopUnderlying, 100.0); assert.equal(p.ideaStopBasis, 'VWAP');
+  });
+
+  await t('final write guard: same-day engine ideas without a concrete contract are withheld (AMZN / GOOGL / MSFT 2026-10-07)', () => {
+    // GOOGL / MSFT 09:56 / 09:58: converted to short stock
+    assert.match(String(sameDayContractMissing({ ...googl, assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null }, AT)), /option or nothing/);
+    assert.match(String(sameDayContractMissing({ ...googl, symbol: 'MSFT', assetType: 'stock' }, AT)), /zero_dte_flow/);
+    // AMZN 09:52: option with no strike
+    assert.match(String(sameDayContractMissing({ ...googl, symbol: 'AMZN', strikePrice: null }, AT)), /no strike/);
+    assert.match(String(sameDayContractMissing({ ...googl, optionType: null }, AT)), /call\/put/);
+    assert.equal(sameDayContractMissing(googl, AT), null, 'a full contract passes');
+    assert.equal(sameDayContractMissing({ source: 'quant', assetType: 'stock' }, AT), null, 'other engines untouched');
+    assert.match(String(sameDayContractMissing({ source: 'gex_scanner', dataSourceUsed: 'GEX_index_scalp_A_x', assetType: 'stock' }, AT)), /index scalp/);
+  });
+
+  await t('0DTE desk 2–4 day swings (30–60 DTE) are not same-day by source', () => {
+    assert.equal(shortDatedReason({ source: 'zero_dte_desk', dataSourceUsed: 'zero_dte_desk_swing', expiryDate: '2026-11-20' }, AT), null);
+    assert.equal(sameDayContractMissing({ source: 'zero_dte_desk', dataSourceUsed: 'zero_dte_desk_swing', assetType: 'stock' }, AT), null);
+    assert.ok(isShortDatedOptionIdea({ source: 'zero_dte_desk', dataSourceUsed: 'zero_dte_desk_A' }, AT));
   });
 
   console.log(`test-short-dated-withhold: ${n} passed`);

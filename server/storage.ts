@@ -224,7 +224,7 @@ import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrent
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
-import { shortDatedReason, SHORT_DATED_WITHHELD_CODE } from "@shared/short-dated-option";
+import { shortDatedReason, sameDayContractMissing, SHORT_DATED_WITHHELD_CODE } from "@shared/short-dated-option";
 import { checkIdeaPriceScale, usesEquityQuote } from "@shared/idea-price-scale";
 import { logger } from "./logger";
 
@@ -2866,6 +2866,17 @@ export class DatabaseStorage implements IStorage {
       if (liq.action === "stepped") {
         const v3 = validateTradeIdeaForCreate(idea);
         if (!v3.ok) throw new Error(`Invalid trade idea after liquidity step: ${v3.reason}`);
+      }
+    }
+
+    // 0DTE never becomes shares (shared/short-dated-option.ts): a same-day
+    // engine idea that reaches this point without a concrete option contract
+    // (converted, or published without a strike) is withheld, reason logged.
+    if (!["manual", "user"].includes(String(src).toLowerCase()) && (idea as any).status !== "draft" && (idea as any).sessionContext !== "backfill") {
+      const missing = sameDayContractMissing(idea as any, Date.now());
+      if (missing) {
+        logger.warn(`[0DTE-GUARD] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${missing}`);
+        throw new Error(`Withheld trade idea: ${SHORT_DATED_WITHHELD_CODE}: ${missing}`);
       }
     }
 

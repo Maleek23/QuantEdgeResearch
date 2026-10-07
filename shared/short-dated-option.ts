@@ -41,7 +41,8 @@ export interface ShortDatedLike {
 export function shortDatedReason(idea: ShortDatedLike, nowMs: number): string | null {
   const src = String(idea.source ?? '').toLowerCase();
   const dsu = String(idea.dataSourceUsed ?? '');
-  if (SHORT_DATED_SOURCES.has(src)) return `source ${src}`;
+  // The 0DTE desk's 2–4 day swing ideas ride 30–60 DTE contracts — not same-day by source.
+  if (SHORT_DATED_SOURCES.has(src) && !/_swing$/.test(dsu)) return `source ${src}`;
   if (dsu.startsWith('GEX_index_scalp_')) return 'index scalp';
   if (/open_drive/i.test(dsu)) return 'open drive';
   if (String(idea.expiryTier ?? '').toUpperCase() === '0DTE') return '0DTE tier';
@@ -54,4 +55,24 @@ export function shortDatedReason(idea: ShortDatedLike, nowMs: number): string | 
 
 export function isShortDatedOptionIdea(idea: ShortDatedLike, nowMs: number): boolean {
   return shortDatedReason(idea, nowMs) != null;
+}
+
+/**
+ * The last check before an automated idea is written: a same-day engine idea
+ * (by source, not by expiry) must carry a concrete contract — option, call/put,
+ * strike, expiry. AMZN zero_dte_flow 2026-10-07 09:52 was published with no
+ * strike; GOOGL / MSFT 09:56 / 09:58 as short stock. Returns the reason to
+ * withhold, or null when the idea may be written.
+ */
+export function sameDayContractMissing(idea: ShortDatedLike & {
+  assetType?: string | null; optionType?: string | null; strikePrice?: number | null;
+}, nowMs: number): string | null {
+  const sd = shortDatedReason({ source: idea.source, dataSourceUsed: idea.dataSourceUsed }, nowMs);
+  if (!sd) return null;
+  if (String(idea.assetType ?? '') !== 'option') return `${sd}: published as ${idea.assetType ?? 'unknown'} — a same-day engine idea is an option or nothing`;
+  const t = String(idea.optionType ?? '').toLowerCase();
+  if (t !== 'call' && t !== 'put') return `${sd}: no call/put on the contract`;
+  if (!(Number(idea.strikePrice) > 0)) return `${sd}: no strike on the contract`;
+  if (!idea.expiryDate) return `${sd}: no expiry on the contract`;
+  return null;
 }
