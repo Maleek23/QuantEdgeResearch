@@ -2696,10 +2696,11 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .landing .lsig-level .v.rr{color:var(--cyan-bright)}
 .landing .rot-map{height:260px;position:relative;background:linear-gradient(rgba(59,140,255,0.05) 1px, transparent 1px),linear-gradient(90deg, rgba(59,140,255,0.05) 1px, transparent 1px);background-size:25% 25%;border-radius:6px;overflow:hidden}
 .landing .rot-label{position:absolute;font-size:var(--fs-9);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;pointer-events:none;font-family:'JetBrains Mono',monospace}
-.landing .rot-label.tl{top:10px;left:12px;color:var(--green)}
-.landing .rot-label.tr{top:10px;right:12px;color:var(--cyan)}
-.landing .rot-label.bl{bottom:24px;left:12px;color:var(--amber)}
-.landing .rot-label.br{bottom:24px;right:12px;color:var(--red)}
+/* quadrant label colours = the dot colours (live-widgets RotQuad): TR leading · TL improving · BR weakening · BL lagging */
+.landing .rot-label.tl{top:10px;left:12px;color:var(--cyan)}
+.landing .rot-label.tr{top:10px;right:12px;color:var(--green)}
+.landing .rot-label.bl{bottom:24px;left:12px;color:var(--red)}
+.landing .rot-label.br{bottom:24px;right:12px;color:var(--amber)}
 .landing .rot-axis{position:absolute;font-family:'JetBrains Mono',monospace;font-size:var(--fs-9);color:var(--text-mute);letter-spacing:1px;text-transform:uppercase;pointer-events:none}
 .landing .rot-axis.x{bottom:6px;left:50%;transform:translateX(-50%)}
 .landing .rot-axis.y{top:50%;left:6px;transform:translateY(-50%) rotate(-90deg);transform-origin:left center}

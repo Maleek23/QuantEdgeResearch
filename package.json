@@ -46,7 +46,8 @@
     "db:push": "drizzle-kit push",
     "test:consistency": "tsx scripts/test-consistency.ts",
     "check:consistency": "tsx research/consistency-check.ts",
-    "test:chart": "tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts",
+    "test:chart": "tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts && tsx scripts/test-spx-chart.ts",
+    "test:spx-chart": "tsx scripts/test-spx-chart.ts",
     "test:publish-gates": "tsx scripts/test-publish-gates.ts",
     "test:setup-lifecycle": "tsx scripts/test-setup-lifecycle.ts",
     "test:exit-policy": "tsx scripts/test-exit-policy.ts",
@@ -57,7 +58,8 @@
     "test:spx-mirror": "tsx scripts/test-spx-mirror.ts",
     "test:track-record": "tsx scripts/test-track-record.ts",
     "test:nexus-grade": "tsx scripts/test-nexus-grade.ts",
-    "research:grade-audit": "tsx research/grade-audit.ts"
+    "research:grade-audit": "tsx research/grade-audit.ts",
+    "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

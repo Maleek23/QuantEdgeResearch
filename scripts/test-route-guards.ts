@@ -20,6 +20,9 @@ const op: Array<[string, string]> = [
   ['POST', '/api/chart-analysis/send-to-discord'], ['POST', '/api/btc/push-all'],
   ['POST', '/api/ml/retraining/update-outcome'], ['POST', '/api/ai/chat'], ['GET', '/api/ai/chat/history'],
   ['DELETE', '/api/ai/chat/history'], ['POST', '/api/quant/generate-ideas'], ['POST', '/api/market-data'],
+  // Audit 2026-10-01 P0 #1/#2: Validate All + manual Discord shares.
+  ['POST', '/api/performance/validate'], ['POST', '/api/trade-ideas/abc/share-discord'],
+  ['POST', '/api/trade-ideas/abc/share-discord-card'],
   ['POST', '/api/futures-research/generate/ES'], ['POST', '/api/futures-research/generate-all'],
   ['POST', '/api/gex-scanner/run'], ['POST', '/api/detection/run'], ['DELETE', '/api/detection/alert/NVDA'],
   // Express routing is case-insensitive and ignores a trailing slash — so must the guard be.
@@ -46,7 +49,7 @@ const open: Array<[string, string]> = [
   ['GET', '/api/health'], ['POST', '/api/auth/login'], ['GET', '/api/public/showcase'],
   ['GET', '/api/trade-ideas/best-setups'], ['GET', '/api/trade-ideas/news'], ['GET', '/api/trade-ideas'],
   ['GET', '/api/alerts/level'], ['GET', '/api/annual-watchlist'], ['GET', '/api/performance/stats'],
-  ['GET', '/api/gex-scanner/latest'], ['POST', '/api/trade-ideas/abc/share-discord'],
+  ['GET', '/api/gex-scanner/latest'],
   ['POST', '/api/executorx'], ['GET', '/api/alpacas'],
 ];
 for (const [m, p] of open) assert.equal(guardFor(m, p), null, `${m} ${p} is not in the guard table`);

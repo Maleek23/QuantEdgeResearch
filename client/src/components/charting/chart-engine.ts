@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
 import { modeVersion } from '@/lib/visual-mode';
+import { canonicalChartSymbol } from '@shared/index-symbols';
 
 /* ────────────────────────────────────────────────────────────────
    DATA
@@ -19,8 +20,22 @@ export interface Candle {
   time: number; open: number; high: number; low: number; close: number; volume: number;
   /** Set by useCandles when a bad-tick wick was clamped on that side. */
   clampedLow?: boolean; clampedHigh?: boolean;
+  /** Not the symbol's own print: a cash index's out-of-RTH bar drawn from its
+   *  future (shared/index-symbols.ts buildFutureProxyBars). */
+  proxy?: boolean;
 }
-interface HistoryResponse { symbol: string; range: string; data: Candle[] }
+/** What the history feed says about its own bars (cash indices: volume proxy,
+ *  session, the future-scaled extended-hours bars). Absent for equities. */
+export interface SeriesMeta {
+  volume?: { source: string; proxy: boolean; note: string | null };
+  session?: { kind: 'equity' | 'index-rth' | 'index-own-extended'; note: string | null };
+  extended?: null | { source: string; basis: string; lastAt: string | null; note: string; count: number };
+}
+interface HistoryResponse {
+  symbol: string; range: string; data: Candle[];
+  volume?: SeriesMeta['volume']; session?: SeriesMeta['session'];
+  extended?: null | { bars: Candle[]; source: string; basis: string; lastAt: string | null; note: string };
+}
 export interface EHQuote { symbol: string; lastPrice: number; changePct: number }
 export interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
 
@@ -53,7 +68,12 @@ const WICK_TOLERANCE: Record<string, number> = {
   '1m': 0.015, '5m': 0.02, '15m': 0.02, '30m': 0.025, '1h': 0.03, '4h': 0.05, '1D': 0.12, '1W': 0.2,
 };
 
-export interface CandleSeries { bars: Candle[]; clampedWicks: number }
+export interface CandleSeries {
+  bars: Candle[]; clampedWicks: number;
+  /** Cash index only: pre/post/overnight proxy bars (ms times, proxy: true). */
+  extBars?: Candle[];
+  meta?: SeriesMeta;
+}
 
 /**
  * Render bounds for a candle after source-anomaly quarantine.
@@ -90,13 +110,15 @@ export function aggregateCandles(bars: Candle[], minutes: number): Candle[] {
 
 /** `enabled=false` (a chart scrolled off-screen) keeps whatever is cached but
  *  stops the 2-min history refetch until the chart is back in view. */
-export function useCandles(symbol: string, tf: string, enabled = true) {
+export function useCandles(rawSymbol: string, tf: string, enabled = true) {
+  // $SPX / ^GSPC / SPXW → SPX: one cache entry, one name the server knows.
+  const symbol = rawSymbol ? canonicalChartSymbol(rawSymbol) : rawSymbol;
   const cfg = TF_CONFIG[tf];
   const tol = WICK_TOLERANCE[tf] ?? 0.05;
   return useQuery<CandleSeries>({
     queryKey: ['/api/historical-prices', symbol, cfg.range, cfg.interval, 'chartlab'],
     queryFn: async () => {
-      const r = await fetch(`/api/historical-prices/${symbol}?range=${cfg.range}&interval=${cfg.interval}`, { credentials: 'include' });
+      const r = await fetch(`/api/historical-prices/${encodeURIComponent(symbol)}?range=${cfg.range}&interval=${cfg.interval}`, { credentials: 'include' });
       if (!r.ok) throw new Error('history failed');
       const body: HistoryResponse & { error?: string } = await r.json();
       let clampedWicks = 0;
@@ -129,7 +151,19 @@ export function useCandles(symbol: string, tf: string, enabled = true) {
         return { ...c, clampedLow, clampedHigh };
       });
       if (bars.length < 2) throw new Error(body.error ?? 'history empty');
-      return { bars, clampedWicks };
+      const ext = body.extended;
+      const extBars = ext?.bars?.length && !cfg.aggregateMinutes
+        ? ext.bars
+          .filter((c) => [c.open, c.high, c.low, c.close].every((v) => Number.isFinite(v) && v > 0))
+          .map((c) => ({ ...c, time: c.time < 10_000_000_000 ? c.time * 1000 : c.time, volume: 0, proxy: true }))
+        : undefined;
+      const meta: SeriesMeta | undefined = body.volume || body.session || ext
+        ? {
+          volume: body.volume, session: body.session,
+          extended: ext ? { source: ext.source, basis: ext.basis, lastAt: ext.lastAt, note: ext.note, count: ext.bars?.length ?? 0 } : null,
+        }
+        : undefined;
+      return { bars, clampedWicks, extBars, meta };
     },
     staleTime: 60_000,
     refetchInterval: enabled ? CANDLES_POLL_MS : false,

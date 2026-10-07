@@ -15,6 +15,7 @@ import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
+import { integrityCheckValues, sampleTradeClass, type IntegrityCheckWire } from "@/lib/integrity-checks";
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -69,13 +70,7 @@ interface PerformanceStats {
   bySignalType: Array<{ signal: string; totalIdeas: number; wonIdeas: number; lostIdeas: number; winRate: number; avgPercentGain: number; }>;
 }
 
-interface DataIntegrityCheck {
-  checkName: string;
-  status: 'pass' | 'fail' | 'warning';
-  expected: number;
-  actual: number;
-  details?: string;
-}
+type DataIntegrityCheck = IntegrityCheckWire;
 
 // ============================================================
 // DATA INTEGRITY PANEL - SQL-backed verification
@@ -90,8 +85,8 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       outcomeStatus: string;
       percentGain: number | null;
       source: string;
-      isWin: boolean;
-      isRealLoss: boolean;
+      countedAsWin?: boolean;
+      countedAsLoss?: boolean;
     }>;
     methodology: {
       winDefinition: string;
@@ -172,7 +167,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                     <span>{check.checkName}</span>
                   </div>
                   <span className="font-mono text-muted-foreground">
-                    {check.actual} / {check.expected}
+                    {integrityCheckValues(check)}
                   </span>
                 </div>
               ))}
@@ -217,9 +212,9 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                         {trade.percentGain !== null ? `${safeToFixed(trade.percentGain, 1)}%` : '—'}
                       </td>
                       <td className="py-1.5 px-2 text-center">
-                        {trade.isWin ? (
+                        {sampleTradeClass(trade) === 'WIN' ? (
                           <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] text-[10px]">WIN</Badge>
-                        ) : trade.isRealLoss ? (
+                        ) : sampleTradeClass(trade) === 'LOSS' ? (
                           <Badge className="bg-red-500/20 text-[var(--trade-bearish)] text-[10px]">LOSS</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px]">EXCL</Badge>
@@ -262,6 +257,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
 export default function PerformancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const isOperator = !!((user as any)?.isAdmin || (user as any)?.subscriptionTier === 'admin');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [dateRange, setDateRange] = useState("all");
   const [engineFilter, setEngineFilter] = useState<string>("all");
@@ -303,7 +299,11 @@ export default function PerformancePage() {
       setValidationResults(result.results || []);
       setValidationSummary({ validated: result.validated, updated: result.updated });
       setShowValidationDialog(true);
-      toast({ title: "Validation complete", description: `Validated ${result.validated} ideas, updated ${result.updated}` });
+      // Dry run (server default): live quotes only, nothing is written.
+      toast({
+        title: result.dryRun ? "Dry run complete — nothing written" : "Validation complete",
+        description: `Checked ${result.validated} ideas on live quotes · ${result.wouldUpdate ?? result.updated} would resolve · ${result.skipped ?? 0} skipped (no live quote)`,
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/track-record'] });
     } catch (error) {
@@ -600,10 +600,13 @@ export default function PerformancePage() {
               <TabsContent value="audit" className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium">Data Integrity Audit</h3>
-                  <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
-                    <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
-                    Validate All
-                  </Button>
+                  {/* Operator-only, live quotes, dry run (server/performance-validate-live.ts). */}
+                  {isOperator && (
+                    <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
+                      <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
+                      Check vs live quotes (dry run)
+                    </Button>
+                  )}
                 </div>
                 {stats ? <DataIntegrityPanel stats={stats} /> : <Skeleton className="h-32" />}
               </TabsContent>

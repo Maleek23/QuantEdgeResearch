@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
 import { fmtAge } from '@/components/gex/gex-colors';
 import type { TerminalData } from '@/components/gex/gex-model';
+import type { LevelMapPayload } from './chart-levels';
 
 export interface FlowPrint {
   time: number; optionType: 'call' | 'put'; strike: number; expiry: string;
@@ -22,7 +23,7 @@ export interface OverlayPayload {
   symbol: string; range: string; dates: string[]; generatedAt: string;
   gexNow: null | { net: number; spot: number | null; topStrikes: { strike: number; gex: number }[]; asOf: string; ageSec: number | null; source: string };
   gexTimeline: {
-    sampleEveryMin: number; recordingSince: string | null; asOf: string | null; ageSec: number | null;
+    sampleEveryMin: number; expiryScope?: string; recordingSince: string | null; asOf: string | null; ageSec: number | null;
     sources: string[]; note: string; watched: boolean; recorderLastRun?: string | null;
     samples: { t: number; spot: number | null; net: number; source: string }[];
     series: { strike: number; points: [number, number][] }[];
@@ -108,6 +109,23 @@ export function useChartOverlays(symbol: string, ovRange: '1D' | '5D', enabled: 
     },
     staleTime: 45_000, refetchInterval: inView ? 60_000 : false, retry: 1,
     enabled: enabled && inView && overlaysSupported(symbol),
+  });
+}
+
+/* ── key levels (/api/levels) ── */
+
+export { pickKeyLevels, dealerWallLines, type LevelMapPayload, type LevelMember } from './chart-levels';
+
+export function useLevelMap(symbol: string, enabled: boolean, inView: boolean) {
+  return useQuery<LevelMapPayload>({
+    queryKey: ['/api/levels', symbol],
+    queryFn: async () => {
+      const r = await fetch(`/api/levels/${encodeURIComponent(symbol)}`, { credentials: 'include' });
+      if (!r.ok) throw new Error(`levels HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: enabled && inView && overlaysSupported(symbol),
+    staleTime: 60_000, refetchInterval: inView ? 120_000 : false, retry: 1,
   });
 }
 

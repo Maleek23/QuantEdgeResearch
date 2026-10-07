@@ -17,6 +17,10 @@
  */
 import { cachedFetchWithStale } from './provider-cache';
 import { toYahooSymbol } from './yahoo-client';
+import {
+  indexInfo, canonicalChartSymbol, foldIndexSession, joinProxyVolume, buildFutureProxyBars,
+  isIntradayInterval, type IdxBar,
+} from '@shared/index-symbols';
 
 export interface Candle {
   time: number;
@@ -117,7 +121,7 @@ export async function fetchCandles(
     const meta: any = (result as any)?.meta ?? {};
     const rows: any[] = result?.quotes ?? [];
     const lastIdx = rows.length - 1;
-    return rows
+    const bars: Candle[] = rows
       .map((q: any, i: number) => {
         let close = q.close ?? q.adjclose ?? null;
         if (
@@ -136,6 +140,10 @@ export async function fetchCandles(
         open: q.open, high: q.high, low: q.low, close: q.close,
         volume: q.volume || 0,
       }));
+    // A cash index has no extended session: Yahoo's pre-open and flat
+    // post-16:00 "settlement" bars are not trading (shared/index-symbols.ts).
+    const info = indexInfo(symbol);
+    return info && !info.ownExtendedSession && isIntradayInterval(interval) ? foldIndexSession(bars) : bars;
   } catch {
     return [];
   }
@@ -160,4 +168,85 @@ export async function fetchCandlesBatch(
     slice.forEach((s, n) => out.set(s, rows[n]));
   }
   return out;
+}
+
+/* ── the chart's series: bars + what the bars can and cannot show ─────────── */
+
+export interface ChartSeries {
+  symbol: string;
+  data: Candle[];
+  /** Where the volume column came from. */
+  volume: { source: string; proxy: boolean; note: string | null };
+  /** Session the bars cover. */
+  session: { kind: 'equity' | 'index-rth' | 'index-own-extended'; note: string | null };
+  /** Pre/post/overnight bars from the index's future, scaled to the index (proxy). */
+  extended: null | {
+    bars: Array<Candle & { proxy?: boolean }>;
+    source: string;
+    basis: string;
+    anchors: Array<{ date: string; indexClose: number; futureAtClose: number; ratio: number }>;
+    lastAt: string | null;
+    note: string;
+  };
+}
+
+/**
+ * /api/historical-prices body. Equities: the bars as before. Cash indices:
+ * regular-session bars, the ETF's volume in place of Yahoo's constituent-sum
+ * figure (labelled), and — intraday — out-of-RTH bars from the future scaled
+ * to the index (labelled, separate array: the chart opts in via ETH).
+ */
+export async function fetchChartSeries(rawSymbol: string, range = '1mo', interval = '1d'): Promise<ChartSeries> {
+  const symbol = canonicalChartSymbol(rawSymbol);
+  const info = indexInfo(symbol);
+  const intraday = isIntradayInterval(interval);
+  const [data, etf, fut] = await Promise.all([
+    fetchCandles(symbol, range, interval),
+    info?.volumeProxy ? fetchCandles(info.volumeProxy, range, interval) : Promise.resolve(null),
+    info?.extendedProxy && intraday ? fetchCandles(info.extendedProxy, range, interval) : Promise.resolve(null),
+  ]);
+  return assembleChartSeries(symbol, interval, data, etf, fut);
+}
+
+/** Pure half of fetchChartSeries (tests feed it recorded Yahoo bars). */
+export function assembleChartSeries(symbolRaw: string, interval: string, data: Candle[], etf: Candle[] | null, fut: Candle[] | null): ChartSeries {
+  const symbol = canonicalChartSymbol(symbolRaw);
+  const info = indexInfo(symbol);
+  const intraday = isIntradayInterval(interval);
+  if (!info) {
+    return { symbol, data, volume: { source: 'yahoo', proxy: false, note: null }, session: { kind: 'equity', note: null }, extended: null };
+  }
+  let bars: Candle[];
+  let volume: ChartSeries['volume'];
+  if (info.volumeProxy && etf && etf.length) {
+    bars = joinProxyVolume(data as IdxBar[], etf as IdxBar[], !intraday) as Candle[];
+    volume = { source: `${info.volumeProxy} (proxy)`, proxy: true, note: `${symbol} is a calculated index with no traded volume — volume bars are ${info.volumeProxy}'s.` };
+  } else if (info.volumeProxy) {
+    bars = data.map((b) => ({ ...b, volume: 0 }));
+    volume = { source: 'none', proxy: false, note: `${symbol} has no traded volume and the ${info.volumeProxy} proxy did not load.` };
+  } else {
+    bars = data.map((b) => ({ ...b, volume: 0 }));
+    volume = { source: 'none', proxy: false, note: `${symbol} is a calculated index — it has no volume.` };
+  }
+  const session: ChartSeries['session'] = info.ownExtendedSession
+    ? { kind: 'index-own-extended', note: `${symbol} prints its own extended session (Cboe GTH from 03:15 ET); those bars are the index, not a proxy. Cboe index levels are 15-min delayed.` }
+    : { kind: 'index-rth', note: `${symbol} prints 09:30–16:00 ET only.${info.extendedProxy ? ` Pre/post/overnight = ${info.extendedProxy} scaled to ${symbol} (ETH, proxy).` : ''}` };
+  let extended: ChartSeries['extended'] = null;
+  if (info.extendedProxy && intraday) {
+    if (fut && fut.length && bars.length) {
+      const res = buildFutureProxyBars(bars as IdxBar[], fut as IdxBar[]);
+      const last = res.anchors[res.anchors.length - 1];
+      extended = {
+        bars: res.bars,
+        source: `${info.extendedProxy} (Yahoo, ~10 min delayed) × ${symbol}/${info.extendedProxy} at each ${symbol} close`,
+        basis: last ? `${symbol} ${last.indexClose.toFixed(2)} ÷ ${info.extendedProxy} ${last.futureAtClose.toFixed(2)} = ${last.ratio.toFixed(5)} (${last.date} close)` : 'no anchor close in range',
+        anchors: res.anchors,
+        lastAt: res.bars.length ? new Date(res.bars[res.bars.length - 1].time * 1000).toISOString() : null,
+        note: `Outside 09:30–16:00 ET ${symbol} does not print. These bars are ${info.extendedProxy} rescaled so each session starts at ${symbol}'s close — a proxy, not the index.`,
+      };
+    } else {
+      extended = { bars: [], source: info.extendedProxy, basis: 'unavailable', anchors: [], lastAt: null, note: `${info.extendedProxy} bars did not load — no extended-hours proxy for ${symbol}.` };
+    }
+  }
+  return { symbol, data: bars, volume, session, extended };
 }

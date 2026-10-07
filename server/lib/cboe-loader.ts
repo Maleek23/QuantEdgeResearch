@@ -22,6 +22,7 @@
  */
 import { rateLimited } from '../provider-cache';
 import { BoundedCache } from './bounded-cache';
+import { canonicalChartSymbol } from '../../shared/index-symbols';
 
 const BASE = 'https://cdn.cboe.com/api/global/delayed_quotes';
 const HEADERS = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', Accept: 'application/json' };
@@ -29,7 +30,8 @@ const INDEX_ROOTS = new Set(['SPX', 'NDX', 'RUT', 'XSP', 'VIX', 'DJX']);
 
 /** CBOE keys cash indices with a leading underscore; contracts inside keep their OCC roots. */
 export function cboeKey(symbol: string): string {
-  const s = symbol.toUpperCase().replace(/^[\^_]/, '');
+  // SPXW / NDXP / ^GSPC / $SPX are the index's chain (SPXW contracts live in _SPX).
+  const s = canonicalChartSymbol(symbol.replace(/^_/, '')).replace(/^\^/, '');
   return INDEX_ROOTS.has(s) ? `_${s}` : s;
 }
 

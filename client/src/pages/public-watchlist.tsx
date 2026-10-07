@@ -26,6 +26,8 @@ interface PublicItem {
 
 interface PublicResponse {
   name: string;
+  /** True when no member has opted in to sharing — watchlists are private by default. */
+  private?: boolean;
   updatedAt: string | null;
   count: number;
   items: PublicItem[];
@@ -116,7 +118,7 @@ export default function PublicWatchlist() {
         )}
         {!isLoading && !isError && items.length === 0 && (
           <div className="py-16 text-center text-slate-400">
-            <p>No tickers on the list yet.</p>
+            <p>{data?.private ? "This watchlist isn’t shared. Member watchlists are private unless their owner opts in." : "No tickers on the list yet."}</p>
             <Link href="/t" className="mt-3 inline-block rounded-md border border-sky-400/40 px-3 py-1.5 text-sm text-sky-300 hover:bg-sky-400/10">Browse today's setups on NEXUS</Link>
           </div>
         )}

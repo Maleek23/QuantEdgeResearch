@@ -306,7 +306,7 @@ export function dailyAtrForFloor(daily: Bar[]): number | null {
 
 export interface ExternalLevel {
   price: number;
-  kind: Extract<LevelKind, 'call_wall' | 'put_wall' | 'zero_gamma' | 'max_gamma' | 'dark_pool'>;
+  kind: Extract<LevelKind, 'call_wall' | 'put_wall' | 'zero_gamma' | 'max_gamma' | 'dark_pool' | 'premkt_high' | 'premkt_low'>;
   source: string;
   strength?: number;
   asOf: string;

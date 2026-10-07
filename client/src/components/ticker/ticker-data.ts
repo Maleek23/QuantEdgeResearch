@@ -34,6 +34,7 @@ export interface Pick {
   publishedConvictionScore?: number | null; convictionScore?: number | null;
   publishedConvictionBand?: string | null; convictionBand?: string | null; thesis?: string | null;
   levelBasis?: string | null;
+  calledAt?: string | null; generatedAt?: string | null;
   layers?: { kind?: string; label?: string; points?: number; why?: string }[];
 }
 export interface LedgerRow {

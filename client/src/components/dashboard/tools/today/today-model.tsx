@@ -8,6 +8,7 @@
  * the weekly path is a MODEL projection labelled "not a forecast"; nothing
  * publish-time is shown as current (live quotes carry their own timestamp).
  */
+import { pickWalls } from '@shared/gex-wall-basis';
 import { CONVICTIONS_QUERY_KEY, isLiveBookPick, type ConvictionPick } from '@/lib/convictions';
 import { boardOrder, useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -22,7 +23,9 @@ export interface WPPoint { dayOffset: number; price: number; lo?: number; hi?: n
 export interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
 export interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string; impliedVol?: number }
 export interface GexLevel { strike: number; gammaPct: number; role?: string; gex?: number }
-export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; zeroGammaLevel?: number | null; regime?: string; regimeRead?: { regime?: 'positive' | 'negative' | 'neutral'; nearFlip?: boolean }; totalGEX?: number; levels?: GexLevel[] }
+export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; zeroGammaLevel?: number | null; regime?: string; regimeRead?: { regime?: 'positive' | 'negative' | 'neutral'; nearFlip?: boolean }; totalGEX?: number; levels?: GexLevel[]; byDte?: unknown;
+  /** Which book callWall/putWall/gammaFlipPrice are from (shared/gex-wall-basis.ts) — printed with them. */
+  wallBasis?: import('@shared/gex-wall-basis').PickedWalls }
 export interface Layer { kind: string; why: string; points: number }
 export interface Pick {
   ideaId: string; symbol: string; direction: 'long' | 'short'; sector?: string; thesis?: string;
@@ -70,7 +73,14 @@ export const useWeeklyPath = () =>
 /** SPY dealer snapshot — the GEX tools' own query, so it dedupes with them. */
 export function useSpyGex() {
   const q = useGexTerminal('SPY');
-  const snap = q.data?.snapshot as unknown as GexSnap | undefined;
+  const raw = q.data?.snapshot as unknown as GexSnap | undefined;
+  // Walls on the platform's one basis (≤7d book, else labelled all-expiry) — the
+  // same numbers the ticker page and the NEXUS wall-touch badge show (audit #11).
+  const snap = useMemo<GexSnap | undefined>(() => {
+    if (!raw) return raw;
+    const w = pickWalls({ callWall: raw.callWall, putWall: raw.putWall, flip: raw.gammaFlipPrice ?? raw.zeroGammaLevel, byDte: raw.byDte });
+    return { ...raw, callWall: w.callWall ?? undefined, putWall: w.putWall ?? undefined, gammaFlipPrice: w.flip ?? undefined, wallBasis: w };
+  }, [raw]);
   return { q, snap, asOf: terminalAsOf(q.data) };
 }
 
@@ -152,9 +162,9 @@ export function WeekMap({ wp, snap, narrow }: { wp: WeeklyPath; snap?: GexSnap; 
   const W = narrow ? 380 : 760, H = narrow ? 320 : 380, padL = 8, padR = narrow ? 92 : 118, padT = 18, padB = 46;
   // Only measured dealer levels — the model's extrapolated ones stay off the map.
   const measured = [
-    snap?.callWall && { price: snap.callWall, label: 'Call wall', tone: 'bull' },
+    snap?.callWall && { price: snap.callWall, label: `Call wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bull' },
     snap?.maxGammaStrike && { price: snap.maxGammaStrike, label: 'King node', tone: 'magnet' },
-    snap?.putWall && { price: snap.putWall, label: 'Put wall', tone: 'bear' },
+    snap?.putWall && { price: snap.putWall, label: `Put wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bear' },
   ].filter(Boolean) as { price: number; label: string; tone: string }[];
   const pctAt = (k: number) => snap?.levels?.find((l) => Math.abs(l.strike - k) < 0.01)?.gammaPct;
   // Scale to the week SPY can realistically travel (±2σ of the implied move),

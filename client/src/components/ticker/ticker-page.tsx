@@ -29,6 +29,10 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
+import { indexInfo } from '@shared/index-symbols';
+import { convictionDisplayPercent } from '@shared/conviction-display';
+import { pickWalls } from '@shared/gex-wall-basis';
+import { isUnknownSymbol } from '@/lib/unknown-symbol';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
@@ -98,12 +102,19 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const d = useTickerData(symbol);
   const { sym } = d;
   const q: Quote | undefined = d.quote.data?.[sym];
+  const unknown = isUnknownSymbol({
+    quoteSuccess: d.quote.isSuccess, hasQuote: !!q,
+    barsCount: d.bars.isSuccess ? d.bars.data?.data?.length ?? 0 : null,
+    barsErrorStatus: d.bars.error instanceof Error ? d.bars.error.message : null,
+  });
   const priceFlash = useTickFlash(q?.price, { resetKey: sym });
   const bars = d.bars.data?.data ?? [];
   const qtm = d.qtm.data;
   const snap = d.dealer.data?.snapshot;
   const week = d.week.data;
   const earn = d.earnings.data?.ownEarnings ?? null;
+  const volProxySym = indexInfo(sym)?.volumeProxy ?? null;
+  const proxyVolQ = useQuotes(volProxySym ? [volProxySym] : []);
   const pick = d.conv.data?.picks?.find((p) => p.symbol?.toUpperCase() === sym) ?? null;
 
   // Scroll a legacy section request into view once the page has laid out.
@@ -188,7 +199,10 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const up = (q?.changePercent ?? 0) >= 0;
   // Yahoo's quote leg reports volume 0 outside its session feed — that is
   // "not reported", not "nothing traded", so it prints as a dash.
-  const liveVol = q?.volume && q.volume > 0 ? q.volume : null;
+  // A cash index has no traded volume: its daily bars carry the ETF's volume
+  // (server fetchChartSeries), so the live figure is the ETF's too — labelled.
+  const ownVol = q?.volume && q.volume > 0 ? q.volume : null;
+  const liveVol = volProxySym ? (proxyVolQ.data?.[volProxySym]?.volume || null) : ownVol;
   const volRatio = liveVol && stats.avgVol20 ? liveVol / stats.avgVol20 : null;
   const pos52 = price != null && stats.h52 != null && stats.l52 != null && stats.h52 > stats.l52 ? ((price - stats.l52) / (stats.h52 - stats.l52)) * 100 : null;
 
@@ -201,11 +215,13 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   // "This week" = the book expiring within 8 days. The all-expiry walls sit on
   // long-dated round strikes (SPX 8,000 / 7,000 on 2026-09-30) that say nothing
   // about this week, so they are only used, and labelled, when no near book exists.
-  const wk = snap?.byDte?.next7 ?? null;
-  const wallBasis = wk ? `expiries ≤7d (${wk.expirationsCount})` : 'all expiries (no near-dated book)';
-  const callWallW = wk ? wk.callWall : snap?.callWall ?? null;
-  const putWallW = wk ? wk.putWall : snap?.putWall ?? null;
-  const flipW = wk?.gammaFlipPrice ?? snap?.gammaFlipPrice ?? null;
+  // One rule platform-wide (shared/gex-wall-basis.ts) — and the chart below draws
+  // these same walls, so tiles and lines can no longer disagree (audit 2026-10-01 #10).
+  const walls = pickWalls({ callWall: snap?.callWall, putWall: snap?.putWall, flip: snap?.gammaFlipPrice, byDte: snap?.byDte });
+  const wallBasis = walls.basis === 'next7' ? `expiries ≤7d (${walls.expirations ?? '—'})` : 'all expiries (no near-dated book)';
+  const callWallW = walls.callWall;
+  const putWallW = walls.putWall;
+  const flipW = walls.flip;
   const rr = snap?.regimeRead?.regime;
   const regimeKey = rr === 'negative' ? 'negative_gamma' : rr === 'positive' ? 'positive_gamma' : rr === 'neutral' ? 'neutral' : snap?.regime;
   const regimeLabel = snap?.regimeRead?.title ?? (regimeKey ? regimeKey.replace(/_/g, ' ') : null);
@@ -233,16 +249,16 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   /* chart levels: dealer anchors + published execution levels + 1σ week band */
   const levels: Level[] = useMemo(() => {
     const rows: Level[] = [];
-    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor', strength: 0.7, meta: 'zero-γ' });
-    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (putWallW != null) rows.push({ price: putWallW, color: 'put', label: `PUT WALL ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.8, meta: `Γ wall · ${walls.basisShort}` });
+    if (flipW != null) rows.push({ price: flipW, color: 'caution', label: `ZERO-γ ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.7, meta: `zero-γ · ${walls.basisShort}` });
+    if (callWallW != null) rows.push({ price: callWallW, color: 'call', label: `CALL WALL ${walls.basisShort}`, kind: 'gex-anchor', strength: 0.8, meta: `Γ wall · ${walls.basisShort}` });
     if (pick && pick.levelBasis !== 'contract') {
       if (pick.targetPrice != null) rows.push({ price: pick.targetPrice, color: '#6ee7b7', label: 'T1', kind: 'execution' });
       if (pick.entryPrice != null) rows.push({ price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY', kind: 'execution' });
       if (pick.stopLoss != null) rows.push({ price: pick.stopLoss, color: '#ff6b3d', label: 'STOP', kind: 'execution' });
     }
     return rows.filter((l) => Number.isFinite(l.price));
-  }, [snap?.putWall, snap?.gammaFlipPrice, snap?.callWall, pick]);
+  }, [putWallW, flipW, callWallW, walls.basisShort, pick]);
   const zones: Zone[] = useMemo(() => (
     em != null && emSpot ? [{ from: emSpot - em, to: emSpot + em, color: 'rgba(59,140,255,0.07)', label: '1σ week' }] : []
   ), [em, emSpot]);
@@ -263,6 +279,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           </>
         ) : d.quote.isError ? (
           <span className="tk-src">No quote for {sym} — every price provider failed. Retry in a minute.</span>
+        ) : d.quote.isSuccess ? (
+          <span className="tk-src">No quote for {sym}{unknown ? ' — not a symbol any provider recognises' : ' yet'}.</span>
         ) : (
           <span className="tk-src">Loading quote…</span>
         )}
@@ -326,6 +344,19 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
     </nav>
   );
 
+  // Unknown symbol: a not-found state with search, not an endless "Loading quote…"
+  // beside readings computed from nothing (lib/unknown-symbol.ts).
+  if (unknown) {
+    return (
+      <LuxPage width="wide" className="tk-page">
+        {header}
+        <Section id="not-found" title="Symbol not found">
+          <p className="tk-body">No price provider recognises <strong>{sym}</strong>, and there is no price history for it. Check the spelling, or search for another symbol above.</p>
+        </Section>
+      </LuxPage>
+    );
+  }
+
   if (view !== 'page') {
     return (
       <LuxPage width="full" className="tk-page">
@@ -342,8 +373,10 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       {miniNav}
 
       <div className="tk-stats" id="overview" aria-label="Key stats">
-        {CASH_INDEX.has(sym)
-          ? <Stat k="Volume" v="n/a" sub="cash index · see SPY" unit />
+        {volProxySym
+          ? <Stat k={`Volume · ${volProxySym}`} v={fmtBig(liveVol)} title={`${sym} is a calculated index with no traded volume — this is ${volProxySym}'s session volume`} sub={volRatio != null ? `${volProxySym} proxy · ${volRatio.toFixed(1)}× 20d` : `${volProxySym} proxy`} unit />
+          : CASH_INDEX.has(sym)
+          ? <Stat k="Volume" v="n/a" sub="index · no volume" unit />
           : <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />}
         <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && price)} />
         <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} unit={stats.rsi == null || (stats.rsi < 70 && stats.rsi > 30)} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />
@@ -435,7 +468,7 @@ function OptionsSection({ sym, pick }: { sym: string; pick: Pick | null }) {
     <Section id="options" title="Options" meta={<>
       {aggressor.data?.read && <LuxTag tone={aggressor.data.read.lean === 'long' ? 'gain' : aggressor.data.read.lean === 'short' ? 'loss' : 'mute'} title="Aggressor-inferred net premium today (ask vs bid side)">aggressor {aggressor.data.read.lean}</LuxTag>}
       {!!dark.data?.darkPoolLevels?.length && <LuxTag tone="mute" title="Largest dark-pool print level today">dark {fmtPx(dark.data.darkPoolLevels[0].price)} · {fmtBig(dark.data.darkPoolLevels[0].notional, '$')}</LuxTag>}
-      <LuxTag tone="mute">{trades.length} prints · {scope}</LuxTag>
+      <LuxTag tone="mute">{flow.isError && !flow.data ? 'flow unavailable — feed error' : `${trades.length} prints · ${scope}`}</LuxTag>
     </>}>
       <div className="tk-stats">
         {trades.length > 0 && <>
@@ -507,8 +540,16 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
   const open = rows.filter((r) => r.outcome === 'open').length;
   const decided = won + lost;
 
-  const band = pick?.publishedConvictionBand ?? pick?.convictionBand ?? null;
-  const score = pick?.publishedConvictionScore ?? pick?.convictionScore ?? null;
+  // One scale everywhere (audit 2026-10-01 P0 #9): the LIVE evidence score on the
+  // 0–100 display index NEXUS and Today show; the publish-time grade is stamped
+  // separately as "at publish HH:MM", never mixed in unlabelled.
+  const band = pick?.convictionBand ?? pick?.publishedConvictionBand ?? null;
+  const score = pick?.convictionScore != null ? convictionDisplayPercent(pick.convictionScore) : null;
+  const pubScore = pick?.publishedConvictionScore != null ? convictionDisplayPercent(pick.publishedConvictionScore) : null;
+  const pubAt = pick?.calledAt ?? pick?.generatedAt ?? null;
+  const pubStamp = pubScore != null
+    ? `${pick?.publishedConvictionBand ?? ''} · ${pubScore}/100 at publish${pubAt ? ` ${new Date(pubAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}`.replace(/^ · /, '')
+    : null;
   const short = (pick?.direction ?? '').toLowerCase().includes('short') || (pick?.direction ?? '').toLowerCase().includes('bear');
 
   const rules: { name: string; state: string; tone: 'gain' | 'loss' | 'caution' | 'mute' }[] = [];
@@ -524,7 +565,8 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
           <div className="tk-idea-h">
             <LuxTag tone={short ? 'loss' : 'gain'}>{short ? '▼ SHORT' : '▲ LONG'}</LuxTag>
             <span className="tk-idea-type">{pick.tradeType ?? pick.holdingPeriod ?? 'idea'}</span>
-            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${Math.round(score)}` : ''}</LuxTag>}
+            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${score}/100 live` : ''}</LuxTag>}
+            {pubStamp && <LuxTag tone="mute">{pubStamp}</LuxTag>}
           </div>
           <div className="tk-stats tk-stats-4">
             <Stat k={pick.levelBasis === 'contract' ? 'Entry (premium)' : 'Entry'} v={fmtPx(pick.entryPrice)} tone="accent" />

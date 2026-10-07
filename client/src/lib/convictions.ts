@@ -83,6 +83,8 @@ export interface ConvictionPick {
 
   /** Added dynamically by the API at response time when available. */
   currentPrice?: number;
+  /** True when currentPrice is a live quote, false when it is the carried stored price. */
+  priceIsLive?: boolean;
 
   /** A plan becomes live only after a trigger or recorded execution. */
   lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
@@ -115,6 +117,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: regime/score are engine defaults, not a measured market — show "unavailable". */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
