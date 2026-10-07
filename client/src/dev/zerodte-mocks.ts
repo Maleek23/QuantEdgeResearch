@@ -14,6 +14,7 @@
  * window.fetch for the desk's /api/* reads. Synthetic data — illustration only.
  */
 import type { DeskPayload } from '@/components/zerodte/zero-dte-desk';
+import { nexusMockRoute, pick } from './nexus-workspace-mocks';
 import type { DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 
 type Fx = 'preopen' | 'live' | 'midday' | 'closed';
@@ -97,7 +98,7 @@ function row(sym: string, spot: number, now: number, fx: Fx, o: { regime?: 'posi
     intraday: open ? { vwap: +(spot * 0.9993).toFixed(2), vwapSide: 'above' as const, vwapDistPct: 0.07, or30High: +(spot * 1.001).toFixed(2), or30Low: +(spot * 0.996).toFixed(2), orbState: fx === 'live' ? 'building' : 'above OR30', lastClose: spot } : { vwap: null, vwapSide: null, vwapDistPct: null, or30High: null, or30Low: null, orbState: 'n/a', lastClose: spot },
     intradayNote: null, barsAgeSec: open ? 140 : null,
     flow: { expiry: DAY, prints: open ? 38 : 0, callPremium: 2.4e6, putPremium: 1.1e6, lean: open ? 'long' as const : null, dayLean: open ? 'long' as const : null, dayCallsNet: 3.1e6, dayPutsNet: 1.4e6, asOf: iso(now - 90_000), basis: 'Bullflow prints on today\'s expiry' },
-    engine: { state: o.state ?? (open ? 'armed' : fx === 'closed' ? 'closed' : 'no_setup'), headline: o.headline ?? (open ? 'Price 0.1% under zero-γ in negative γ — a 5-min close above arms policy A.' : fx === 'closed' ? 'Session closed.' : 'Pre-market — levels only.'), why: open ? ['negative γ: dealers chase moves', 'flow tide leans calls'] : [], evaluatedAgeSec: open ? 95 : null },
+    engine: { state: o.state ?? (open ? 'armed' : fx === 'closed' ? 'closed' : 'no_setup'), headline: o.headline ?? (open ? 'Price 0.1% under zero-γ in negative γ — a 5-min close above arms policy A.' : fx === 'closed' ? 'Session closed.' : 'Pre-market — levels only.'), why: open ? ['negative γ: dealers chase moves', 'flow tide leans calls'] : [], evaluatedAgeSec: open ? 95 : fx === 'preopen' ? 60_480 : null },
     todaysIdeas: [], errors: [],
     swing: { symbol: sym, verdict: sym === 'TSLA' ? 'plan' as const : 'no_plan' as const, direction: sym === 'TSLA' ? 'short' as const : null, entry: spot, stop: sym === 'TSLA' ? +(spot * 1.03).toFixed(2) : null, target: sym === 'TSLA' ? +(spot * 0.95).toFixed(2) : null, structuralTarget: null, capped: false, rr: sym === 'TSLA' ? 1.7 : null, holdDays: 3, maxHoldDays: 4, sigmaH: +(spot * 0.04).toFixed(2), timeStopIso: sym === 'TSLA' ? iso(ET('15:30') + 86_400_000) : null, exitByIso: null, dteWindow: { min: 30, max: 60, label: '30–60 DTE' }, basis: ['plan', 'weekly-path drift down', 'call wall overhead'], wait: ['drift inside ±0.3σ', 'regime neutral'] },
     swingLevels: { regime: 'negative', zeroGamma: +(spot * 0.998).toFixed(2), callWall: +(spot * 1.02).toFixed(2), putWall: +(spot * 0.97).toFixed(2), maxGamma: +(spot * 1.01).toFixed(2), basis: 'all-book' },
@@ -118,6 +119,11 @@ function desk(fx: Fx): DeskPayload {
     record: { since: '2026-08-26', n: 14, total: 31, open: 2, unresolvedClosed: 6, wins: 6, losses: 8, winRate: 0.43, avgR: 0.12, rCount: 14, firstAt: '2026-08-27T14:05:00Z', lastAt: iso(now), lowN: true, byKind: { '0dte': { n: 12, wins: 5, losses: 7, total: 26 }, swing: { n: 2, wins: 1, losses: 1, total: 5 } }, perName: { SPX: { n: 7, wins: 3, losses: 4, total: 15 }, TSLA: { n: 4, wins: 2, losses: 2, total: 9 } } },
     provenance: 'Fixture data — /dev/zerodte harness (DEV only).', notes: ['Every 0DTE idea has a hard time stop at 15:30 ET.'],
     indexEngine,
+    activeNames: fx === 'preopen' ? [] : [
+      { symbol: 'NVDA', open: 1, today: 1, flow: 1, lastAt: iso(now - 3 * 60_000), why: '1 open · 1 today · flow 09:37' },
+      { symbol: 'TSLA', open: 0, today: 1, flow: 0, lastAt: iso(now - 9 * 60_000), why: '1 today' },
+      { symbol: 'AMZN', open: 0, today: 0, flow: 1, lastAt: iso(now - 2 * 60_000), why: 'flow 09:38' },
+    ],
   };
 }
 
@@ -193,6 +199,27 @@ export function installZeroDteMocks(): Fx {
     if (p === '/api/wall-touch/report') return json({ sessions: 12, all: { n: 0, rejectionRate: null, avgMfePct: null, avgOptMaxMult: null, options: 0 }, awaitingOutcome: 0, byWall: {} });
     if (p === '/api/sector-ignition') return json({ horizon: 'intraday', asOf: iso(NOW[fx] - 60_000), ageSec: 60, phase: null, groups: [], dataAsOf: {}, notes: [], cadence: 'every 2 min', honesty: 'measuring', watchlist: [], emitted: [] });
     if (p === '/api/watchlist') return json([]);
+    if (p.startsWith('/api/zero-dte/read/')) {
+      const sym = decodeURIComponent(p.slice('/api/zero-dte/read/'.length)).toUpperCase();
+      return json({ asOf: iso(NOW[fx]), phase: PHASE[fx], row: row(sym, sym === 'TSLA' ? 440.1 : sym === 'AMZN' ? 249.2 : 186.3, NOW[fx], fx) });
+    }
+    if (p.startsWith('/api/quotes/batch/')) {
+      const syms = decodeURIComponent(p.slice('/api/quotes/batch/'.length)).split(',');
+      const px: Record<string, number> = { NVDA: 186.62, SPY: 670.4, AMZN: 249.2, TSLA: 440.1, META: 745.3, AAPL: 256.5, SPX: 6744.8 };
+      return json({ quotes: Object.fromEntries(syms.map((s2) => [s2, { price: px[s2] ?? 100, change: 0, changePercent: 0, volume: 0, asOf: iso(NOW[fx] - 4_000), source: 'Alpaca', delayed: false, session: fx === 'preopen' ? 'pre' : 'regular' }])) });
+    }
+    if (p === '/api/convictions') {
+      // The desk's logged ideas, as NEXUS book rows, so "Details" opens the real Setup Detail.
+      const base = nexusMockRoute('/api/convictions') as { picks: Array<Record<string, unknown>> };
+      const zd = [
+        { ...pick(30, ['SPY', 'long', 74, 'B', 'gex_scanner', 'triggered', 4]), ideaId: 'fx-1', strikePrice: 671, optionDte: 0, expiryDate: DAY, entryPremium: 1.42 },
+        { ...pick(31, ['META', 'long', 70, 'B', 'zero_dte_desk', 'triggered', 70]), ideaId: 'fx-2', strikePrice: 745, optionDte: 0, expiryDate: DAY, entryPremium: 3.1 },
+        { ...pick(32, ['NVDA', 'long', 72, 'B', 'zero_dte_flow', 'triggered', 3]), ideaId: 'fx-f1', strikePrice: 187.5, optionDte: 0, expiryDate: DAY, entryPremium: 0.94 },
+      ];
+      return json({ ...base, picks: [...zd, ...base.picks] });
+    }
+    { const nx = nexusMockRoute(p + u.search); if (nx !== undefined) return json(nx); }
+    if (p === '/api/search/symbols') return json([{ symbol: (u.searchParams.get('q') ?? '').toUpperCase(), name: 'fixture', type: 'stock' }]);
     if (p === '/api/auth/user' || p === '/api/user') return json(null);
     return new Response(JSON.stringify({ error: 'not mocked in /dev/zerodte' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
   };

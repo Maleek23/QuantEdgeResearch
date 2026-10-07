@@ -11,6 +11,9 @@
  *      within the delta band; the entry premium becomes that contract's mid.
  *   3. None → publish UNDERLYING-ONLY (assetType 'stock', contract fields
  *      cleared) with the note "no liquid contract". Never an illiquid contract.
+ *      EXCEPT short-dated ideas (0DTE/≤1DTE, or a same-day engine — see
+ *      shared/short-dated-option.ts): those are WITHHELD (action 'withheld',
+ *      storage refuses the write and logs why). A 0DTE put is never a share trade.
  *   4. The snapshot (OI, vol, bid/ask, spread %, source, asOf) is stored on the
  *      idea at convergenceSignalsJson.contractLiquidity — NEXUS "contract liquidity".
  *
@@ -24,13 +27,14 @@ import {
   type ContractLiquiditySnapshot, type LiquidityConfig, type StrikeRow,
 } from '@shared/option-liquidity';
 import { calendarDte } from './publish-gates';
+import { shortDatedReason, SHORT_DATED_WITHHELD_CODE } from '@shared/short-dated-option';
 import { optionExpiryCloseMs } from '@shared/option-expiry';
 import { logger } from '../logger';
 
 export interface GateChain { rows: StrikeRow[]; source: string; asOf: string }
 export type ExpiryChainLoader = (symbol: string, expiry: string, nowMs: number) => Promise<GateChain | null>;
 
-export type LiquidityAction = 'kept' | 'stepped' | 'underlying_only' | 'unverified' | 'not_applicable';
+export type LiquidityAction = 'kept' | 'stepped' | 'underlying_only' | 'withheld' | 'unverified' | 'not_applicable';
 
 export interface LiquidityGateResult<T> {
   action: LiquidityAction;
@@ -41,6 +45,10 @@ export interface LiquidityGateResult<T> {
 
 interface GateIdea {
   symbol?: string | null;
+  source?: string | null;
+  dataSourceUsed?: string | null;
+  expiryTier?: string | null;
+  optionDte?: number | null;
   assetType?: string | null;
   optionType?: string | null;
   strikePrice?: number | null;
@@ -92,6 +100,22 @@ export function toUnderlyingOnly<T extends GateIdea>(idea: T, why: string, snap:
   }, snap);
 }
 
+/** Short-dated ideas are withheld instead of converted to underlying-only. */
+function withheldOrUnderlying<T extends GateIdea>(
+  idea: T, why: string, snap: ContractLiquiditySnapshot, label: string, nowMs: number, underlyingNote: string,
+): LiquidityGateResult<T> {
+  const sd = shortDatedReason(idea, nowMs);
+  if (sd) {
+    const s2: ContractLiquiditySnapshot = { ...snap, action: 'withheld' };
+    return {
+      action: 'withheld', idea: withSnapshot(idea, s2), snapshot: s2,
+      note: `${SHORT_DATED_WITHHELD_CODE}: ${label} ${why}; short-dated (${sd}) — WITHHELD, never published as an underlying-only stock idea`,
+    };
+  }
+  const s2: ContractLiquiditySnapshot = { ...snap, action: 'underlying_only' };
+  return { action: 'underlying_only', idea: toUnderlyingOnly(idea, why, s2), snapshot: s2, note: underlyingNote };
+}
+
 /**
  * Decide on a loaded chain. Pure (chain injected) — the unit tests drive this.
  */
@@ -122,8 +146,7 @@ export function decideIdeaLiquidity<T extends GateIdea>(
     if (String(env.OPT_LIQUIDITY_UNVERIFIED ?? '').toLowerCase() === 'allow') {
       return { action: 'unverified', idea: withSnapshot(idea, { ...snap, action: 'unverified' }), snapshot: { ...snap, action: 'unverified' }, note: `${label}: liquidity unverified (no chain) — published as-is (OPT_LIQUIDITY_UNVERIFIED=allow)` };
     }
-    const s2 = { ...snap, action: 'underlying_only' as const };
-    return { action: 'underlying_only', idea: toUnderlyingOnly(idea, 'could not be verified (no option chain answered)', s2), snapshot: s2, note: `${label}: no chain — underlying-only` };
+    return withheldOrUnderlying(idea, 'could not be verified (no option chain answered)', snap, label, nowMs, `${label}: no chain — underlying-only`);
   }
 
   const row = chain.rows.find((r) => r.type === type && r.expiry.slice(0, 10) === expiry && Math.abs(r.strike - strike) < 1e-6);
@@ -171,8 +194,7 @@ export function decideIdeaLiquidity<T extends GateIdea>(
     };
   }
 
-  const snap: ContractLiquiditySnapshot = { ...base.snapshot, action: 'underlying_only' };
-  return { action: 'underlying_only', idea: toUnderlyingOnly(idea, why, snap), snapshot: snap, note: `${label} ${why}; no liquid strike in the delta band — underlying-only` };
+  return withheldOrUnderlying(idea, why, base.snapshot, label, nowMs, `${label} ${why}; no liquid strike in the delta band — underlying-only`);
 }
 
 // ── chain loading (I/O) ─────────────────────────────────────────────────────
