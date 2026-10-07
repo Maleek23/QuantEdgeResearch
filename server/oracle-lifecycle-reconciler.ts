@@ -110,9 +110,12 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
 
   // A poll's max/min proves that a level traded, but it cannot tell whether the
   // trigger or invalidation traded first. Use time-ordered OHLC bars whenever
-  // either boundary was crossed. If the path is unavailable or both barriers
-  // fall inside one bar, firstBarrierTouch resolves the ambiguity against the
-  // trade (stop first) or leaves the idea pending if no crossing is present.
+  // either boundary was crossed. Ambiguity resolves TOWARD the trigger: when
+  // both levels sit inside one bar the idea is marked triggered and the
+  // outcome tracker then records the stop as a loss. Resolving it as
+  // "invalidated before trigger" would drop a real loss from the record
+  // (missed_entry rows are unresolved). With no bar path at all the poll
+  // extrema still trigger the idea (pre-Codex behaviour) but never invalidate.
   const symbolStarts = new Map<string, { symbol: string; assetType: string; entryMs: number }>();
   for (const idea of candidates) {
     const symbol = idea.symbol.toUpperCase();
@@ -122,11 +125,11 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     const prior = symbolStarts.get(key);
     if (!prior || entryMs < prior.entryMs) symbolStarts.set(key, { symbol, assetType, entryMs });
   }
-  const pathRows = await Promise.all([...symbolStarts].map(async ([key, row]) => {
-    const path = await barsSinceEntry(row.symbol, row.assetType, row.entryMs, nowMs).catch(() => ({ bars: [], interval: null }));
-    return [key, path] as const;
-  }));
-  const barsByKey = new Map<string, { bars: TimedBar[]; extendedBars?: TimedBar[]; interval: '5m' | '1d' | null }>(pathRows);
+  // Sequential: one candle request at a time on the 1-CPU droplet.
+  const barsByKey = new Map<string, { bars: TimedBar[]; extendedBars?: TimedBar[]; interval: '5m' | '1d' | null }>();
+  for (const [key, row] of symbolStarts) {
+    barsByKey.set(key, await barsSinceEntry(row.symbol, row.assetType, row.entryMs, nowMs).catch(() => ({ bars: [], interval: null })));
+  }
   let observed = 0;
   let invalidated = 0;
 
@@ -138,15 +141,31 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     const assetType = String((idea as any).assetType ?? "stock").toLowerCase();
     const path = barsByKey.get(`${assetType}:${idea.symbol.toUpperCase()}`);
     const bars = path?.extendedBars ?? path?.bars ?? [];
-    if (!path || bars.length === 0) continue;
-    const first = firstBarrierTouch(bars, {
+    if (!path || bars.length === 0) {
+      // No path: trigger on the poll extrema (live quote / persisted highs-lows).
+      const checkpoint = checkpointExtrema.get(idea.id);
+      const live = quotes.get(idea.symbol)?.price;
+      const reached = isLong
+        ? Math.max(idea.highestPriceReached ?? -Infinity, checkpoint?.high ?? -Infinity, live ?? -Infinity)
+        : Math.min(idea.lowestPriceReached ?? Infinity, checkpoint?.low ?? Infinity, live ?? Infinity);
+      if (!(isLong ? reached >= entry : reached <= entry)) continue;
+      const audit = withOracleExecutionAudit(idea.convergenceSignalsJson, {
+        version: 1, state: "triggered", triggerType: isLong ? "breakout" : "breakdown",
+        triggerPrice: entry, triggerObservedAt: now.toISOString(), triggerObservedPrice: reached,
+      });
+      await db.update(tradeIdeas).set({ convergenceSignalsJson: audit as any }).where(eq(tradeIdeas.id, idea.id));
+      observed++;
+      continue;
+    }
+    const touch = firstBarrierTouch(bars, {
       direction: isLong ? "long" : "short",
       target: entry,
       stop,
       fromSec: Math.floor(Date.parse(idea.timestamp) / 1000),
       toSec: Math.floor(nowMs / 1000),
     });
-    if (!first) continue;
+    if (!touch) continue;
+    const first = touch.sameBar ? { ...touch, outcome: "hit_target" as const } : touch;
 
     // Bars identify the first five-minute/daily interval, not the exact tick.
     // Store the crossed level, except when that interval opened beyond it.

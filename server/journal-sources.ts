@@ -252,7 +252,8 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     outcomeStatus: tradeIdeas.outcomeStatus, outcomeNotes: tradeIdeas.outcomeNotes,
     resolutionReason: tradeIdeas.resolutionReason, exitDate: tradeIdeas.exitDate,
     timestamp: tradeIdeas.timestamp, source: tradeIdeas.source, catalyst: tradeIdeas.catalyst, genConvictionBand: tradeIdeas.genConvictionBand,
-    convergenceSignalsJson: tradeIdeas.convergenceSignalsJson,
+    // Only the plan snapshot — the full JSON is large and this reads every desk row.
+    convergenceSignalsJson: sql<unknown>`json_build_object('planSnapshot', (${tradeIdeas.convergenceSignalsJson})::jsonb -> 'planSnapshot')`,
     exitPremiumBasis: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-premium:(touch_bar|pass|withheld)\\]')`,
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
     exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-time:([a-z_]+)\\]')`,

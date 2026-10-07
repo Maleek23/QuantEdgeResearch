@@ -58,18 +58,40 @@ export function capturePlanSnapshot(
   return { ...source, planSnapshot: snapshot };
 }
 
-export function freezePlanFields<T extends object>(fields: T, snapshot: PlanSnapshot): T {
-  return {
-    ...fields,
-    direction: snapshot.direction,
-    holdingPeriod: snapshot.holdingPeriod,
-    entryPrice: snapshot.entryPrice,
-    targetPrice: snapshot.targetPrice,
-    stopLoss: snapshot.stopLoss,
-    riskRewardRatio: snapshot.riskRewardRatio,
-    entryPremium: snapshot.entryPremium,
-    optionType: snapshot.optionType,
-    strikePrice: snapshot.strikePrice,
-    expiryDate: snapshot.expiryDate,
-  } as T;
+/** Plan fields this module guards; an update touching none of them needs no snapshot read. */
+export const PLAN_FIELD_KEYS = [
+  "direction", "holdingPeriod", "entryPrice", "targetPrice", "stopLoss", "riskRewardRatio",
+  "entryPremium", "optionType", "strikePrice", "expiryDate", "convergenceSignalsJson", "status",
+] as const;
+
+export function touchesPlan(updates: object): boolean {
+  return PLAN_FIELD_KEYS.some((k) => k in updates);
+}
+
+const CONTRACT_KEYS = ["entryPremium", "optionType", "strikePrice", "expiryDate"] as const;
+
+/**
+ * Apply the frozen plan to an update. Levels (direction, hold, entry, target,
+ * stop, R:R) are immutable once published. Contract terms that were NOT known
+ * at publish (null in the snapshot) may be attached later — the stock→option
+ * backfill does this — and are then captured into the returned snapshot; a
+ * contract term that WAS published stays frozen.
+ */
+export function freezePlanFields<T extends object>(fields: T, snapshot: PlanSnapshot): { fields: T; snapshot: PlanSnapshot } {
+  const f = fields as Record<string, any>;
+  const next: PlanSnapshot = { ...snapshot };
+  for (const k of CONTRACT_KEYS) {
+    if (next[k] == null && f[k] != null) (next as any)[k] = k === "optionType" || k === "expiryDate" ? String(f[k]) : Number(f[k]);
+  }
+  const out: Record<string, any> = {
+    ...f,
+    direction: next.direction,
+    holdingPeriod: next.holdingPeriod,
+    entryPrice: next.entryPrice,
+    targetPrice: next.targetPrice,
+    stopLoss: next.stopLoss,
+    riskRewardRatio: next.riskRewardRatio,
+  };
+  for (const k of CONTRACT_KEYS) if (k in f || next[k] != null) out[k] = next[k];
+  return { fields: out as T, snapshot: next };
 }

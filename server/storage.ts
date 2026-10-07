@@ -1,6 +1,39 @@
 import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
-import { capturePlanSnapshot, freezePlanFields, planRiskRewardRatio, readPlanSnapshot } from "@shared/plan-snapshot";
+import { capturePlanSnapshot, freezePlanFields, planRiskRewardRatio, readPlanSnapshot, touchesPlan } from "@shared/plan-snapshot";
+
+/**
+ * Published plans are immutable (shared/plan-snapshot.ts): levels are frozen to
+ * the first-publish snapshot; contract terms unknown at publish may be attached
+ * once. A draft -> published transition captures the snapshot.
+ */
+function guardPlanUpdate(existing: Record<string, any>, updates: Record<string, any>): any {
+  const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
+  if (frozen) {
+    const { fields, snapshot } = freezePlanFields(updates, frozen);
+    const base = (updates.convergenceSignalsJson ?? existing.convergenceSignalsJson) as Record<string, unknown> | null;
+    return { ...fields, convergenceSignalsJson: { ...(base && typeof base === 'object' ? base : {}), planSnapshot: snapshot } };
+  }
+  if (updates.status === 'published' && existing.status !== 'published') {
+    const merged = { ...existing, ...updates };
+    return {
+      ...updates,
+      convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
+        direction: merged.direction,
+        holdingPeriod: merged.holdingPeriod ?? 'day',
+        entryPrice: merged.entryPrice,
+        targetPrice: merged.targetPrice,
+        stopLoss: merged.stopLoss,
+        riskRewardRatio: merged.riskRewardRatio,
+        entryPremium: merged.entryPremium,
+        optionType: merged.optionType,
+        strikePrice: merged.strikePrice,
+        expiryDate: merged.expiryDate,
+      }),
+    };
+  }
+  return updates;
+}
 
 import type {
   MarketData,
@@ -1619,33 +1652,7 @@ export class MemStorage implements IStorage {
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
-    let safeUpdates = updates;
-    const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
-    if (frozen) {
-      safeUpdates = freezePlanFields(updates, frozen);
-      safeUpdates.convergenceSignalsJson = capturePlanSnapshot(
-        updates.convergenceSignalsJson ?? existing.convergenceSignalsJson,
-        frozen,
-        frozen.capturedAt,
-      ) as any;
-    } else if (updates.status === 'published' && existing.status !== 'published') {
-      const merged = { ...existing, ...updates };
-      safeUpdates = {
-        ...updates,
-        convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
-          direction: merged.direction,
-          holdingPeriod: merged.holdingPeriod ?? 'day',
-          entryPrice: merged.entryPrice,
-          targetPrice: merged.targetPrice,
-          stopLoss: merged.stopLoss,
-          riskRewardRatio: merged.riskRewardRatio,
-          entryPremium: merged.entryPremium,
-          optionType: merged.optionType,
-          strikePrice: merged.strikePrice,
-          expiryDate: merged.expiryDate,
-        }),
-      };
-    }
+    const safeUpdates = guardPlanUpdate(existing, updates);
     const updated = { ...existing, ...safeUpdates };
     this.tradeIdeas.set(id, updated);
     return updated;
@@ -2910,47 +2917,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
-    const [existing] = await db.select({
-      status: tradeIdeas.status,
-      convergenceSignalsJson: tradeIdeas.convergenceSignalsJson,
-      direction: tradeIdeas.direction,
-      holdingPeriod: tradeIdeas.holdingPeriod,
-      entryPrice: tradeIdeas.entryPrice,
-      targetPrice: tradeIdeas.targetPrice,
-      stopLoss: tradeIdeas.stopLoss,
-      riskRewardRatio: tradeIdeas.riskRewardRatio,
-      entryPremium: tradeIdeas.entryPremium,
-      optionType: tradeIdeas.optionType,
-      strikePrice: tradeIdeas.strikePrice,
-      expiryDate: tradeIdeas.expiryDate,
-    }).from(tradeIdeas).where(eq(tradeIdeas.id, id)).limit(1);
-    if (!existing) return undefined;
     let safeUpdates = updates;
-    const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
-    if (frozen) {
-      safeUpdates = freezePlanFields(updates, frozen);
-      safeUpdates.convergenceSignalsJson = capturePlanSnapshot(
-        updates.convergenceSignalsJson ?? existing.convergenceSignalsJson,
-        frozen,
-        frozen.capturedAt,
-      ) as any;
-    } else if (updates.status === 'published' && existing.status !== 'published') {
-      const merged = { ...existing, ...updates };
-      safeUpdates = {
-        ...updates,
-        convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
-          direction: merged.direction,
-          holdingPeriod: merged.holdingPeriod ?? 'day',
-          entryPrice: merged.entryPrice,
-          targetPrice: merged.targetPrice,
-          stopLoss: merged.stopLoss,
-          riskRewardRatio: merged.riskRewardRatio,
-          entryPremium: merged.entryPremium,
-          optionType: merged.optionType,
-          strikePrice: merged.strikePrice,
-          expiryDate: merged.expiryDate,
-        }),
-      };
+    // The plan guard needs the stored plan only when the update can touch it;
+    // the outcome tracker's frequent updates skip the extra read.
+    if (touchesPlan(updates)) {
+      const [existing] = await db.select({
+        status: tradeIdeas.status,
+        convergenceSignalsJson: tradeIdeas.convergenceSignalsJson,
+        direction: tradeIdeas.direction,
+        holdingPeriod: tradeIdeas.holdingPeriod,
+        entryPrice: tradeIdeas.entryPrice,
+        targetPrice: tradeIdeas.targetPrice,
+        stopLoss: tradeIdeas.stopLoss,
+        riskRewardRatio: tradeIdeas.riskRewardRatio,
+        entryPremium: tradeIdeas.entryPremium,
+        optionType: tradeIdeas.optionType,
+        strikePrice: tradeIdeas.strikePrice,
+        expiryDate: tradeIdeas.expiryDate,
+      }).from(tradeIdeas).where(eq(tradeIdeas.id, id)).limit(1);
+      if (!existing) return undefined;
+      safeUpdates = guardPlanUpdate(existing as any, updates);
     }
     const [updated] = await db.update(tradeIdeas)
       .set(safeUpdates)
