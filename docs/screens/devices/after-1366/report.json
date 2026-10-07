@@ -1,0 +1,952 @@
+{
+ "today-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "today-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "nexus-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Macro risk gauge\" 9px",
+   "small \"Rates stress is measured from \" 9px",
+   "summary \"Feed ages\" 9.5px",
+   "details.fd-foot.nxd-ages \"Feed agesregime 76s ago · 10Y/\" 9.5px",
+   "div.fd-foot \"Sorted by unrealized P&L %. He\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Macro risk gauge\" 9px",
+   "small \"Rates stress is measured from \" 9px",
+   "summary \"Feed ages\" 9.5px",
+   "details.fd-foot.nxd-ages \"Feed agesregime 76s ago · 10Y/\" 9.5px",
+   "div.fd-foot \"Sorted by unrealized P&L %. He\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-detail-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Macro risk gauge\" 9px",
+   "small \"Rates stress is measured from \" 9px",
+   "summary \"Feed ages\" 9.5px",
+   "details.fd-foot.nxd-ages \"Feed agesregime 75s ago · 10Y/\" 9.5px",
+   "div.fd-foot \"Sorted by unrealized P&L %. He\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-detail-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Macro risk gauge\" 9px",
+   "small \"Rates stress is measured from \" 9px",
+   "summary \"Feed ages\" 9.5px",
+   "details.fd-foot.nxd-ages \"Feed agesregime 75s ago · 10Y/\" 9.5px",
+   "div.fd-foot \"Sorted by unrealized P&L %. He\" 9.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-0dte-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "nexus-0dte-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "flow-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px",
+   "button \"Size\" 9.5px",
+   "button \"Vol/OI\" 9.5px",
+   "button \"SigScore\" 9.5px",
+   "button \"Src\" 9.5px",
+   "span \"Sweep\" 9.5px",
+   "span \"Block / Grenade\" 9.5px"
+  ],
+  "tinyCount": 23,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow",
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "flow-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "button \"Time ET ▼\" 9.5px",
+   "button \"Value\" 9.5px",
+   "button \"Ticker\" 9.5px",
+   "button \"Spot\" 9.5px",
+   "button \"Strike\" 9.5px",
+   "button \"P/C\" 9.5px",
+   "button \"Exp\" 9.5px",
+   "button \"Type\" 9.5px",
+   "button \"Price\" 9.5px",
+   "button \"Size\" 9.5px",
+   "button \"Vol/OI\" 9.5px",
+   "button \"SigScore\" 9.5px",
+   "button \"Src\" 9.5px",
+   "span \"Sweep\" 9.5px",
+   "span \"Block / Grenade\" 9.5px"
+  ],
+  "tinyCount": 23,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow",
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "ticker-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "sectors-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"MU\" 18×24"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"MU\" 18×24"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "crypto-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "crypto-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span \"Levels come from traded price \" 9px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.jr-cal-wk \"+wknd\" 9.5px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=2\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px",
+   "span.n \"n=4\" 9px"
+  ],
+  "tinyCount": 9,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "journal-daily-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "gex-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell \"+1.1B\" 67×19",
+   "button.gx-cell \"+629M\" 67×19",
+   "button.gx-cell \"+657M\" 67×19",
+   "button.gx-cell \"+624M\" 67×19",
+   "button.gx-cell \"+219M\" 67×19",
+   "button.gx-cell \"+278M\" 67×19",
+   "button.gx-cell \"+250M\" 67×19",
+   "button.gx-cell \"+405M\" 67×19",
+   "button.gx-cell \"+848M\" 67×19",
+   "button.gx-cell \"+338M\" 67×19",
+   "button.gx-cell \"+324M\" 67×19",
+   "button.gx-cell \"+173M\" 67×19",
+   "button.gx-cell \"+89M\" 67×19",
+   "button.gx-cell \"+820M\" 67×19",
+   "button.gx-cell \"+647M\" 67×19",
+   "button.gx-cell \"+635M\" 67×19",
+   "button.gx-cell \"+452M\" 67×19",
+   "button.gx-cell \"+469M\" 67×19",
+   "button.gx-cell \"+373M\" 67×19",
+   "button.gx-cell \"+318M\" 67×19"
+  ],
+  "smallCount": 189,
+  "tiny": [
+   "span \"ZERO-γ $570.80\" 8.5px",
+   "span \"SPOT\" 8px",
+   "span.gx-chip \"CW\" 8.5px",
+   "span.gx-chip \"Mγ\" 8.5px",
+   "span.gx-chip \"PW\" 8.5px",
+   "div.gx-sub-head \"Near-term nodes · 0–7 DTE\" 9.5px",
+   "span \"Negative node\" 9px",
+   "span \"Dominant node\" 9px",
+   "span \"Positive node\" 9px",
+   "div.gx-hero-basis \"all listed expiries\" 9px",
+   "span \"Net GEX · all\" 9px",
+   "span \"Front (0DTE) · ≤7d\" 9px",
+   "span \"Expiry clock\" 9px",
+   "span \"Net VEX\" 9px",
+   "span \"If price holds inside\" 9px"
+  ],
+  "tinyCount": 18,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "gex-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell \"+1.1B\" 67×19",
+   "button.gx-cell \"+629M\" 67×19",
+   "button.gx-cell \"+657M\" 67×19",
+   "button.gx-cell \"+624M\" 67×19",
+   "button.gx-cell \"+219M\" 67×19",
+   "button.gx-cell \"+278M\" 67×19",
+   "button.gx-cell \"+250M\" 67×19",
+   "button.gx-cell \"+405M\" 67×19",
+   "button.gx-cell \"+848M\" 67×19",
+   "button.gx-cell \"+338M\" 67×19",
+   "button.gx-cell \"+324M\" 67×19",
+   "button.gx-cell \"+173M\" 67×19",
+   "button.gx-cell \"+89M\" 67×19",
+   "button.gx-cell \"+820M\" 67×19",
+   "button.gx-cell \"+647M\" 67×19",
+   "button.gx-cell \"+635M\" 67×19",
+   "button.gx-cell \"+452M\" 67×19",
+   "button.gx-cell \"+469M\" 67×19",
+   "button.gx-cell \"+373M\" 67×19",
+   "button.gx-cell \"+318M\" 67×19"
+  ],
+  "smallCount": 189,
+  "tiny": [
+   "span \"ZERO-γ $570.80\" 8.5px",
+   "span \"SPOT\" 8px",
+   "span.gx-chip \"CW\" 8.5px",
+   "span.gx-chip \"Mγ\" 8.5px",
+   "span.gx-chip \"PW\" 8.5px",
+   "div.gx-sub-head \"Near-term nodes · 0–7 DTE\" 9.5px",
+   "span \"Negative node\" 9px",
+   "span \"Dominant node\" 9px",
+   "span \"Positive node\" 9px",
+   "div.gx-hero-basis \"all listed expiries\" 9px",
+   "span \"Net GEX · all\" 9px",
+   "span \"Front (0DTE) · ≤7d\" 9px",
+   "span \"Expiry clock\" 9px",
+   "span \"Net VEX\" 9px",
+   "span \"If price holds inside\" 9px"
+  ],
+  "tinyCount": 18,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "chart-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "chart-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "leaps-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "leaps-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "catalysts-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "catalysts-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "bot-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "bot-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "positions-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "positions-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "alerts-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "alerts-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "settings-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px"
+  ],
+  "tinyCount": 15,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "settings-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20"
+  ],
+  "smallCount": 6,
+  "tiny": [
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px",
+   "b \"SPY\" 9px",
+   "em \"+1.24%\" 8px",
+   "em \"−0.62%\" 8px"
+  ],
+  "tinyCount": 15,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "admin-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.ah-link \"Invite codes →\" 92×14"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/admin/ops/overview",
+   "[harness] no fixture: /api/admin/ops/audit"
+  ]
+ },
+ "admin-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.ah-link \"Invite codes →\" 92×14"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/admin/ops/overview",
+   "[harness] no fixture: /api/admin/ops/audit"
+  ]
+ },
+ "landing-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Abdulmalik Ajisegiri\" 108×15"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-1366-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-1366-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ }
+}
