@@ -10,6 +10,7 @@
  * are pure functions of those responses — nothing is invented here.
  */
 import { WatchStar } from '@/components/watch/watch-star';
+import { ageLabel } from '../flow/tape';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight, PanelRightOpen, Target } from 'lucide-react';
@@ -21,13 +22,19 @@ import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { useQuotes } from '@/components/ticker/ticker-data';
+import { QuoteFreshChip } from '@/components/ui/qe-phone';
 import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { compareBoardRows } from '@shared/board-sort';
+import { boardLivePrice, liveMark } from '@shared/live-mark';
+import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
+import { etDay } from '@shared/setup-lifecycle';
+import { gradeFromLife, gradePick, whyRankedHere, NEXUS_GRADE_POINTS, type NexusGrade } from '@shared/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
+import { SpxMirrorBlock, spxMirrorChipTitle } from '@/components/ideas/spx-mirror-block';
 import '@/styles/nexus-prototype.css';
 
 /* ── wire types ── */
@@ -120,18 +127,23 @@ export function withSpxRow(picks: ConvictionPick[] | undefined, spySource: Convi
   return sourceRows;
 }
 
-/** Setups in the server's board order when it set one, else by evidence score (held positions by live P&L), then side / search / rank filtered. */
-export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }): ConvictionPick[] {
+/**
+ * Setups in the server's board order when it set one, else by evidence score (held
+ * positions by live P&L), then side / search / rank filtered. With a lifecycle map
+ * (lib/setup-lifecycle.ts) stale and resolved setups sink below fresh/carried ones —
+ * the same order Today's book uses.
+ */
+export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }, life?: Map<string, SetupLife>): ConvictionPick[] {
   const needle = f.query.trim().toUpperCase();
-  const ranked = sourceRows
+  const filtered = sourceRows
     .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : isLiveBookPick(pick)) // same rule as Today's book
     .filter((pick) => f.side === 'all' || pick.direction === f.side)
-    .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle))
-    .sort((a, b) => f.scope === 'positions'
-      ? (b.unrealizedPnlPercent ?? -Infinity) - (a.unrealizedPnlPercent ?? -Infinity)
-      // BOARD_SORT (server): when the server stamped an order, keep it — the evidence
-      // score did not rank outcomes on the honest record (docs/SCORE_V2_STUDY.md).
-      : compareBoardRows(a, b));
+    .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle));
+  const ranked = f.scope === 'positions'
+    ? filtered.sort((a, b) => (b.unrealizedPnlPercent ?? -Infinity) - (a.unrealizedPnlPercent ?? -Infinity))
+    // BOARD_SORT (server): when the server stamped an order, keep it — the evidence
+    // score did not rank outcomes on the honest record (docs/SCORE_V2_STUDY.md).
+    : boardOrder(filtered, life);
   if (f.scope === 'positions' || f.rank === 'all') return ranked;
   if (f.rank === 'new') {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -204,12 +216,51 @@ export const useDevelopingQuote = (symbol: string | undefined, enabled: boolean)
 });
 
 /* ── rows ── */
-export function SetupRow({ pick, selected, onSelect, rotation }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null }) {
+/**
+ * The lifecycle line under a setup row (docs/SETUP_LIFECYCLE.md):
+ *   STATE · graded <publish> → now <live re-grade> · $live ±% vs entry · <age of that price>
+ * The price is the live quote when the batch answered, else the board's build-time
+ * read — each stamped with its own age, never shown as current without one.
+ */
+export function lifecycleLine(pick: ConvictionPick, sl: SetupLife, now: number): { text: string; title: string } {
+  const { life, mark } = sl;
+  const parts: string[] = [life.state === 'carried' && life.session != null && life.sessions != null ? `CARRIED s${life.session}/${life.sessions}` : life.label];
+  if (pick.publishedConvictionScore != null) {
+    const was = convictionPercent(pick.publishedConvictionScore), is = convictionPercent(pick.convictionScore);
+    parts.push(was === is ? `grade ${is} (unchanged)` : `graded ${was} → now ${is}`);
+  }
+  if (mark && pick.entryPrice > 0) {
+    const vs = (mark.price / pick.entryPrice - 1) * 100;
+    parts.push(`$${mark.price.toFixed(2)} ${vs >= 0 ? '+' : ''}${vs.toFixed(1)}% vs entry · ${ageLabel(mark.asOf, now)}`);
+  }
+  const title = `${life.label}: ${life.reason}.${pick.publishedConvictionScore != null ? ` Evidence grade at publish ${convictionPercent(pick.publishedConvictionScore)}, re-graded live by the board ${convictionPercent(pick.convictionScore)}.` : ''}${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
+  return { text: parts.join(' · '), title };
+}
+
+/** Publish time on a row: "3:09 PM" today, "Tue 3:09 PM" on an earlier day (ET). */
+export function publishStamp(iso: string, now: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  return etDay(d.getTime()) === etDay(now) ? time : `${d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' })} ${time}`;
+}
+
+/** NEXUS grade chip text + tooltip (BOARD_SORT=grade only). */
+export function gradeTitle(g: NexusGrade): string {
+  return `NEXUS grade ${g.letter} · ${g.score}/100 (unvalidated — an actionability order, not a predicted outcome). Why ranked here: ${whyRankedHere(g)}. Sector-rotation +${NEXUS_GRADE_POINTS.rotation} is an operator prior, not validated.`;
+}
+
+export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
+  const t = now ?? Date.now();
+  const line = life ? lifecycleLine(pick, life, t) : null;
+  // Live re-grade on the same lifecycle read the board order uses (lib/setup-lifecycle.ts boardOrder).
+  const grade = pick.nexusGrade && !pick.isBotHeld ? (life ? gradeFromLife(life.life, pick, t) : pick.nexusGrade) : null;
+  const title = [line?.title, grade ? gradeTitle(grade) : null].filter(Boolean).join('\n');
   return (
-    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
+    <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
-      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${new Date((pick.calledAt ?? pick.generatedAt)!).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}` : ''}</small></span>
+      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && <small className="nxp-why">why here: {whyRankedHere(grade)}</small>}</span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} of 100, unvalidated`}>{grade.letter} <b>{Math.round(grade.score)}</b></span> : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -357,20 +408,27 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   // currentPrice, which is only refreshed when the board rebuilds. When neither
   // exists the ladder says the quote is unavailable instead of showing entry as live.
   const lq = quotesQ.data?.[selected.symbol.toUpperCase()];
-  // The board's currentPrice is only a live read when it differs from the entry —
-  // a copy of the entry (stale board) is never shown as the market.
-  const boardPx = selected.currentPrice && selected.currentPrice > 0 && Math.abs(selected.currentPrice - selected.entryPrice) > 1e-9 ? selected.currentPrice : 0;
-  const liveQuote = lq?.price && lq.price > 0 ? lq.price : boardPx;
-  const live = liveQuote || selected.entryPrice;
-  const liveStamp = lq?.price ? [lq.session ?? sessionLabel(), lq.source, lq.delayed ? 'delayed' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
-  const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
-  const progress = selected.targetPrice !== selected.entryPrice
+  // shared/live-mark.ts: a fresh quote, else the board price only when the server
+  // flags it live — never the publish-time entry (audit 2026-10-01 P0 #7).
+  const boardPx = boardLivePrice(selected);
+  const live = liveMark(selected, lq?.price);
+  const checkedAt = quotesQ.dataUpdatedAt || quotesQ.errorUpdatedAt;
+  const checkedStamp = checkedAt ? `checked ${new Date(checkedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null;
+  const liveStamp = lq?.price ? [lq.session, lq.source, lq.delayed ? 'delayed' : null, lq.stale ? 'stale' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ')
+    : boardPx ? 'board price'
+    : quotesQ.isLoading ? 'reading live quote…'
+    : ['quote unavailable', checkedStamp].filter(Boolean).join(' · ');
+  // Flash on the price actually shown.
+  const liveFlash = useTickFlash(live, { resetKey: selected.ideaId });
+  const progress = live != null && selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
-    : 0;
+    : null;
   const support = selected.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points);
   const challenge = selected.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points);
   const pendingEntry = selected.lifecycleState === 'pending_trigger' || selected.lifecycleState === 'coverage' || selected.lifecycleState === 'thesis';
   const spx = selected.symbol === 'SPY' ? spxExpression : undefined;
+  // BOARD_SORT=grade: the same grade the board orders by, re-read on the live quote.
+  const grade = selected.nexusGrade ? gradePick({ ...selected, currentPrice: live ?? selected.currentPrice ?? null }, Date.now()) : null;
   return (
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
@@ -387,7 +445,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         </div>
         {selected.isBotHeld
           ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
-          : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
+          : grade
+            ? <div className="nxp-head-scores"><GradeBox grade={grade} /><EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} /></div>
+            : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
       </div>
 
       <div className="nxp-chart-card">
@@ -403,7 +463,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-levels">
-        <div title={liveStamp ?? undefined}><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
+        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Live'}</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small></div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
@@ -411,7 +471,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
 
-      <LevelsList symbol={selected.symbol} live={live} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
+      <LevelsList symbol={selected.symbol} live={live ?? 0} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}
@@ -429,14 +489,15 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
           <aside className="nxp-execution">
             <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
             <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
-            {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
+            {selected.spxMirror && <SpxMirrorBlock mirror={selected.spxMirror} />}
+            {selected.symbol === 'SPY' && !selected.spxMirror && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
             <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
           </aside>
         </div>}
         {tab === 'overview' && <TraderCallEvidence symbol={selected.symbol} />}
         {tab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
-        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={liveQuote} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live} /></div>}
-        {tab === 'risk' && <RiskPanel pick={selected} live={live} />}
+        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live ?? 0} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live ?? 0} /></div>}
+        {tab === 'risk' && <RiskPanel pick={selected} live={live ?? 0} />}
         {tab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
       </div>
       <p className="nxp-disclaimer text-muted-foreground" style={{ margin: '10px 2px 0', fontSize: 11, lineHeight: 1.45 }}>
@@ -454,8 +515,8 @@ type Bonds = ExtendedHoursRead['assetClasses'][number] | undefined;
 export function MarketSummary({ market, pulse, bonds, macro, onOpenContext }: { market: MarketContext; pulse?: MarketPulseRead; bonds: Bonds; macro: MacroRisk; onOpenContext?: () => void }) {
   return (
     <div className="nxp-market-summary">
-      <span>{market?.regime ?? 'Loading regime'}</span>
-      <strong>{market?.preferredDirection ?? '—'}</strong>
+      <span>{market?.regimeUnavailable ? 'regime unavailable' : market?.regime ?? 'Loading regime'}</span>
+      <strong>{market?.regimeUnavailable ? '—' : market?.preferredDirection ?? '—'}</strong>
       <span className={pulse?.macro.yieldDirection === 'RISING' ? 'risk' : 'reward'}>10Y {pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}%` : '—'} {pulse?.macro.yieldDirection === 'RISING' ? '↑' : '↓'}</span>
       <span className={(bonds?.changePct ?? 0) < 0 ? 'risk' : 'reward'}>TLT {bonds?.changePct == null ? '—' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}%`}</span>
       <span className={`nxp-risk-state ${macro.level.toLowerCase()}`}>RISK {macro.level}</span>
@@ -467,9 +528,9 @@ export function MarketSummary({ market, pulse, bonds, macro, onOpenContext }: { 
 /** The context drawer's body: regime score, Macro Risk Oracle, rates / VIX / TLT, reasons. */
 export function ContextBody({ market, macro, pulse, bonds, extended, hideFreshness }: { market: MarketContext; macro: MacroRisk; pulse?: MarketPulseRead; bonds: Bonds; extended?: ExtendedHoursRead; /** the caller prints feed ages itself */ hideFreshness?: boolean }) {
   return <>
-    <div className="nxp-context-score"><strong>{market?.score ?? '—'}</strong><span>regime score</span></div>
+    <div className="nxp-context-score"><strong>{market?.regimeUnavailable ? '—' : market?.score ?? '—'}</strong><span>{market?.regimeUnavailable ? 'regime unavailable — no SPY read' : 'regime score'}</span></div>
     <div className={`nxp-macro-oracle ${macro.level.toLowerCase()}`}><div><span>Macro risk gauge</span><strong>{macro.level}</strong><b>{macro.score}/100</b></div><p>{macro.posture}</p><ul>{macro.drivers.map((driver) => <li key={driver}>{driver}</li>)}</ul><small>Rates stress is measured from 10Y, its direction, TLT and VIX. Inflation is not inferred from yields.</small></div>
-    <dl><div><dt>Risk sentiment</dt><dd>{market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}% · ${pulse.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div>{!hideFreshness && <div><dt>Macro freshness</dt><dd>{extended?.isStale ? 'stale' : extended?.session ?? 'loading'}</dd></div>}</dl>
+    <dl><div><dt>Risk sentiment</dt><dd>{market?.regimeUnavailable ? '—' : market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.regimeUnavailable ? '—' : market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}% · ${pulse.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div>{!hideFreshness && <div><dt>Macro freshness</dt><dd>{extended?.isStale ? 'stale' : extended?.session ?? 'loading'}</dd></div>}</dl>
     <h3>Why it matters now</h3>
     <ul>{(market?.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
   </>;
@@ -511,6 +572,24 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
 }
 
 /**
+ * NEXUS grade box (BOARD_SORT=grade): the letter the board ranks by and its top three
+ * contributors — "why ranked here". UNVALIDATED (shared/nexus-grade.ts): it orders by
+ * whether the plan is still takeable as published and how much window is left, plus the
+ * operator's bounded with-rotation prior; it does not predict which setup wins.
+ */
+function GradeBox({ grade }: { grade: NexusGrade }) {
+  return (
+    <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} out of 100, unvalidated. Why ranked here: ${whyRankedHere(grade)}`}>
+      <strong className="nxp-grade-letter">{grade.letter}</strong>
+      <span>NEXUS grade (unvalidated) · {grade.score}/100</span>
+      <ul className="nxp-grade-why" aria-label="Why ranked here">
+        {grade.top.map((f) => <li key={f.key}>{f.label}{f.basis === 'operator prior' && f.points > 0 ? ' *' : ''} <b>+{f.points}</b></li>)}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * Evidence score as a ring gauge: arc = score / 100, colour by band, with the
  * count of layers for and against underneath. Labelled UNVALIDATED: on the
  * bar-verified record (2026-08-26 → 09-30) a higher score did not mean a better
@@ -534,17 +613,6 @@ function EvidenceRing({ score, band, support, against }: { score: number; band: 
   );
 }
 
-/** Which US session a quote belongs to, ET. */
-function sessionLabel(now = new Date()): string {
-  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
-  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
-  const wd = g('weekday'); const m = (Number(g('hour')) % 24) * 60 + Number(g('minute'));
-  if (wd === 'Sat' || wd === 'Sun') return 'market closed';
-  if (m >= 570 && m < 960) return 'live';
-  if (m >= 240 && m < 570) return 'pre-market';
-  if (m >= 960 && m < 1200) return 'after hours';
-  return 'overnight';
-}
 function ageOf(iso: string): string {
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
   if (!Number.isFinite(s)) return '';

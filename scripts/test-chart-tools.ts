@@ -95,7 +95,7 @@ const P = (d: Drawing, pts: { x: number; y: number }[], extra?: Projected['extra
   assert.deepEqual(alignToTimes(cmp, []), []);
   assert.equal(cleanCompareSymbol(' qqq '), 'QQQ');
   assert.equal(cleanCompareSymbol('BRK.B'), 'BRK.B');
-  assert.equal(cleanCompareSymbol('^VIX'), '^VIX');
+  assert.equal(cleanCompareSymbol('^VIX'), 'VIX', 'index aliases resolve to the terminal name (shared/index-symbols.ts)');
   assert.equal(cleanCompareSymbol('BTC-USD'), 'BTC-USD');
   assert.equal(cleanCompareSymbol(''), null);
   assert.equal(cleanCompareSymbol('DROP TABLE'), null, 'spaces rejected');

@@ -98,8 +98,8 @@ export function ProtectedRoute({
               });
             }
           }}
-          title="Create Your Account"
-          description="Sign up to unlock market data, AI trials, and more"
+          title="Sign in to QuantEdge"
+          description="QuantEdge is an invite-only beta. Sign in, or join the waitlist — there is a Free plan on delayed data."
         />
       </>
     );

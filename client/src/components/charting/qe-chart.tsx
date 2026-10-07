@@ -52,7 +52,9 @@ import {
   etInfo, etClock, shortDate, fmtUsd, ageOf,
   type DpLevel, type FlowPrint,
 } from '@/components/charting/chart-layers';
+import { canonicalChartSymbol } from '@shared/index-symbols';
 import '@/styles/nexus.css';
+import { terminalAsOf } from '@/components/gex/gex-model';
 
 /* The full variant is the TradingView-style chart (tv/tv-chart.tsx) on
    lightweight-charts; loaded on demand so compact embeds never pay for it. */
@@ -150,7 +152,7 @@ function QEChartCompact({
   onOpenLab,
   onOpenChartPage,
 }: QEChartProps) {
-  const symbol = rawSymbol.toUpperCase();
+  const symbol = canonicalChartSymbol(rawSymbol); // $SPX / ^GSPC / SPXW → SPX
   // The full variant is TvChart (see QEChart below); this is the compact embed.
   const compact = true;
   const shared = useChartPrefs();
@@ -185,7 +187,8 @@ function QEChartCompact({
   const dealerQ = useDealerMap(symbol, prefs.walls, inView);
   const snap = dealerQ.data?.snapshot;
   const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
-  const dealerAsOf = dealerQ.data ? (dealerQ.data.cached ? dealerQ.data.cachedAt : dealerQ.data.generatedAt) ?? null : null;
+  // The chain's own time (audit #12), not the response time.
+  const dealerAsOf = dealerQ.data ? terminalAsOf(dealerQ.data) ?? null : null;
   const dealerSource = snap?.source ?? dealerQ.data?.optionsSource ?? 'chain';
   // The expanded modal has no card beside it: labels come back on the canvas there.
   const expandedLevels = useMemo(() => (levels.some((l) => l.hideLabel) ? levels.map((l) => ({ ...l, hideLabel: false })) : levels), [levels]);

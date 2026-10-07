@@ -81,7 +81,8 @@ t('bucket walls: call above spot, put below; units $B per 1%', () => {
   assert.ok(s.callWall! > spot); assert.ok(s.putWall! < spot);
   assert.ok(Math.abs(s.dealerFlowPer1Pct - s.totalGEX * 1e9) < 1e-3);
   const b = bucketizeLegs([...book(spot), ...book(spot).map((l) => ({ ...l, dte: 40 }))], spot);
-  assert.deepEqual(Object.keys(b).sort(), ['quarter', 'week']);
+  // 'next7' (≤7d book, kept outside the disjoint buckets) since 1e44042b.
+  assert.deepEqual(Object.keys(b).sort(), ['next7', 'quarter', 'week']);
 });
 t('no IV → flip null, not invented', () => {
   const s = summarizeBucketLegs(book(765).map((l) => ({ ...l, iv: undefined })), 765);

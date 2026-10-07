@@ -217,11 +217,18 @@ export async function getUniverseBars(days = 70): Promise<Map<string, UBar[]>> {
   }
   const running = universeBarsInflight.get(days);
   if (running) return running;
+  // A process that never warmed (fresh worker restart) has an empty ranking, so
+  // `want` was empty and this returned — and CACHED for 15 min — an empty map.
+  // 2026-10-01: the sector board then read only its capped per-symbol fallback
+  // (179 of 277 symbols) and whole sectors showed 0/N. Load the persisted
+  // ranking first, and never cache an empty result.
+  if (ranked.length === 0) await loadLiquidUniverseFromDisk();
 
   const load = buildUniverseBars(days);
   universeBarsInflight.set(days, load);
   try {
     const bars = await load;
+    if (bars.size === 0) return bars;
     if (!universeBarsCache || universeBarsCache.days <= days || Date.now() - universeBarsCache.at >= UNIVERSE_BARS_TTL_MS) {
       universeBarsCache = { days, at: Date.now(), bars };
     }

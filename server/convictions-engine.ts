@@ -30,6 +30,7 @@ import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
+import { gradePick, type NexusGrade } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -66,6 +67,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
     reasons: ["Market context is refreshing — no live regime adjustment applied"],
     spyData: null,
     vixLevel: null,
+    regimeUnavailable: true,
     timestamp: new Date(),
   };
 }
@@ -151,14 +153,25 @@ export interface ConvictionPick {
   source: string;
   /** Live price at response time — what P&L / progress are measured against. */
   currentPrice?: number | null;
+  /**
+   * True only when currentPrice came from a live quote this build; false when it
+   * is the idea's carried/stored price. Consumers (NEXUS Live cell, alert
+   * geometry) must not treat a carried price as the market (audit 2026-10-01 #7).
+   */
+  priceIsLive?: boolean;
   /** A published plan is not an executed position. Derived from the durable audit. */
   lifecycleState: OracleLifecycleState;
   /** When the idea was published (exact ISO). */
   calledAt?: string | null;
   /** When price first traded through the trigger (exact ISO), if it has. */
   triggeredAt?: string | null;
+  /** The idea's own exit deadline / entry window (stored columns) — shared/setup-lifecycle.ts. */
+  exitBy?: string | null;
+  entryValidUntil?: string | null;
   /** Server board position (0 = top) — set only when BOARD_SORT is not 'score'. */
   boardRank?: number;
+  /** NEXUS grade (shared/nexus-grade.ts) at build time — set only when BOARD_SORT=grade. Unvalidated. */
+  nexusGrade?: NexusGrade;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -172,6 +185,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: the fields above are engine defaults, not a measured market. */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -2851,10 +2866,14 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // The live price was fetched for revalidation and then never serialised, so every
       // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
       currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
+      priceIsLive: (liveQuotes.get(idea.symbol)?.price ?? 0) > 0 && !liveQuotes.get(idea.symbol)?.stale,
       lifecycleState: readOracleExecutionAudit(idea.convergenceSignalsJson)?.state ?? "pending_trigger",
       // Exact call and trigger times (operator: "we need the EXACT time these are called").
       calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
       triggeredAt: readOracleExecutionAudit(idea.convergenceSignalsJson)?.triggerObservedAt ?? null,
+      // Carry-over policy reads the idea's own deadlines (shared/setup-lifecycle.ts).
+      exitBy: idea.exitBy ?? null,
+      entryValidUntil: idea.entryValidUntil ?? null,
     });
   }
 
@@ -3003,10 +3022,15 @@ bandFor(p.convictionScore);
   }
   const deconflicted = Array.from(horizonWinners.values());
 
-  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record stops ranking
+  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record|grade stops ranking
   // by the evidence score, which did not rank outcomes on the honest record
   // (docs/SCORE_V2_STUDY.md); unset keeps the score order.
   const boardSort = readBoardSort(process.env);
+  if (boardSort === "grade") {
+    // Build-time read (the board's own price); the client re-grades on its live quote.
+    const gradedAt = Date.now();
+    for (const p of deconflicted) p.nexusGrade = gradePick(p, gradedAt);
+  }
   const ordered: ConvictionPick[] = boardSort === "score"
     ? deconflicted.sort((a, b) => b.convictionScore - a.convictionScore)
     : orderBoard(deconflicted, boardSort);
@@ -3046,6 +3070,7 @@ bandFor(p.convictionScore);
       score: marketCtx.score,
       vixLevel: marketCtx.vixLevel,
       reasons: marketCtx.reasons,
+      ...(marketCtx.regimeUnavailable ? { regimeUnavailable: true } : {}),
     },
     breadth: breadthResponse,
     geopolitical: geo,

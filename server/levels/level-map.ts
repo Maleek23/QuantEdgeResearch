@@ -26,6 +26,7 @@ import {
   buildLevelMap, type Bar, type ExternalLevel, type LevelMap,
 } from '@shared/levels/level-math';
 import { snapPlanToStructure, type SnapHorizon, type SnapResult } from '@shared/levels/snap';
+import { indexInfo, canonicalChartSymbol, buildFutureProxyBars, overnightRange, type IdxBar } from '@shared/index-symbols';
 
 const MAP_TTL_MS = 60_000;
 const mapCache = new BoundedCache<string, { at: number; map: LevelMap | null }>({
@@ -103,6 +104,23 @@ async function computeLevelMap(symbol: string): Promise<LevelMap | null> {
   ]);
   if (!intraday?.length && !daily?.length) return null;
   const external = await cachedExternalLevels(symbol);
+  // A cash index has no pre-market: its overnight H/L comes from the future
+  // scaled to the index (shared/index-symbols.ts), labelled as such.
+  const idx = indexInfo(symbol);
+  if (idx?.extendedProxy && intraday?.length) {
+    const fut = await withTimeout(fetchCandles(idx.extendedProxy, '5d', '5m'), 6000);
+    if (fut?.length) {
+      const proxy = buildFutureProxyBars(intraday as IdxBar[], fut as IdxBar[]);
+      const on = overnightRange(intraday as IdxBar[], proxy.bars, Date.now());
+      if (on) {
+        const asOf = new Date(on.toSec * 1000).toISOString();
+        const a = proxy.anchors[proxy.anchors.length - 1];
+        const src = `${idx.extendedProxy} 5m bars × ${symbol}/${idx.extendedProxy} ${a ? a.ratio.toFixed(5) : ''} at the ${symbol} close (proxy${on.forming ? ', forming' : ''})`;
+        external.push({ price: on.high, kind: 'premkt_high', source: src, asOf, label: `overnight high (${idx.extendedProxy}→${symbol})` });
+        external.push({ price: on.low, kind: 'premkt_low', source: src, asOf, label: `overnight low (${idx.extendedProxy}→${symbol})` });
+      }
+    }
+  }
   return buildLevelMap({
     symbol, intraday: (intraday ?? []) as Bar[], daily: (daily ?? []) as Bar[], external, nowMs: Date.now(),
     barSource: 'yahoo',
@@ -121,7 +139,7 @@ export function peekLevelMap(symbolRaw: string): { at: number; map: LevelMap } |
 
 /** Level map for one symbol (60 s cache, shared in-flight). Null when no bars. */
 export async function getLevelMap(symbolRaw: string): Promise<LevelMap | null> {
-  const symbol = symbolRaw.toUpperCase();
+  const symbol = canonicalChartSymbol(symbolRaw);
   const hit = mapCache.get(symbol);
   if (hit && Date.now() - hit.at < MAP_TTL_MS) return hit.map;
   const running = inflight.get(symbol);

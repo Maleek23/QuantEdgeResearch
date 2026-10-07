@@ -21,11 +21,11 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
 import { Clamp, PhoneNote } from '@/components/ui/qe-phone';
-import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupMarker, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
+import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupHref, pmSetupLabel, pmSetupTitle, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
 import { useDashboard, useNow, useToolReport } from '../../frame';
 import { ageLabel } from '../flow/tape';
 import {
-  Ladder, WeekMap, explain, fmt, newest,
+  BOARD_ORDER_LABEL, Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
 } from './today-model';
 import '@/styles/nexus.css';
@@ -118,7 +118,7 @@ export function TodayWeekMapTool() {
             <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
               <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>
@@ -182,7 +182,7 @@ export function TodayBestIdeaTool() {
     <div className={`${WRAP} td-best`}>
       <div className="feature">
         <div>
-          <div className="feature-num">TOP RANKED SETUP · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
+          <div className="feature-num">TOP OF THE NEXUS BOARD · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}{book.life.get(best.ideaId) ? ` · ${book.life.get(best.ideaId)!.life.label}` : ''}</div>
           <h3 className="feature-title">{bestX.headline}</h3>
           {bestX.against && <Clamp className="feature-desc" text={`Against it: ${bestX.against}`}><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</Clamp>}
           <div className="feature-list">
@@ -248,7 +248,7 @@ export function TodayRankedBookTool() {
   return (
     <div className={`${WRAP} td-book`}>
       <div className="td-tool-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span className="qp-desk-only">Active book · ranked by evidence · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</span>
+        <span className="qp-desk-only">Active book · {BOARD_ORDER_LABEL[book.boardSort]} · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</span>
         <ChartsToggle />
       </div>
       <div className="tl-book">
@@ -288,7 +288,7 @@ export function TodayIndexDeskTool() {
             <Link href={play ? `/r/${symbol}` : `/r/${symbol}?tab=chart`} className={`td-index-row${play ? ' live' : ''}`} key={symbol}>
               <div><strong>{symbol}</strong><small>{play ? `${play.setup?.replaceAll('_', ' ') ?? 'index setup'}${play.isPowerHour ? ' · power hour' : ''}` : 'monitoring levels'}</small></div>
               <span className={play?.direction === 'short' ? 'down' : play ? 'up' : ''}>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
-              <b>{play?.confidence != null ? `${Math.round(play.confidence)}/100` : '—'}</b>
+              <b title="The scanner's own raw confidence at publish — not the NEXUS evidence grade">{play?.confidence != null ? `scanner ${Math.round(play.confidence)}` : '—'}</b>
               <em>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'No active call'}</em>
             </Link>
           );
@@ -411,10 +411,11 @@ export function TodayRotationTool() {
         <div className="feature-visual">
           <div className="rot-map">
             <RotQuad sectors={sectors} />
-            <div className="rot-label tl">Leading</div>
-            <div className="rot-label tr">Improving</div>
-            <div className="rot-label bl">Weakening</div>
-            <div className="rot-label br">Lagging</div>
+            {/* Matches the plot: x = relative strength (right = stronger), y = momentum (up = rising). */}
+            <div className="rot-label tl">Improving</div>
+            <div className="rot-label tr">Leading</div>
+            <div className="rot-label bl">Lagging</div>
+            <div className="rot-label br">Weakening</div>
             <div className="rot-axis x">x · rel strength →</div>
             <div className="rot-axis y">y · momentum →</div>
           </div>
@@ -589,9 +590,9 @@ export function TodayPremarketTool() {
               {dir && al !== 'flat' && <em className={al}>{al === 'confirms' ? `confirms ${dir}` : `against ${dir}`}</em>}
             </Link>
             {g.setup && (
-              <Link href={nexusIdeaHref({ ideaId: g.setup.ideaId, symbol: g.symbol })} className={`td-pm-setup ${g.setup.status}`}
-                title={`Pre-market setup${g.setup.status === 'triggered' ? ' — triggered, open in NEXUS' : ' — WATCH for the open'}: ${g.setup.summary} · measuring (unproven)`}>
-                setup {pmSetupMarker(g.setup)}
+              <Link href={pmSetupHref(g.symbol, g.setup)} className={`td-pm-setup ${g.setup.status}`}
+                title={pmSetupTitle(g.setup)}>
+                {pmSetupLabel(g.setup)}
               </Link>
             )}
             </span>

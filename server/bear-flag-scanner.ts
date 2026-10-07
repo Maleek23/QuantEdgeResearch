@@ -472,6 +472,11 @@ export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
       bearUniverse = Array.from(new Set([...BEAR_FLAG_UNIVERSE, ...liquid].map((x) => x.toUpperCase())));
     }
   } catch { /* cold universe — the hand list still scans */ }
+  try {
+    // NEXUS tracked symbols (source 'tracked') — scanned even when outside the liquidity cut.
+    const { getTrackedSymbols } = await import('./nexus-tracked');
+    bearUniverse = Array.from(new Set([...bearUniverse, ...getTrackedSymbols()]));
+  } catch { /* tracked list unreadable — scan without it */ }
   logger.info(`[BEAR-FLAG] 🐻 Scanning ${bearUniverse.length} tickers for bear flag breakdowns...`);
 
   const results: BearFlagSetup[] = [];

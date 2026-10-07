@@ -70,6 +70,12 @@ export interface FlowResponse {
   trades: FlowTrade[];
   stats: FlowStats;
   pagination: { limit: number; offset: number; total: number };
+  /**
+   * True when the flow store could not be read (audit 2026-10-01 P0 #27): the
+   * route answers 503 so clients show an error — an outage is not a quiet tape.
+   */
+  unavailable?: boolean;
+  error?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -252,6 +258,8 @@ export async function getOptionsFlow(filters: FlowFilters): Promise<FlowResponse
       trades: [],
       stats: emptyStats(),
       pagination: { limit, offset, total: 0 },
+      unavailable: true,
+      error: 'Options flow store unavailable',
     };
   }
 }

@@ -62,6 +62,9 @@ export interface ChartPrefs {
   ema: boolean;
   /** Full chart: session VWAP (intraday timeframes). */
   vwap: boolean;
+  /** Full chart: session key levels from /api/levels — prior day H/L/C, 15m
+   *  opening range, pre-market (cash index: ES-based overnight) H/L. */
+  keyLevels: boolean;
   /** Keys the user explicitly set (the rest follow DEFAULT_CHART_PREFS). */
   setKeys?: (keyof ChartPrefs)[];
 }
@@ -73,7 +76,7 @@ export const CHART_PREFS_KEY = 'qe-chart-v2';
 const LEGACY_KEY = 'qe-flowchart-v1';
 export const DEFAULT_CHART_PREFS: ChartPrefs = {
   tf: '5m', range: '1D', extended: true, gex: 'bubbles', dp: false, flow: false, ma: false, volume: false, type: 'candles',
-  walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false,
+  walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false, keyLevels: false,
 };
 
 function read(): ChartPrefs {

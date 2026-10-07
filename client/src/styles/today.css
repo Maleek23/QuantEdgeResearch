@@ -691,6 +691,8 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
   .today-page .tl-dup-phone{display:none!important}
 }
 
+/* Freshness chip inside the scrolling tape (shared/quote-freshness.ts). */
+.ltape-fresh{margin-left:6px;font-size:10px;padding:1px 6px}
 /* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
    the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
 @media (min-width:600px){

@@ -48,20 +48,25 @@ function BootArm() {
   return null;
 }
 
-const render = () => createRoot(document.getElementById("root")!).render(
+const mount = () => createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BootArm />
     <App />
   </ErrorBoundary>
 );
-
-// DEV-only device harness (client/src/dev/harness.ts): /__harness or ?harness=1
-// answers /api from synthetic fixtures so pages render under bare `vite`.
-// import.meta.env.DEV is false in builds, so the import is dropped entirely.
-if (import.meta.env.DEV) {
-  import("./dev/harness").then((h) => { if (h.harnessWanted()) h.installHarness(); render(); }, render);
+// DEV-only phone harness (/dev/gex-phone): fixture API, no server or DB. The
+// whole branch (and its chunk) is dropped from production builds.
+if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
+  import("./dev/gex-phone-mocks").then((m) => { m.installGexPhoneMocks(); mount(); });
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/zerodte")) {
+  // DEV-only 0DTE desk harness: fixture API + pinned clock (dev/zerodte-mocks.ts).
+  import("./dev/zerodte-mocks").then((m) => { m.installZeroDteMocks(); mount(); });
+} else if (import.meta.env.DEV) {
+  // DEV-only device harness (client/src/dev/harness.ts): /__harness or ?harness=1
+  // answers /api from synthetic fixtures so pages render under bare `vite`.
+  import("./dev/harness").then((h) => { if (h.harnessWanted()) h.installHarness(); mount(); }, mount);
 } else {
-  render();
+  mount();
 }
 
 // PWA installability — the SW is a pure passthrough (no caching; a trading

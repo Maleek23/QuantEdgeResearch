@@ -8,7 +8,9 @@
  * the weekly path is a MODEL projection labelled "not a forecast"; nothing
  * publish-time is shown as current (live quotes carry their own timestamp).
  */
-import { CONVICTIONS_QUERY_KEY, isLiveBookPick } from '@/lib/convictions';
+import { pickWalls } from '@shared/gex-wall-basis';
+import { CONVICTIONS_QUERY_KEY, isLiveBookPick, type ConvictionPick } from '@/lib/convictions';
+import { boardOrder, useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -21,7 +23,9 @@ export interface WPPoint { dayOffset: number; price: number; lo?: number; hi?: n
 export interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
 export interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string; impliedVol?: number }
 export interface GexLevel { strike: number; gammaPct: number; role?: string; gex?: number }
-export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; zeroGammaLevel?: number | null; regime?: string; regimeRead?: { regime?: 'positive' | 'negative' | 'neutral'; nearFlip?: boolean }; totalGEX?: number; levels?: GexLevel[] }
+export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; zeroGammaLevel?: number | null; regime?: string; regimeRead?: { regime?: 'positive' | 'negative' | 'neutral'; nearFlip?: boolean }; totalGEX?: number; levels?: GexLevel[]; byDte?: unknown;
+  /** Which book callWall/putWall/gammaFlipPrice are from (shared/gex-wall-basis.ts) — printed with them. */
+  wallBasis?: import('@shared/gex-wall-basis').PickedWalls }
 export interface Layer { kind: string; why: string; points: number }
 export interface Pick {
   ideaId: string; symbol: string; direction: 'long' | 'short'; sector?: string; thesis?: string;
@@ -33,7 +37,11 @@ export interface Pick {
 export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number; runUp?: RunUpRead | null }
 /** model-record.runUp — shared/run-up.ts. Run-up after trigger, NOT the win rate. */
 export interface RunUpRead { label: string; since: string; triggered: number; reached3: number; reached5BeforeStop: number; reached10: number; rate: number | null; pending: number; medianMinutesTo5: number | null }
-export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'closed' | null; source?: string | null }
+export interface Quote {
+  price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'overnight' | 'closed' | null; source?: string | null;
+  /** Freshness (docs/DATA_LATENCY.md) — rendered by <QuoteFreshChip>. */
+  delayed?: boolean; delayedSec?: number; proxy?: boolean; stale?: boolean;
+}
 export interface IndexScalp {
   id: string; symbol: string; direction: 'long' | 'short'; bias: string;
   setup?: string; strike?: number | null; expiry?: string | null;
@@ -65,17 +73,45 @@ export const useWeeklyPath = () =>
 /** SPY dealer snapshot — the GEX tools' own query, so it dedupes with them. */
 export function useSpyGex() {
   const q = useGexTerminal('SPY');
-  const snap = q.data?.snapshot as unknown as GexSnap | undefined;
+  const raw = q.data?.snapshot as unknown as GexSnap | undefined;
+  // Walls on the platform's one basis (≤7d book, else labelled all-expiry) — the
+  // same numbers the ticker page and the NEXUS wall-touch badge show (audit #11).
+  const snap = useMemo<GexSnap | undefined>(() => {
+    if (!raw) return raw;
+    const w = pickWalls({ callWall: raw.callWall, putWall: raw.putWall, flip: raw.gammaFlipPrice ?? raw.zeroGammaLevel, byDte: raw.byDte });
+    return { ...raw, callWall: w.callWall ?? undefined, putWall: w.putWall ?? undefined, gammaFlipPrice: w.flip ?? undefined, wallBasis: w };
+  }, [raw]);
   return { q, snap, asOf: terminalAsOf(q.data) };
 }
+
+/** Wall clock that ticks every 30s — enough for lifecycle windows that end at a session close. */
+function useMinuteClock() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id); }, []);
+  return now;
+}
+
+/** "board order" wording for the BOARD_SORT the server reports. */
+export const BOARD_ORDER_LABEL: Record<'score' | 'recency' | 'engine_record' | 'grade', string> = {
+  score: 'NEXUS board order · by evidence',
+  recency: 'NEXUS board order · newest first',
+  engine_record: 'NEXUS board order · by engine record',
+  grade: 'NEXUS board order · by NEXUS grade (unvalidated)',
+};
 
 export function useBook() {
   // Same query key + cadence as NEXUS (one fetch, one snapshot) and the same
   // membership rule (isLiveBookPick) so "N live" and the scores match NEXUS exactly.
-  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
-  const ideas = useMemo(() => (conv.data?.picks ?? [])
-    .filter((p) => isLiveBookPick(p as never))
-    .sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)), [conv.data]);
+  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string; boardSort?: 'score' | 'recency' | 'engine_record' | 'grade' }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
+  // ORDER = the NEXUS board's order (lib/setup-lifecycle.ts boardOrder): the server's
+  // BOARD_SORT rank when it stamped one, else evidence score; stale + resolved setups
+  // sink. This used to sort by evidence score alone while NEXUS used BOARD_SORT=recency,
+  // so a two-day-old idea could top Today's book and sit near the bottom of NEXUS.
+  const now = useMinuteClock();
+  const book = conv.data?.picks as unknown as ConvictionPick[] | undefined;
+  const { map: life } = useSetupLifecycles(book, conv.data?.generatedAt, now);
+  const ideas = useMemo(() => boardOrder((book ?? []).filter((p) => isLiveBookPick(p)), life, now) as unknown as Pick[], [book, life, now]);
+  const boardSort = conv.data?.boardSort ?? 'score';
   const syms = ideas.slice(0, 12).map((p) => p.symbol).concat('SPY').join(',');
   const quotes = useQuery<{ quotes: Record<string, Quote> }>({
     queryKey: [`/api/quotes/batch/${syms}`], queryFn: get(`/api/quotes/batch/${syms}`),
@@ -85,7 +121,7 @@ export function useBook() {
   const px = (s: string) => { const qq = quote(s); return qq?.price ?? qq?.lastPrice; };
   const longs = ideas.filter((p) => p.direction !== 'short').length;
   const asOf = conv.data ? (conv.data.generatedAt ?? newest(...ideas.map((p) => p.generatedAt)) ?? iso(conv.dataUpdatedAt)) : undefined;
-  return { conv, ideas, quotes, quote, px, longs, asOf };
+  return { conv, ideas, quotes, quote, px, longs, asOf, life, boardSort };
 }
 
 export const usePerf = () =>
@@ -126,9 +162,9 @@ export function WeekMap({ wp, snap, narrow }: { wp: WeeklyPath; snap?: GexSnap; 
   const W = narrow ? 380 : 760, H = narrow ? 320 : 380, padL = 8, padR = narrow ? 92 : 118, padT = 18, padB = 46;
   // Only measured dealer levels — the model's extrapolated ones stay off the map.
   const measured = [
-    snap?.callWall && { price: snap.callWall, label: 'Call wall', tone: 'bull' },
+    snap?.callWall && { price: snap.callWall, label: `Call wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bull' },
     snap?.maxGammaStrike && { price: snap.maxGammaStrike, label: 'King node', tone: 'magnet' },
-    snap?.putWall && { price: snap.putWall, label: 'Put wall', tone: 'bear' },
+    snap?.putWall && { price: snap.putWall, label: `Put wall${snap.wallBasis ? ` ${snap.wallBasis.basisShort}` : ''}`, tone: 'bear' },
   ].filter(Boolean) as { price: number; label: string; tone: string }[];
   const pctAt = (k: number) => snap?.levels?.find((l) => Math.abs(l.strike - k) < 0.01)?.gammaPct;
   // Scale to the week SPY can realistically travel (±2σ of the implied move),

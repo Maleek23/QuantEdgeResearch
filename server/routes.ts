@@ -62,7 +62,10 @@ import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPassword } from "./userAuth";
 import { randomBytes } from "crypto";
-import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
+import { getTierLimits, TierLimits } from "./tierConfig";
+import { tierGateDecision } from "./tier-gate";
+import { ACCOUNT_DISABLED_ERROR, deleteConfirmed, inviteEmailMatches, isAccountDisabled, isInviteEmailLocked, isProtectedAdmin, parseAssignableTier, safeInviteTier } from "./admin-ops";
+import { appendAdminAudit, auditActor, codeTail } from "./admin-audit";
 // LAZY-LOADED: notion-sync — imported via await import() in handlers
 // LAZY-LOADED: paper-trading-service — imported via await import() in handlers
 import { getAutoLottoExitIntelligence } from "./position-monitor-service";
@@ -124,7 +127,8 @@ function isAuthenticated(req: any, res: any, next: any) {
   next();
 }
 
-// Tier-based feature access middleware factory
+// Tier-based feature access middleware factory. The decision itself is
+// server/tier-gate.ts (tested by scripts/test-admin-ops.ts).
 function requireTier(feature: keyof TierLimits) {
   return async (req: any, res: any, next: any) => {
     const userId = req.session?.userId;
@@ -137,60 +141,14 @@ function requireTier(feature: keyof TierLimits) {
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      
-      // Check if admin (always has access)
-      if (checkIsAdmin(user)) {
-        return next();
-      }
-      
-      const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
-      const hasAccess = canAccessFeature(tier, feature);
-      
-      if (!hasAccess) {
-        const tierNames: Record<string, string> = {
-          free: 'Free',
-          advanced: 'Advanced',
-          pro: 'Pro'
-        };
-        return res.status(403).json({ 
-          message: `This feature requires ${getRequiredTierForFeature(feature)} tier or higher`,
-          currentTier: tierNames[tier] || 'Free',
-          requiredFeature: feature,
-          upgradeUrl: '/?section=pricing'
-        });
-      }
-      
+      const decision = tierGateDecision(user, feature, checkIsAdmin(user));
+      if (!decision.ok) return res.status(decision.status).json(decision.body);
       next();
     } catch (error) {
       logger.error('Tier check failed', { error, userId, feature });
       return res.status(500).json({ message: "Failed to verify access" });
     }
   };
-}
-
-// Helper to determine minimum tier for a feature
-function getRequiredTierForFeature(feature: keyof TierLimits): string {
-  const advancedFeatures: (keyof TierLimits)[] = [
-    'canAccessHybridEngine', 'canAccessFlowScanner', 'canAccessLottoScanner', 
-    'canAccessPennyScanner', 'canAccessAutoLottoBot', 'canAccessCryptoBot',
-    'canTradeOptions', 'canAccessPerformance', 'canAccessAdvancedAnalytics',
-    'canAccessSymbolLeaderboard', 'canAccessTimeHeatmap', 'canAccessEngineTrends',
-    'canAccessSignalAnalysis', 'canAccessDrawdownAnalysis', 'canAccessLossAnalysis',
-    'canAccessSupportResistance', 'canAccessMultiFactorAnalysis',
-    'canAccessSECFilings', 'canAccessGovContracts', 'canAccessCatalystScoring',
-    'canAccessRealTimeData', 'canAccessRealTimeAlerts', 'canExportData', 'canExportPDF',
-    'canAccessDiscordAlerts', 'canAccessWeeklyPicks', 'canAccessDailyReports'
-  ];
-  
-  const proFeatures: (keyof TierLimits)[] = [
-    'canAccessFuturesBot', 'canAccessPropFirmBot', 'canTradeFutures',
-    'canAccessAPIAccess', 'canAccessWebhooks', 'canAccessBacktesting',
-    'priorityIdeaGeneration'
-  ];
-  
-  if (proFeatures.includes(feature)) return 'Pro';
-  if (advancedFeatures.includes(feature)) return 'Advanced';
-  return 'Free';
 }
 
 // Configure multer for file uploads (memory storage)
@@ -501,6 +459,9 @@ async function requireBetaAccess(req: Request, res: Response, next: NextFunction
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
+    if (isAccountDisabled(user)) {
+      return res.status(403).json({ error: ACCOUNT_DISABLED_ERROR, code: 'ACCOUNT_DISABLED' });
+    }
     
     // Check for beta access - grandfathered tiers or explicit beta access
     const hasBetaAccess = user.hasBetaAccess || 
@@ -803,7 +764,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         candidateInvite.status === 'redeemed' ||
         candidateInvite.status === 'revoked' ||
         candidateInvite.status === 'expired' ||
-        (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date())
+        (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date()) ||
+        // An email-locked invite (admin hub "email lock", every waitlist approval)
+        // only opens an account for that address. Same generic answer.
+        !inviteEmailMatches(candidateInvite, emailLower)
       ) {
         logger.warn('Signup rejected: invite code not usable', { ip: req.ip, found: !!candidateInvite });
         return res.status(403).json({ error: GENERIC_INVITE_ERROR });
@@ -822,15 +786,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // to the (now-redeemed) invite.
       const validatedInvite = (await storage.redeemBetaInvite(normalizedInviteCode)) || candidateInvite;
 
-      // Determine subscription tier (use invite's tier override if available)
-      const tierOverride = validatedInvite.tierOverride || 'free';
+      // New accounts start on Free (operator 2026-09-30); an invite may carry an
+      // explicit free/advanced/pro override. 'admin' is never granted by an invite.
+      const inviteTier = safeInviteTier(validatedInvite.tierOverride);
+      const tierOverride = inviteTier || 'free';
 
-      // Update user with beta access and tier if invite had a tier override
       const hasBetaAccess = true;
       await storage.updateUser(user.id, {
         hasBetaAccess,
         betaInviteId: validatedInvite.id || null,
-        ...(validatedInvite.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
+        ...(inviteTier ? { subscriptionTier: inviteTier } : {})
       });
 
       // Update waitlist entry status if exists
@@ -877,6 +842,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         return res.status(401).json({ error: "Invalid email or password" });
+      }
+      if (isAccountDisabled(user)) {
+        return res.status(403).json({ error: ACCOUNT_DISABLED_ERROR });
       }
 
       // Sign in on a NEW session id (session fixation); extend to 30 days if
@@ -1145,6 +1113,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // An email-locked code only redeems for that address — checked BEFORE
+      // redeeming so a mismatch does not burn the code.
+      const candidate = await storage.getBetaInviteByToken(sanitizedToken);
+      if (candidate && !inviteEmailMatches(candidate, user.email)) {
+        logger.warn('Invite redemption refused: email-locked to another address', { userId });
+        return res.status(400).json({ error: "Invalid or expired invite code" });
+      }
+
       // Try to redeem the invite code from database
       const invite = await storage.redeemBetaInvite(sanitizedToken);
       
@@ -1155,11 +1131,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid or expired invite code" });
       }
       
-      // Update user with beta access + pro tier (or invite's tier override)
+      // Beta access always; the tier changes only when the invite carries an
+      // explicit free/advanced/pro override (it used to reset an existing
+      // Advanced member to Free when the invite had none).
+      const inviteTier = safeInviteTier(invite.tierOverride);
       await storage.updateUser(userId, { 
         hasBetaAccess: true,
         betaInviteId: invite.id,
-        subscriptionTier: invite.tierOverride || 'free' // New accounts start on Free (operator 2026-09-30); an invite can override
+        ...(inviteTier ? { subscriptionTier: inviteTier } : {}),
       });
       
       // Fetch updated user to return
@@ -1168,14 +1147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info('User redeemed beta invite', { 
         userId, 
         email: user.email, 
-        inviteToken: invite.token,
-        tierOverride: invite.tierOverride 
+        inviteId: invite.id,
+        tierOverride: inviteTier
       });
       
       res.json({ 
         success: true, 
         message: "Beta access granted!",
-        tierUpgrade: invite.tierOverride || null,
+        tierUpgrade: inviteTier,
         user: updatedUserWithInvite ? sanitizeUser(updatedUserWithInvite) : null
       });
     } catch (error) {
@@ -1211,8 +1190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid invite code" });
       }
       
-      // Check if invite matches email
-      if (invite.email.toLowerCase() !== emailLower) {
+      // This flow can attach to an existing account by email, so it only takes
+      // codes locked to that address. Unlocked admin-hub codes are for /signup.
+      if (!isInviteEmailLocked(invite) || !inviteEmailMatches(invite, emailLower)) {
         logger.warn('Beta verification failed - email mismatch', { 
           providedEmail: emailLower, 
           inviteEmail: invite.email 
@@ -1316,7 +1296,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
-        // User exists, update them with beta access instead of creating new
+        // Never overwrite an existing password from an invite flow (that would let
+        // whoever holds a code take over the account). Such users sign in and
+        // redeem the code instead.
+        if (existingUser.passwordHash) {
+          return res.status(409).json({ error: "An account with this email already exists. Sign in, then redeem your invite code." });
+        }
+        // User exists without a password (e.g. Google account), add one + beta access
         const passwordHash = await hashPassword(password);
         
         await storage.updateUser(existingUser.id, {
@@ -1334,8 +1320,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           onboardingCompletedAt: new Date(),
         });
         
-        // Mark invite as redeemed
-        await storage.redeemBetaInvite(betaVerified.token);
+        // Mark invite as redeemed; apply its explicit tier override, if any
+        const redeemedExisting = await storage.redeemBetaInvite(betaVerified.token);
+        const existingInviteTier = safeInviteTier(redeemedExisting?.tierOverride);
+        if (existingInviteTier) await storage.updateUser(existingUser.id, { subscriptionTier: existingInviteTier });
         
         // Update waitlist if they were on it
         const waitlistEntry = await storage.getWaitlistEntry(email);
@@ -1382,8 +1370,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         onboardingCompletedAt: new Date(),
       });
       
-      // Mark invite as redeemed
-      await storage.redeemBetaInvite(betaVerified.token);
+      // Mark invite as redeemed; apply its explicit tier override, if any
+      const redeemedNew = await storage.redeemBetaInvite(betaVerified.token);
+      const newInviteTier = safeInviteTier(redeemedNew?.tierOverride);
+      if (newInviteTier) await storage.updateUser(newUser.id, { subscriptionTier: newInviteTier });
       
       // Update waitlist if they were on it
       const waitlistEntry = await storage.getWaitlistEntry(email);
@@ -1552,6 +1542,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn('User not found in database', { userId });
         return res.status(200).json(null);
       }
+      // A disabled account reads as signed out (its sessions are also deleted on disable).
+      if (isAccountDisabled(user)) return res.status(200).json(null);
       
       res.json(sanitizeUser(user));
     } catch (error) {
@@ -1577,7 +1569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.getUser(userId);
-      if (!user) {
+      if (!user || isAccountDisabled(user)) {
         return res.status(200).json(null);
       }
       
@@ -2017,6 +2009,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin hub › System health: process / pm2 / faults / Discord bot / rate limits (server/admin-hub-routes.ts)
   { const { registerAdminHubRoutes } = await import('./admin-hub-routes'); registerAdminHubRoutes(app, requireAdminJWT); }
 
+  // Admin hub › operator actions: overview counts, users, invite codes, waitlist approval,
+  // trader books, admin action log (server/admin-ops-routes.ts, docs/ADMIN_TAB.md)
+  { const { registerAdminOpsRoutes } = await import('./admin-ops-routes'); registerAdminOpsRoutes(app, requireAdminJWT); }
+
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
 
@@ -2105,7 +2101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users", requireAdminJWT, async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
-      res.json(users);
+      // Never ship password hashes to the browser, even to the admin.
+      res.json(users.map((u) => sanitizeUser(u)));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
     }
@@ -3368,7 +3365,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/waitlist/:id/invite", requireAdminJWT, async (req, res) => {
     try {
       const { id } = req.params;
-      const { tierOverride, personalMessage } = req.body;
+      const { personalMessage } = req.body ?? {};
+      const tierOverride = safeInviteTier(req.body?.tierOverride) ?? undefined; // never admin
 
       // Get waitlist entry
       const entries = await storage.getAllWaitlistEntries();
@@ -3420,11 +3418,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create invite for any email (not just waitlist)
   app.post("/api/admin/invites", requireAdminJWT, async (req, res) => {
     try {
-      const { email, tierOverride, personalMessage, sendEmail } = req.body;
-
+      const { email: rawEmail, tierOverride: rawTier, personalMessage, sendEmail } = req.body ?? {};
+      const email = normalizeEmail(rawEmail);
       if (!email) {
-        return res.status(400).json({ error: "Email is required" });
+        return res.status(400).json({ error: "A valid email is required" });
       }
+      // free / advanced / pro or none — an invite never grants admin.
+      if (rawTier && rawTier !== 'none' && !safeInviteTier(rawTier)) {
+        return res.status(400).json({ error: "Invalid tier override" });
+      }
+      const tierOverride = safeInviteTier(rawTier) ?? undefined;
 
       // Check if already has active invite (getBetaInviteByEmail only returns pending/sent invites)
       const existingInvite = await storage.getBetaInviteByEmail(email);
@@ -3467,6 +3470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateWaitlistStatus(waitlistEntry.id, 'invited', invite.id);
       }
 
+      appendAdminAudit({ action: 'invite.create', actor: auditActor(req as any), target: email, detail: { inviteId: invite.id, tierOverride: tierOverride ?? 'none', codeTail: codeTail(token) }, ip: req.ip ?? null });
       res.json({ success: true, invite, token });
     } catch (error) {
       logError(error as Error, { context: 'admin/create-invite' });
@@ -3480,6 +3484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.updateBetaInviteStatus(id, 'revoked');
       logger.info('Beta invite revoked', { inviteId: id });
+      appendAdminAudit({ action: 'invite.revoke', actor: auditActor(req as any), target: id, detail: { inviteId: id }, ip: req.ip ?? null });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to revoke invite" });
@@ -3512,6 +3517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (emailResult.success) {
         await storage.markBetaInviteSent(invite.id);
         logger.info('Beta invite sent', { email: invite.email, inviteId: invite.id });
+        appendAdminAudit({ action: 'invite.send', actor: auditActor(req as any), target: invite.email, detail: { inviteId: invite.id }, ip: req.ip ?? null });
         res.json({ success: true });
       } else {
         res.status(500).json({ error: emailResult.error || "Failed to send email" });
@@ -3547,6 +3553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (emailResult.success) {
         await storage.markBetaInviteSent(invite.id);
         logger.info('Beta invite resent', { email: invite.email, inviteId: invite.id });
+        appendAdminAudit({ action: 'invite.send', actor: auditActor(req as any), target: invite.email, detail: { inviteId: invite.id }, ip: req.ip ?? null });
         res.json({ success: true });
       } else {
         res.status(500).json({ error: emailResult.error || "Failed to resend email" });
@@ -3559,7 +3566,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk approve and invite waitlist entries
   app.post("/api/admin/waitlist/bulk-invite", requireAdminJWT, async (req, res) => {
     try {
-      const { ids, tierOverride } = req.body;
+      const { ids } = req.body ?? {};
+      const tierOverride = safeInviteTier(req.body?.tierOverride) ?? undefined; // never admin
 
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: "IDs array is required" });
@@ -3626,6 +3634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       logger.info('Waitlist entries approved', { count: updated });
+      appendAdminAudit({ action: 'waitlist.approve', actor: auditActor(req as any), target: `${updated} entries`, detail: { ids, note: 'status only, no code created' }, ip: req.ip ?? null });
       res.json({ success: true, updated });
     } catch (error) {
       logError(error as Error, { context: 'admin/waitlist/approve' });
@@ -3649,6 +3658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       logger.info('Waitlist entries rejected', { count: updated });
+      appendAdminAudit({ action: 'waitlist.reject', actor: auditActor(req as any), target: `${updated} entries`, detail: { ids }, ip: req.ip ?? null });
       res.json({ success: true, updated });
     } catch (error) {
       logError(error as Error, { context: 'admin/waitlist/reject' });
@@ -3659,7 +3669,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk send invites to waitlist entries (alias for bulk-invite)
   app.post("/api/admin/waitlist/send-invites", requireAdminJWT, async (req, res) => {
     try {
-      const { ids, tierOverride } = req.body;
+      const { ids } = req.body ?? {};
+      const tierOverride = safeInviteTier(req.body?.tierOverride) ?? undefined; // never admin
       console.log('[INVITE] 📧 Bulk send-invites called with', ids?.length || 0, 'IDs');
       logger.info('[INVITE] Bulk send-invites called', { idCount: ids?.length || 0, tierOverride });
 
@@ -3795,7 +3806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const watchlistItems = await storage.getWatchlistByUser(req.params.userId);
       
       res.json({
-        user,
+        user: sanitizeUser(user),
         preferences,
         watchlistCount: watchlistItems.length,
       });
@@ -3806,11 +3817,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/admin/users/:userId", requireAdminJWT, async (req, res) => {
     try {
-      const { subscriptionTier, subscriptionStatus } = req.body;
+      const { subscriptionTier, subscriptionStatus } = req.body ?? {};
       
-      // Validate subscription tier
-      if (subscriptionTier && !['free', 'advanced', 'pro', 'admin'].includes(subscriptionTier)) {
+      // free / advanced / pro only — the admin tier is never granted from the UI
+      // (ADMIN_EMAIL / the env decide who is admin). Status: active or disabled.
+      if (subscriptionTier !== undefined && !parseAssignableTier(subscriptionTier)) {
         return res.status(400).json({ error: "Invalid subscription tier" });
+      }
+      if (subscriptionStatus !== undefined && !['active', 'disabled'].includes(subscriptionStatus)) {
+        return res.status(400).json({ error: "Invalid subscription status" });
+      }
+      const target = await storage.getUser(req.params.userId);
+      if (!target) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (isProtectedAdmin(target)) {
+        return res.status(403).json({ error: "The admin account cannot be changed from the hub" });
       }
       
       const updated = await storage.updateUser(req.params.userId, {
@@ -3828,6 +3850,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tier: subscriptionTier,
         ip: req.ip 
       });
+      if (subscriptionTier !== undefined && subscriptionTier !== target.subscriptionTier) {
+        appendAdminAudit({ action: 'user.tier', actor: auditActor(req as any), target: `${target.id} ${target.email}`, detail: { from: target.subscriptionTier, to: subscriptionTier }, ip: req.ip ?? null });
+      }
+      if (subscriptionStatus !== undefined && subscriptionStatus !== target.subscriptionStatus) {
+        if (subscriptionStatus === 'disabled') await storage.deleteUserSessions(target.id).catch(() => 0);
+        appendAdminAudit({ action: subscriptionStatus === 'disabled' ? 'user.disable' : 'user.enable', actor: auditActor(req as any), target: `${target.id} ${target.email}`, ip: req.ip ?? null });
+      }
       
       res.json({ success: true, user: updated });
     } catch (error) {
@@ -3838,7 +3867,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/users/:userId", requireAdminJWT, async (req, res) => {
     try {
+      const target = await storage.getUser(req.params.userId);
+      if (!target) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (isProtectedAdmin(target)) {
+        return res.status(403).json({ error: "The admin account cannot be deleted from the hub" });
+      }
+      // Retype-the-email confirmation (same rule as DELETE /api/admin/ops/users/:id).
+      if (!deleteConfirmed(target, req.body?.confirmEmail)) {
+        return res.status(400).json({ error: "Type the account email exactly to confirm the delete" });
+      }
       const deleted = await storage.deleteUser(req.params.userId);
+      if (deleted) {
+        appendAdminAudit({ action: 'user.delete', actor: auditActor(req as any), target: `${target.id} ${target.email}`, detail: { tier: target.subscriptionTier }, ip: req.ip ?? null });
+      }
       
       if (!deleted) {
         return res.status(404).json({ error: "User not found" });
@@ -5172,16 +5215,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // implementation now serves both, so the route and direct callers cannot drift.
   app.get("/api/historical-prices/:symbol", async (req, res) => {
     try {
-      const { symbol } = req.params;
-      const { fetchCandles, normalizeRange } = await import("./historical-candles");
+      const { fetchChartSeries, normalizeRange } = await import("./historical-candles");
       const range = normalizeRange(req.query.range as string, "1mo");
       const interval = (req.query.interval as string) || "1d";
 
-      const data = await fetchCandles(symbol, range, interval);
-      if (!data.length) {
+      // Cash indices ($SPX / ^GSPC / SPXW → SPX) come back regular-session
+      // only, with the ETF's volume (labelled) and the future-scaled
+      // extended-hours bars as a separate, labelled array.
+      const series = await fetchChartSeries(req.params.symbol, range, interval);
+      if (!series.data.length) {
         return res.status(404).json({ error: "No historical data found" });
       }
-      res.json({ symbol, range, data });
+      res.json({ ...series, range });
     } catch (error) {
       logger.error(`Error fetching historical prices for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to fetch historical prices" });
@@ -5746,10 +5791,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quotesMap = await getRealtimeBatchQuotes(
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
+      // Freshest honest print (docs/DATA_LATENCY.md): extended-hours/overnight
+      // prints for equities, realtime proxies for stale cash-index levels. Copies,
+      // so the shared quote cache keeps the provider's own values.
+      const freshMap = new Map(Array.from(quotesMap.entries()).map(([k, v]) => [k, { ...v }]));
+      try {
+        const { overlayExtendedHours, overlayIndexProxies } = await import('./extended-quote');
+        await Promise.all([overlayExtendedHours(freshMap, symbolList), overlayIndexProxies(freshMap, symbolList)]);
+      } catch (e) {
+        logger.debug(`[quotes/batch] freshness overlay skipped: ${(e as Error).message}`);
+      }
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number | null; volume: number; asOf: string; source: string | null; session: string | null; previousClose: number | null; delayed: boolean; stale: boolean }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number | null; volume: number; asOf: string; source: string | null; session: string | null; previousClose: number | null; delayed: boolean; delayedSec: number; proxy: boolean; underlyingPrice: number | null; underlyingAsOf: string | null; stale: boolean }> = {};
       for (const symbol of symbolList) {
-        const q = quotesMap.get(symbol);
+        const q = freshMap.get(symbol);
         if (q && q.price) {
           quotes[symbol] = {
             symbol,
@@ -5767,7 +5822,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // after-hours move; surfaces label it from this field.
             session: q.session ?? null,
             previousClose: q.previousClose ?? null,
-            delayed: !!q.delayed,
+            delayed: !!q.delayed || (q.delayedSec ?? 0) >= 60,
+            // Known feed lag in seconds (CBOE 900, Alpaca delayed_sip 900); 0 = realtime.
+            delayedSec: q.delayedSec ?? (q.delayed ? 900 : 0),
+            // Estimated from SPY/QQQ/IWM or ES/NQ/RTY futures — never the index print itself.
+            proxy: !!q.proxy,
+            underlyingPrice: q.underlyingPrice ?? null,
+            underlyingAsOf: q.underlyingAsOf ? q.underlyingAsOf.toISOString() : null,
             stale: !!q.stale,
           };
         }
@@ -6558,8 +6619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? oilAliases.map((item) => ({ ...item, type: 'stock' as const }))
         : [];
 
+      // Cash indices: "$SPX", "^GSPC", "SPXW", "S&P" → SPX (one canonical name,
+      // shared/index-symbols.ts). Listed first — an index query means the index.
+      const { canonicalChartSymbol, INDEX_INFO } = await import('@shared/index-symbols');
+      const canonQ = canonicalChartSymbol(query);
+      const indexResults = Object.values(INDEX_INFO)
+        .filter((i) => i.symbol === canonQ || (query.length >= 2 && (i.symbol.startsWith(canonQ) || i.name.toUpperCase().includes(query))))
+        .map((i) => ({ symbol: i.symbol, name: i.name, type: 'index' as const }));
+
       // Combine and limit results - prioritize exact matches
       const allResults = [
+        ...indexResults,
         ...futuresResults.slice(0, 5),
         ...oilResults,
         ...stockResults.slice(0, 10),
@@ -7756,6 +7826,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data = { ...data, picks: data.picks.map((p) => ({ ...p, horizon: classifyIdeaHorizon(p, now) })) };
       }
 
+      // SPX mirror (SPX_MIRROR, default on): open SPY 0–2 DTE option ideas carry
+      // their SPXW expression. Display only — no rows, the outcome stays on SPY.
+      // Bounded budgets inside; a slow chain ships the mirror without premium.
+      {
+        const { attachSpxMirrors } = await import("./spx-mirror");
+        data = { ...data, picks: await attachSpxMirrors(data.picks) };
+      }
+
       const meta = {
         _meta: {
           dataSource: "convictions_engine",
@@ -7941,7 +8019,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         offset: parseInt(req.query.offset as string) || 0,
         days: parseInt(req.query.days as string) || 7,
       });
-      res.json(result);
+      // A DB failure is an error, not "0 prints · today" (audit 2026-10-01 P0 #27).
+      const { flowResponseStatus } = await import("./flow-response-status");
+      res.status(flowResponseStatus(result)).json(result);
     } catch (error) {
       logger.error("[API] Failed to fetch options flow:", error);
       res.status(500).json({ error: "Failed to fetch options flow" });
@@ -8693,19 +8773,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 📨 Share trade idea to Discord - manual trigger for audit page
-  // Manual shares bypass grade/deduplication filters since user explicitly requested it
+  // Operator-only (route-guards.ts) and subject to the same relevance/grade/dedup
+  // filters as automatic posts — audit 2026-10-01 P0 #2 (it used to let any
+  // signed-in user push any idea, ungated, into the public channel).
   app.post("/api/trade-ideas/:id/share-discord", isAuthenticated, async (req, res) => {
     try {
       const idea = await storage.getTradeIdeaById(req.params.id);
       if (!idea) {
         return res.status(404).json({ error: "Trade idea not found" });
       }
-      
+
       const { sendTradeIdeaToDiscord } = await import("./discord-service");
-      // Force bypass filters for manual user-initiated shares
-      await sendTradeIdeaToDiscord(idea, { forceBypassFilters: true });
-      
-      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by user (manual share)`);
+      const result = await sendTradeIdeaToDiscord(idea);
+      if (!result.sent) {
+        return res.status(409).json({ error: `Not shared: ${result.reason || 'blocked by Discord filters'}` });
+      }
+
+      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by operator (manual share)`);
       res.json({ success: true, message: `Shared ${idea.symbol} trade to Discord` });
     } catch (error: any) {
       logger.error("Failed to share trade idea to Discord:", error);
@@ -8726,13 +8810,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Trade idea not found" });
       }
 
-      const { sendTradeCardImageToDiscord } = await import("./discord-service");
+      const { sendTradeCardImageToDiscord, tradeIdeaDiscordBlockReason, markTradeIdeaShared } = await import("./discord-service");
+      const blocked = tradeIdeaDiscordBlockReason(idea);
+      if (blocked) {
+        return res.status(409).json({ error: `Not shared: ${blocked}` });
+      }
       const filename = `${idea.symbol}_${idea.direction}_card.png`;
       const result = await sendTradeCardImageToDiscord(idea, req.file.buffer, filename);
 
       if (!result.success) {
         return res.status(502).json({ error: result.error || "Discord upload failed" });
       }
+      markTradeIdeaShared(idea);
       logger.info(`📨 Trade CARD image ${idea.symbol} shared to Discord by user (manual share)`);
       res.json({ success: true, message: `Shared ${idea.symbol} card to Discord` });
     } catch (error: any) {
@@ -9859,51 +9948,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Performance Tracking Routes
-  app.post("/api/performance/validate", requireBetaAccess, async (_req, res) => {
+  // Operator-only (route-guards.ts). Live quotes only, dry run unless { apply: true }.
+  // Audit 2026-10-01 P0 #1: this used to let any beta user resolve every open idea
+  // against the carried market_data price. See server/performance-validate-live.ts.
+  app.post("/api/performance/validate", requireBetaAccess, async (req, res) => {
     try {
       const { PerformanceValidator } = await import("./performance-validator");
+      const { buildLivePriceMap, isApplyRequest, quoteAssetType } = await import("./performance-validate-live");
+      const apply = isApplyRequest(req.body, req.query);
       const openIdeas = await storage.getOpenTradeIdeas();
-      const marketData = await storage.getAllMarketData();
-      
-      // Build price map
-      const priceMap = new Map<string, number>();
-      marketData.forEach((data) => {
-        priceMap.set(data.symbol, data.currentPrice);
-      });
 
-      // Validate all open ideas
-      const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap);
-      const now = new Date().toISOString();
-      
-      // Build detailed results for frontend display
+      const requestMap = new Map<string, { symbol: string; assetType: RTAssetType }>();
+      for (const i of openIdeas) {
+        const t = quoteAssetType(i.assetType);
+        if (t) requestMap.set(`${t}:${i.symbol}`, { symbol: i.symbol, assetType: t });
+      }
+      const quotes = await getRealtimeBatchQuotes(Array.from(requestMap.values()));
+      const now = new Date();
+      const { priceMap, skipped } = buildLivePriceMap(openIdeas, quotes, now);
+      const skippedIds = new Set(skipped.map((s) => s.id));
+      const priced = openIdeas.filter((i) => !skippedIds.has(i.id));
+
+      const validationResults = PerformanceValidator.validateBatch(priced, priceMap);
+      const stamp = now.toISOString();
       const detailedResults: any[] = [];
-      
-      // Update ideas that need changes
-      const updated: any[] = [];
-      for (const [ideaId, result] of Array.from(validationResults.entries())) {
-        const idea = openIdeas.find(i => i.id === ideaId);
-        if (!idea) continue;
-        
-        const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
-        const updatedIdea = await storage.updateTradeIdeaPerformance(ideaId, {
-          outcomeStatus: result.outcomeStatus,
-          exitPrice: result.exitPrice,
-          percentGain: result.percentGain,
-          realizedPnL: result.realizedPnL,
-          resolutionReason: result.resolutionReason,
-          exitDate: result.exitDate,
-          actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
-          predictionAccurate: result.predictionAccurate,
-          predictionValidatedAt: result.predictionValidatedAt,
-          highestPriceReached: result.highestPriceReached,
-          lowestPriceReached: result.lowestPriceReached,
-          validatedAt: now,
-        });
-        if (updatedIdea) {
-          updated.push(updatedIdea);
+      let updated = 0;
+
+      for (const idea of priced) {
+        const currentPrice = priceMap.get(idea.symbol)!;
+        const result = validationResults.get(idea.id);
+        const percentToTarget = idea.direction === 'long'
+          ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
+          : ((currentPrice - idea.targetPrice) / currentPrice) * 100;
+        const percentToStop = idea.direction === 'long'
+          ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
+          : ((idea.stopLoss - currentPrice) / currentPrice) * 100;
+
+        if (result && apply) {
+          const row = await storage.updateTradeIdeaPerformance(idea.id, {
+            outcomeStatus: result.outcomeStatus,
+            exitPrice: result.exitPrice,
+            percentGain: result.percentGain,
+            realizedPnL: result.realizedPnL,
+            resolutionReason: result.resolutionReason,
+            exitDate: result.exitDate,
+            actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+            predictionAccurate: result.predictionAccurate,
+            predictionValidatedAt: result.predictionValidatedAt,
+            highestPriceReached: result.highestPriceReached,
+            lowestPriceReached: result.lowestPriceReached,
+            validatedAt: stamp,
+          });
+          if (row) updated++;
         }
-        
-        // Add to detailed results
+
         detailedResults.push({
           id: idea.id,
           symbol: idea.symbol,
@@ -9911,80 +10009,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: idea.direction,
           entryPrice: idea.entryPrice,
           currentPrice,
+          priceSource: 'live quote',
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
-          wasUpdated: true,
-          newStatus: result.outcomeStatus,
-          reasoning: result.resolutionReason || 'Price hit target or stop loss',
-          percentToTarget: idea.direction === 'long' 
-            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
-            : ((currentPrice - idea.targetPrice) / currentPrice) * 100,
-          percentToStop: idea.direction === 'long'
-            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
-            : ((idea.stopLoss - currentPrice) / currentPrice) * 100,
-          timestamp: now,
+          wasUpdated: !!result && apply,
+          wouldUpdate: !!result,
+          newStatus: result?.outcomeStatus,
+          reasoning: result
+            ? (result.resolutionReason || 'Live price crossed target or stop')
+            : 'Position still within range - no action taken',
+          percentToTarget,
+          percentToStop,
+          timestamp: stamp,
         });
       }
 
-      // Stamp validatedAt on ALL open ideas that were checked, even if no state change
-      for (const idea of openIdeas) {
-        if (!validationResults.has(idea.id)) {
-          const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
-          
-          // Track price extremes even for open trades
-          const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
-          const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
-          
-          // Idea was checked but didn't need update - still stamp validatedAt and update price extremes
-          await storage.updateTradeIdeaPerformance(idea.id, {
-            validatedAt: now,
-            highestPriceReached: highestPrice,
-            lowestPriceReached: lowestPrice,
-          });
-          
-          // Calculate distance percentages
-          const percentToTarget = idea.direction === 'long' 
-            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
-            : ((currentPrice - idea.targetPrice) / currentPrice) * 100;
-          const percentToStop = idea.direction === 'long'
-            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
-            : ((idea.stopLoss - currentPrice) / currentPrice) * 100;
-          
-          // Generate reasoning for why it stayed open
-          let reasoning = '';
-          if (idea.direction === 'long') {
-            if (currentPrice < idea.targetPrice && currentPrice > idea.stopLoss) {
-              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
-            }
-          } else {
-            if (currentPrice > idea.targetPrice && currentPrice < idea.stopLoss) {
-              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
-            }
-          }
-          
-          detailedResults.push({
-            id: idea.id,
-            symbol: idea.symbol,
-            assetType: idea.assetType,
-            direction: idea.direction,
-            entryPrice: idea.entryPrice,
-            currentPrice,
-            targetPrice: idea.targetPrice,
-            stopLoss: idea.stopLoss,
-            wasUpdated: false,
-            reasoning: reasoning || 'Position still within range - no action taken',
-            percentToTarget,
-            percentToStop,
-            timestamp: now,
-          });
-        }
+      for (const s of skipped) {
+        detailedResults.push({ id: s.id, symbol: s.symbol, wasUpdated: false, wouldUpdate: false, skipped: true, reasoning: `Skipped: ${s.reason}`, timestamp: stamp });
       }
 
       res.json({
         success: true,
-        validated: openIdeas.length,
-        updated: updated.length,
-        timestamp: new Date().toISOString(),
+        dryRun: !apply,
+        validated: priced.length,
+        skipped: skipped.length,
+        updated,
+        wouldUpdate: validationResults.size,
+        timestamp: stamp,
         results: detailedResults,
       });
     } catch (error) {
@@ -10590,6 +10641,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('model-record error', error);
       res.status(500).json({ error: 'Failed to compute the model record' });
+    }
+  });
+
+  /**
+   * TRACK RECORD (Journal › Track record) — every card on the page from ONE
+   * computeTrackRecord() call (shared/track-record.ts): headline, engines, assets,
+   * options disclosure and run-up all share one filtered post-baseline population,
+   * so Total Ideas / Hit Rate / engine rows can no longer disagree.
+   */
+  const trackRecordCache = new Map<string, { at: number; data: any }>();
+  app.get("/api/performance/track-record", async (req, res) => {
+    try {
+      const { computeTrackRecord, trackPopulation } = await import('@shared/track-record');
+      const { MIN_REPORTABLE_SAMPLE: FLOOR } = await import('@shared/constants');
+      const w = String(req.query.window ?? 'all');
+      const window = (['today', '7d', '30d', '3m', 'all'].includes(w) ? w : 'all') as any;
+      const a = String(req.query.asset ?? 'all');
+      const asset = (['all', 'stock', 'option', 'crypto', 'future'].includes(a) ? a : 'all') as any;
+      const engine = String(req.query.engine ?? 'all').trim().toLowerCase().slice(0, 64) || 'all';
+      const key = `${window}|${engine}|${asset}`;
+      const hit = trackRecordCache.get(key);
+      if (hit && Date.now() - hit.at < 120_000) return res.json(hit.data);
+      const all = (await storage.getAllTradeIdeas()) as any[];
+      const filters = { window, engine, asset };
+      const rec = computeTrackRecord(all, filters);
+      let runUp: any = null;
+      try {
+        const { getRunUpSummary } = await import('./lib/run-up-tracker');
+        const s = getRunUpSummary(trackPopulation(all, filters) as any[]);
+        // A run-up rate from a handful of triggered ideas is not a finding — same
+        // sample floor as the win rate; the counts are always shown.
+        runUp = { ...s, reportableRate: s.triggered >= FLOOR ? s.rate : null, sampleFloor: FLOOR, observerSince: rec.triggerObserverSince };
+      } catch (e) { logger.warn('track-record run-up unavailable', e); }
+      const data = { ...rec, runUp, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
+      trackRecordCache.set(key, { at: Date.now(), data });
+      res.json(data);
+    } catch (error) {
+      logger.error('track-record error', error);
+      res.status(500).json({ error: 'Failed to compute the track record' });
     }
   });
 
@@ -13792,7 +13882,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate unrealized P&L
       const totalUnrealizedPnL = openPositions.reduce((sum: number, p: any) => sum + (p.unrealizedPnL || 0), 0);
       
+      // Paper bot: these are simulated fills in paper_positions, never broker
+      // orders. The date range rides along so the card can say which period it covers.
+      const closeTimes = closedPositions
+        .map((p: any) => Date.parse(String(p.exitTime ?? p.entryTime ?? '')))
+        .filter((t: number) => Number.isFinite(t));
+      const firstTradeAt = closeTimes.length ? new Date(Math.min(...closeTimes)).toISOString() : null;
+      const lastTradeAt = closeTimes.length ? new Date(Math.max(...closeTimes)).toISOString() : null;
+
       res.json({
+        mode: 'paper',
+        range: { firstClosedAt: firstTradeAt, lastClosedAt: lastTradeAt },
         overall: {
           totalTrades: closedPositions.length,
           wins: wins.length,
@@ -15375,7 +15475,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // the GEX timeline starts when recording started (see server/chart-overlays).
   app.get("/api/chart/overlays/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const symbol = canonicalChartSymbol(String(req.params.symbol ?? '')); // $SPX / ^GSPC / SPXW → SPX
       if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
       const rawRange = String(req.query.range ?? '1D').toUpperCase();
       const range = ['1D', '2D', '5D'].includes(rawRange) ? rawRange : '1D';
@@ -17296,9 +17397,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── PUBLIC read-only watchlist (shareable link for trading groups) ──
   // No auth: returns a deduped, graded, ranked snapshot safe to share. Only
   // surfaces ticker + grade + edge rationale + added date — no account data.
+  // OPT-IN ONLY (audit 2026-10-01 P0 #3): just the watchlists of users listed in
+  // PUBLIC_WATCHLIST_USER_IDS; private (empty) by default. server/public-watchlist-optin.ts.
   app.get("/api/public/watchlist", async (_req, res) => {
     try {
-      const all = await storage.getAllWatchlist();
+      const { publicWatchlistOwners, filterOptedInWatchlist } = await import('./public-watchlist-optin');
+      const owners = publicWatchlistOwners();
+      if (owners.size === 0) {
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({ name: 'QuantEdge Watchlist', private: true, updatedAt: null, count: 0, items: [] });
+      }
+      const all = filterOptedInWatchlist(await storage.getAllWatchlist(), owners);
       // Dedupe by symbol, keeping the best-graded entry per ticker.
       const bySymbol = new Map<string, any>();
       for (const it of all as any[]) {
@@ -32553,7 +32662,8 @@ Use this checklist before entering any trade:
    */
   app.get("/api/levels/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const sym = String(req.params.symbol || '').toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const sym = canonicalChartSymbol(String(req.params.symbol || ''));
       if (!/^[A-Z.^-]{1,10}$/.test(sym)) return res.status(400).json({ error: 'bad symbol' });
       const { getLevelMap, levelSnapEnabled } = await import('./levels/level-map');
       const map = await getLevelMap(sym);
@@ -32573,6 +32683,33 @@ Use this checklist before entering any trade:
       });
     } catch (e: any) {
       res.status(500).json({ error: e?.message ?? 'level map failed' });
+    }
+  });
+
+  /**
+   * NEXUS tracked symbols (server/nexus-tracked.ts): a time-boxed list the idea
+   * producers scan first (source 'tracked'); publish gates are unchanged.
+   * GET is member data (the NEXUS board shows the row); POST / DELETE are
+   * operator-only via server/route-guards.ts.
+   */
+  app.get("/api/nexus/tracked", requireBetaAccess, async (_req, res) => {
+    const { listTracked } = await import('./nexus-tracked');
+    res.json({ tracked: listTracked(), asOf: new Date().toISOString() });
+  });
+  app.post("/api/nexus/tracked", async (req, res) => {
+    const { addTracked, TrackedInputError } = await import('./nexus-tracked');
+    try {
+      res.json({ tracked: addTracked(req.body ?? {}), asOf: new Date().toISOString() });
+    } catch (e: any) {
+      res.status(e instanceof TrackedInputError ? 400 : 500).json({ error: e?.message ?? 'tracked update failed' });
+    }
+  });
+  app.delete("/api/nexus/tracked/:symbol", async (req, res) => {
+    const { removeTracked, TrackedInputError } = await import('./nexus-tracked');
+    try {
+      res.json({ tracked: removeTracked(req.params.symbol), asOf: new Date().toISOString() });
+    } catch (e: any) {
+      res.status(e instanceof TrackedInputError ? 400 : 500).json({ error: e?.message ?? 'tracked update failed' });
     }
   });
 
@@ -32683,6 +32820,9 @@ Use this checklist before entering any trade:
     // Holy Grail (Raschke ADX/EMA20) — last cycle + per-symbol active setups (server/holy-grail.ts; engine off unless HOLY_GRAIL=true)
     const { registerHolyGrailRoutes } = await import('./holy-grail');
     registerHolyGrailRoutes(app, requireBetaAccess);
+    // 0DTE flow ignition — fired/watch rows + forward-log report (server/zero-dte-flow.ts; publishes only with ZERO_DTE_FLOW=true)
+    const { registerZeroDteFlowRoutes } = await import('./zero-dte-flow');
+    registerZeroDteFlowRoutes(app, requireBetaAccess);
     // GEX wall-touch — walls, live touch rows, forward-log report (server/wall-touch.ts; engine off unless WALL_TOUCH=true)
     const { registerWallTouchRoutes } = await import('./wall-touch');
     registerWallTouchRoutes(app, requireBetaAccess);
@@ -33277,7 +33417,15 @@ Use this checklist before entering any trade:
         candles,
         orbs,
         heatmap,
-        strikeExpiryMatrix: gex?.strikeExpiryMatrix || [],
+        // CBOE fallback now builds its own matrix (audit 2026-10-01 P0 #13).
+        strikeExpiryMatrix: (gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || [],
+        // The real reason when there is still no matrix — not "pick a wider horizon".
+        ...(((gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || []).length === 0
+          ? { strikeExpiryMatrixNote: cboeFallbackUsed ? 'CBOE fallback chain had no strikes within ±15% of spot' : `${gex?.dataSource ?? 'chain'} returned no per-expiry rows` }
+          : {}),
+        // Age = the data's own time (audit #12): when the chain was read, plus its OI date.
+        chainFetchedAt: gex?.dataQuality?.chainFetchedAt ?? (cboeSnapshot as any)?.chainFetchedAt ?? null,
+        openInterestDate: gex?.dataQuality?.openInterestDate ?? null,
         projection,
         peers,
         dataQuality: {

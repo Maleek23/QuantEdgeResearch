@@ -83,6 +83,8 @@ export interface ConvictionPick {
 
   /** Added dynamically by the API at response time when available. */
   currentPrice?: number;
+  /** True when currentPrice is a live quote, false when it is the carried stored price. */
+  priceIsLive?: boolean;
 
   /** A plan becomes live only after a trigger or recorded execution. */
   lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
@@ -90,12 +92,20 @@ export interface ConvictionPick {
   calledAt?: string | null;
   /** Exact time price traded through the trigger (ISO). */
   triggeredAt?: string | null;
+  /** The idea's own exit deadline / entry window (stored columns) — shared/setup-lifecycle.ts. */
+  exitBy?: string | null;
+  entryValidUntil?: string | null;
 
-  /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record. */
+  /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record / grade. */
   boardRank?: number;
+  /** NEXUS grade at board build (BOARD_SORT=grade only; shared/nexus-grade.ts). The client re-grades on the live lifecycle. Unvalidated. */
+  nexusGrade?: import('@shared/nexus-grade').NexusGrade;
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
+
+  /** SPXW mirror of an open SPY 0–2 DTE option idea (display only; tracked as the SPY idea). */
+  spxMirror?: import('@shared/spx-mirror').SpxMirror;
 }
 
 export interface ConvictionsResponse {
@@ -107,6 +117,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: regime/score are engine defaults, not a measured market — show "unavailable". */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -122,7 +134,7 @@ export interface ConvictionsResponse {
   totalCandidatesScanned: number;
   picks: ConvictionPick[];
   /** Board order chosen by env BOARD_SORT; absent = evidence score (shared/board-sort.ts). */
-  boardSort?: 'score' | 'recency' | 'engine_record';
+  boardSort?: 'score' | 'recency' | 'engine_record' | 'grade';
 }
 
 // ─── Tier mapping: band + direction → MOMO-style tier word + tone ───────────

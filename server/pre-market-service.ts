@@ -19,6 +19,7 @@
  * Cached for 60s (pre-market data updates roughly minute-by-minute).
  */
 
+import { priorRegularCloseFromMeta } from "../shared/price-change";
 import { logger } from "./logger";
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -53,6 +54,14 @@ export interface PreMarketSnapshot {
   postMarketAt?: string | null;
   /** Yahoo's regular-session price (the close once the session ends). */
   regularMarketPrice?: number | null;
+  /** Today's regular-session open (first regular 1-minute bar), when the session has printed. */
+  sessionOpen?: number | null;
+  /** Regular-session VWAP from today's 1-minute bars (typical price × volume). */
+  vwap?: number | null;
+  /** Close of the regular 1-minute bar ~30 minutes before the last regular print. */
+  price30mAgo?: number | null;
+  /** Time of the last regular-session 1-minute bar (ISO). */
+  regularAt?: string | null;
 }
 
 interface CacheEntry {
@@ -130,6 +139,34 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
           }
         }
       }
+      // Regular-session path from the same 1-minute bars (no extra request):
+      // session open, VWAP, the last regular print and the price ~30 min before
+      // it — the sector board's live pass reads "since open", "last 30m" and
+      // members above VWAP from these.
+      const reg = meta.currentTradingPeriod?.regular;
+      if (reg?.start && reg?.end) {
+        const qq = r?.indicators?.quote?.[0] || {};
+        const op: Array<number | null> = qq.open ?? []; const hi: Array<number | null> = qq.high ?? [];
+        const lo: Array<number | null> = qq.low ?? []; const vo: Array<number | null> = qq.volume ?? [];
+        let pv = 0; let vv = 0; let firstOpen: number | null = null; let lastI = -1;
+        for (let i = 0; i < ts.length; i++) {
+          if (ts[i] < reg.start || ts[i] >= reg.end) continue;
+          const c = Number(cl[i]);
+          if (!(c > 0)) continue;
+          if (firstOpen == null) firstOpen = Number(op[i]) > 0 ? Number(op[i]) : c;
+          const v = Number(vo[i]) || 0; const h = Number(hi[i]) || c; const l = Number(lo[i]) || c;
+          pv += ((h + l + c) / 3) * v; vv += v; lastI = i;
+        }
+        if (lastI >= 0) {
+          meta.__rthOpen = firstOpen; meta.__rthLastAt = ts[lastI] * 1000;
+          if (vv > 0) meta.__rthVwap = pv / vv;
+          const cut = ts[lastI] - 30 * 60;
+          for (let i = lastI; i >= 0; i--) {
+            if (ts[i] < reg.start) break;
+            if (ts[i] <= cut && Number(cl[i]) > 0) { meta.__rth30 = Number(cl[i]); break; }
+          }
+        }
+      }
     } catch { /* bars optional */ }
     return meta;
   } catch (err) {
@@ -140,15 +177,22 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
   }
 }
 
-function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSnapshot | null {
+export function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSnapshot | null {
   if (!meta) return null;
-  const previousClose = Number(meta.previousClose ?? meta.chartPreviousClose);
+  const yahooPrev = Number(meta.previousClose ?? meta.chartPreviousClose);
+  // Before today's open Yahoo's previousClose is the D-2 close (measured
+  // 2026-10-01: SPY prev 764.20 = Sep 29 while the Sep 30 close was 762.63), so
+  // every pre-market gap double-counted yesterday's move. In the pre-market the
+  // reference is the last regular close (shared/price-change.ts).
+  const previousClose = phase === "pre_market" ? (priorRegularCloseFromMeta(meta) ?? yahooPrev) : yahooPrev;
   if (!Number.isFinite(previousClose) || previousClose <= 0) return null;
 
   const preMarketPrice = Number(meta.preMarketPrice ?? meta.__pmLast);
   const regularOpen = Number(meta.regularMarketOpen);
   const regularPrice = Number(meta.regularMarketPrice);
-  const postMarketPrice = Number(meta.postMarketPrice);
+  // meta.postMarketPrice is null on the chart API (same as preMarketPrice) — the
+  // last bar inside today's post window is the after-hours print.
+  const postMarketPrice = Number(meta.postMarketPrice ?? meta.__postLast);
 
   const preMarketGapPct = Number.isFinite(preMarketPrice) && preMarketPrice > 0
     ? ((preMarketPrice - previousClose) / previousClose) * 100
@@ -202,6 +246,10 @@ function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSn
       ? ((meta.__postLast - regularPrice) / regularPrice) * 100 : null,
     postMarketAt: Number.isFinite(meta.__postLastAt) ? new Date(meta.__postLastAt).toISOString() : null,
     regularMarketPrice: Number.isFinite(regularPrice) && regularPrice > 0 ? regularPrice : null,
+    sessionOpen: Number(meta.__rthOpen) > 0 ? Number(meta.__rthOpen) : null,
+    vwap: Number(meta.__rthVwap) > 0 ? Number(meta.__rthVwap) : null,
+    price30mAgo: Number(meta.__rth30) > 0 ? Number(meta.__rth30) : null,
+    regularAt: Number.isFinite(meta.__rthLastAt) ? new Date(meta.__rthLastAt).toISOString() : null,
   };
 }
 /**

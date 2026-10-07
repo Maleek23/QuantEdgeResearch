@@ -494,7 +494,10 @@ export async function scanBatchForGexIdeas(symbols: string[]): Promise<GexScanRe
  * convictions engine — no duplicate Tradier traffic.
  */
 export async function runGexIdeaScanner(): Promise<GexScanResult> {
-  const symbols = Array.from(APPROVED_TICKERS).filter((s) => !s.includes("="));
+  // NEXUS tracked symbols (source 'tracked') first so the 60-name cap never drops them.
+  const { getTrackedSymbols } = await import('./nexus-tracked');
+  const { withTracked } = await import('@shared/nexus-tracked');
+  const symbols = withTracked(getTrackedSymbols(), Array.from(APPROVED_TICKERS).filter((s) => !s.includes("=")));
   // Cap to 60 symbols per pass to bound options-chain fetches (each is heavy).
   const batch = symbols.slice(0, 60);
 

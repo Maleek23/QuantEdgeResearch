@@ -1,285 +1,248 @@
+/**
+ * Track record summary — every number on this card set comes from ONE payload,
+ * /api/performance/track-record (shared/track-record.ts computeTrackRecord), so
+ * Total Ideas, Hit Rate, expectancy, the engine table, the asset split, the
+ * options disclosure and the run-up line all describe the same filtered,
+ * post-baseline population. The legacy v1 /api/performance/stats and the
+ * engine-health 'flow/quant/ai/lotto' buckets are no longer read here: they used
+ * different populations and printed contradictory counts side by side.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
+import { Bot, AlertTriangle, Info } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
 import { CanonRate } from "@/components/canon";
+import type { TrackRecord, TrackRow } from "@shared/track-record";
+import type { RunUpSummary } from "@shared/run-up";
 
-interface EngineMetrics {
-  tradesWon: number;
-  tradesLost: number;
-  winRate: number | null;
-  avgGainPercent: number | null;
-}
-
-interface EngineHealthData {
-  weekMetrics: Record<string, EngineMetrics>;
-}
-
-interface PerformanceStats {
-  overall: {
-    totalIdeas: number;
-    winRate: number;
-    avgPercentGain: number;
-    expectancy: number | null;
-    profitFactor: number | null;
-  };
-  segmentedWinRates: {
-    overall: {
-      winRate: number;
-      wins: number;
-      losses: number;
-      decided: number;
-    };
-  };
-}
+export type TrackRecordPayload = TrackRecord & {
+  runUp: (RunUpSummary & { reportableRate: number | null; sampleFloor: number; observerSince: string }) | null;
+  asOf: string;
+};
 
 interface AutoLottoBotPerformance {
-  overall: {
-    totalTrades: number;
-    wins: number;
-    losses: number;
-    winRate: number;
-    totalPnL: number;
-  };
+  mode?: 'paper';
+  range?: { firstClosedAt: string | null; lastClosedAt: string | null };
+  overall: { totalTrades: number; wins: number; losses: number; winRate: number; totalPnL: number };
 }
 
-// Convert hit rate to letter grade
-function getGrade(winRate: number | null): { grade: string; color: string; bgColor: string } {
-  if (winRate === null) return { grade: "?", color: "text-muted-foreground", bgColor: "bg-muted/20" };
-  if (winRate >= 80) return { grade: "A+", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
-  if (winRate >= 70) return { grade: "A", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
-  if (winRate >= 60) return { grade: "B", color: "text-sky-400", bgColor: "bg-sky-500/10" };
-  if (winRate >= 50) return { grade: "C", color: "text-[var(--trade-neutral)]", bgColor: "bg-amber-500/10" };
-  if (winRate >= 40) return { grade: "D", color: "text-orange-400", bgColor: "bg-orange-500/10" };
-  return { grade: "F", color: "text-[var(--trade-bearish)]", bgColor: "bg-red-500/10" };
+export function trackRecordUrl(q: string) {
+  return `/api/performance/track-record${q}`;
 }
 
-function getWinRateColor(rate: number | null): string {
-  if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-[var(--trade-bullish)]";
-  if (rate >= 50) return "text-[var(--trade-neutral)]";
-  return "text-[var(--trade-bearish)]";
-}
-
-const ENGINE_CONFIG = {
-  flow: { label: "Flow", icon: Activity, description: "Options flow signals" },
-  quant: { label: "Quant", icon: BarChart3, description: "Statistical analysis" },
-  ai: { label: "AI", icon: Brain, description: "AI pattern recognition" },
-  lotto: { label: "Lotto", icon: Target, description: "High-risk plays" },
-} as const;
-
-type EngineKey = keyof typeof ENGINE_CONFIG;
-
-export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: string }) {
-  const { data: stats, isLoading: isStatsLoading } = useQuery<PerformanceStats>({
-    // Same key as the page-level stats query (including active filters) so the
-    // hero always reflects the selected period — one cached fetch, not two.
-    queryKey: ['/api/performance/stats', apiFilters],
-    staleTime: 60000,
+export function useTrackRecord(q: string) {
+  return useQuery<TrackRecordPayload>({
+    queryKey: ['/api/performance/track-record', q],
+    queryFn: async () => {
+      const r = await fetch(trackRecordUrl(q), { credentials: 'include' });
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    },
+    staleTime: 60_000,
   });
+}
 
-  const { data: engineHealthData, isLoading: isEngineLoading } = useQuery<EngineHealthData>({
-    queryKey: ["/api/engine-health"],
-    staleTime: 30000,
-  });
+const signed = (v: number | null | undefined, digits = 1, unit = '') =>
+  v == null ? '—' : `${v >= 0 ? '+' : ''}${safeToFixed(v, digits)}${unit}`;
+const tone = (v: number | null | undefined) =>
+  v == null ? 'text-muted-foreground' : v < 0 ? 'text-[var(--trade-bearish)]' : 'text-[var(--trade-bullish)]';
+const day = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : '—');
 
-  const { data: botData, isLoading: isBotLoading } = useQuery<AutoLottoBotPerformance>({
+function SampleBadge({ row, floor }: { row: TrackRow; floor: number }) {
+  if (row.sample === 'ok') return null;
+  return (
+    <span className="ml-1 text-[10px] font-mono uppercase text-[var(--trade-neutral)]" title={`Fewer than ${floor} decided — rate not reported`}>
+      {row.sample === 'none' ? 'no decided' : `thin n<${floor}`}
+    </span>
+  );
+}
+
+function BreakdownTable({ title, rows, floor, testId }: { title: string; rows: TrackRow[]; floor: number; testId: string }) {
+  return (
+    <div data-testid={testId}>
+      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No ideas in this view.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-border/40">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-muted-foreground">
+                <th className="text-left py-1.5 px-2 font-medium">Source</th>
+                <th className="text-right py-1.5 px-2 font-medium">Ideas</th>
+                <th className="text-right py-1.5 px-2 font-medium">Decided</th>
+                <th className="text-right py-1.5 px-2 font-medium">W / L</th>
+                <th className="text-right py-1.5 px-2 font-medium">Win %</th>
+                <th className="text-right py-1.5 px-2 font-medium">Avg P&amp;L %</th>
+                <th className="text-right py-1.5 px-2 font-medium">Avg R</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key} className="border-b border-border/30 last:border-0">
+                  <td className="py-1.5 px-2">{r.label}<SampleBadge row={r} floor={floor} /></td>
+                  <td className="py-1.5 px-2 text-right font-mono tabular-nums">{r.total}</td>
+                  <td className="py-1.5 px-2 text-right font-mono tabular-nums">{r.decided}</td>
+                  <td className="py-1.5 px-2 text-right font-mono tabular-nums">{r.wins}/{r.losses}</td>
+                  <td className="py-1.5 px-2 text-right font-mono tabular-nums">
+                    {r.winRate != null ? `${safeToFixed(r.winRate, 0)}%` : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className={cn("py-1.5 px-2 text-right font-mono tabular-nums", tone(r.avgPnlPct))}>
+                    {signed(r.avgPnlPct, 1, '%')}{r.pnlN ? <span className="text-muted-foreground"> n={r.pnlN}</span> : null}
+                  </td>
+                  <td className={cn("py-1.5 px-2 text-right font-mono tabular-nums", tone(r.avgR))}>{signed(r.avgR, 2, 'R')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function UserPerformanceSummary({ query = "" }: { query?: string }) {
+  const { data: tr, isLoading } = useTrackRecord(query);
+  const { data: botData } = useQuery<AutoLottoBotPerformance>({
     queryKey: ["/api/performance/auto-lotto-bot"],
     staleTime: 30000,
   });
 
-  const isLoading = isStatsLoading || isEngineLoading || isBotLoading;
-
-  if (isLoading) {
-    // Viewport-tall placeholder: the finished summary is ~1,200px on a phone,
-    // and a 350px skeleton made everything below jump when it arrived
-    // (CLS 0.54 measured 2026-09-24). Below-the-fold content can't shift.
+  if (isLoading || !tr) {
+    // Viewport-tall placeholder (CLS 0.54 measured 2026-09-24 with a short one).
     return (
       <div className="min-h-[100dvh] space-y-6" aria-busy="true">
         <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
-        </div>
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  // Headline = the canonical model record (shared/model-record.ts) when the payload
-  // carries it, so this card matches Today and the Bot page. A null rate (under the
-  // sample floor) stays null — v1 coerced it to 0 and rendered a false "F".
-  const mr = (stats as any)?.modelRecord as { winRate: number | null; decided: number; wins: number; losses: number } | undefined;
-  const overallWinRate: number | null = mr ? mr.winRate : (stats?.segmentedWinRates?.overall?.winRate ?? null);
-  const totalDecided = mr ? mr.decided : (stats?.segmentedWinRates?.overall?.decided ?? 0);
-  const wins = mr ? mr.wins : (stats?.segmentedWinRates?.overall?.wins ?? 0);
-  const losses = mr ? mr.losses : (stats?.segmentedWinRates?.overall?.losses ?? 0);
-  const overallGrade = getGrade(overallWinRate);
-  // Hero metric: expectancy = (win% x avg win) - (loss% x avg loss), in
-  // percentage points per idea. It answers "do the engines make money" in a
-  // way hit rate alone can't — a 70% hit rate with a bad win/loss size ratio
-  // still loses money.
-  const expectancy = stats?.overall?.expectancy ?? null;
-
-  const engines: EngineKey[] = ["flow", "quant", "ai", "lotto"];
+  const h = tr.headline;
+  const ru = tr.runUp;
+  const floor = tr.sampleFloor;
 
   return (
-    <div className="space-y-6">
-      {/* Hero — expectancy leads (the one number that answers "do the engines
-          make money"); the grade tile anchors trust, hit rate stays visible
-          as the secondary stat. */}
+    <div className="space-y-6" data-testid="track-record-summary">
+      {/* Hero — expectancy first, then the strict hit rate; one population, n beside each. */}
       <Card className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-purple-500/5" />
-        <CardContent className="relative p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            {/* Main: grade tile + expectancy */}
-            <div className="flex items-center gap-6">
-              <div className={cn(
-                "h-20 w-20 rounded-2xl flex items-center justify-center text-3xl font-bold",
-                overallGrade.bgColor, overallGrade.color
-              )}>
-                {overallGrade.grade}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Expectancy</p>
-                  <span className="text-xs text-muted-foreground font-mono">n={totalDecided}</span>
-                  <span className="group relative inline-block">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
-                      Your edge per idea: (win% &#215; avg win) &#8722; (loss% &#215; avg loss). Positive means the engines make money on average; negative means they lose it.
-                    </span>
+        <CardContent className="relative p-6 space-y-4">
+          <div className="flex items-baseline justify-between flex-wrap gap-2">
+            <p className="text-xs text-muted-foreground font-mono">
+              Published ideas since {tr.since}
+              {tr.since !== tr.baseline ? ` (baseline ${tr.baseline})` : ' (honest baseline — earlier outcomes are invalid)'}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-mono">as of {tr.asOf.slice(11, 16)} UTC</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div data-testid="tr-expectancy">
+              <p className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                Expectancy
+                <span className="group relative inline-block">
+                  <Info className="h-3 w-3 cursor-help" />
+                  <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-60 p-2 text-[10px] normal-case bg-popover text-popover-foreground border rounded shadow-lg z-50">
+                    Average realised P&amp;L per decided idea — contract % for options, underlying % for stocks.
+                    R uses the platform convention: 1R = a 50% premium loss.
                   </span>
-                </div>
-                <p className={cn("text-4xl font-bold font-mono", expectancy === null ? "text-muted-foreground" : expectancy < 0 ? "text-[var(--trade-bearish)]" : "text-[var(--trade-bullish)]")}>
-                  {expectancy === null ? '—' : `${expectancy >= 0 ? '+' : ''}${safeToFixed(expectancy, 1)}%`}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {expectancy === null
-                    ? 'No decided ideas in this period'
-                    : expectancy > 0
-                      ? `Positive edge — about ${safeToFixed(expectancy, 1)}% per idea across ${totalDecided} decided.`
-                      : expectancy < 0
-                        ? `Negative edge — about ${safeToFixed(Math.abs(expectancy), 1)}% lost per idea across ${totalDecided} decided.`
-                        : 'Breakeven — no measurable edge yet.'}
-                </p>
-              </div>
+                </span>
+              </p>
+              <p className={cn("text-3xl font-bold font-mono", tone(h.avgPnlPct))}>{signed(h.avgPnlPct, 1, '%')}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">
+                per idea · n={h.pnlN} · {signed(h.expectancyR, 2, 'R')} avg R (n={h.rSampleSize})
+              </p>
             </div>
-
-            {/* Quick Stats — Bot P&L intentionally omitted: the dedicated
-                Auto-Lotto card below is its canonical home. */}
-            <div className="flex gap-6">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
-                <p className={cn("text-2xl font-bold font-mono", getWinRateColor(overallWinRate))}>
-                  {overallWinRate != null ? `${safeToFixed(overallWinRate, 0)}%` : '—'}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{wins}W/{losses}L</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase">Total Ideas</p>
-                <p className="text-2xl font-bold font-mono text-sky-400">{stats?.overall?.totalIdeas ?? 0}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase">Avg Gain</p>
-                <p className={cn(
-                  "text-2xl font-bold font-mono",
-                  (stats?.overall?.avgPercentGain ?? 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                )}>
-                  {(stats?.overall?.avgPercentGain ?? 0) >= 0 ? '+' : ''}{safeToFixed(stats?.overall?.avgPercentGain ?? 0, 1)}%
-                </p>
-              </div>
+            <div data-testid="tr-hit-rate">
+              <p className="text-xs text-muted-foreground uppercase">Strict hit rate</p>
+              <p className="text-3xl font-bold font-mono">{h.winRate != null ? `${safeToFixed(h.winRate, 0)}%` : '—'}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">
+                {h.wins} of {h.decided} decided{h.winRate == null ? ` · needs ${floor}` : ''}
+              </p>
+            </div>
+            <div data-testid="tr-total">
+              <p className="text-xs text-muted-foreground uppercase">Total ideas</p>
+              <p className="text-3xl font-bold font-mono text-sky-400">{h.total}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">{h.decided} decided · {h.unresolved} open/unresolved</p>
+            </div>
+            <div data-testid="tr-win-loss-size">
+              <p className="text-xs text-muted-foreground uppercase">Avg win / avg loss</p>
+              <p className="text-xl font-bold font-mono">
+                <span className={tone(h.avgWinPct)}>{signed(h.avgWinPct, 1, '%')}</span>
+                <span className="text-muted-foreground"> / </span>
+                <span className={tone(h.avgLossPct)}>{signed(h.avgLossPct, 1, '%')}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground font-mono">{h.wins}W · {h.losses}L</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Engine Reliability Grades */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          Engine Performance
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {engines.map((key) => {
-            const config = ENGINE_CONFIG[key];
-            const Icon = config.icon;
-            const metrics = engineHealthData?.weekMetrics?.[key];
-            const winRate = metrics?.winRate ?? null;
-            const grade = getGrade(winRate);
+      {/* Run-up — measured separately, never a win. */}
+      <Card data-testid="tr-run-up">
+        <CardContent className="p-4 text-xs space-y-1">
+          <p className="text-sm font-medium">Run-up after trigger <span className="text-muted-foreground font-normal">— not the win rate</span></p>
+          {ru ? (
+            <>
+              <p className="font-mono">
+                {ru.reportableRate != null
+                  ? `${safeToFixed(ru.reportableRate, 0)}% reached +5% before stop`
+                  : `Not enough triggered ideas yet (${ru.triggered} measured, needs ${ru.sampleFloor})`}
+                {' · '}{ru.reached5BeforeStop} of {ru.triggered} triggered · +3%: {ru.reached3} · +10%: {ru.reached10}
+                {ru.pending ? ` · ${ru.pending} still being evaluated` : ''}
+              </p>
+              <p className="text-muted-foreground">
+                Trigger observation started {ru.observerSince}; ideas published before then are being back-filled from bars in small batches, so this count grows over the next sessions.
+                A +5% touch that wasn't exited there can still lose, so run-up never changes the strict record.
+              </p>
+            </>
+          ) : <p className="text-muted-foreground">Run-up measurement unavailable right now.</p>}
+        </CardContent>
+      </Card>
 
-            return (
-              <Card key={key} className="hover-elevate">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{config.label}</span>
-                    </div>
-                    <div className={cn(
-                      "h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold",
-                      grade.bgColor, grade.color
-                    )}>
-                      {grade.grade}
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn("text-xl font-bold font-mono", getWinRateColor(winRate))}>
-                      {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      hit rate{(metrics?.tradesWon ?? 0) + (metrics?.tradesLost ?? 0) > 0 && (
-                        <span className="font-mono ml-1">n={(metrics?.tradesWon ?? 0) + (metrics?.tradesLost ?? 0)}</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-[var(--trade-bullish)]" />
-                      {metrics?.tradesWon ?? 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <XCircle className="h-3 w-3 text-[var(--trade-bearish)]" />
-                      {metrics?.tradesLost ?? 0}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+      <BreakdownTable title="By engine" rows={tr.engines} floor={floor} testId="tr-engines" />
+      <BreakdownTable title="By asset" rows={tr.assets} floor={floor} testId="tr-assets" />
+      <p className="text-[11px] text-muted-foreground -mt-3">
+        Win % is shown only at {floor}+ decided ideas. Avg R: 1R = a 50% premium loss (stock ideas use the same ÷50 scale, so their R reads small — compare stocks on Avg P&amp;L %).
+        Rows add up to the headline.
+      </p>
+
+      {/* Options disclosure — counted, with the dates that matter. */}
+      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground" data-testid="tr-options-note">
+        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
+        <span>
+          <strong>Option ideas are included</strong> — {tr.options.total} in this view, {tr.options.decided} decided, {tr.options.unresolved} open or unmeasurable.
+          {' '}{tr.options.note}
+          {tr.options.pricedAtPass || tr.options.withheld
+            ? ` ${tr.options.pricedAtPass} decided option exits were priced at the tracker pass and ${tr.options.withheld} stops had their premium withheld (counted as losses, no P&L).`
+            : ''}
+        </span>
       </div>
 
-      {/* Auto-Lotto Bot Summary */}
+      {/* Auto-Lotto paper bot — separate book, separate population. */}
       {botData && (
-        <Card>
+        <Card data-testid="tr-paper-bot">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-[var(--trade-neutral)]" />
                 <CardTitle className="text-base">Auto-Lotto Bot</CardTitle>
               </div>
-              <Badge variant="outline" className="text-xs">
-                Live Trading
-              </Badge>
+              <Badge variant="outline" className="text-xs">Paper trading</Badge>
             </div>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              Simulated fills, not broker orders · closed {day(botData.range?.firstClosedAt)} → {day(botData.range?.lastClosedAt)} · not part of the idea record above
+            </p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-xs text-muted-foreground uppercase">Trades</p>
+                <p className="text-xs text-muted-foreground uppercase">Closed trades</p>
                 <p className="text-xl font-bold font-mono tabular-nums">{botData.overall.totalTrades}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
-                {/* Was `${winRate}%`, which printed a red 0% for a bot that had
-                    taken zero trades — the card's own TRADES 0 · W/L 0/0 said so
-                    in the same row. CanonRate suppresses the percentage below the
-                    sample floor and says which kind of "no number" this is. */}
-                <CanonRate
-                  className="text-xl"
-                  wins={botData.overall.wins}
-                  decided={botData.overall.wins + botData.overall.losses}
-                />
+                <CanonRate className="text-xl" wins={botData.overall.wins} decided={botData.overall.wins + botData.overall.losses} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">W/L</p>
@@ -290,12 +253,9 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase">Total P&L</p>
-                <p className={cn(
-                  "text-xl font-bold font-mono",
-                  botData.overall.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                )}>
-                  {botData.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData.overall.totalPnL, 0)}
+                <p className="text-xs text-muted-foreground uppercase">Paper P&amp;L</p>
+                <p className={cn("text-xl font-bold font-mono", tone(botData.overall.totalPnL))}>
+                  {botData.overall.totalPnL >= 0 ? '+' : '−'}${safeToFixed(Math.abs(botData.overall.totalPnL), 0)}
                 </p>
               </div>
             </div>
@@ -303,30 +263,15 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
         </Card>
       )}
 
-      {/* Flow/Lotto Disclosure */}
-      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
-        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
-        <span>
-          <strong>Options validation under maintenance</strong> — Flow (1,127) and Lotto (341) ideas excluded from stats.
-          Option-premium pricing is being rebuilt; these engines will return once validation is reliable.
-        </span>
-      </div>
-
-      {/* What This Means Section */}
       <Card className="bg-muted/20 border-dashed">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Zap className="h-5 w-5 text-sky-400 mt-0.5 shrink-0" />
-            <div className="text-sm">
-              <p className="font-medium mb-1">What do these numbers mean?</p>
-              <p className="text-muted-foreground">
-                Our trading engines analyze market data to generate trade ideas. The hit rate shows
-                how often ideas hit their target vs stop loss (count-based, not P&L-weighted).
-                Trades within &#177;3% of entry are excluded as breakeven. A <span className="text-[var(--trade-bullish)] font-medium">70%+ hit rate</span> indicates
-                strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies. Expectancy is your edge per idea — a positive expectancy means the strategy makes money on average, even with a modest hit rate.
-              </p>
-            </div>
-          </div>
+        <CardContent className="p-4 text-sm">
+          <p className="font-medium mb-1">How to read this</p>
+          <p className="text-muted-foreground">
+            Start with expectancy: the average realised result per decided idea. It is the number that says whether following the ideas made or lost money —
+            a high hit rate with small wins and large losses still loses, and a modest hit rate with larger wins can be profitable.
+            The strict hit rate counts a target, a stop, or a measured close at the end of the idea's window; open ideas and anything that could not be measured stay out and are counted as unresolved.
+            Any rate built on fewer than {floor} decided ideas is hidden and flagged as thin — read those rows as counts, not as a verdict.
+          </p>
         </CardContent>
       </Card>
     </div>

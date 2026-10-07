@@ -103,6 +103,44 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
   .flowdash .nxd .nxp-detail-head p{font-size:14px}
 }
 
+/* tracked symbols row (tracked-row.tsx) — operator's time-boxed NEXUS list */
+.flowdash .nxd-track{margin:6px 8px 0;padding:4px 7px;border:1px solid var(--nx-border);border-radius:6px;background:var(--bg-2);font:600 11px var(--fd-mono);color:var(--text)}
+.flowdash .nxd-track em{font-style:normal}
+.flowdash .nxd-track .up{color:var(--green)}
+.flowdash .nxd-track .dn{color:var(--red)}
+.flowdash .nxd-track small{color:var(--text-mute);font-size:9.5px;font-weight:500}
+.flowdash .nxd-track-head{display:flex;align-items:center;gap:4px;min-width:0;width:100%;padding:0;border:0;background:none;color:var(--text-mute);font:inherit;text-align:left;cursor:default}
+.flowdash .nxd-track-head b{color:var(--cyan);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:10px}
+.flowdash .nxd-track-syms{display:flex;gap:10px;margin-left:auto;overflow:hidden;white-space:nowrap;color:var(--text)}
+.flowdash .nxd-track-list{display:flex;flex-direction:column;gap:2px;margin-top:3px}
+.flowdash .nxd-track-item{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-height:22px}
+.flowdash .nxd-track-item button,.flowdash .nxd-track-add button{padding:1px 6px;border:1px solid var(--nx-border-hi);border-radius:4px;background:transparent;color:var(--text);font:inherit;cursor:pointer}
+.flowdash .nxd-track-item button:disabled{opacity:.45;cursor:default}
+.flowdash .nxd-track-sym{font-weight:800!important;color:var(--cyan)!important}
+.flowdash .nxd-track-px small{margin-left:4px}
+.flowdash .nxd-track-lv,.flowdash .nxd-track-fl,.flowdash .nxd-track-until{color:var(--text-mute)}
+.flowdash .nxd-track-x{margin-left:auto;display:inline-flex;align-items:center;padding:2px 3px!important}
+.flowdash .nxd-track-add{display:flex;align-items:center;gap:5px;margin-top:2px}
+.flowdash .nxd-track-add input,.flowdash .nxd-track-add select{height:22px;padding:0 5px;border:1px solid var(--nx-border-hi);border-radius:4px;background:var(--bg-1,transparent);color:var(--text);font:inherit}
+.flowdash .nxd-track-add input{width:64px}
+@media (max-width:767px){
+  .flowdash .nxd-track-head{cursor:pointer;min-height:32px}
+  .flowdash .nxd-track-item{min-height:36px}
+  .flowdash .nxd-track-item button,.flowdash .nxd-track-add button,.flowdash .nxd-track-add input,.flowdash .nxd-track-add select{min-height:36px}
+}
+/* carry-over lifecycle (docs/SETUP_LIFECYCLE.md) — the row's state, re-grade and live mark */
+.flowdash .nxd .nxp-row small.nxp-life{text-transform:none;font-variant-numeric:tabular-nums;color:var(--text-mute)}
+.flowdash .nxd .nxp-life-tag-fresh{color:var(--cyan)}
+.flowdash .nxd .nxp-life-tag-stale,.flowdash .nxd .nxp-life-tag-resolved{color:var(--text-mute);font-style:italic}
+.flowdash .nxd .nxp-row.nxp-life-stale,.flowdash .nxd .nxp-row.nxp-life-resolved{opacity:.62}
+.flowdash .nxd .nxp-row.nxp-life-stale:hover,.flowdash .nxd .nxp-row.nxp-life-resolved:hover,.flowdash .nxd .nxp-row.nxp-life-stale.selected{opacity:1}
+.flowdash .nxd-day-head{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;gap:8px;padding:6px 8px 3px;background:var(--panel-solid);font:700 10px var(--fd-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .nxd-day-head span:last-child{font-weight:600;letter-spacing:0}
+.flowdash .nxd-days{flex-wrap:wrap}
+.flowdash .nxd-days button b{margin-left:4px;font-weight:600;opacity:.7}
+.flowdash .nxd-date{height:24px;padding:0 4px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--bg-2);color:var(--text);font:600 10.5px var(--fd-mono)}
+.flowdash .nxd-date.on{border-color:color-mix(in srgb,var(--cyan) 50%,transparent)}
+.flowdash .nxd-stale-toggle{border:0;background:transparent;color:var(--text-mute);font:600 10.5px var(--fd-mono);text-decoration:underline;cursor:pointer;padding:2px 8px}
 /* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
    the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
 @media (min-width:600px){

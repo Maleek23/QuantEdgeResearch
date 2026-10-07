@@ -21,6 +21,7 @@ import { useParams, useLocation, useSearch } from 'wouter';
 import { useStockContext } from '@/contexts/stock-context';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { TickerPage, type TickerView } from '@/components/ticker/ticker-page';
+import { canonicalChartSymbol } from '@shared/index-symbols';
 
 /** Legacy ?tab= values → the section they now live in. */
 const TAB_TO_SECTION: Record<string, string> = {
@@ -32,7 +33,8 @@ export default function ResearchShell() {
   const [, setLocation] = useLocation();
   const { currentStock, setCurrentStock } = useStockContext();
 
-  const symbol = (rawSym ?? 'SPY').toUpperCase();
+  // $SPX / ^GSPC / SPXW → SPX (shared/index-symbols.ts): one page per instrument.
+  const symbol = canonicalChartSymbol(rawSym ?? 'SPY');
   const search = useSearch(); // subscribes: ?tab= changes re-render without a path change
   const params = new URLSearchParams(search);
   const tab = params.get('tab');
@@ -71,7 +73,7 @@ export default function ResearchShell() {
     if (source) next.set('from', source);
     if (v === 'gex') next.set('tab', 'gex');
     if (v === 'lab') next.set('tab', 'analyze');
-    return `/r/${encodeURIComponent(sym.toUpperCase())}${next.size ? `?${next.toString()}` : ''}`;
+    return `/r/${encodeURIComponent(canonicalChartSymbol(sym))}${next.size ? `?${next.toString()}` : ''}`;
   };
 
   return (
