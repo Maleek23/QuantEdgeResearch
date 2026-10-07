@@ -43,6 +43,7 @@
     "test:admin-ops": "tsx scripts/test-admin-ops.ts",
     "test:desk-admins": "tsx scripts/test-desk-admins.ts",
     "test:trader-accounts": "tsx scripts/test-trader-accounts.ts",
+    "test:trader-self-setup": "tsx scripts/test-trader-self-setup.ts",
     "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:sector-board": "tsx scripts/test-sector-board.ts",

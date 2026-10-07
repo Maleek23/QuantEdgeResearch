@@ -94,6 +94,7 @@ const InviteWelcome = lazyWithRetry(() => import("@/pages/invite-welcome"), "inv
 const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "forgot-password");
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
 const SetupAccount = lazyWithRetry(() => import("@/pages/setup-account"), "setup-account");
+const TraderSetup = lazyWithRetry(() => import("@/pages/trader-setup"), "trader-setup");
 
 // MERGED — Discover absorbed into Trade Desk
 // REMOVED 2026-09-29 — pages/history.tsx (never routed; /history → Journal › Trades)
@@ -296,6 +297,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/setup" component={SetupAccount} />
+      <Route path="/trader-setup" component={TraderSetup} />
       <Route path="/join-beta" component={JoinBeta} />
       
       <Route path="/invite" component={InviteWelcome} />
@@ -353,7 +355,7 @@ function App() {
     // Only save authenticated app pages (not landing/login/public)
     // Don't remember legacy shells as the landing page — the Terminal (/t) is the front
     // door now. They remain reachable directly; they just no longer hijack the next visit.
-    const skipPaths = ['/', '/w', '/login', '/signup', '/setup', '/invite', '/join-beta',
+    const skipPaths = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta',
                        '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
     if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
@@ -368,7 +370,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

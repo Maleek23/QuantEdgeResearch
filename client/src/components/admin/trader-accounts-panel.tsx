@@ -16,8 +16,9 @@ import { LuxButton, LuxPanel, LuxTag } from '@/components/lux';
 import { QEError } from '@/components/ui/qe-states';
 import { useToast } from '@/hooks/use-toast';
 import { adminWrite, copyText, fmtDate, getJson } from '@/components/admin/hub-data';
+import { TraderSelfSetupControls } from '@/components/admin/trader-self-setup-controls';
 import {
-  SETUP_LINK_TTL_HOURS, TRADER_ACCOUNT_STATUS_LABEL, usernameFromDisplayName, type CredentialMethod, type TraderAccountStatus,
+  SETUP_LINK_TTL_HOURS, TRADER_ACCOUNT_DEFAULT_TIER, TRADER_ACCOUNT_STATUS_LABEL, usernameFromDisplayName, type CredentialMethod, type TraderAccountStatus,
 } from '@shared/trader-accounts';
 
 const KEY = '/api/admin/ops/trader-accounts';
@@ -47,7 +48,7 @@ export function TraderAccountsPanel() {
   const [nameTouched, setNameTouched] = useState(false);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
-  const [tier, setTier] = useState<'free' | 'advanced' | 'pro'>('free');
+  const [tier, setTier] = useState<'free' | 'advanced' | 'pro'>(TRADER_ACCOUNT_DEFAULT_TIER);
   const [deskAdmin, setDeskAdmin] = useState(true);
   const [method, setMethod] = useState<CredentialMethod>('link');
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export function TraderAccountsPanel() {
     await qc.invalidateQueries({ queryKey: [KEY] });
     void qc.invalidateQueries({ queryKey: ['/api/admin/ops/users'] });
     void qc.invalidateQueries({ queryKey: ['/api/admin/ops/desks'] });
+    void qc.invalidateQueries({ queryKey: ['/api/admin/ops/trader-self-setup'] });
   };
 
   const create = async () => {
@@ -80,7 +82,7 @@ export function TraderAccountsPanel() {
       });
       setFresh({ who: r.account.displayName, login: r.account.login, credential: r.credential });
       toast({ title: `Account created for ${r.account.displayName}`, description: `Sign-in: ${r.account.login}` });
-      setSlug(''); setDisplayName(''); setNameTouched(false); setEmail(''); setUsername(''); setTier('free'); setDeskAdmin(true); setMethod('link');
+      setSlug(''); setDisplayName(''); setNameTouched(false); setEmail(''); setUsername(''); setTier(TRADER_ACCOUNT_DEFAULT_TIER); setDeskAdmin(true); setMethod('link');
       await refresh();
     } catch (e) {
       toast({ title: 'Not created', description: (e as Error).message, variant: 'destructive' });
@@ -204,6 +206,7 @@ export function TraderAccountsPanel() {
         </div>
       )}
       {q.data && !accounts.length && <p className="ah-note">No trader accounts yet.</p>}
+      <TraderSelfSetupControls />
     </LuxPanel>
   );
 }

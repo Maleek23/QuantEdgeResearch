@@ -37,6 +37,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'desk.passcode_set', 'desk.passcode_clear', 'desk.privacy',
   // Trader accounts (docs/DESK_ADMINS.md §Trader accounts) — detail.codeTail is the last 4 of a link token / temp password, never more.
   'trader_account.create', 'trader_account.regenerate', 'trader_account.revoke', 'trader_account.setup_complete', 'trader_account.password_changed',
+  // Trader self-setup from the sign-in page (docs/DESK_ADMINS.md §Trader self-setup) — never the passcode or password.
+  'trader_self_setup.fail', 'trader_self_setup.lockout', 'trader_self_setup.complete', 'trader_self_setup.config',
   // Ask Quantinum (docs/ASK_QUANTINUM.md) — provider order / models changed or reset.
   'quantinum_ai.config', 'quantinum_ai.config_reset',
 ] as const;
