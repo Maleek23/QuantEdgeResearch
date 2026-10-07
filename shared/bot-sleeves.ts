@@ -32,7 +32,7 @@
 import { manageSignal, exitPolicyPlan, type ExitPolicyId } from './exit-policy';
 import { windowFor, publishMsOf, etDay, type LifecycleInput } from './setup-lifecycle';
 import { marketSessionAt, etClock, etHHMM } from './quote-freshness';
-import { NEXUS_GRADE_POINTS, type NexusGrade } from './nexus-grade';
+import { gradeSortValue, isGradeLive, type NexusGrade } from './nexus-grade';
 
 export type BotSleeve = '0dte' | 'swing';
 
@@ -219,24 +219,24 @@ export interface GradedCandidate { ideaId: string; grade: NexusGrade; publishMs:
 /** NEXUS grade desc → newest publish → idea id. The evidence score never enters. */
 export function swingOrder<T extends GradedCandidate>(rows: T[]): T[] {
   return [...rows].sort((a, b) =>
-    b.grade.score - a.grade.score
+    gradeSortValue(b.grade) - gradeSortValue(a.grade)
     || (b.publishMs ?? 0) - (a.publishMs ?? 0)
     || String(a.ideaId).localeCompare(String(b.ideaId)));
 }
 
-/** Live & valid (fresh or carried) — the grade's lifecycle factor at full points. */
+/** Live & valid (fresh or carried) — g2: the lifecycle factor at full points; v3: actionable now. */
 export function isLiveGrade(g: NexusGrade): boolean {
-  const life = g.factors.find((f) => f.key === 'lifecycle');
-  return !!life && life.points >= NEXUS_GRADE_POINTS.valid;
+  return isGradeLive(g);
 }
 
 // ── no same-day re-entry after a stop ───────────────────────────────────────
 
 /** Exit reasons that count as a stop-out (premium, underlying, breakeven, trailing). */
 export function isStopExit(exitReason: string | null | undefined): boolean {
-  // 'stop_hit' (checkStopsAndTargets), sleeve 'premium_stop' / 'breakeven_stop', trailing stops.
+  // 'stop_hit' (checkStopsAndTargets), sleeve 'premium_stop' / 'breakeven_stop', trailing stops,
+  // and the wide-stop exits: 'underlying_stop' (2d) / 'premium_stop_wide_…' (shared/wide-stops.ts).
   // A 'time_stop' is a clock exit, not a stop-out.
-  return /(^|[^a-z])(stop_hit|premium_stop|breakeven_stop|trailing_stop|stop_loss|hit_stop)/i.test(String(exitReason ?? ''));
+  return /(^|[^a-z])(stop_hit|premium_stop|breakeven_stop|trailing_stop|stop_loss|hit_stop|underlying_stop)/i.test(String(exitReason ?? ''));
 }
 
 /** Symbols stopped out on the ET day of `nowMs` (any run). */

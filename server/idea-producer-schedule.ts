@@ -45,7 +45,7 @@ type LogFn = (msg: string) => void;
  * (server/lib/heavy-job-gate.ts): one heavy job at a time on the 1 vCPU box,
  * minute-sensitive ones ('high') ahead of the queue.
  */
-function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriority = 'normal', lane: HeavyOptions['lane'] = 'main'): () => Promise<void> {
+function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriority = 'normal', lane: HeavyOptions['lane'] = 'main', maxWaitMs?: number): () => Promise<void> {
   let running = false;
   return async () => {
     if (running) {
@@ -54,10 +54,12 @@ function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriori
     }
     running = true;
     const t0 = Date.now();
+    const rss0 = process.memoryUsage().rss;
     try {
-      const out = await runHeavy(`producer:${name}`, fn, { priority, lane });
+      const out = await runHeavy(`producer:${name}`, fn, { priority, lane, ...(maxWaitMs ? { maxWaitMs } : {}) });
       const n = typeof out === 'number' ? out : (out as any)?.persisted ?? (out as any)?.published;
-      logger.info(`[IDEA-PRODUCERS] ${name}: done in ${((Date.now() - t0) / 1000).toFixed(1)}s${n != null ? ` — ${n} published` : ''}`);
+      const rssMb = Math.round(process.memoryUsage().rss / 1048576);
+      logger.info(`[IDEA-PRODUCERS] ${name}: done in ${((Date.now() - t0) / 1000).toFixed(1)}s (incl. gate wait)${n != null ? ` — ${n} published` : ''}; rss ${Math.round(rss0 / 1048576)}→${rssMb} MB`);
     } catch (err) {
       logger.error(`[IDEA-PRODUCERS] ${name} failed:`, err);
     } finally {
@@ -129,10 +131,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     const { runPremiumDiscountScan } = await import('./index-swing-scanner');
     return runPremiumDiscountScan();
   }), ET);
-  cron.schedule('43 10,14 * * 1-5', guarded('leader-swing', async () => {
-    const { runLeaderSwingScan } = await import('./index-swing-scanner');
-    return runLeaderSwingScan();
-  }), ET);
+  // leader-swing moved to the catch-leaders slots below (2026-10-07).
 
   // ── Native crypto ideas — 24/7, weekends included (no weekday field, UTC
   // clock). Scan + publish at :07/:37; the crypto path tracker every 5 min
@@ -462,11 +461,21 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('0 13 * * 1-5', rot, ET);
   }
 
-  // ── Quant sweep — publish only (no paper execution, no Discord). ──
-  cron.schedule('27,57 9-15 * * 1-5', guarded('quant', async () => {
+  // ── CATCH-LEADERS CADENCE (2026-10-07, fix/catch-leaders) ──
+  // 2026-10-06: the quant sweep that saw AMD/AAOI/ZS/CRWD logged them at 14:58 and
+  // 15:30 ET — hours after the moves. The main stock scanner and the leadership
+  // scans now run pre-market 08:45 + 09:20, then 09:35, 09:50, 10:05, 10:20, 10:40,
+  // 11:00 and every 30 min to 15:30 (shared/catch-leaders-schedule.ts). All through
+  // the heavy gate; the 09:30–09:45 open quiet window still defers producer:quant and
+  // producer:leader-swing to 09:45 (server/lib/heavy-job-gate.ts) — the index lane is
+  // untouched. Offsets: quant on the slot, leaders +2 min, leader-swing +4 min, so a
+  // slow quant pass queues them instead of colliding; their queue wait is allowed
+  // 8 min (a quant pass measured 1–4 min on 2026-10-06) before the gate drops them.
+  const { CATCH_SLOTS_CRON, LEADERS_SLOTS_CRON, LEADER_SWING_SLOTS_CRON } = await import('@shared/catch-leaders-schedule');
+  const quant = guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const mins = et.getHours() * 60 + et.getMinutes();
-    if (mins < 9 * 60 + 40 || mins > 15 * 60 + 45) return 0; // after the open settles, before the close
+    if (mins < 8 * 60 + 30 || mins > 15 * 60 + 45) return 0; // pre-market planning through the last session slot
     const { storage } = await import('./storage');
     const { generateQuantIdeas } = await import('./quant-ideas-generator');
     const marketData = await storage.getAllMarketData();
@@ -482,7 +491,27 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
       }
     }
     return saved;
-  }), ET);
+  });
+  for (const expr of CATCH_SLOTS_CRON) cron.schedule(expr, quant, ET);
 
-  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''}${process.env.HOLY_GRAIL === 'true' ? ', Holy Grail 5m 09:41–15:56 (HOLY_GRAIL=true)' : ''}${process.env.WALL_TOUCH === 'true' ? ', GEX wall-touch walls 09:00/12:30 + detection 1m 09:31–16:00 + outcomes 16:20/16:50 (WALL_TOUCH=true, watch/alerts/log only)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
+  const leaderSwing = guarded('leader-swing', async () => {
+    const { runLeaderSwingScan } = await import('./index-swing-scanner');
+    return runLeaderSwingScan();
+  }, 'normal', 'main', 8 * 60_000);
+  for (const expr of LEADER_SWING_SLOTS_CRON) cron.schedule(expr, leaderSwing, ET);
+
+  // ── Session leaders (server/leaders-scanner.ts) — movers ≥3% (or ≥2× ATR%) on
+  // ≥1.5× time-of-day volume, holding VWAP + the opening range, in a Leading/
+  // Improving (Weakening for shorts) sector → structural plan, source leaders,
+  // ≤6/day, measuring. In session only (the pass no-ops before 09:50).
+  // LEADERS_IDEAS=false turns it off. ──
+  if (process.env.LEADERS_IDEAS !== 'false') {
+    const leaders = guarded('leaders', async () => {
+      const { runLeadersScan } = await import('./leaders-scanner');
+      return (await runLeadersScan()).published;
+    }, 'normal', 'main', 8 * 60_000);
+    for (const expr of LEADERS_SLOTS_CRON) cron.schedule(expr, leaders, ET);
+  }
+
+  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant + leader-swing + session leaders on the catch-leaders slots (08:45, 09:20, 09:35, 09:50, 10:05, 10:20, 10:40, 11:00, then :00/:30 to 15:30; one heavy job at a time), index swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''}${process.env.HOLY_GRAIL === 'true' ? ', Holy Grail 5m 09:41–15:56 (HOLY_GRAIL=true)' : ''}${process.env.WALL_TOUCH === 'true' ? ', GEX wall-touch walls 09:00/12:30 + detection 1m 09:31–16:00 + outcomes 16:20/16:50 (WALL_TOUCH=true, watch/alerts/log only)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
 }

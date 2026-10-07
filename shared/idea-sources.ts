@@ -88,6 +88,7 @@ const META: Record<string, { short: string; label: string; tone: IdeaSourceTone 
   spx_session: { short: "SPX", label: "SPX Session", tone: "scanner" },
   sector_rotation: { short: "SECTOR", label: "Sector Rotation", tone: "scanner" },
   sector_ignition: { short: "IGNITE", label: "Sector Ignition", tone: "scanner" },
+  leaders: { short: "LEAD", label: "Session Leaders", tone: "scanner" },
   watchlist: { short: "WATCH", label: "Watchlist", tone: "scanner" },
   chart_analysis: { short: "CHART", label: "Chart Analysis", tone: "chart" },
   tradingview: { short: "TV", label: "TradingView", tone: "chart" },

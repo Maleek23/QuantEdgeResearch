@@ -200,6 +200,23 @@ export function UserPerformanceSummary({ query = "" }: { query?: string }) {
         </CardContent>
       </Card>
 
+      {/* Missed winners — stopped, then T1 inside the hold window. Hindsight beside the record, never in it. */}
+      {tr.missedWinners && (
+        <Card data-testid="tr-missed-winners">
+          <CardContent className="p-4 text-xs space-y-1">
+            <p className="text-sm font-medium">Missed winners <span className="text-muted-foreground font-normal">— stopped out, then reached T1 · still counted as losses</span></p>
+            <p className="font-mono">
+              {tr.missedWinners.laterT1} of {tr.missedWinners.checked} checked stop-outs later reached T1 inside their hold window
+              {' · '}{tr.missedWinners.backToEntry} more traded back at entry
+              {tr.missedWinners.pending ? ` · ${tr.missedWinners.pending} awaiting their window` : ''}
+            </p>
+            <p className="text-muted-foreground">
+              Measured after the close on the underlying from each idea's own entry, stop and T1. This is what a wider stop would have recovered; the strict hit rate above does not change.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <BreakdownTable title="By engine" rows={tr.engines} floor={floor} testId="tr-engines" />
       <BreakdownTable title="By asset" rows={tr.assets} floor={floor} testId="tr-assets" />
       <p className="text-[11px] text-muted-foreground -mt-3">

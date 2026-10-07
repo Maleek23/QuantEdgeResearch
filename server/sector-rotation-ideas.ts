@@ -118,9 +118,9 @@ export async function buildPlan(c: CandidateLike, deps: BuildDeps = {}): Promise
   // Gate 5 (server/lib/atr-stop-floor.ts) as the final word on the stop — a no-op when the snap already honoured it.
   let stop = lv.stop; let rr = lv.rr; let stopBasis = lv.stopBasis;
   if (hz.horizon !== 'day') {
-    const { computeAtrStopFloor } = await import('./lib/atr-stop-floor');
+    const { computeAtrStopFloor, nexusStopAtrK } = await import('./lib/atr-stop-floor');
     const f = computeAtrStopFloor({ symbol: c.symbol, entry: entry.entry, stop, target: lv.t1, direction: c.side, holdingPeriod: hz.horizon, assetType: 'stock' }, done as any);
-    if (f.widened && typeof f.stopLoss === 'number') { stop = f.stopLoss; rr = Math.round((f.riskRewardRatio ?? rr) * 100) / 100; stopBasis += '; widened to the 1.25× ATR(14) floor'; }
+    if (f.widened && typeof f.stopLoss === 'number') { stop = f.stopLoss; rr = Math.round((f.riskRewardRatio ?? rr) * 100) / 100; stopBasis += `; widened to the ${nexusStopAtrK()}× ATR(14) floor`; }
   }
   const earnings = c.earnings ?? await (deps.earnings ?? liveEarnings)(c.symbol);
   const forward = deps.forward?.(c.sectorId) ?? { sector: [], all: [] };

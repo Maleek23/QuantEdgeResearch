@@ -23,6 +23,7 @@
 import { OUTCOME_BASELINE_DATE, MIN_REPORTABLE_SAMPLE, classifyOutcomeV2, realisedR, reportableRate } from './constants';
 import { computeModelRecord, etDateKey, isSyntheticOutcome, type ModelRecord, type RecordIdea } from './model-record';
 import { getIdeaSourceMeta } from './idea-sources';
+import { countMissedWinners, type MissedWinners } from './after-stop';
 
 /** The trigger observer (shared/run-up.ts inputs) first ran in prod on this date. */
 export const TRIGGER_OBSERVER_START = '2026-09-30';
@@ -101,6 +102,12 @@ export interface TrackRecord {
     note: string;
   };
   triggerObserverSince: string;
+  /**
+   * "Missed winners" — stop-outs that later reached T1 inside their hold window
+   * (shared/after-stop.ts, after-close job). Hindsight shown BESIDE the record:
+   * every one of them is still a loss in headline/engines/assets.
+   */
+  missedWinners: MissedWinners;
 }
 
 export function assetKey(a?: string | null): Exclude<TrackAsset, 'all'> | string {
@@ -249,5 +256,6 @@ export function computeTrackRecord(
         + `Expiries settle at exact intrinsic value when the expiry-day print exists; otherwise they stay unmeasured.`,
     },
     triggerObserverSince: TRIGGER_OBSERVER_START,
+    missedWinners: countMissedWinners(pop),
   };
 }

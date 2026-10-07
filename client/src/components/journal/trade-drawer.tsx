@@ -73,6 +73,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
     ['Fees', fmtPrice(trade.fees ?? 0)],
     ['Opened', when(trade.entryTime)],
     ['Closed', trade.exitTimeNote ?? when(trade.exitTime)],
+    ...(trade.afterStop ? [['After the stop', `${trade.afterStop} (hindsight — still a loss)`] as [string, React.ReactNode]] : []),
     ['Held', fmtDuration(t.durationMs)],
     ['Source', trade.broker || 'manual'],
   ];

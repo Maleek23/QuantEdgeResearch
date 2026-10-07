@@ -52,6 +52,8 @@ export interface DeskIdea {
   at: string; ideaId: string | null; logged: boolean; loggedNote: string | null;
   /** SPXW mirror of an SPY contract (display only; tracked as the SPY idea). */
   spxMirror?: SpxMirror | null;
+  /** "stopped · later reached T1 at 11:42" — hindsight after a stop; the outcome stays a stop. */
+  afterStop?: string | null;
 }
 export interface IdeasInfo {
   evaluated: { [sym: string]: { at: string | null; eligibility: string; notes: string[] } };
@@ -116,6 +118,7 @@ function IdeaCard({ x, a, nowMs, open, onToggle }: { x: DeskIdea; a: ActState; n
         <span className="zi-age" title={x.stage === 'watch' ? 'first seen' : 'logged'}>{sinceOf(x.at, nowMs)}</span>
       </button>
       <p className="zd-reason">{a.reason}{entryLeft != null && <b> · {leftTxt(entryLeft)} to enter</b>}</p>
+      {x.afterStop && <p className="zd-reason" title="Measured after the close on the underlying, inside this idea's hold window. The idea is still recorded as a stop-out.">{x.afterStop} · still a loss</p>}
       {full ? (
         <div className="zi-body">
           <div className="zi-kv"><span>Premium now</span><strong>

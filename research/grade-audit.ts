@@ -26,13 +26,21 @@
  * Stale-at-surfacing cannot be rebuilt without bars, so every resolved idea grades as
  * live & valid — the decile table therefore measures confluence / technical / window /
  * session. Ideas surfaced after g2 logging carry the exact stamp (logged_grade).
+ *
+ * v2 vs v3 SIDE BY SIDE (GRADE_VERSION=v3, shared/nexus-grade.ts): every input also gets
+ * `gradeV3` — the v3 QUALITY score (stop ÷ ATR, not chased, SPY regime; actionability is a
+ * state, not points) from the measured inputs: convergence_signals_json.gradeInputs (or the
+ * v3 publish stamp's `q`) for DB rows; for --study rows stopAtr and −entryDist (chase) with
+ * NO regime read (the study did not measure SPY trend), so --study v3 = stop + chase only.
+ * Ideas without measured inputs have gradeV3 = null and are left out of the v3 row, never
+ * scored as zero. The g2 rebuild is forced to g2 whatever GRADE_VERSION says.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { nexusGrade, rotationAligned } from '../shared/nexus-grade';
+import { nexusGrade, nexusGradeV3, readGradeInputs, rotationAligned, type GradeV3Inputs } from '../shared/nexus-grade';
 import { etDay, windowFor } from '../shared/setup-lifecycle';
 
 export const VALID_FROM = '2026-08-26';
-export const IDEAS_SQL = `select json_agg(x) from (select id, symbol, direction, source, asset_type, option_type, strike_price, expiry_date, entry_price, entry_premium, exit_premium, stop_loss, target_price, risk_reward_ratio, timestamp as ts, generation_timestamp, exit_by, gen_conviction_score, gen_scoring_layers, holding_period, outcome_status, exit_price, exit_date, convergence_signals_json->'nexusGradeAtPublish' as logged_grade from trade_ideas where timestamp >= '${VALID_FROM}' and coalesce(archived,false)=false and outcome_status is not null and outcome_status <> 'open') x`;
+export const IDEAS_SQL = `select json_agg(x) from (select id, symbol, direction, source, asset_type, option_type, strike_price, expiry_date, entry_price, entry_premium, exit_premium, stop_loss, target_price, risk_reward_ratio, timestamp as ts, generation_timestamp, exit_by, gen_conviction_score, gen_scoring_layers, holding_period, outcome_status, exit_price, exit_date, convergence_signals_json->'nexusGradeAtPublish' as logged_grade, convergence_signals_json->'gradeInputs' as grade_inputs from trade_ideas where timestamp >= '${VALID_FROM}' and coalesce(archived,false)=false and outcome_status is not null and outcome_status <> 'open') x`;
 
 // ── types ─────────────────────────────────────────────────────────────────
 export interface AuditRow {
@@ -99,8 +107,22 @@ export function gradeAtSurfacing(x: any): ReturnType<typeof nexusGrade> | null {
     lifecycle: at >= w.endMs ? 'stale' : etDay(pub) === etDay(at) ? 'fresh' : 'carried',
     publishMs: pub, windowEndsMs: w.endMs, publishedDay: etDay(pub), today: etDay(at), nowMs: at,
     layers: Array.isArray(x.gen_scoring_layers) ? x.gen_scoring_layers : null,
-    convictionScore: num(x.gen_conviction_score),
+    convictionScore: num(x.gen_conviction_score), version: 'g2',
   });
+}
+
+/** v3 QUALITY score from measured inputs (null when the idea has none — never a zero). */
+export function gradeV3FromInputs(inputs: GradeV3Inputs | null, x: { direction?: string; gen_scoring_layers?: unknown; risk_reward_ratio?: unknown }): ReturnType<typeof nexusGradeV3> | null {
+  if (!inputs) return null;
+  return nexusGradeV3({
+    lifecycle: 'fresh', publishMs: 0, windowEndsMs: 1, publishedDay: 'd', today: 'd', nowMs: 0,
+    gradeInputs: inputs, direction: x.direction ?? null, riskRewardRatio: num(x.risk_reward_ratio),
+    layers: Array.isArray(x.gen_scoring_layers) ? x.gen_scoring_layers : null,
+  });
+}
+/** A DB row's v3 inputs: the persisted first measure, else the v3 publish stamp's `q`. */
+export function dbV3Inputs(x: any): GradeV3Inputs | null {
+  return readGradeInputs(x.grade_inputs) ?? (String(x.logged_grade?.v ?? '').startsWith('v3') ? readGradeInputs(x.logged_grade?.q) : null);
 }
 
 export function rowFromDb(x: any): AuditRow | null {
@@ -112,15 +134,18 @@ export function rowFromDb(x: any): AuditRow | null {
   const entry = num(x.entry_price), stop = num(x.stop_loss), target = num(x.target_price);
   const rr = num(x.risk_reward_ratio) ?? (entry != null && stop != null && target != null && entry !== stop ? Math.abs(target - entry) / Math.abs(entry - stop) : null);
   const g = gradeAtSurfacing(x);
+  const loggedG2 = x.logged_grade != null && !String(x.logged_grade?.v ?? '').startsWith('v3');
+  const v3 = gradeV3FromInputs(dbV3Inputs(x), x);
   const f: Record<string, number | null> = {
     // The logged stamp (convergence_signals_json.nexusGradeAtPublish) is the grade as
     // it was shown; the rebuild is the fallback for ideas published before logging.
-    grade: num(x.logged_grade?.score) ?? g?.score ?? null,
-    gLogged: x.logged_grade?.score != null ? 1 : 0,
-    gEvidence: num(x.logged_grade?.f?.evidence) ?? g?.factors.find((k) => k.key === 'evidence')?.points ?? null,
-    gTechnical: num(x.logged_grade?.f?.technical) ?? g?.factors.find((k) => k.key === 'technical')?.points ?? null,
+    grade: (loggedG2 ? num(x.logged_grade?.score) : null) ?? g?.score ?? null,
+    gLogged: loggedG2 && x.logged_grade?.score != null ? 1 : 0,
+    gradeV3: v3?.score ?? null,
+    gEvidence: (loggedG2 ? num(x.logged_grade?.f?.evidence) : null) ?? g?.factors.find((k) => k.key === 'evidence')?.points ?? null,
+    gTechnical: (loggedG2 ? num(x.logged_grade?.f?.technical) : null) ?? g?.factors.find((k) => k.key === 'technical')?.points ?? null,
     gSession: g ? ((g.factors.find((k) => k.key === 'session')?.points ?? 0) > 0 ? 1 : 0) : null,
-    gWindow: num(x.logged_grade?.f?.window) ?? g?.factors.find((k) => k.key === 'window')?.points ?? null,
+    gWindow: (loggedG2 ? num(x.logged_grade?.f?.window) : null) ?? g?.factors.find((k) => k.key === 'window')?.points ?? null,
     rotWith: L ? (rotationAligned(x.gen_scoring_layers) ? 1 : 0) : null,
     rotAgainst: L ? ((L.sector ?? 0) < 0 ? 1 : 0) : null,
     confFamilies: L ? CONF_FAMILIES.filter((k) => (L[k] ?? 0) > 0).length : null,
@@ -142,11 +167,16 @@ export function rowFromStudy(r: any): AuditRow {
   // session 10 + confluence + technical (the only factors that vary across ideas here).
   const g2 = scored ? nexusGrade({
     lifecycle: 'fresh', publishMs: 0, windowEndsMs: 1, publishedDay: 'd', today: 'd', nowMs: 0,
-    convictionScore: Number(r.old),
+    convictionScore: Number(r.old), version: 'g2',
     layers: ['technical', 'ta', 'structure'].map((k) => ({ kind: k, points: Number(f0[`L_${k}`] ?? 0) })),
   }) : null;
+  // v3 on study rows: stop ÷ ATR + chase (−entryDist: entryDist = side × (entry − price) ÷ ATR); no SPY regime read.
+  const v3 = f0.stopAtr != null ? gradeV3FromInputs({
+    v: 'v3', at: '', atr: null, stopAtr: num(f0.stopAtr), chaseAtr: f0.entryDist == null ? null : -Number(f0.entryDist), regime: null, gapAtr: num(f0.gapAtr),
+  }, { direction: r.dir }) : null;
   const f: Record<string, number | null> = {
     grade: g2?.score ?? null,
+    gradeV3: v3?.score ?? null,
     rotWith,
     rotAgainst: scored ? ((f0.L_sector ?? 0) < 0 ? 1 : 0) : null,
     rotPeerAligned: f0.rotAligned ?? null,
@@ -235,7 +265,7 @@ export function featureReport(rowsIn: AuditRow[], key: string, maxB = 10): Featu
 export function audit(rowsIn: AuditRow[]) {
   const rows = splitHalves(rowsIn);
   const keys = Array.from(new Set(rows.flatMap((r) => Object.keys(r.f))));
-  const features = keys.map((k) => featureReport(rows, k, k === 'grade' ? 10 : 5));
+  const features = keys.map((k) => featureReport(rows, k, k === 'grade' || k === 'gradeV3' ? 10 : 5));
   return {
     n: rows.length,
     nH1: rows.filter((r) => r.half === 'H1').length,
@@ -258,11 +288,32 @@ function print(rep: ReturnType<typeof audit>, label: string) {
   for (const f of rep.features) {
     console.log(`${f.key.padEnd(16)} ${String(f.n).padStart(4)}  ${fmt(f.rho.H1).padStart(5)}  ${fmt(f.rho.H2).padStart(5)}   ${fmt(f.rho.H1drop).padStart(5)}    ${fmt(f.rho.H2drop).padStart(5)}    ${f.sameSignDropTop ? 'PASS' : f.sameSign ? 'same sign (fails w/o top 5)' : 'no'}`);
   }
-  for (const f of rep.features.filter((x) => ['grade', 'rotWith', 'confFamilies', 'rrBand'].includes(x.key))) {
+  printSideBySide(rep);
+  for (const f of rep.features.filter((x) => ['rotWith', 'confFamilies', 'rrBand'].includes(x.key))) {
     console.log(`\n${f.key}: bucket  |  all n / win / R  |  H1 n / R  |  H2 n / R`);
     for (const b of f.table) console.log(`  ${b.bucket.padEnd(14)} ${String(b.all.n).padStart(4)} ${pct(b.all.win).padStart(4)} ${fmt(b.all.R)}  |  ${b.H1.n} / ${fmt(b.H1.R)}  |  ${b.H2.n} / ${fmt(b.H2.R)}`);
   }
   console.log(`\npassing (both halves, with and without top 5): ${rep.passing.length ? rep.passing.join(', ') : 'NONE'}`);
+}
+
+/** v2 (g2) vs v3 on the same rows: ρ per half (and without top 5) + each grade's decile table. */
+export function sideBySide(rep: ReturnType<typeof audit>) {
+  const pick = (k: string) => rep.features.find((f) => f.key === k) ?? null;
+  return { v2: pick('grade'), v3: pick('gradeV3') };
+}
+function printSideBySide(rep: ReturnType<typeof audit>) {
+  const { v2, v3 } = sideBySide(rep);
+  console.log('\nv2 (g2) vs v3 — same rows, grade at publish');
+  console.log('grade   n     ρH1    ρH2   ρH1−top5 ρH2−top5  both-halves');
+  for (const [name, f] of [['v2', v2], ['v3', v3]] as const) {
+    if (!f) { console.log(`${name.padEnd(6)}  —  (no rows with ${name === 'v3' ? 'measured v3 inputs' : 'a grade'})`); continue; }
+    console.log(`${name.padEnd(6)} ${String(f.n).padStart(4)}  ${fmt(f.rho.H1).padStart(5)}  ${fmt(f.rho.H2).padStart(5)}   ${fmt(f.rho.H1drop).padStart(5)}    ${fmt(f.rho.H2drop).padStart(5)}    ${f.sameSignDropTop ? 'PASS' : f.sameSign ? 'same sign (fails w/o top 5)' : 'no'}`);
+  }
+  for (const [name, f] of [['v2', v2], ['v3', v3]] as const) {
+    if (!f) continue;
+    console.log(`\n${name}: bucket  |  all n / win / R  |  H1 n / R  |  H2 n / R`);
+    for (const b of f.table) console.log(`  ${b.bucket.padEnd(14)} ${String(b.all.n).padStart(4)} ${pct(b.all.win).padStart(4)} ${fmt(b.all.R)}  |  ${b.H1.n} / ${fmt(b.H1.R)}  |  ${b.H2.n} / ${fmt(b.H2.R)}`);
+  }
 }
 
 async function loadDb(): Promise<any[]> {

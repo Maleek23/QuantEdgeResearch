@@ -114,7 +114,7 @@ const DEFER_AT_OPEN: Array<(name: string) => boolean> = [
   (n) => n.startsWith('chart-gex:') && !INDEX_CHART_SYMS.has(n.slice('chart-gex:'.length).toUpperCase()), // non-index chart recorder
   (n) => n === 'self-learning',
   (n) => n === 'producer:quant',                           // quant sweep
-  (n) => /^producer:(index-swing|leader-swing|premium-discount|short-swings|crypto-proxy|gex-setups|bull-flag|bear-flag|base-reclaim)$/.test(n), // swing / structure scans
+  (n) => /^producer:(index-swing|leader-swing|leaders|premium-discount|short-swings|crypto-proxy|gex-setups|bull-flag|bear-flag|base-reclaim)$/.test(n), // swing / structure / session-leader scans
 ];
 
 export function isDeferrableAtOpen(name: string): boolean {

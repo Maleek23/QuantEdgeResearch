@@ -11,7 +11,7 @@
 import { useMemo } from 'react';
 import { useQuotes } from '@/components/ticker/ticker-data';
 import { compareBoardRows } from '@shared/board-sort';
-import { gradeFromLife, type NexusGrade } from '@shared/nexus-grade';
+import { gradeFromLife, gradeSortValue, type NexusGrade } from '@shared/nexus-grade';
 import { setupLifecycle, sinkByLifecycle, type LifecycleRead } from '@shared/setup-lifecycle';
 import { isLiveBookPick, type ConvictionPick } from '@/lib/convictions';
 
@@ -62,7 +62,8 @@ export function liveGradeOf(row: ConvictionPick, map: Map<string, SetupLife> | u
 
 /**
  * Board order on every surface (NEXUS rows and Today's book both call this):
- *   BOARD_SORT=grade → the NEXUS grade re-read on the live lifecycle, highest first,
+ *   BOARD_SORT=grade → the NEXUS grade re-read on the live lifecycle, highest first
+ *                      (v3: actionable first, then quality, then actionability rank),
  *                      ties by the server's rank;
  *   otherwise        → server order (BOARD_SORT) / evidence;
  * then stale + resolved sink.
@@ -70,7 +71,7 @@ export function liveGradeOf(row: ConvictionPick, map: Map<string, SetupLife> | u
 export function boardOrder<T extends ConvictionPick>(rows: T[], map: Map<string, SetupLife> | undefined, nowMs: number = Date.now()): T[] {
   let sorted: T[];
   if (rows.some((r) => r.nexusGrade)) {
-    const g = new Map(rows.map((r) => [r.ideaId, liveGradeOf(r, map, nowMs)?.score ?? -1] as const));
+    const g = new Map(rows.map((r) => [r.ideaId, gradeSortValue(liveGradeOf(r, map, nowMs))] as const));
     sorted = [...rows].sort((a, b) => ((g.get(b.ideaId) ?? -1) - (g.get(a.ideaId) ?? -1)) || compareBoardRows(a, b));
   } else {
     sorted = [...rows].sort(compareBoardRows);

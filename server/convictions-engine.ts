@@ -31,7 +31,7 @@ import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
 import { stripConflictingTargetClaims } from "@shared/plan-narrative";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
-import { gradePick, gradeComponents, gradeComponentsTag, type NexusGrade } from "@shared/nexus-grade";
+import { gradePick, gradeComponents, gradeComponentsTag, activeGradeVersion, type NexusGrade, type GradeV3Inputs } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -177,6 +177,8 @@ export interface ConvictionPick {
   boardRank?: number;
   /** NEXUS grade (shared/nexus-grade.ts) at build time — set only when BOARD_SORT=grade. Unvalidated. */
   nexusGrade?: NexusGrade;
+  /** GRADE_VERSION=v3 only: measured quality inputs at first surfacing (server/grade-v3-inputs.ts). Their presence makes every surface grade v3. */
+  gradeInputs?: GradeV3Inputs | null;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -214,6 +216,8 @@ export interface ConvictionsResponse {
    * When 'recency' / 'engine_record', each pick carries `boardRank` and the client keeps it.
    */
   boardSort?: BoardSort;
+  /** NEXUS grade version in force (env GRADE_VERSION; shared/nexus-grade.ts). */
+  gradeVersion?: 'g2' | 'v3';
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -3041,6 +3045,13 @@ bandFor(p.convictionScore);
   // by the evidence score, which did not rank outcomes on the honest record
   // (docs/SCORE_V2_STUDY.md); unset keeps the score order.
   const boardSort = readBoardSort(process.env);
+  // GRADE_VERSION=v3: stamp the measured quality inputs (stop ÷ ATR, chase, SPY regime) on
+  // every pick BEFORE grading, so the server, client, bot and alerts read identical inputs.
+  const gradeVersion = activeGradeVersion() ?? "g2";
+  if (gradeVersion === "v3") {
+    const { stampGradeInputs } = await import("./grade-v3-inputs");
+    await stampGradeInputs(deconflicted);
+  }
   if (boardSort === "grade") {
     // Build-time read (the board's own price); the client re-grades on its live quote.
     const gradedAt = Date.now();
@@ -3110,5 +3121,6 @@ bandFor(p.convictionScore);
     totalCandidatesScanned: candidates.length,
     picks: filtered,
     ...(boardSort === "score" ? {} : { boardSort }),
+    gradeVersion,
   };
 }

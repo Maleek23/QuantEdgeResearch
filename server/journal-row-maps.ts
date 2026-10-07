@@ -2,6 +2,7 @@
  * Pure row mappers for the read-only journal books (no DB import, so the
  * journal tests can exercise them): one published trade idea → one journal row.
  */
+import { afterStopLabel, parseAfterStop, isStoppedOut } from '@shared/after-stop';
 import type { JournalTrade } from '@shared/schema';
 import type { DeskUnverifiedItem, DeskVerificationMeta } from '@shared/journal-sources';
 import { isUnmeasuredExpiry } from '@shared/constants';
@@ -38,6 +39,12 @@ export type JournalWireRow = Pick<JournalTrade,
    * move while open (shared/exit-policy.ts captureRatio; docs/EXIT_RULE_REPLAY.md).
    */
   captureRatio?: number | null;
+  /**
+   * Desk rows, stopped out: what the underlying did next inside the hold window —
+   * "stopped · later reached T1 at 11:42" (shared/after-stop.ts, after-close job).
+   * Hindsight beside the outcome; the row stays a loss.
+   */
+  afterStop?: string | null;
   /** Desk rows: whether the recorded P&L is verified, only integrity-checked, or unverified (and why). */
   verification?: DeskVerification;
   /** Bot book only: whether option P&L reconciles to its saved execution/settlement evidence. */
@@ -229,6 +236,9 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     high: i.highestPriceReached ?? null, low: i.lowestPriceReached ?? null,
   }) : null;
   const capture = capRaw == null ? null : r2(capRaw);
+  const afterStop = resolved && isStoppedOut(status)
+    ? afterStopLabel(parseAfterStop(i.outcomeNotes), exitTime ? Date.parse(exitTime) : null)
+    : null;
   return {
     row: {
       id: `desk:${i.id}`,
@@ -261,6 +271,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       broker: 'trade-desk',
       ...(exitTimeNote ? { exitTimeNote } : {}),
       ...(capture != null ? { captureRatio: capture } : {}),
+      ...(afterStop ? { afterStop } : {}),
     },
   };
 }

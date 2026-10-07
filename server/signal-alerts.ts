@@ -111,7 +111,7 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
         targetPrice: p.targetPrice,
         stopLoss: p.stopLoss,
         confidenceScore: convictionDisplayPercent(p.convictionScore),
-        nexusGrade: { letter: g.letter, score: g.score },
+        nexusGrade: { letter: g.letter, score: g.score, version: g.version },
         convictionBand: convictionBandForScore(p.convictionScore),
         riskRewardRatio: p.riskRewardRatio ?? undefined,
         optionType: p.optionType ?? undefined,

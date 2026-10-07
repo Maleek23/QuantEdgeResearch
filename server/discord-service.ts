@@ -1,5 +1,5 @@
 // Discord webhook service for automated trade alerts
-import { gradeIdeaRowAtPublish, formatNexusGrade } from '@shared/nexus-grade';
+import { gradeIdeaRowAtPublish, formatNexusGrade, nexusGradeCaveat } from '@shared/nexus-grade';
 import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
@@ -326,7 +326,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
   riskRewardRatio?: number | null;
   signals?: string[] | null;
   /** The ONE grade (shared/nexus-grade.ts); when present it replaces the confidence letter. */
-  nexusGrade?: { letter: string; score: number } | null;
+  nexusGrade?: { letter: string; score: number; version?: string } | null;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
@@ -413,7 +413,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
 
     // Format grade with confidence
     const gradeWithConfidence = trade.nexusGrade
-      ? `NEXUS ${trade.nexusGrade.letter} ${trade.nexusGrade.score}/100 (actionability, unvalidated)`
+      ? `NEXUS ${trade.nexusGrade.letter} ${trade.nexusGrade.score}/100 (${nexusGradeCaveat(trade.nexusGrade)})`
       : trade.confidence
         ? `${grade} (${trade.confidence}%)`
         : grade || 'N/A';
@@ -575,7 +575,7 @@ export function tradeIdeaDiscordBlockReason(idea: TradeIdea): string | null {
   }
 
   // THE ONE GRADE (shared/nexus-grade.ts) when the idea carries it: A or B only.
-  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number } | undefined;
+  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number; version?: string } | undefined;
   if (nexusGrade) {
     if (!['A', 'B'].includes(nexusGrade.letter)) return `NEXUS grade ${nexusGrade.letter} ${nexusGrade.score} is below B`;
     if (!shouldSendTradeIdea(idea.symbol, idea.direction || 'long', idea.assetType || 'stock', (idea as any).optionType, (idea as any).strikePrice || (idea as any).strike)) {
@@ -613,7 +613,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   if (DISCORD_DISABLED) return { sent: false, reason: 'Discord disabled' };
 
   const forceBypass = options?.forceBypassFilters ?? false;
-  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number } | undefined;
+  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number; version?: string } | undefined;
   if (!forceBypass) {
     const blocked = tradeIdeaDiscordBlockReason(idea);
     if (blocked) {
@@ -668,7 +668,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
         { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
         { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
         { name: '🛡️ Stop', value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)}` : 'N/A', inline: true },
-        ...(nexusGrade ? [{ name: '🧠 NEXUS grade', value: `${nexusGrade.letter} ${nexusGrade.score}/100 · actionability, unvalidated, not a win probability`, inline: true }] : []),
+        ...(nexusGrade ? [{ name: '🧠 NEXUS grade', value: `${nexusGrade.letter} ${nexusGrade.score}/100 · ${nexusGradeCaveat(nexusGrade)}`, inline: true }] : []),
       ],
       footer: isTVSignal ? { text: `TradingView Strategy Signal • ${(idea as any).sessionContext || 'v15'}` } : undefined,
       timestamp: new Date().toISOString()
