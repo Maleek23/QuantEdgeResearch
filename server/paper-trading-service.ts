@@ -771,7 +771,19 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
   }
 }
 
-export async function checkStopsAndTargets(portfolioId: string, opts?: { skipIds?: ReadonlySet<string> }): Promise<PaperPosition[]> {
+export async function checkStopsAndTargets(
+  portfolioId: string,
+  opts?: {
+    skipIds?: ReadonlySet<string>;
+    /**
+     * Option rows whose stop is the bot's WIDE underlying stop (shared/wide-stops.ts):
+     * only their own premium stop (position.stopLoss, the delta-implied value at the
+     * underlying stop) is checked here — the DTE-aware soft/hard premium stops would
+     * cut them inside their own invalidation. Trailing stops, mega target and expiry still apply.
+     */
+    premiumStopOnlyIds?: ReadonlySet<string>;
+  },
+): Promise<PaperPosition[]> {
   const closedPositions: PaperPosition[] = [];
   
   try {
@@ -841,9 +853,21 @@ export async function checkStopsAndTargets(portfolioId: string, opts?: { skipIds
           }
         }
         
+        // 2a. Wide-stop rows: their own premium stop only (see opts.premiumStopOnlyIds).
+        const premiumStopOnly = isOption && !!opts?.premiumStopOnlyIds?.has(position.id);
+        if (!shouldClose && !trailingStopPrice && premiumStopOnly) {
+          const stopPx = Number(position.stopLoss);
+          if (stopPx > 0 && position.currentPrice <= stopPx) {
+            const lossPct = ((entryPrice - position.currentPrice) / entryPrice) * 100;
+            shouldClose = true;
+            exitReason = `premium_stop_wide_${lossPct.toFixed(0)}pct`;
+            logger.info(`🛑 [WIDE STOP] ${position.symbol}: premium $${position.currentPrice.toFixed(2)} ≤ stop $${stopPx.toFixed(2)} (value at the wide underlying stop)`);
+          }
+        }
+
         // 2. Check STOP LOSS with DTE-AWARE SMART EXIT LOGIC
         // Longer-dated options get wider stops - they have time to recover!
-        if (!shouldClose && !trailingStopPrice) {
+        if (!shouldClose && !trailingStopPrice && !premiumStopOnly) {
           const currentLoss = isLong 
             ? ((entryPrice - position.currentPrice) / entryPrice) * 100
             : ((position.currentPrice - entryPrice) / entryPrice) * 100;

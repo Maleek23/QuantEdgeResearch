@@ -22,6 +22,10 @@ import {
 } from '@shared/bot-sleeves';
 import { gradePick, gradeIdeaRow, gradeComponentsTag, formatNexusGrade, gradeAtLeast, type NexusGrade } from '@shared/nexus-grade';
 import {
+  readBotStopConfig, widenStop, optionPremiumStop, sizeForRisk, underlyingStopCrossed, ustopTag, parseUstopTag,
+  zeroDteGrace, openingRange, type BotStopConfig, type Side,
+} from '@shared/wide-stops';
+import {
   executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition, closeOptionPositionAtBid,
   recordEquitySnapshot,
   getOpenPositions,
@@ -448,6 +452,7 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
   if (owner.primary) try { await repriceRetiredRuns(portfolio.id); } catch (err) { logger.warn('[QUANT-BOT] retired-run re-price failed:', err); }
 
   const sleeves = owner.sleeves ?? readBotSleeveConfig(process.env);
+  const stopCfg = readBotStopConfig(process.env);
   const tally = new SkipTally();
 
   // 2 — same-day contracts outside the 0DTE sleeve (legacy rows): flatten before
@@ -487,6 +492,13 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
       const entry = Number(pos.entryPrice);
       const v = premiumManage({ entry, mark: live.mid, stop: pos.stopLoss != null ? Number(pos.stopLoss) : null, etMin }, sleeves);
       if (v.action === 'hold') continue;
+      // Opening grace (shared/wide-stops.ts): the −40% stop waits out the first
+      // BOT_0DTE_STOP_GRACE_MIN minutes after the fill unless the underlying has
+      // broken the opening range against the position. Unknown → the stop applies.
+      if (v.action === 'stop') {
+        const g = await zeroDteGraceVerdict(pos, entry, live.mid, stopCfg);
+        if (g?.hold) { logger.info(`[QUANT-BOT] 0DTE ${pos.symbol}: ${v.reason} held — grace: ${g.reason}`); continue; }
+      }
       if (v.action === 'arm_breakeven') {
         await storage.updatePaperPosition(pos.id, { stopLoss: entry } as any);
         logger.info(`[QUANT-BOT] 0DTE ${pos.symbol}: ${v.reason}`);
@@ -752,10 +764,44 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
     logger.warn('[QUANT-BOT] thesis check failed:', err);
   }
 
-  // 3 — premium stop / target (0DTE-sleeve rows are bracketed in 2a instead —
-  //     the shared DTE-aware stop would cut them at −35% before the sleeve's −40%).
+  // 2d — wide underlying stop (swing sleeve, shared/wide-stops.ts). A contract
+  //      opened under BOT_WIDE_STOPS carries `ustop:<side>:<px>` — the further of
+  //      the plan's structural stop and BOT_STOP_ATR_MULT × daily ATR(14). When the
+  //      LIVE underlying reaches it the contract exits at the live bid. Its premium
+  //      stop (the delta-implied value at that same underlying stop) is checked in
+  //      step 3 in place of the DTE-aware −25…−75% stops, which would cut the
+  //      trade inside its own invalidation. Whichever fires first exits.
+  const wideStopIds = new Set<string>();
   try {
-    const exited = await checkStopsAndTargets(portfolio.id, { skipIds: zeroDteManaged });
+    for (const pos of (await getOpenPositions(portfolio.id)) as any[]) {
+      if (pos.assetType !== 'option' || zeroDteManaged.has(pos.id)) continue;
+      const u = parseUstopTag(pos.entrySignals);
+      if (!u) continue;
+      wideStopIds.add(pos.id);
+      let liveU: number | null = null;
+      try {
+        const { getRealtimeQuote } = await import('./realtime-pricing-service');
+        const q = await getRealtimeQuote(pos.symbol, 'stock' as any);
+        liveU = q && q.price > 0 && !q.proxy ? q.price : null;
+      } catch { /* not judged without a live underlying */ }
+      if (!underlyingStopCrossed(u.side, liveU, u.stop)) continue;
+      const live = await liveContractQuote(pos, 0.6);
+      if (!live) { logger.warn(`[QUANT-BOT] ${pos.symbol} underlying ${liveU} through the wide stop ${u.stop} — no live contract quote, not closed on a stale mark`); continue; }
+      await closePosition(pos.id, live.bid, `underlying_stop ${exitAuditTag(live.q, new Date())}`);
+      wideStopIds.delete(pos.id);
+      const why = `underlying stop — ${pos.symbol} ${liveU} through ${u.stop} (wide ATR stop) · ${live.stamp}`;
+      await announce(pos, live.bid, why);
+      closed.push({ symbol: pos.symbol, reason: why });
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] underlying-stop check failed:', err);
+  }
+
+  // 3 — premium stop / target (0DTE-sleeve rows are bracketed in 2a instead —
+  //     the shared DTE-aware stop would cut them at −35% before the sleeve's −40%;
+  //     wide-stop swing rows use their own premium stop, see 2d).
+  try {
+    const exited = await checkStopsAndTargets(portfolio.id, { skipIds: zeroDteManaged, premiumStopOnlyIds: wideStopIds });
     for (const p of exited ?? []) {
       const reason = (p as any).exitReason ?? 'stop/target';
       closed.push({ symbol: p.symbol, reason });
@@ -767,7 +813,7 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
 
   // 4 — entries: two sleeves, separate capacity (shared/bot-sleeves.ts).
   try {
-    await enterSleeves({ cfg, sleeves, portfolio, opened, tally, owner });
+    await enterSleeves({ cfg, sleeves, stopCfg, portfolio, opened, tally, owner });
   } catch (err) {
     logger.warn('[QUANT-BOT] entry pass failed:', err);
   }
@@ -809,6 +855,47 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
   return { ranAt, portfolioId: portfolio.id, opened, closed, skipped: skipSummary.total, openCount, gapWatch, skipSummary };
 }
 
+/** Daily ATR(14) of the underlying (server/lib/atr-stop-floor.ts atr14), null when candles are unavailable. */
+async function dailyAtr14(symbol: string): Promise<number | null> {
+  try {
+    const { fetchCandles } = await import('./historical-candles');
+    const { atr14 } = await import('./lib/atr-stop-floor');
+    return atr14(await fetchCandles(symbol, '3mo', '1d'));
+  } catch { return null; }
+}
+
+/**
+ * 0DTE opening grace inputs: minutes since the fill (cheap check first — no network
+ * outside the grace window), the live underlying, and today's opening range from
+ * 1-minute bars. Any piece missing → zeroDteGrace says "stop applies".
+ */
+async function zeroDteGraceVerdict(pos: any, entryPremium: number, mark: number, stopCfg: BotStopConfig): Promise<{ hold: boolean; reason: string } | null> {
+  const entryMs = Date.parse(String(pos.entryTime ?? ''));
+  const nowMs = Date.now();
+  if (!(stopCfg.zeroDteGraceMin > 0) || !Number.isFinite(entryMs) || nowMs - entryMs >= stopCfg.zeroDteGraceMin * 60_000) return null;
+  const side: Side = underlyingSide(pos);
+  let underlying: number | null = null;
+  let or: { high: number; low: number } | null = null;
+  try {
+    const { etParts, etWallToMs, RTH_OPEN_ET } = await import('@shared/loss-rules');
+    const p = etParts(nowMs);
+    const openMs = etWallToMs(p.y, p.m, p.d, RTH_OPEN_ET);
+    const { fetchCandles } = await import('./historical-candles');
+    const bars = (await fetchCandles(pos.symbol, '1d', '1m')).map((b) => ({ t: b.time * 1000, h: b.high, l: b.low, c: b.close }));
+    or = openingRange(bars, openMs, stopCfg.zeroDteOrMin);
+    // Only a COMPLETE opening range counts.
+    if (nowMs < openMs + stopCfg.zeroDteOrMin * 60_000) or = null;
+    try {
+      const { getRealtimeQuote } = await import('./realtime-pricing-service');
+      const q = await getRealtimeQuote(pos.symbol, 'stock' as any);
+      underlying = q && q.price > 0 && !q.proxy ? q.price : null;
+    } catch { /* fall back to the last 1-minute bar below */ }
+    const last = bars[bars.length - 1];
+    if (underlying == null && last && nowMs - last.t <= 3 * 60_000) underlying = last.c;
+  } catch { /* unknown → the stop applies */ }
+  return zeroDteGrace({ entryMs, nowMs, side, premiumEntry: entryPremium, premiumMark: mark, underlying, orHigh: or?.high ?? null, orLow: or?.low ?? null }, stopCfg);
+}
+
 /** A LIVE two-sided quote for a held contract, or null (never a stale mark). */
 async function liveContractQuote(pos: any, maxSpreadPct: number): Promise<{ bid: number; ask: number; mid: number; stamp: string; q: import('./tradier-api').OptionMark } | null> {
   if (!pos?.optionType || !pos?.strikePrice || !pos?.expiryDate) return null;
@@ -825,6 +912,7 @@ async function liveContractQuote(pos: any, maxSpreadPct: number): Promise<{ bid:
 interface EnterCtx {
   cfg: BotConfig;
   sleeves: ReturnType<typeof readBotSleeveConfig>;
+  stopCfg: BotStopConfig;
   portfolio: any;
   opened: BotRunResult['opened'];
   tally: SkipTally;
@@ -839,7 +927,7 @@ interface EnterCtx {
  * executable live quote (stamped into the fill).
  */
 async function enterSleeves(ctx: EnterCtx): Promise<void> {
-  const { cfg, sleeves, portfolio, opened, tally, owner } = ctx;
+  const { cfg, sleeves, stopCfg, portfolio, opened, tally, owner } = ctx;
   const nowMs = Date.now();
   const open = await getOpenPositions(portfolio.id);
   const held = { '0dte': 0, swing: 0 } as Record<BotSleeve, number>;
@@ -1093,6 +1181,22 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       const rr = risk > 0 ? Math.abs(underlyingT1 - underlyingEntry) / risk : 0;
       if (!directionValid || rr < cfg.minUnderlyingRR) { refuse('swing', pick, 'weak_plan', `invalid/weak underlying plan (R:R ${rr.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`, rank); continue; }
 
+      // Wide stop (shared/wide-stops.ts): the further of the plan's structural stop and
+      // BOT_STOP_ATR_MULT × daily ATR(14). R:R above is judged on the PLAN (thesis
+      // quality); the wide stop sets the exit and the size — never the dollars at risk.
+      let botStop = underlyingStop;
+      let stopNote = '';
+      if (stopCfg.enabled) {
+        const atr = await dailyAtr14(idea.symbol);
+        const w = widenStop({ entry: underlyingEntry, stop: underlyingStop, side, atr, mult: stopCfg.atrMult });
+        if (w) {
+          botStop = w.stop;
+          stopNote = w.widened
+            ? `wide stop ${w.stop} (${stopCfg.atrMult}× ATR ${atr?.toFixed(2)}; plan ${underlyingStop})`
+            : `plan stop ${w.stop} kept (wider than ${stopCfg.atrMult}× ATR${atr ? ` ${atr.toFixed(2)}` : ' — no ATR'})`;
+        }
+      }
+
       const cash = await cashNow();
       const riskBudget = Math.min(cash * riskFraction, sleeves.swingRiskUsd);
       const maxDebit = Math.min(cash * cfg.maxDebitPct, sleeves.swingMaxDebitUsd, riskBudget / 0.5);
@@ -1101,7 +1205,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       const { selectContracts } = await import('./option-selection-engine');
       const selection = await selectContracts({
         symbol: idea.symbol, direction, setup,
-        entry: underlyingEntry, stop: underlyingStop, t1: underlyingT1,
+        entry: underlyingEntry, stop: botStop, t1: underlyingT1,
         holdingDays: Number((pick as any).horizonDays ?? idea.horizonDays ?? 0) || undefined,
         applyDteFit: true, // loss rule 4 (LOSS_RULE_DTE_FIT)
         conviction: convictionDisplayPercent(pick.convictionScore ?? 0),
@@ -1121,23 +1225,39 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       const qi = entryQuoteIssue(q, cfg.delayedFillNotBeforeEtMinutes, optionMarkExecutionIssue);
       if (qi) { refuse('swing', pick, q.delayed ? 'delayed_quote' : 'stale_quote', qi, rank); continue; }
       const premium = q.ask; // a long option crosses the spread
+      // Premium stop: legacy −50%, or (wide stops) the delta-implied premium at the wide
+      // underlying stop — sized so the dollar risk stays at the sleeve budget.
+      let premiumStop = Number((premium * 0.5).toFixed(2));
+      let maxQty = Math.max(1, Number(selected.maxContracts ?? 1));
+      const stopTags: string[] = [];
+      if (stopCfg.enabled) {
+        const ps = optionPremiumStop({ premium, delta: selected.delta, underlyingEntry, underlyingStop: botStop }, stopCfg);
+        if (!ps) { refuse('swing', pick, 'no_contract', `no premium stop for ${selected.optionType} $${selected.strike} @ $${premium}`, rank); continue; }
+        const byRisk = sizeForRisk(riskBudget, ps.riskPerContract); // = executeTradeIdea's budget at effectiveRisk below
+        if (byRisk < 1) { refuse('swing', pick, 'too_expensive', `one contract risks $${ps.riskPerContract.toFixed(0)} to the wide stop ${botStop} > $${riskBudget.toFixed(0)} trade risk`, rank); continue; }
+        premiumStop = ps.stop;
+        maxQty = Math.min(maxQty, byRisk);
+        stopTags.push(ustopTag(side as Side, botStop), `prem_stop:${ps.basis}:${ps.stop}`, `stop_atr_mult:${stopCfg.atrMult}`);
+        stopNote += ` · premium stop $${ps.stop} (${ps.basis === 'delta' ? `Δ ${Math.abs(selected.delta).toFixed(2)}` : `−${Math.round(stopCfg.fallbackPremStopPct * 100)}% fallback`}) · ≤${maxQty} contract(s) at $${ps.riskPerContract.toFixed(0)} risk each`;
+      }
       const tradeable: any = {
         ...idea,
-        catalyst: `[SWING SLEEVE · ${gtxt} · ${selection.recommendedTier} · ${selected.grade}] ${selected.rationale} ${entryAuditTag(q, new Date())}`,
+        catalyst: `[SWING SLEEVE · ${gtxt} · ${selection.recommendedTier} · ${selected.grade}${stopNote ? ` · ${stopNote}` : ''}] ${selected.rationale} ${entryAuditTag(q, new Date())}`,
         assetType: 'option',
         optionType: selected.optionType, strikePrice: selected.strike, expiryDate: selected.expiry,
         currentPrice: premium, entryPrice: premium,
         targetPrice: Number((premium * 2).toFixed(2)),
-        stopLoss: Number((premium * 0.5).toFixed(2)),
+        stopLoss: premiumStop,
         qualitySignals: [
           ...(Array.isArray(idea.qualitySignals) ? idea.qualitySignals : []),
           sleeveTag('swing'), gradeComponentsTag(grade), `evidence_score:${pick.convictionScore}`, `quote:${qv.stamp}`,
+          ...stopTags,
           ...(rules.botConfluence || rules.botEntryWindow || rules.dteFit ? [LOSS_RULES_TAG] : []),
           ...(families?.length ? [`confluence:${families.join('+')}`] : []),
         ],
       };
       const effectiveRisk = Math.min(riskFraction, sleeves.swingRiskUsd / Math.max(1, cash));
-      const res = await executeTradeIdea(portfolio.id, tradeable, { riskFraction: effectiveRisk, maxQuantity: Math.max(1, Number(selected.maxContracts ?? 1)) });
+      const res = await executeTradeIdea(portfolio.id, tradeable, { riskFraction: effectiveRisk, maxQuantity: maxQty });
       if (!res.success) { refuse('swing', pick, 'no_fill', res.error ?? 'no fill', rank); continue; }
       slots--;
       noteFilled(pick.symbol, side);

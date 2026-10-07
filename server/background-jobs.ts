@@ -290,6 +290,12 @@ export const JOBS: JobDef[] = [
     what: 'hourly self-learning analysis of closed trades, each pass through the heavy gate (used to auto-start on first import, in whichever process)',
     start: async () => { (await import('./self-learning-service')).selfLearning.start(); },
   },
+  {
+    name: 'after-stop', role: 'worker', bootDelayMs: 330_000,
+    what: 'weekdays 16:40 ET: stopped-out ideas → later T1 / back to entry / none inside the hold window (outcome_notes tag; the record is never relabelled)',
+    disabled: () => (process.env.AFTER_STOP_JOB === 'off' ? 'AFTER_STOP_JOB=off' : null),
+    start: async ({ log }) => { await (await import('./after-stop-job')).scheduleAfterStopJob(log); },
+  },
 ];
 
 /** Worker start order: by bootDelayMs (missing = 0), registry order within a tie. */

@@ -24,6 +24,7 @@
     "test:run-up": "tsx scripts/test-run-up.ts",
     "test:idea-timeline": "tsx scripts/test-idea-timeline.ts",
     "test:losers-later": "tsx scripts/test-losers-later.ts",
+    "test:wide-stops": "tsx scripts/test-wide-stops.ts",
     "test:idea-price-scale": "tsx scripts/test-idea-price-scale.ts",
     "test:premarket-ideas": "tsx scripts/test-premarket-ideas.ts",
     "test:crypto-ideas": "tsx scripts/test-crypto-ideas.ts",

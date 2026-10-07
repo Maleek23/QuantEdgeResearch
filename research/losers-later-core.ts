@@ -22,8 +22,10 @@
 import { simulateExit, type RunUpBar } from '../shared/run-up';
 import { atrSeries } from '../shared/exit-policy';
 
-export type Dir = 'long' | 'short';
-export interface Bar { t: number; o: number; h: number; l: number; c: number }
+import { pctFrom, touches, stopTouched, type Bar, type Dir, type AfterClose } from '../shared/after-stop';
+
+// The bar logic shared with the after-close job lives in shared/after-stop.ts.
+export { pctFrom, firstStopBar, afterClose, type Bar, type Dir, type AfterCloseInput, type AfterClose } from '../shared/after-stop';
 
 export const toRunUp = (b: Bar): RunUpBar => ({ t: b.t, open: b.o, high: b.h, low: b.l, close: b.c });
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -55,88 +57,7 @@ export function closeKind(outcomeStatus: string | null | undefined, resolutionRe
   return 'other';
 }
 
-/** Signed % move from entry in the trade's favour. */
-export function pctFrom(dir: Dir, entry: number, px: number): number {
-  return ((dir === 'long' ? px - entry : entry - px) / entry) * 100;
-}
-
-const touches = (dir: Dir, lvl: number, b: Bar) => (dir === 'long' ? b.h >= lvl : b.l <= lvl);
-const stopTouched = (dir: Dir, stop: number, b: Bar) => (dir === 'long' ? b.l <= stop : b.h >= stop);
-const favPct = (dir: Dir, entry: number, b: Bar) => pctFrom(dir, entry, dir === 'long' ? b.h : b.l);
 const advPct = (dir: Dir, entry: number, b: Bar) => pctFrom(dir, entry, dir === 'long' ? b.l : b.h);
-
-/** First bar opening in [fromMs, toMs) whose range touches the stop. */
-export function firstStopBar(bars: Bar[], dir: Dir, stop: number, fromMs: number, toMs: number): Bar | null {
-  return bars.find((b) => b.t >= fromMs && b.t < toMs && stopTouched(dir, stop, b)) ?? null;
-}
-
-// ─── (a)/(b) after the close ───────────────────────────────────────────────
-
-export interface AfterCloseInput {
-  dir: Dir; entry: number; stop: number; target: number | null;
-  /** close time (stop bar END for a stop-out) — the path starts at bars opening at/after it */
-  closeMs: number;
-  holdEndMs: number; weekEndMs: number;
-  /** last bar time available (data end) */
-  dataEndMs: number;
-  bars: Bar[];
-}
-export interface AfterClose {
-  barsAfter: number;
-  t1HitInHold: boolean;
-  t1HitByWeekEnd: boolean;
-  t1AtMs: number | null;
-  minutesToT1: number | null;
-  /** price traded back at the entry (break-even) inside the holding window */
-  reclaimedEntryInHold: boolean;
-  reclaimAtMs: number | null;
-  /** best favourable % from entry after the close (negative = never got back to entry) */
-  mfeHoldPct: number | null;
-  mfeWeekPct: number | null;
-  /** same, in units of the original stop distance (R) */
-  mfeHoldR: number | null;
-  mfeWeekR: number | null;
-  /** % from entry at the last bar inside the holding window */
-  lastInHoldPct: number | null;
-  greenAtHoldEnd: boolean | null;
-  holdComplete: boolean;
-  weekComplete: boolean;
-}
-
-export function afterClose(i: AfterCloseInput): AfterClose {
-  const riskPct = Math.abs(i.entry - i.stop) / i.entry * 100;
-  const endWeek = Math.max(i.holdEndMs, i.weekEndMs);
-  const path = i.bars.filter((b) => b.t >= i.closeMs && b.t < endWeek).sort((a, b) => a.t - b.t);
-  let t1At: number | null = null, reclaimAt: number | null = null;
-  let mfeH: number | null = null, mfeW: number | null = null, last: number | null = null;
-  for (const b of path) {
-    const f = favPct(i.dir, i.entry, b);
-    mfeW = mfeW == null ? f : Math.max(mfeW, f);
-    if (t1At == null && i.target != null && touches(i.dir, i.target, b)) t1At = b.t;
-    if (b.t < i.holdEndMs) {
-      mfeH = mfeH == null ? f : Math.max(mfeH, f);
-      if (reclaimAt == null && touches(i.dir, i.entry, b)) reclaimAt = b.t;
-      last = pctFrom(i.dir, i.entry, b.c);
-    }
-  }
-  const R = (x: number | null) => (x == null || !(riskPct > 0) ? null : r2(x / riskPct));
-  return {
-    barsAfter: path.length,
-    t1HitInHold: t1At != null && t1At < i.holdEndMs,
-    t1HitByWeekEnd: t1At != null,
-    t1AtMs: t1At,
-    minutesToT1: t1At == null ? null : Math.round((t1At - i.closeMs) / 60_000),
-    reclaimedEntryInHold: reclaimAt != null,
-    reclaimAtMs: reclaimAt,
-    mfeHoldPct: mfeH == null ? null : r2(mfeH),
-    mfeWeekPct: mfeW == null ? null : r2(mfeW),
-    mfeHoldR: R(mfeH), mfeWeekR: R(mfeW),
-    lastInHoldPct: last == null ? null : r2(last),
-    greenAtHoldEnd: last == null ? null : last > 0,
-    holdComplete: i.dataEndMs >= i.holdEndMs,
-    weekComplete: i.dataEndMs >= i.weekEndMs,
-  };
-}
 
 // ─── (d) stop geometry vs the excursion it had to survive ──────────────────
 
@@ -207,13 +128,16 @@ export function atrBefore(daily: { day: string; o: number; h: number; l: number;
 
 // ─── rule candidates ───────────────────────────────────────────────────────
 
-export type RuleId = 'plan' | 'atr1' | 'atr1_5' | 'atr2' | 'close_stop' | 'time_only' | 'reentry';
-export const RULES: RuleId[] = ['plan', 'atr1', 'atr1_5', 'atr2', 'close_stop', 'time_only', 'reentry'];
+export type RuleId = 'plan' | 'atr1' | 'atr1_5' | 'atr2' | 'wide1' | 'wide1_5' | 'wide2' | 'close_stop' | 'time_only' | 'reentry';
+export const RULES: RuleId[] = ['plan', 'atr1', 'atr1_5', 'atr2', 'wide1', 'wide1_5', 'wide2', 'close_stop', 'time_only', 'reentry'];
 export const RULE_LABEL: Record<RuleId, string> = {
   plan: 'Published plan: stop / T1 / horizon close (baseline)',
   atr1: 'Stop at 1.0× daily ATR(14) from entry (T1 unchanged)',
   atr1_5: 'Stop at 1.5× daily ATR(14) from entry (T1 unchanged)',
   atr2: 'Stop at 2.0× daily ATR(14) from entry (T1 unchanged)',
+  wide1: 'Wider of the plan (structural) stop and 1.0× daily ATR(14) (T1 unchanged)',
+  wide1_5: 'Wider of the plan (structural) stop and 1.5× daily ATR(14) (T1 unchanged)',
+  wide2: 'Wider of the plan (structural) stop and 2.0× daily ATR(14) (T1 unchanged)',
   close_stop: 'Plan stop on a 5-min CLOSE beyond it (fill at that close), 3×ATR hard stop',
   time_only: 'No price stop except a 3×ATR catastrophe stop; exit at T1 or the horizon close',
   reentry: 'Plan; after a stop-out, re-enter once if price trades back at entry within 60 min (same stop/T1)',
@@ -234,6 +158,8 @@ function plan(t: RuleTrade, stop: number, from = t.triggerMs): RuleResult & { ex
   return { rule: 'plan', reason: x.reason, pct: x.pct, exitMs: x.exitMs };
 }
 const atrStop = (t: RuleTrade, k: number) => (t.dir === 'long' ? t.entry - k * t.atrD! : t.entry + k * t.atrD!);
+/** max(structural level, k×ATR): the further of the plan stop and the ATR stop — what shared/wide-stops.ts widenStop applies live. */
+const wideStop = (t: RuleTrade, k: number) => { const a = atrStop(t, k); return t.dir === 'long' ? Math.min(t.stop, a) : Math.max(t.stop, a); };
 
 /** Close-based stop: a bar that CLOSES beyond the stop exits at that close (before any target in it); 3×ATR touch = hard stop. */
 function closeStop(t: RuleTrade): RuleResult {
@@ -258,13 +184,16 @@ const barWidth = (bars: Bar[]) => {
 };
 
 export function replayRule(rule: RuleId, t: RuleTrade): RuleResult {
-  const needAtr = rule === 'atr1' || rule === 'atr1_5' || rule === 'atr2' || rule === 'time_only';
+  const needAtr = rule === 'atr1' || rule === 'atr1_5' || rule === 'atr2' || rule === 'time_only' || rule === 'wide1' || rule === 'wide1_5' || rule === 'wide2';
   if (needAtr && !(fin(t.atrD) && t.atrD > 0)) return { rule, reason: 'no_atr', pct: null, exitMs: null };
   switch (rule) {
     case 'plan': return plan(t, t.stop);
     case 'atr1': return { ...plan(t, atrStop(t, 1)), rule };
     case 'atr1_5': return { ...plan(t, atrStop(t, 1.5)), rule };
     case 'atr2': return { ...plan(t, atrStop(t, 2)), rule };
+    case 'wide1': return { ...plan(t, wideStop(t, 1)), rule };
+    case 'wide1_5': return { ...plan(t, wideStop(t, 1.5)), rule };
+    case 'wide2': return { ...plan(t, wideStop(t, 2)), rule };
     case 'time_only': return { ...plan(t, atrStop(t, 3)), rule };
     case 'close_stop': return closeStop(t);
     case 'reentry': {
@@ -402,5 +331,106 @@ export function renderMarkdown(m: MarkdownInput): string {
     out.push(`| ${r.publishedEt} | ${r.symbol} | ${r.engine} | ${r.direction} | ${r.vehicle} | ${r.triggered == null ? '?' : r.triggered ? 'yes' : 'no'} | ${r.outcome}${r.bookExcluded ? ` (not in book: ${r.bookExcluded})` : ''} | ${money(r.pnl)} | ${r.missedWinner ?? ''} |`);
   }
   out.push('');
+  return out.join('\n');
+}
+
+// ─── walk-forward: does a stop rule hold in BOTH halves with its top trades removed? ──
+
+/** Stop-width candidates → the multiple shared/wide-stops.ts would use. 'time_only' is reported, never chosen. */
+export const WF_CANDIDATES: { rule: RuleId; mult: number | null; adoptable: boolean }[] = [
+  { rule: 'wide1', mult: 1.0, adoptable: true },
+  { rule: 'wide1_5', mult: 1.5, adoptable: true },
+  { rule: 'wide2', mult: 2.0, adoptable: true },
+  { rule: 'atr1', mult: 1.0, adoptable: false },
+  { rule: 'atr1_5', mult: 1.5, adoptable: false },
+  { rule: 'atr2', mult: 2.0, adoptable: false },
+  { rule: 'time_only', mult: null, adoptable: false },
+];
+export const WF_FALLBACK_MULT = 1.5;
+
+export interface WfIdea { id: string; triggerMs: number; pcts: Partial<Record<RuleId, number | null>> }
+export interface WfCell {
+  n: number;
+  winRate: number | null; planWinRate: number | null; deltaWinRate: number | null;
+  /** Σ(rule − plan) % over the half */
+  deltaSumPct: number | null;
+  /** Σ(rule − plan) % after removing the k ideas where the rule helped MOST — an edge that lives in a few trades fails here */
+  deltaSumExTop: number | null;
+  /** Σ% of the rule and of the plan, each with its own k best results removed */
+  sumExTop: number | null; planSumExTop: number | null;
+  holds: boolean;
+}
+export interface WfRow { rule: RuleId; mult: number | null; adoptable: boolean; label: string; halves: [WfCell, WfCell]; holdsBoth: boolean; score: number | null }
+export interface WalkForward {
+  n: number; minPerHalf: number; topRemoved: number;
+  halves: [{ from: number | null; to: number | null; n: number }, { from: number | null; to: number | null; n: number }];
+  rows: WfRow[];
+  chosen: { rule: RuleId | null; mult: number; basis: string };
+}
+
+function wfCell(ideas: WfIdea[], rule: RuleId, k: number, minN: number): WfCell {
+  const pairs = ideas.map((i) => ({ r: i.pcts[rule], p: i.pcts.plan })).filter((x): x is { r: number; p: number } => fin(x.r) && fin(x.p));
+  const n = pairs.length;
+  if (!n) return { n, winRate: null, planWinRate: null, deltaWinRate: null, deltaSumPct: null, deltaSumExTop: null, sumExTop: null, planSumExTop: null, holds: false };
+  const wr = (xs: number[]) => r1((xs.filter((x) => x > 0).length / xs.length) * 100);
+  const exTop = (xs: number[]) => r2([...xs].sort((a, b) => b - a).slice(k).reduce((s, x) => s + x, 0));
+  const d = pairs.map((x) => x.r - x.p);
+  const winRate = wr(pairs.map((x) => x.r)), planWinRate = wr(pairs.map((x) => x.p));
+  const deltaSumExTop = exTop(d);
+  const deltaWinRate = r1(winRate - planWinRate);
+  return {
+    n, winRate, planWinRate, deltaWinRate,
+    deltaSumPct: r2(d.reduce((s, x) => s + x, 0)), deltaSumExTop,
+    sumExTop: exTop(pairs.map((x) => x.r)), planSumExTop: exTop(pairs.map((x) => x.p)),
+    holds: n >= minN && deltaSumExTop > 0 && deltaWinRate > 0,
+  };
+}
+
+/**
+ * Chronological split into two equal halves (by trigger time). A candidate HOLDS when, in
+ * each half separately, it beats the plan on the same ideas on win rate AND on Σ% with the
+ * k ideas it helped most removed, with ≥ minPerHalf paired ideas. Among adoptable holders the
+ * one with the best worst-half (Σ ex-top ÷ n) is chosen; none holding → WF_FALLBACK_MULT.
+ */
+export function walkForward(ideas: WfIdea[], opts: { topRemoved?: number; minPerHalf?: number } = {}): WalkForward {
+  const k = opts.topRemoved ?? 3, minN = opts.minPerHalf ?? 30;
+  const sorted = ideas.filter((i) => fin(i.triggerMs) && fin(i.pcts.plan)).sort((a, b) => a.triggerMs - b.triggerMs);
+  const mid = Math.floor(sorted.length / 2);
+  const H = [sorted.slice(0, mid), sorted.slice(mid)] as const;
+  const span = (xs: WfIdea[]) => ({ from: xs[0]?.triggerMs ?? null, to: xs[xs.length - 1]?.triggerMs ?? null, n: xs.length });
+  const rows: WfRow[] = WF_CANDIDATES.map((c) => {
+    const halves = [wfCell(H[0], c.rule, k, minN), wfCell(H[1], c.rule, k, minN)] as [WfCell, WfCell];
+    const holdsBoth = halves[0].holds && halves[1].holds;
+    const per = halves.map((h) => (h.n && h.deltaSumExTop != null ? h.deltaSumExTop / h.n : null));
+    const score = per[0] != null && per[1] != null ? r2(Math.min(per[0], per[1])) : null;
+    return { rule: c.rule, mult: c.mult, adoptable: c.adoptable, label: RULE_LABEL[c.rule], halves, holdsBoth, score };
+  });
+  const holders = rows.filter((r) => r.adoptable && r.holdsBoth && r.score != null).sort((a, b) => b.score! - a.score! || (a.mult! - b.mult!));
+  const best = holders[0];
+  const chosen = best
+    ? { rule: best.rule, mult: best.mult!, basis: `${best.rule} holds in both halves with the top ${k} removed (worst-half Δ Σ ex-top ${best.score}%/idea vs plan)` }
+    : {
+      rule: null, mult: WF_FALLBACK_MULT, basis: sorted.length < 2 * minN
+        ? `not enough paired ideas (${sorted.length} < ${2 * minN}) — fallback ${WF_FALLBACK_MULT}×`
+        : `no stop-width candidate held in both halves — fallback ${WF_FALLBACK_MULT}×`,
+    };
+  return { n: sorted.length, minPerHalf: minN, topRemoved: k, halves: [span(H[0]), span(H[1])], rows, chosen };
+}
+
+export function renderWalkForward(w: WalkForward, meta: { generatedAt: string; source: string }): string {
+  const d = (ms: number | null) => (ms == null ? '—' : new Date(ms).toISOString().slice(0, 10));
+  const out: string[] = [];
+  out.push('# Stop width — walk-forward check', '');
+  out.push(`Generated ${meta.generatedAt} from \`${meta.source}\` by \`research/stop-width-walkforward.ts\` (read-only; no database access).`, '');
+  out.push(`Paired ideas: **${w.n}** · half A ${d(w.halves[0].from)} → ${d(w.halves[0].to)} (n=${w.halves[0].n}) · half B ${d(w.halves[1].from)} → ${d(w.halves[1].to)} (n=${w.halves[1].n}) · top ${w.topRemoved} improvements removed per half · min ${w.minPerHalf} per half.`, '');
+  out.push('A candidate **holds** when, in EACH half, it beats the published plan on the same ideas on win rate AND on Σ(rule − plan)% after removing the ideas it helped most.', '');
+  out.push('| rule | ×ATR | A: n | A: win vs plan | A: Δ Σ% ex-top | B: n | B: win vs plan | B: Δ Σ% ex-top | holds both | worst-half %/idea |', '|---|---:|---:|---|---:|---:|---|---:|---|---:|');
+  for (const r of w.rows) {
+    const c = (h: WfCell) => `${h.n} | ${f(h.winRate, '%')} vs ${f(h.planWinRate, '%')} (${f(h.deltaWinRate, ' pp')}) | ${f(h.deltaSumExTop, '%')}`;
+    const tag = r.adoptable ? '' : r.rule === 'time_only' ? ' — NOT adoptable without a disaster stop (3×ATR here)' : ' — comparison only (ignores the structural level)';
+    out.push(`| ${r.label}${tag} | ${f(r.mult)} | ${c(r.halves[0])} | ${c(r.halves[1])} | ${r.holdsBoth ? 'YES' : 'no'} | ${f(r.score)} |`);
+  }
+  out.push('', `**Chosen: ${w.chosen.mult}× daily ATR(14)** (stop = wider of the structural level and ${w.chosen.mult}×ATR) — ${w.chosen.basis}.`, '');
+  out.push(`Set \`BOT_STOP_ATR_MULT=${w.chosen.mult}\` for the bot. NEXUS keeps the current 1.25× floor until \`NEXUS_STOP_ATR_MULT\` is set after the bot proves it.`, '');
   return out.join('\n');
 }

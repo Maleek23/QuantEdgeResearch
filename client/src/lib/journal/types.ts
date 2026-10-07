@@ -42,6 +42,8 @@ export interface JournalTradeRow {
   exitTimeNote?: string | null;
   /** Desk rows, closed: realized ÷ best favourable underlying move (shared/exit-policy.ts captureRatio). */
   captureRatio?: number | null;
+  /** Desk rows, stopped out: "stopped · later reached T1 at 11:42" — hindsight beside the loss (shared/after-stop.ts). */
+  afterStop?: string | null;
   /** NEXUS ideas rows: verified (bars) / checked (integrity) / unverified, with reasons (server/journal-row-maps.ts verifyDeskRows). */
   verification?: {
     status: 'verified' | 'checked' | 'unverified';

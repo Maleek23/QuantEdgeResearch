@@ -34,7 +34,7 @@ const KNOWN_STARTS = [
   'startSwingCatcher', 'scanOptionsFlow', 'archiveGexSnapshots', 'scheduleIdeaProducers',
   'observeTriggeredIdeas', 'performanceValidationService', 'startChartOverlayRecorder',
   'scheduleQuantBot', 'warmConvictions', 'startMemoryGuard', 'startHealthPublisher',
-  'startGexRankingJob', 'selfLearning.start', 'startWorkerEventRelay',
+  'startGexRankingJob', 'selfLearning.start', 'startWorkerEventRelay', 'scheduleAfterStopJob',
 ];
 
 async function main() {

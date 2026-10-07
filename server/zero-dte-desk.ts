@@ -32,6 +32,7 @@
  * cache and the process-wide 8/min budget. The whole desk payload is cached
  * 60 s and built by one in-flight promise.
  */
+import { afterStopLabel, parseAfterStop } from '@shared/after-stop';
 import type { Express, Request, Response, NextFunction } from 'express';
 import { and, gte, like, or, eq } from 'drizzle-orm';
 import { logger } from './logger';
@@ -174,6 +175,7 @@ interface IdeaLite {
   source: string | null; dataSourceUsed: string | null; qualitySignals: string[] | null; expiryDate: string | null;
   optionType: string | null; strikePrice: number | null;
   entryValidUntil: string | null; exitBy: string | null; entryPremium: number | null; analysis: string | null; catalyst: string | null;
+  outcomeNotes: string | null; exitDate: string | null;
 }
 let ideasCache: { at: number; rows: IdeaLite[] } | null = null;
 
@@ -189,6 +191,7 @@ async function engineIdeas(): Promise<IdeaLite[]> {
     expiryDate: tradeIdeas.expiryDate, optionType: tradeIdeas.optionType, strikePrice: tradeIdeas.strikePrice,
     entryValidUntil: tradeIdeas.entryValidUntil, exitBy: tradeIdeas.exitBy, entryPremium: tradeIdeas.entryPremium,
     analysis: tradeIdeas.analysis, catalyst: tradeIdeas.catalyst,
+    outcomeNotes: tradeIdeas.outcomeNotes, exitDate: tradeIdeas.exitDate,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     or(
@@ -422,6 +425,8 @@ export interface DeskIdea {
   loggedNote: string | null;
   /** SPX mirror of an SPY contract (display only — the record stays on the SPY idea). */
   spxMirror?: import('@shared/spx-mirror').SpxMirror | null;
+  /** Stopped-out ideas: what the underlying did next inside the hold window (shared/after-stop.ts). Hindsight — the outcome stays a stop. */
+  afterStop?: string | null;
 }
 
 export interface IdeasInfo {
@@ -513,6 +518,7 @@ async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[]
         contract, quote: null, loggedPremium: r.entryPremium, contractNote: vehicle !== sym ? `logged on ${vehicle} (account-fit vehicle); thesis measured on ${sym}` : null, vehicle,
         entryBy: hhmmEt(r.entryValidUntil), exitBy: TIME_STOP_ET, why: String(r.analysis ?? r.catalyst ?? '').split(' | ')[0].slice(0, 200),
         grade: null, gradeWhy: [], at: r.timestamp, ideaId: r.id, logged: true, loggedNote: null,
+        afterStop: afterStopLabel(parseAfterStop(r.outcomeNotes), r.exitDate ? Date.parse(r.exitDate) : null),
       });
     }
     if (!fresh || !elig.ok) continue;
