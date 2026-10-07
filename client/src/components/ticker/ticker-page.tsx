@@ -42,7 +42,7 @@ import {
   type CatalystRow, type EconEvent, type FlowTrade, type LedgerRow, type Pick, type Quote, type VolRead,
 } from './ticker-data';
 import './ticker-page.css';
-import { Clamp, FreshStamp, PhoneNote } from '@/components/ui/qe-phone';
+import { Clamp, FreshStamp, PhoneNote, QuoteFreshChip } from '@/components/ui/qe-phone';
 
 /** Cash indices have no traded volume of their own. */
 const CASH_INDEX = new Set(['SPX', 'NDX', 'RUT', 'VIX', 'XSP', 'DJX']);
@@ -267,8 +267,9 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           <>
             <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>
             <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {Number.isFinite(q.change) ? <>{q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · </> : null}{fmtPct(q.changePercent)}</span>
-            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{[q.session, q.source ?? 'realtime quote', q.delayed ? 'delayed' : null, age(q.asOf)].filter(Boolean).join(' · ')}</span>
-            <FreshStamp className="qp-phone-only" asOf={q.asOf} warn={!!q.delayed} />
+            {/* One freshness rule for every price (shared/quote-freshness.ts): Live / Delayed 15m / Pre-mkt 07:42 / Overnight (proxy). */}
+            <QuoteFreshChip q={q} />
+            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{[q.source ?? 'realtime quote', q.proxy && q.underlyingPrice ? `index ${fmtPx(q.underlyingPrice)} ${age(q.underlyingAsOf)}` : null].filter(Boolean).join(' · ')}</span>
           </>
         ) : d.quote.isError ? (
           <span className="tk-src">No quote for {sym} — every price provider failed. Retry in a minute.</span>

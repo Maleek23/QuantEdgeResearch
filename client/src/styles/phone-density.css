@@ -21,6 +21,17 @@
 .qp-stamp.qp-fresh .qp-dot,.qp-stamp.qp-none .qp-dot{background:var(--text-mute,var(--lx-mute))}
 .qp-stamp.qp-aging{color:var(--amber,#f5b642)}
 .qp-stamp.qp-stale{color:var(--red,#ff6b3d)}
+/* QuoteFreshChip (shared/quote-freshness.ts): live = accent, ext = muted, delayed = amber, stale = red. */
+.qp-chip{padding:2px 7px;border-radius:999px;border:1px solid currentColor;font-size:11px;line-height:1.2}
+.qp-chip-live{color:var(--accent,#3b8cff)}
+.qp-chip-live .qp-dot{animation:qp-chip-pulse 2s ease-in-out infinite}
+.qp-chip-ext{color:var(--text-mute,var(--lx-mute))}
+.qp-chip-ext .qp-dot{background:currentColor}
+.qp-chip-delayed{color:var(--amber,#f5b642)}
+.qp-chip-stale{color:var(--red,#ff6b3d)}
+.qp-chip-age{font-weight:500;opacity:.85}
+@keyframes qp-chip-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.qp-chip-live .qp-dot{animation:none}}
 
 /* ── ⓘ button + sheet ── */
 .qp-info{display:inline-grid;place-items:center;flex:none;width:44px;height:44px;margin:-8px -8px -8px 0;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text-mute,var(--lx-mute));cursor:pointer}

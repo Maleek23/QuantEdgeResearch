@@ -19,6 +19,7 @@
  * Cached for 60s (pre-market data updates roughly minute-by-minute).
  */
 
+import { priorRegularCloseFromMeta } from "../shared/price-change";
 import { logger } from "./logger";
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -140,15 +141,22 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
   }
 }
 
-function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSnapshot | null {
+export function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSnapshot | null {
   if (!meta) return null;
-  const previousClose = Number(meta.previousClose ?? meta.chartPreviousClose);
+  const yahooPrev = Number(meta.previousClose ?? meta.chartPreviousClose);
+  // Before today's open Yahoo's previousClose is the D-2 close (measured
+  // 2026-10-01: SPY prev 764.20 = Sep 29 while the Sep 30 close was 762.63), so
+  // every pre-market gap double-counted yesterday's move. In the pre-market the
+  // reference is the last regular close (shared/price-change.ts).
+  const previousClose = phase === "pre_market" ? (priorRegularCloseFromMeta(meta) ?? yahooPrev) : yahooPrev;
   if (!Number.isFinite(previousClose) || previousClose <= 0) return null;
 
   const preMarketPrice = Number(meta.preMarketPrice ?? meta.__pmLast);
   const regularOpen = Number(meta.regularMarketOpen);
   const regularPrice = Number(meta.regularMarketPrice);
-  const postMarketPrice = Number(meta.postMarketPrice);
+  // meta.postMarketPrice is null on the chart API (same as preMarketPrice) — the
+  // last bar inside today's post window is the after-hours print.
+  const postMarketPrice = Number(meta.postMarketPrice ?? meta.__postLast);
 
   const preMarketGapPct = Number.isFinite(preMarketPrice) && preMarketPrice > 0
     ? ((preMarketPrice - previousClose) / previousClose) * 100

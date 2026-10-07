@@ -9,7 +9,8 @@
  * publish-time is shown as current (live quotes carry their own timestamp).
  */
 import { pickWalls } from '@shared/gex-wall-basis';
-import { CONVICTIONS_QUERY_KEY, isLiveBookPick } from '@/lib/convictions';
+import { CONVICTIONS_QUERY_KEY, isLiveBookPick, type ConvictionPick } from '@/lib/convictions';
+import { boardOrder, useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -36,7 +37,11 @@ export interface Pick {
 export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number; runUp?: RunUpRead | null }
 /** model-record.runUp — shared/run-up.ts. Run-up after trigger, NOT the win rate. */
 export interface RunUpRead { label: string; since: string; triggered: number; reached3: number; reached5BeforeStop: number; reached10: number; rate: number | null; pending: number; medianMinutesTo5: number | null }
-export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'closed' | null; source?: string | null }
+export interface Quote {
+  price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'overnight' | 'closed' | null; source?: string | null;
+  /** Freshness (docs/DATA_LATENCY.md) — rendered by <QuoteFreshChip>. */
+  delayed?: boolean; delayedSec?: number; proxy?: boolean; stale?: boolean;
+}
 export interface IndexScalp {
   id: string; symbol: string; direction: 'long' | 'short'; bias: string;
   setup?: string; strike?: number | null; expiry?: string | null;
@@ -79,13 +84,34 @@ export function useSpyGex() {
   return { q, snap, asOf: terminalAsOf(q.data) };
 }
 
+/** Wall clock that ticks every 30s — enough for lifecycle windows that end at a session close. */
+function useMinuteClock() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id); }, []);
+  return now;
+}
+
+/** "board order" wording for the BOARD_SORT the server reports. */
+export const BOARD_ORDER_LABEL: Record<'score' | 'recency' | 'engine_record' | 'grade', string> = {
+  score: 'NEXUS board order · by evidence',
+  recency: 'NEXUS board order · newest first',
+  engine_record: 'NEXUS board order · by engine record',
+  grade: 'NEXUS board order · by NEXUS grade (unvalidated)',
+};
+
 export function useBook() {
   // Same query key + cadence as NEXUS (one fetch, one snapshot) and the same
   // membership rule (isLiveBookPick) so "N live" and the scores match NEXUS exactly.
-  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
-  const ideas = useMemo(() => (conv.data?.picks ?? [])
-    .filter((p) => isLiveBookPick(p as never))
-    .sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)), [conv.data]);
+  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string; boardSort?: 'score' | 'recency' | 'engine_record' | 'grade' }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
+  // ORDER = the NEXUS board's order (lib/setup-lifecycle.ts boardOrder): the server's
+  // BOARD_SORT rank when it stamped one, else evidence score; stale + resolved setups
+  // sink. This used to sort by evidence score alone while NEXUS used BOARD_SORT=recency,
+  // so a two-day-old idea could top Today's book and sit near the bottom of NEXUS.
+  const now = useMinuteClock();
+  const book = conv.data?.picks as unknown as ConvictionPick[] | undefined;
+  const { map: life } = useSetupLifecycles(book, conv.data?.generatedAt, now);
+  const ideas = useMemo(() => boardOrder((book ?? []).filter((p) => isLiveBookPick(p)), life, now) as unknown as Pick[], [book, life, now]);
+  const boardSort = conv.data?.boardSort ?? 'score';
   const syms = ideas.slice(0, 12).map((p) => p.symbol).concat('SPY').join(',');
   const quotes = useQuery<{ quotes: Record<string, Quote> }>({
     queryKey: [`/api/quotes/batch/${syms}`], queryFn: get(`/api/quotes/batch/${syms}`),
@@ -95,7 +121,7 @@ export function useBook() {
   const px = (s: string) => { const qq = quote(s); return qq?.price ?? qq?.lastPrice; };
   const longs = ideas.filter((p) => p.direction !== 'short').length;
   const asOf = conv.data ? (conv.data.generatedAt ?? newest(...ideas.map((p) => p.generatedAt)) ?? iso(conv.dataUpdatedAt)) : undefined;
-  return { conv, ideas, quotes, quote, px, longs, asOf };
+  return { conv, ideas, quotes, quote, px, longs, asOf, life, boardSort };
 }
 
 export const usePerf = () =>

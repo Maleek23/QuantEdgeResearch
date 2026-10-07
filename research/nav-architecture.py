@@ -147,6 +147,8 @@ for p in route_paths:
     rx = to_regex(p)
     if p in ("/", "/t"): continue
     if p.startswith("/admin") or p in ("/reset-password", "/invite", "/forgot-password"): continue
+    # /dev/* = DEV-only harness routes (import.meta.env.DEV — absent from production builds; never linked)
+    if p.startswith("/dev/"): continue
     if not any(rx.match(l) for l in linked_paths): unreachable.append(p)
 
 # ── N6 function registry — ONE owning tool per function ────────────────────

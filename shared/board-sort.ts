@@ -5,6 +5,10 @@
  *   recency        newest call first. Makes no claim about which setup is better.
  *   engine_record  the originating engine's bar-verified record (mean R under the
  *                  exit-rule replay's rule 7, shrunk toward the book mean), then recency.
+ *   grade          the NEXUS grade (shared/nexus-grade.ts), highest first, then recency:
+ *                  live & valid > published today > window left, + a bounded with-rotation
+ *                  bonus (operator prior). UNVALIDATED — an actionability order, not an
+ *                  outcome prediction (docs/GRADE_AUDIT_2026-10-01.md).
  *
  * Why this exists: docs/SCORE_V2_STUDY.md. On the honest record (2026-08-26 → 09-30,
  * 443 bar-verified ideas) the evidence score does not rank outcomes — Spearman vs
@@ -14,11 +18,11 @@
  * neutral-ish order and is equally unvalidated.
  */
 
-export type BoardSort = 'score' | 'recency' | 'engine_record';
+export type BoardSort = 'score' | 'recency' | 'engine_record' | 'grade';
 
 export function readBoardSort(env: Record<string, string | undefined> = {}): BoardSort {
   const v = String(env.BOARD_SORT ?? '').trim().toLowerCase();
-  return v === 'recency' || v === 'engine_record' ? v : 'score';
+  return v === 'recency' || v === 'engine_record' || v === 'grade' ? v : 'score';
 }
 
 /**
@@ -52,6 +56,8 @@ export interface SortablePick {
   calledAt?: string | null;
   generatedAt?: string | null;
   ideaId?: string;
+  /** Stamped in BOARD_SORT=grade (shared/nexus-grade.ts). */
+  nexusGrade?: { score: number } | null;
 }
 
 const ts = (p: SortablePick) => {
@@ -64,6 +70,7 @@ export function boardComparator(mode: BoardSort): (a: SortablePick, b: SortableP
   const tie = (a: SortablePick, b: SortablePick) => ts(b) - ts(a) || String(a.ideaId ?? '').localeCompare(String(b.ideaId ?? ''));
   if (mode === 'recency') return tie;
   if (mode === 'engine_record') return (a, b) => engineRecordR(b.source) - engineRecordR(a.source) || tie(a, b);
+  if (mode === 'grade') return (a, b) => (b.nexusGrade?.score ?? -1) - (a.nexusGrade?.score ?? -1) || tie(a, b);
   return (a, b) => b.convictionScore - a.convictionScore;
 }
 

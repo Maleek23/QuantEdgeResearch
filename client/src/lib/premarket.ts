@@ -9,6 +9,7 @@
  * Window: 04:00–09:30 ET, Monday–Friday (exchange holidays are not modelled —
  * on a holiday the strip shows but the server phase says "closed").
  */
+import { nexusIdeaHref } from './nexus-link';
 
 const etParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -73,6 +74,27 @@ export const PM_SETUP_SHORT: Record<string, string> = { gap_and_go: 'go', gap_fi
 export function pmSetupMarker(m: PmSetupMark): string {
   const k = m.kinds.map((x) => PM_SETUP_SHORT[x] ?? x).join('·');
   return m.status === 'triggered' ? `${k} ✓` : k;
+}
+
+/**
+ * A WATCH plan is not a NEXUS idea: server/premarket-ideas.ts publishes through
+ * createTradeIdea only when a plan TRIGGERS (09:30–10:30 ET, ≤ 5/day, one per symbol,
+ * never on top of another engine's open idea). Before that the marker links to the
+ * ticker and says so — sending it to NEXUS opened a board that had no such setup.
+ */
+export function pmSetupIsIdea(m: PmSetupMark): boolean {
+  return m.status === 'triggered' && !!m.ideaId;
+}
+export function pmSetupHref(symbol: string, m: PmSetupMark): string {
+  return pmSetupIsIdea(m) ? nexusIdeaHref({ ideaId: m.ideaId, symbol }) : `/r/${encodeURIComponent(symbol.toUpperCase())}`;
+}
+export function pmSetupLabel(m: PmSetupMark): string {
+  return pmSetupIsIdea(m) ? `setup ${pmSetupMarker(m)}` : `watch ${pmSetupMarker(m)} — not a NEXUS idea`;
+}
+export function pmSetupTitle(m: PmSetupMark): string {
+  return pmSetupIsIdea(m)
+    ? `Pre-market setup — triggered and published, open in NEXUS: ${m.summary} · measuring (unproven)`
+    : `Pre-market WATCH plan for the open — not a NEXUS idea yet. It is published to NEXUS only if it triggers 09:30–10:30 ET (max 5 a day). ${m.summary} · measuring (unproven)`;
 }
 
 /** One line for the record: never a bare win rate without its n. */

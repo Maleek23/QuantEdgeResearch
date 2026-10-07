@@ -40,12 +40,15 @@ let _throttled429Until = 0;
  */
 const YAHOO_INDEX_SYMBOLS: Record<string, string> = {
   SPX: '^GSPC',
+  // SPXW (weeklies/0DTE) and NDXP settle on the cash index: chart the index.
+  SPXW: '^GSPC',
   GSPC: '^GSPC',
   VIX: '^VIX',
   VIX9D: '^VIX9D',
   VIX3M: '^VIX3M',
   VVIX: '^VVIX',
   NDX: '^NDX',
+  NDXP: '^NDX',
   RUT: '^RUT',
   DJI: '^DJI',
 };
@@ -144,7 +147,9 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
     volume: Number.isFinite(lastVol) ? lastVol : Number(m.regularMarketVolume ?? 0),
     // Preserve the market's timestamp. Consumer UI uses this to distinguish a
     // fresh print from a fresh HTTP response that happened to contain old data.
-    at: dc.at ?? Date.now(),
+    // No bar (an index before the open): the print is regularMarketTime, never
+    // "now" — stamping the response time made yesterday's SPX close look live.
+    at: dc.at ?? (Number(m.regularMarketTime) > 0 ? Number(m.regularMarketTime) * 1000 : Date.now()),
     session: dc.session,
     regularMarketPrice: dc.regularMarketPrice,
     regularChangePercent: dc.regularChangePercent,

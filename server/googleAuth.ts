@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { storage } from "./storage";
 import { logger, logError } from "./logger";
 import { googleNewUserTier, saveSession } from "./auth-hardening";
+import { isAccountDisabled, safeInviteTier } from "./admin-ops";
 
 // Whitelist of approved admin/VIP emails that bypass invite requirement
 function getApprovedEmails(): string[] {
@@ -59,6 +60,12 @@ export async function setupGoogleAuth(app: Express) {
           const existingUser =
             (await storage.getUserByEmail(emailLower)) || (await storage.getUser(`google_${profile.id}`)) || null;
           
+          // A disabled account (admin hub) cannot sign in.
+          if (existingUser && isAccountDisabled(existingUser)) {
+            logger.warn("Google OAuth: disabled account refused", { userId: existingUser.id });
+            return done(new Error("ACCOUNT_DISABLED"));
+          }
+
           // Check if user has a valid beta invite
           const invite = await storage.getBetaInviteByEmail(emailLower);
           // For login gate: allow pending, sent, or redeemed invites (not revoked/expired)
@@ -114,7 +121,8 @@ export async function setupGoogleAuth(app: Express) {
               lastName: lastName || null,
               profileImageUrl: profileImageUrl || null,
               hasBetaAccess: shouldGrantBetaAccess,
-              subscriptionTier: googleNewUserTier(shouldGrantBetaAccess), // first creation only (beta policy)
+              // first creation only: Free, unless the just-redeemed invite carries an explicit free/advanced/pro override
+              subscriptionTier: (inviteRedeemed && safeInviteTier(invite?.tierOverride)) || googleNewUserTier(shouldGrantBetaAccess),
             });
             
             // If invite was redeemed, also set betaInviteId
@@ -166,6 +174,9 @@ export async function setupGoogleAuth(app: Express) {
         if (err.message === "INVITE_REQUIRED") {
           return res.redirect("/login?error=invite_required");
         }
+        if (err.message === "ACCOUNT_DISABLED") {
+          return res.redirect("/login?error=account_disabled");
+        }
         return res.redirect("/login?error=google_auth_failed");
       }
       if (!user) {
@@ -185,6 +196,11 @@ export async function setupGoogleAuth(app: Express) {
         saveSession(req)
           .then(() => {
             logger.info("Google OAuth login complete", { userId: user.id });
+            // Last-login for the admin hub (password logins already write one).
+            void storage.createLoginRecord({
+              userId: user.id, ipAddress: req.ip || undefined, userAgent: req.headers['user-agent'] || '',
+              sessionId: req.sessionID, authMethod: 'google',
+            }).catch(() => { /* analytics only */ });
             res.redirect("/trade-desk");
           })
           .catch((saveErr) => {

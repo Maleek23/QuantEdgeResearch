@@ -289,6 +289,35 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     }, 'low'), ET);
   }
 
+  // ── 0DTE flow ignition (server/zero-dte-flow.ts) — worker role. ALWAYS runs
+  // watch-only (forward log + desk rows); publishes only with ZERO_DTE_FLOW=true.
+  // ZERO_DTE_FLOW=off disables it entirely. Every 2 min 09:34–15:30 ET: small
+  // 0–2 DTE ±2% chains per universe name (each through runHeavy itself — so this
+  // tick has its own in-flight guard, never guarded()); after 11:30 only names
+  // with a fired row are re-read to mark them. Outcomes 16:25 + 16:55 ET. ──
+  if (process.env.ZERO_DTE_FLOW !== 'off' && (await import('./lib/process-role')).runsWorkerJobs()) {
+    let flowRunning = false;
+    const flow = async () => {
+      if (flowRunning) { logger.info('[IDEA-PRODUCERS] 0dte-flow: previous pass still running — skipped'); return; }
+      flowRunning = true;
+      try {
+        const { runZeroDteFlow } = await import('./zero-dte-flow');
+        await runZeroDteFlow();
+      } catch (err) {
+        logger.error('[IDEA-PRODUCERS] 0dte-flow failed:', err);
+      } finally {
+        flowRunning = false;
+      }
+    };
+    cron.schedule('34-58/2 9 * * 1-5', flow, ET);
+    cron.schedule('*/2 10-14 * * 1-5', flow, ET);
+    cron.schedule('0-30/2 15 * * 1-5', flow, ET);
+    cron.schedule('25,55 16 * * 1-5', guarded('zero-dte-flow-outcomes', async () => {
+      const { runZeroDteFlowOutcomes } = await import('./zero-dte-flow');
+      return (await runZeroDteFlowOutcomes()).written;
+    }, 'low'), ET);
+  }
+
   // ── SPX fast moves (server/spx-fast-moves.ts) — OFF unless SPX_FAST_MOVES=true.
   // Every minute 09:31–10:31 (open-drive causes) and 14:30–15:58 (afternoon /
   // close-flow causes). Light: one incremental SPY+VIXY 1-min bar request per

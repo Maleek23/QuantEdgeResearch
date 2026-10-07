@@ -477,6 +477,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  deleteUserSessions(id: string): Promise<number>;
   updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined>;
   
   // Market Data
@@ -1413,6 +1414,10 @@ export class MemStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     return this.users.delete(id);
+  }
+
+  async deleteUserSessions(_id: string): Promise<number> {
+    return 0;
   }
 
   async updateUserSubscription(userId: string, subscriptionData: any): Promise<User | undefined> {
@@ -2588,14 +2593,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    // Delete associated data first
-    await db.delete(userPreferencesTable).where(eq(userPreferencesTable.userId, id));
-    await db.delete(watchlistTable).where(eq(watchlistTable.userId, id));
-    await db.delete(tradeIdeas).where(eq(tradeIdeas.userId, id));
-    
-    // Delete user
-    const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    // Full cascade (server/user-cascade-plan.ts; docs/ADMIN_TAB.md). One
+    // transaction: either every user-owned row and the account go, or nothing
+    // does. Each step runs in a savepoint so a table that does not exist on
+    // this database (schema drift) is skipped instead of aborting the delete.
+    const { USER_OWNED_CHILDREN, USER_OWNED_DELETE, USER_DETACH } = await import('./user-cascade-plan');
+    const { inArray } = await import('drizzle-orm');
+    const missingTable = (e: unknown) => (e as { code?: string })?.code === '42P01';
+    return db.transaction(async (tx) => {
+      const step = async (fn: (t: typeof tx) => Promise<unknown>) => {
+        try { await tx.transaction(async (sp) => { await fn(sp as typeof tx); }); }
+        catch (e) { if (!missingTable(e)) throw e; }
+      };
+      const portfolioIds: string[] = [];
+      const walletIds: string[] = [];
+      await step(async (t) => { portfolioIds.push(...(await t.select({ id: paperPortfoliosTable.id }).from(paperPortfoliosTable).where(eq(paperPortfoliosTable.userId, id))).map((r) => r.id)); });
+      await step(async (t) => { walletIds.push(...(await t.select({ id: trackedWallets.id }).from(trackedWallets).where(eq(trackedWallets.userId, id))).map((r) => r.id)); });
+      for (const c of USER_OWNED_CHILDREN) {
+        const ids = c.parent === 'paperPortfolios' ? portfolioIds : walletIds;
+        if (ids.length) await step((t) => t.delete(c.table).where(inArray(c.column, ids)));
+      }
+      for (const s of USER_OWNED_DELETE) await step((t) => t.delete(s.table).where(eq(s.column, id)));
+      for (const s of USER_DETACH) await step((t) => t.update(s.table).set(s.set as never).where(eq(s.column, id)));
+      // Sign the account out everywhere (connect-pg-simple rows carry userId in sess).
+      await step((t) => t.execute(drizzleSql`DELETE FROM sessions WHERE sess->>'userId' = ${id} OR sess->'passport'->'user'->>'id' = ${id}`));
+      const result = await tx.delete(users).where(eq(users.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  /** Sign a user out everywhere (disable / delete). Returns the number of sessions removed. */
+  async deleteUserSessions(id: string): Promise<number> {
+    const r = await db.execute(drizzleSql`DELETE FROM sessions WHERE sess->>'userId' = ${id} OR sess->'passport'->'user'->>'id' = ${id}`);
+    return (r as { rowCount?: number | null }).rowCount ?? 0;
   }
 
   // Market Data Methods
@@ -5237,11 +5267,15 @@ export class DatabaseStorage implements IStorage {
       await this.updateBetaInviteStatus(invite.id, 'expired');
       return null;
     }
-    await db.update(betaInvites).set({ 
-      status: 'redeemed' as InviteStatus, 
-      redeemedAt: new Date() 
-    }).where(eq(betaInvites.id, invite.id));
-    return invite;
+    // Conditional update: two concurrent redemptions of one code cannot both win.
+    const won = await db.update(betaInvites).set({
+      status: 'redeemed' as InviteStatus,
+      redeemedAt: new Date()
+    }).where(and(
+      eq(betaInvites.id, invite.id),
+      or(eq(betaInvites.status, 'pending'), eq(betaInvites.status, 'sent'), isNull(betaInvites.status)),
+    )).returning({ id: betaInvites.id });
+    return won.length ? invite : null;
   }
 
   // ========== TRADE DIAGNOSTICS - Loss Analysis ==========

@@ -5,6 +5,12 @@ import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
 import { changeFromPercent } from '../shared/price-change';
 import { BoundedCache } from './lib/bounded-cache';
+import { parseEtWallTime, type MarketSession } from '../shared/quote-freshness';
+
+/** CBOE's free delayed_quotes feed lags the tape by 15 minutes. */
+const CBOE_DELAY_SEC = 900;
+/** Symbols Yahoo serves on a known delay (seconds). */
+const YAHOO_DELAYED_SEC: Record<string, number> = { VIX: 900, VIX9D: 900, VIX3M: 900, VVIX: 900 };
 
 export interface RealtimeQuote {
   symbol: string;
@@ -21,8 +27,15 @@ export interface RealtimeQuote {
   source?: string;
   /** True when the venue reports a delayed chain rather than a realtime mark. */
   delayed?: boolean;
-  /** Session of the print (Yahoo path) — lets a surface label an after-hours move. */
-  session?: 'pre' | 'regular' | 'post' | 'closed';
+  /** Session of the print — lets a surface label an after-hours / overnight move. */
+  session?: MarketSession;
+  /** Known feed lag in seconds (900 = CBOE 15-min delayed). 0/undefined = realtime. */
+  delayedSec?: number;
+  /** True when the price is estimated from a tradeable proxy (SPY×ratio, ES=F), not the instrument itself. */
+  proxy?: boolean;
+  /** The real (possibly delayed) level a proxy replaced, for transparency. */
+  underlyingPrice?: number;
+  underlyingAsOf?: Date;
   /** Prior regular close used for change/changePercent, when known. */
   previousClose?: number;
   /** True when this is an expired cache entry served because the live fetch failed. */
@@ -97,6 +110,9 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
       source: 'yahoo',
       session: yq.session,
       previousClose: yq.previousClose,
+      // Yahoo carries CBOE's volatility indices on the same 15-minute delay
+      // (measured 2026-10-01: ^VIX last print 900 s behind the clock).
+      ...(YAHOO_DELAYED_SEC[yq.symbol] ? { delayed: true, delayedSec: YAHOO_DELAYED_SEC[yq.symbol] } : {}),
     };
   }
 
@@ -165,10 +181,13 @@ async function fetchIndexQuote(symbol: string): Promise<RealtimeQuote | null> {
       high: price,
       low: price,
       volume: 0,
-      lastUpdate: new Date(),
+      // The print time CBOE reports (ET wall clock), not the fetch time — a
+      // 15-minute-delayed level stamped "now" is exactly the lie we removed.
+      lastUpdate: new Date(parseEtWallTime(d?.last_trade_time) ?? Date.now() - CBOE_DELAY_SEC * 1000),
       assetType: 'stock',
       source: 'cboe',
       delayed: true, // CBOE index levels are 15-minute delayed
+      delayedSec: CBOE_DELAY_SEC,
       previousClose: Number.isFinite(prev) && prev > 0 ? prev : undefined,
     };
   } catch {

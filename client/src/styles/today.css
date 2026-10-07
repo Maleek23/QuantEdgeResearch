@@ -681,3 +681,6 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
 @media (max-width:767px){
   .today-page .tl-dup-phone{display:none!important}
 }
+
+/* Freshness chip inside the scrolling tape (shared/quote-freshness.ts). */
+.ltape-fresh{margin-left:6px;font-size:10px;padding:1px 6px}

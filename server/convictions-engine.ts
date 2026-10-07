@@ -30,6 +30,7 @@ import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
+import { gradePick, type NexusGrade } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -164,8 +165,13 @@ export interface ConvictionPick {
   calledAt?: string | null;
   /** When price first traded through the trigger (exact ISO), if it has. */
   triggeredAt?: string | null;
+  /** The idea's own exit deadline / entry window (stored columns) — shared/setup-lifecycle.ts. */
+  exitBy?: string | null;
+  entryValidUntil?: string | null;
   /** Server board position (0 = top) — set only when BOARD_SORT is not 'score'. */
   boardRank?: number;
+  /** NEXUS grade (shared/nexus-grade.ts) at build time — set only when BOARD_SORT=grade. Unvalidated. */
+  nexusGrade?: NexusGrade;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -2865,6 +2871,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // Exact call and trigger times (operator: "we need the EXACT time these are called").
       calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
       triggeredAt: readOracleExecutionAudit(idea.convergenceSignalsJson)?.triggerObservedAt ?? null,
+      // Carry-over policy reads the idea's own deadlines (shared/setup-lifecycle.ts).
+      exitBy: idea.exitBy ?? null,
+      entryValidUntil: idea.entryValidUntil ?? null,
     });
   }
 
@@ -3013,10 +3022,15 @@ bandFor(p.convictionScore);
   }
   const deconflicted = Array.from(horizonWinners.values());
 
-  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record stops ranking
+  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record|grade stops ranking
   // by the evidence score, which did not rank outcomes on the honest record
   // (docs/SCORE_V2_STUDY.md); unset keeps the score order.
   const boardSort = readBoardSort(process.env);
+  if (boardSort === "grade") {
+    // Build-time read (the board's own price); the client re-grades on its live quote.
+    const gradedAt = Date.now();
+    for (const p of deconflicted) p.nexusGrade = gradePick(p, gradedAt);
+  }
   const ordered: ConvictionPick[] = boardSort === "score"
     ? deconflicted.sort((a, b) => b.convictionScore - a.convictionScore)
     : orderBoard(deconflicted, boardSort);

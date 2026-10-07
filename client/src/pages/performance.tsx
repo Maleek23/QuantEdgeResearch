@@ -7,7 +7,6 @@ import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Dat
 import BrokerImport from "@/components/broker-import";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, subDays, subMonths, startOfDay } from 'date-fns';
 import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -16,13 +15,12 @@ import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
-import { clampToBaseline, isClampedToBaseline, BASELINE_LABEL } from "@/lib/performance-range";
 import { integrityCheckValues, sampleTradeClass, type IntegrityCheckWire } from "@/lib/integrity-checks";
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 
-import { UserPerformanceSummary } from "@/components/user-performance-summary";
+import { UserPerformanceSummary, useTrackRecord } from "@/components/user-performance-summary";
 
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
 const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
@@ -232,7 +230,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
 
         {/* Reconciliation */}
         <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-xs">
-          <p className="font-medium text-[var(--trade-bullish)] mb-2">Reconciliation Check</p>
+          <p className="font-medium text-[var(--trade-bullish)] mb-2">Reconciliation Check <span className="font-normal text-muted-foreground">(legacy v1 ±3% rule, stocks only — not the headline record)</span></p>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-muted-foreground">Reported Wins</p>
@@ -269,29 +267,26 @@ export default function PerformancePage() {
   const [validationResults, setValidationResults] = useState<any[]>([]);
   const [validationSummary, setValidationSummary] = useState({ validated: 0, updated: 0 });
 
-  const apiFilters = useMemo(() => {
-    let startDate: string | null = null;
-    const now = new Date();
-    switch (dateRange) {
-      case 'today': startDate = format(startOfDay(now), 'yyyy-MM-dd'); break;
-      case '7d': startDate = format(subDays(now, 7), 'yyyy-MM-dd'); break;
-      case '30d': startDate = format(subDays(now, 30), 'yyyy-MM-dd'); break;
-      case '3m': startDate = format(subMonths(now, 3), 'yyyy-MM-dd'); break;
-    }
-    // Never reach before the outcome-v2 baseline (pre-baseline outcomes are invalid).
-    startDate = clampToBaseline(startDate);
+  // One query string drives every card: /api/performance/track-record applies
+  // window/engine/asset to ONE post-baseline population (shared/track-record.ts).
+  const trackQuery = useMemo(() => {
     const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (engineFilter !== 'all') params.append('source', engineFilter);
-    if (assetFilter !== 'all') params.append('assetType', assetFilter);
+    if (dateRange !== 'all') params.append('window', dateRange);
+    if (engineFilter !== 'all') params.append('engine', engineFilter);
+    if (assetFilter !== 'all') params.append('asset', assetFilter);
     return params.toString() ? `?${params.toString()}` : '';
   }, [dateRange, engineFilter, assetFilter]);
 
+  const { data: track, isLoading, isError, refetch: refetchStats } = useTrackRecord(trackQuery);
+  // Unfiltered payload only for the engine dropdown, so options don't vanish as filters narrow.
+  const { data: trackAll } = useTrackRecord('');
+
+  // Legacy v1 stats — only the Audit tab's reconciliation panel still reads it.
   const perfInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
-  const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery<PerformanceStats>({
-    queryKey: ['/api/performance/stats', apiFilters],
-    staleTime: 0, gcTime: 0, refetchOnMount: 'always',
-    refetchInterval: perfInterval,
+  const { data: stats } = useQuery<PerformanceStats>({
+    queryKey: ['/api/performance/stats', ''],
+    enabled: showAdvanced,
+    refetchInterval: showAdvanced ? perfInterval : false,
   });
 
   const handleExport = () => { window.location.href = '/api/performance/export'; };
@@ -310,6 +305,7 @@ export default function PerformancePage() {
         description: `Checked ${result.validated} ideas on live quotes · ${result.wouldUpdate ?? result.updated} would resolve · ${result.skipped ?? 0} skipped (no live quote)`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/track-record'] });
     } catch (error) {
       toast({ title: "Couldn’t run validation", variant: "destructive" });
     } finally {
@@ -330,7 +326,7 @@ export default function PerformancePage() {
   }
 
   // A fetch failure must not read as "no data".
-  if (isError && !stats) {
+  if (isError && !track) {
     return (
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         <Card className="p-8 text-center">
@@ -343,7 +339,7 @@ export default function PerformancePage() {
     );
   }
 
-  if (!stats) {
+  if (!track) {
     return (
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         <Card className="p-6">
@@ -354,7 +350,7 @@ export default function PerformancePage() {
     );
   }
 
-  const decidedCount = stats.segmentedWinRates?.overall?.decided ?? 0;
+  const decidedCount = track.headline.total;
   const isFiltered = dateRange !== "all" || engineFilter !== "all" || assetFilter !== "all";
 
   return (
@@ -367,7 +363,7 @@ export default function PerformancePage() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Date range */}
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-24 h-7 text-xs" data-testid="select-date-range">
+            <SelectTrigger className="w-28 h-7 text-xs" data-testid="select-date-range">
               <Calendar className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
@@ -375,36 +371,37 @@ export default function PerformancePage() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="7d">7 Days</SelectItem>
               <SelectItem value="30d">30 Days</SelectItem>
-              <SelectItem value="3m">{isClampedToBaseline('3m') ? `3 Months (from ${BASELINE_LABEL})` : '3 Months'}</SelectItem>
-              <SelectItem value="all">{`Since ${BASELINE_LABEL} (v2)`}</SelectItem>
+              <SelectItem value="3m">3 Months</SelectItem>
+              <SelectItem value="all">Since 08-26</SelectItem>
             </SelectContent>
           </Select>
 
           {/* Engine filter */}
           <Select value={engineFilter} onValueChange={setEngineFilter}>
-            <SelectTrigger className="w-28 h-7 text-xs">
+            <SelectTrigger className="w-40 h-7 text-xs" data-testid="select-engine">
               <Brain className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Engines</SelectItem>
-              <SelectItem value="quant">Quant</SelectItem>
-              <SelectItem value="flow">Flow</SelectItem>
-              <SelectItem value="ai">AI</SelectItem>
-              <SelectItem value="lotto">Lotto</SelectItem>
+              {(trackAll ?? track).engineOptions.map((e) => (
+                <SelectItem key={e.key} value={e.key}>{e.label} ({e.total})</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           {/* Asset type filter */}
           <Select value={assetFilter} onValueChange={setAssetFilter}>
-            <SelectTrigger className="w-24 h-7 text-xs">
+            <SelectTrigger className="w-28 h-7 text-xs" data-testid="select-asset">
               <Activity className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assets</SelectItem>
-              <SelectItem value="equities">Equities</SelectItem>
-              <SelectItem value="options">Options</SelectItem>
+              <SelectItem value="stock">Stocks &amp; ETFs</SelectItem>
+              <SelectItem value="option">Options</SelectItem>
+              <SelectItem value="crypto">Crypto</SelectItem>
+              <SelectItem value="future">Futures</SelectItem>
             </SelectContent>
           </Select>
 
@@ -421,7 +418,7 @@ export default function PerformancePage() {
         <Card className="p-8 text-center" data-testid="empty-performance">
           <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <h2 className="text-lg font-semibold">
-            {isFiltered ? "No decided ideas in this view" : "No decided ideas yet"}
+            {isFiltered ? "No ideas in this view" : "No ideas since the baseline yet"}
           </h2>
           <p className="text-muted-foreground mt-2 text-sm max-w-md mx-auto">
             Ideas count toward hit rate and expectancy once they close — open ideas don't move these numbers.
@@ -438,7 +435,7 @@ export default function PerformancePage() {
           )}
         </Card>
       ) : (
-        <UserPerformanceSummary apiFilters={apiFilters} />
+        <UserPerformanceSummary query={trackQuery} />
       )}
 
       {/* Advanced Analytics Toggle */}
@@ -611,7 +608,7 @@ export default function PerformancePage() {
                     </Button>
                   )}
                 </div>
-                <DataIntegrityPanel stats={stats} />
+                {stats ? <DataIntegrityPanel stats={stats} /> : <Skeleton className="h-32" />}
               </TabsContent>
 
               <TabsContent value="portfolio" className="space-y-4">

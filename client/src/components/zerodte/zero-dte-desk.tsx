@@ -295,6 +295,89 @@ function SniperSection() {
   );
 }
 
+/* ── Flow ignition (GET /api/zero-dte/flow, server/zero-dte-flow.ts) ── */
+type FlowStateId = 'watch' | 'fired' | 'reached' | 'faded';
+interface FlowRowW {
+  id: string; kind: 'ignition' | 'unwind'; symbol: string; side: Side; state: FlowStateId; at: string; atEt: string; spot: number | null; score: number | null;
+  flow: { occ: string; strike: number; type: 'call' | 'put'; dte: number; aggressive: number; relSize: number; dayVolume: number; openInterest: number | null; sweeps: number } | null;
+  structure: { ok: boolean; reason: string | null; vwap: number | null; orHigh: number | null; orLow: number | null; heldBars: number } | null;
+  wall: string | null; unwind: string | null;
+  contract: { occ: string; strike: number; type: 'call' | 'put'; dte: number; bid: number | null; ask: number | null; mid: number | null; quoteAgeS: number | null; spreadPct: number | null; source: string } | null;
+  plan: { entryPremium: number; t1Premium: number; t2Premium: number; stopPremium: number; t1Underlying: number | null; t2Underlying: number | null; stopUnderlying: number; stopBasis: string } | null;
+  published: boolean; ideaId: string | null; reason: string | null; stateWhy: string | null; lastMid: number | null; lastMarkAt: string | null; text: string;
+}
+interface FlowCycleW { at: string; skipped: string | null; inWindow: boolean; symbols: number; chains: { read: number; dropped: string[]; failed: string[] }; cycleMs: number; errors: string[] }
+interface FlowStateW { enabled: boolean; lastCycle: FlowCycleW | null; rows: FlowRowW[]; rules: { [k: string]: string }; honesty: string }
+const FLOW_STATE_CLS: { [k: string]: string } = { watch: 'zd-flat', fired: 'zd-up', reached: 'zd-up', faded: 'zd-dn' };
+
+function FlowIgnitionSection() {
+  const q = useQuery<FlowStateW>({
+    queryKey: ['/api/zero-dte/flow'],
+    queryFn: async () => {
+      const r = await fetch('/api/zero-dte/flow', { credentials: 'include' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const s = q.data; const c = s?.lastCycle ?? null; const rows = s?.rows ?? [];
+  return (
+    <section className="zd-section" aria-label="0DTE flow ignition">
+      <h4><Waves size={13} aria-hidden /> Flow ignition — opening 0DTE flow + structure <span className="zd-lown" title="No edge claimed; every trigger is forward-logged with its outcome">MEASURING</span></h4>
+      <p className="zd-note">
+        09:35–11:30 ET, every 2 min: at-ask opening flow on a 0–2 DTE strike near the money (≥ $250K index / $100K single name in 10 min, volume &gt; OI) with price through the opening range and VWAP for 2 bars and no opposing wall within 0.5%. SPY also watches its dominant 0DTE strike for an unwind (fade).
+        {s && !s.enabled && ' Watch-only — ZERO_DTE_FLOW is not set, so nothing publishes.'}
+        {s && ` ${s.honesty}`}
+      </p>
+      {q.isError && !s && <p className="zd-err">Flow ignition unavailable: {reasonOf(q.error)}</p>}
+      {c && (
+        <p className="zd-note zd-mono">
+          Last cycle {etTime(c.at)} ({ageIso(c.at)}){c.skipped ? ` · skipped: ${c.skipped}` : ` · ${c.symbols} names · chains ${c.chains.read}${c.chains.dropped.length ? ` (gate dropped ${c.chains.dropped.join(', ')})` : ''} · ${c.cycleMs} ms`}
+          {c.errors.length > 0 && ` · ${c.errors.join(' · ')}`}
+        </p>
+      )}
+      {rows.length === 0
+        ? <p className="zd-note">{s ? 'No flow ignition today.' : 'Loading flow ignition…'}</p>
+        : (
+          <div className="zd-table-wrap">
+            <table className="zd-table">
+              <thead><tr><th>Since (ET)</th><th>Name</th><th>State</th><th>Trigger</th><th>Contract · mid</th><th>Plan</th><th>Now</th></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="zd-mono" title={r.at}>{r.atEt}</td>
+                    <td><Link href={tickerHref(r.symbol)} className="zd-sym-link"><b>{r.symbol}</b></Link> <span className={sideCls(r.side)}>{r.side === 'long' ? 'calls' : 'puts'}</span></td>
+                    <td className={FLOW_STATE_CLS[r.state]}><b>{r.state}</b>{r.score != null && <small> · {r.score}</small>}</td>
+                    <td title={r.text}>
+                      {r.kind === 'unwind'
+                        ? <small>unwind: {r.unwind}</small>
+                        : r.flow && <>{usdK(r.flow.aggressive)} at ask · {r.flow.strike}{r.flow.type === 'call' ? 'C' : 'P'} {r.flow.dte === 0 ? '0DTE' : `${r.flow.dte}DTE`} <small>({r.flow.relSize}× floor · vol {r.flow.dayVolume} / OI {r.flow.openInterest ?? '—'}{r.flow.sweeps ? ` · ${r.flow.sweeps} Bullflow` : ''})</small></>}
+                      {r.state === 'watch' && r.reason && <div><small>waiting: {r.reason}</small></div>}
+                    </td>
+                    <td className="zd-mono" title={r.contract ? `${r.contract.occ} · bid ${px(r.contract.bid)} / ask ${px(r.contract.ask)} · ${r.contract.source}` : ''}>
+                      {r.contract ? <>{r.contract.strike}{r.contract.type === 'call' ? 'C' : 'P'} {px(r.plan?.entryPremium ?? r.contract.mid)}<div><small>quote {r.contract.quoteAgeS ?? '—'}s · spread {r.contract.spreadPct != null ? `${(r.contract.spreadPct * 100).toFixed(1)}%` : '—'}</small></div></> : '—'}
+                    </td>
+                    <td className="zd-mono">
+                      {r.plan ? <>T1 {px(r.plan.t1Premium)}{r.plan.t1Underlying != null && <small> ({r.plan.t1Underlying})</small>} · T2 {px(r.plan.t2Premium)}<div><small>stop {px(r.plan.stopPremium)} / {r.plan.stopBasis} {r.plan.stopUnderlying} · 15:30</small></div></> : <small>{r.reason ?? '—'}</small>}
+                    </td>
+                    <td>
+                      {r.lastMid != null ? <span className="zd-mono">{px(r.lastMid)} <small>({ageIso(r.lastMarkAt)})</small></span> : '—'}
+                      {r.stateWhy && <div><small>{r.stateWhy}</small></div>}
+                      {r.published && r.ideaId
+                        ? <div><Link href={nexusIdeaHref({ ideaId: r.ideaId, symbol: r.symbol })} className="zd-idea-link"><b>published</b></Link></div>
+                        : r.state !== 'watch' && r.reason && <div><small>{r.reason}</small></div>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+    </section>
+  );
+}
+
 /** The whole desk. `dense` = inside a dashboard tile. */
 export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const q = useZeroDteDesk();
@@ -307,6 +390,7 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
       <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
       <WallsStrip />
+      <FlowIgnitionSection />
       <SniperSection />
       <section className="zd-section" aria-label="Sector ignition, intraday">
         <h4><Waves size={13} aria-hidden /> Sector ignition — intraday</h4>

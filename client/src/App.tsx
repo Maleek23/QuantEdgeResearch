@@ -48,6 +48,8 @@ const AdminInvites = lazyWithRetry(() => import("@/pages/admin/invites"), "admin
 const AdminWaitlist = lazyWithRetry(() => import("@/pages/admin/waitlist"), "admin-waitlist");
 const AdminSystem = lazyWithRetry(() => import("@/pages/admin/system"), "admin-system");
 const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog");
+const AdminTraders = lazyWithRetry(() => import("@/pages/admin/traders"), "admin-traders");
+const AdminAudit = lazyWithRetry(() => import("@/pages/admin/audit"), "admin-audit");
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
@@ -135,6 +137,8 @@ function withAdminProtection<P extends object>(Component: ComponentType<P>) {
 // switch unmounted and remounted the WHOLE terminal: every poller restarted
 // (the /api/pulse?since=0 storm), every query refired, every chart rebuilt.
 const ProtectedTerminalShell = withBetaProtection(TerminalShell);
+/** DEV-only: the real terminal shell on fixture data (main.tsx installs the mocks) — /dev/gex-phone?tab=gex */
+const DevGexPhone = import.meta.env.DEV ? TerminalShell : null;
 const ProtectedResearchShell = withBetaProtection(ResearchShell);
 const ProtectedTodayPage = withBetaProtection(TodayPage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
@@ -210,6 +214,7 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={ProtectedTerminalShell} />
+        {DevGexPhone && <Route path="/dev/gex-phone" component={DevGexPhone} />}
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
@@ -277,6 +282,8 @@ function Router() {
       <Route path="/admin/waitlist" component={AdminWaitlist} />
       <Route path="/admin/system" component={AdminSystem} />
       <Route path="/admin/blog" component={AdminBlog} />
+      <Route path="/admin/traders" component={AdminTraders} />
+      <Route path="/admin/audit" component={AdminAudit} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
@@ -327,7 +334,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {
@@ -371,7 +378,7 @@ function App() {
   // NexusFrame with the rest of the product so navigation never disappears.
   // (/nexus used to be listed here too, but it is a legacy redirect to /t —
   // the redirect renders before this branch could ever matter.)
-  const isFullBleedShell = locationPath === '/t';
+  const isFullBleedShell = locationPath === '/t' || (import.meta.env.DEV && locationPath === '/dev/gex-phone');
 
   if (isFullBleedShell) {
     return (

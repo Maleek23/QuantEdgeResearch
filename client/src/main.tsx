@@ -48,12 +48,19 @@ function BootArm() {
   return null;
 }
 
-createRoot(document.getElementById("root")!).render(
+const mount = () => createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BootArm />
     <App />
   </ErrorBoundary>
 );
+// DEV-only phone harness (/dev/gex-phone): fixture API, no server or DB. The
+// whole branch (and its chunk) is dropped from production builds.
+if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
+  import("./dev/gex-phone-mocks").then((m) => { m.installGexPhoneMocks(); mount(); });
+} else {
+  mount();
+}
 
 // PWA installability — the SW is a pure passthrough (no caching; a trading
 // terminal must never serve stale bundles). Registered post-load, best-effort.
