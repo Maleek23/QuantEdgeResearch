@@ -15,6 +15,8 @@
 .zd-tool-body{height:100%;overflow-y:auto;overflow-x:hidden}
 .zd-view{padding:12px 16px 32px;max-width:1680px;margin:0 auto;min-width:0}
 .zd-view-head{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:700 12px var(--fd-mono,'JetBrains Mono',monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--text,#e8ecf3)}
+/* phones: "0DTE DESK" broke over two lines beside a wrapped subtitle — the subtitle goes under */
+@media (max-width:599px){.zd-view-head{flex-wrap:wrap;gap:2px 8px}.zd-view-head span{flex-basis:100%}}
 .zd-mono{font-family:var(--zd-mono)}
 .zd-up{color:var(--zd-up)}.zd-dn{color:var(--zd-dn)}.zd-flat{color:var(--text-dim,#8b93a3)}
 .zd-chip{font:600 11px var(--zd-mono);padding:2px 8px;border-radius:999px;border:1px solid var(--zd-line);color:var(--text-dim,#8b93a3);white-space:nowrap}
@@ -148,12 +150,17 @@
 .zd-prov p{display:flex;gap:6px;align-items:flex-start;margin:2px 0}
 
 /* NEXUS view switch (Board · 0DTE) */
-.nx-views{display:flex;align-items:center;gap:4px;height:34px;padding:4px 12px 0;box-sizing:border-box}
+/* --nx-views-h is the bar's real height: the touch floor (index.css) makes the tabs 44px on
+   phones and touch tablets, and the board below subtracts exactly this (no overlap). */
+:root{--nx-views-h:34px}
+@media (max-width:767px),(pointer:coarse){:root{--nx-views-h:50px}}
+.nx-views{display:flex;align-items:center;gap:4px;height:var(--nx-views-h);padding:4px 12px 0;box-sizing:border-box}
 .nx-views button{height:26px;padding:0 12px;border:1px solid var(--nx-border-hi,rgba(59,140,255,.16));border-radius:5px;background:transparent;color:var(--text-mute,#7f889a);font:600 11px var(--fd-mono,'JetBrains Mono',monospace);letter-spacing:.06em;cursor:pointer}
+@media (max-width:767px){.nx-views button{font-size:12px}}
 .nx-views button[aria-selected="true"]{color:var(--text,#e6ebf5);border-color:color-mix(in srgb,var(--cyan,#3b8cff) 55%,transparent);background:color-mix(in srgb,var(--cyan,#3b8cff) 12%,transparent)}
 .nx-views button:focus-visible{outline:2px solid var(--cyan,#3b8cff);outline-offset:1px}
 .nx-board-host{--nx-outer-h:var(--qe-main-h,calc(100dvh - 98px))}
-.nx-board-host>*{--qe-main-h:calc(var(--nx-outer-h) - 34px)}
+.nx-board-host>*{--qe-main-h:calc(var(--nx-outer-h) - var(--nx-views-h))}
 
 /* Batch A · the desk's names, levels and ideas are handles, not labels */
 .zd-kv-link{color:inherit;text-decoration:none;cursor:pointer;border-radius:3px}
@@ -197,6 +204,8 @@
 .zi-why{grid-column:1/-1;margin:4px 0 0;font-size:12px;color:var(--text-dim,#8b93a3)}
 .zi-note{grid-column:1/-1;margin:2px 0 0;font-size:11px;color:var(--text-mute,#7f889a)}
 .zi-empty{margin:0;font-size:12px;color:var(--text-dim,#8b93a3)}
+.zi-kv small{font-size:10.5px} /* was the UA "smaller" (9.2px) */
+@media (max-width:599px){.zi-kv small{font-size:12px}}
 .zi-drawer{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px;padding:0 9px 10px}
 .zi-lab-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;font:700 11px var(--zd-mono,monospace);text-transform:uppercase;letter-spacing:.05em}
 .zi-ext{margin-left:auto;color:var(--zd-acc,#3b8cff);display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px}
@@ -250,3 +259,37 @@
   .zd-table td.zd-why{min-width:0}
 }
 @media (prefers-reduced-motion:reduce){.zd-fchip{transition:none}}
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .zd-clock-head .zd-mono,
+  .zd-chip,
+  .zd-phases li span,
+  .zd-card-head h3 small,
+  .zd-sub,
+  .zd-exp,
+  .zd-state ul,
+  .zd-state-badge,
+  .zd-foot,
+  .zd-kv span,
+  .zd-kv strong,
+  .zd-note,
+  .zd-ideas,
+  .zd-err,
+  .zd-table,
+  .zd-table th,
+  .zd-lown,
+  .zd-prov,
+  .nx-views button,
+  .zi-rec,
+  .zi-more,
+  .zi-stage,
+  .zi-side,
+  .zi-kind,
+  .zi-age,
+  .zi-kv>span,
+  .zi-kv strong,
+  .zi-note,
+  .zi-lab-head{font-size:12px}
+}

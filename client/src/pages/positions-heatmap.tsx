@@ -129,7 +129,7 @@ export default function PositionsHeatmapPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6">
+      <div className="md:min-h-screen bg-background text-foreground p-0 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-4">
           <SkeletonLoader variant="header" />
           <SkeletonLoader variant="grid" count={1} />
@@ -143,7 +143,7 @@ export default function PositionsHeatmapPage() {
   // "no positions" on a broken feed.
   if (isError || (!isLoading && !data)) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6">
+      <div className="md:min-h-screen bg-background text-foreground p-0 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold mb-4">Position Heat Map</h1>
           <div className={`${componentStyles.card.default} p-12 text-center`}>
@@ -166,7 +166,7 @@ export default function PositionsHeatmapPage() {
   // keeps TS narrowing `data` to defined for the rest of the render.)
   if (!data || data.summary.total === 0) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6">
+      <div className="md:min-h-screen bg-background text-foreground p-0 sm:p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold mb-4">Position Heat Map</h1>
           <div className={`${componentStyles.card.default} p-12 text-center`}>
@@ -189,13 +189,13 @@ export default function PositionsHeatmapPage() {
   const positions = sortPositions(data.positions, sortBy);
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
+    <div className="md:min-h-screen bg-background text-foreground p-0 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             {/* phones: one line, not a two-line 30px banner under the POSITIONS page bar */}
-            <h1 className="text-xl md:text-3xl font-bold tracking-tight">🔥 Position Heat Map</h1>
+            <h1 className="text-lg md:text-3xl font-bold tracking-tight">🔥 Position Heat Map</h1>
             <CacheFreshnessIndicator asOf={data.asOf} />
           </div>
           <button
@@ -209,9 +209,9 @@ export default function PositionsHeatmapPage() {
 
         {/* Hero — the single decision number: total open P&L. Winner/loser
             counts are folded into win rate below; nothing is shown twice. */}
-        <div className={`${componentStyles.card.default} p-5 mb-3`}>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net open P&L · {data.summary.pnlBasis ?? 'average per position'}</div>
-          <div className={`text-4xl font-bold font-mono tabular-nums ${pnlTone(data.summary.totalPnLPct)}`}>
+        <div className={`${componentStyles.card.default} p-3 sm:p-5 mb-3`}>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Net open P&L · {data.summary.pnlBasis ?? 'average per position'}</div>
+          <div className={`text-2xl sm:text-4xl font-bold font-mono tabular-nums ${pnlTone(data.summary.totalPnLPct)}`}>
             {fmtPct(data.summary.totalPnLPct, { signed: true, decimals: 2 })}
           </div>
           <div className="text-xs text-muted-foreground mt-1 font-mono tabular-nums">
@@ -220,7 +220,7 @@ export default function PositionsHeatmapPage() {
         </div>
 
         {/* Supporting strip — compact, secondary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
           <KPI label="POSITIONS" value={data.summary.total.toString()} accent="cyan" />
           <KPI label="IN PROFIT" value={(data.summary.marked ?? data.summary.total) ? `${Math.round((data.summary.winners / (data.summary.marked ?? data.summary.total)) * 100)}%` : '—'} accent={data.summary.winners / Math.max(1, data.summary.marked ?? data.summary.total) >= 0.5 ? 'emerald' : 'amber'} />
           <KPI label="🔥 HOT" value={data.summary.hotCount.toString()} accent="emerald" />
@@ -288,7 +288,7 @@ export function DetailTable({ positions, sortBy, setSortBy, onSelect }: { positi
           <button
             key={s}
             onClick={() => setSortBy(s)}
-            className={`text-[10px] px-2 py-1 rounded ${
+            className={`text-[11px] px-2 py-1 rounded ${
               sortBy === s ? 'bg-[var(--brand-cyan)]/20 text-[var(--brand-cyan)]' : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
           >
@@ -347,9 +347,9 @@ export function KPI({ label, value, accent, sub }: { label: string; value: strin
   };
   return (
     <div className={`${componentStyles.card.default} p-3`}>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-bold ${colorMap[accent] || 'text-foreground'}`}>{value}</div>
-      {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-lg sm:text-2xl font-bold font-mono tabular-nums ${colorMap[accent] || 'text-foreground'}`}>{value}</div>
+      {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -372,7 +372,7 @@ export function HeatLegend() {
         <span
           key={rank}
           title={HEAT_RANK_TIP[rank]}
-          className={`border rounded px-2 py-0.5 text-[10px] font-mono cursor-help ${HEAT_BG[rank]}`}
+          className={`border rounded px-2 py-0.5 text-[11px] font-mono cursor-help ${HEAT_BG[rank]}`}
         >
           {HEAT_LABEL[rank]}
         </span>
@@ -393,12 +393,12 @@ export function HeatTile({ position }: { position: LivePosition }) {
       <div className={`border rounded p-3 hover:border-[var(--brand-cyan)]/50 transition-colors cursor-pointer ${bg} ${sizeClass}`}>
         <div className="flex items-center justify-between mb-1">
           <span className="font-bold">{position.symbol}</span>
-          <span className="text-[9px] opacity-70">{HEAT_LABEL[position.heatRank]}</span>
+          <span className="text-[11px] opacity-70">{HEAT_LABEL[position.heatRank]}</span>
         </div>
-        <div className={`text-xl font-bold font-mono ${pnlTone(position.pnlPct)}`}>
+        <div className={`text-base sm:text-xl font-bold font-mono tabular-nums ${pnlTone(position.pnlPct)}`}>
           {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
         </div>
-        <div className="text-[10px] opacity-60 mt-1">
+        <div className="text-[11px] opacity-60 mt-1">
           {position.isOption ? `${position.strikePrice}${position.optionType?.[0]?.toUpperCase()}` : 'Stock'} · {position.daysActive}d
         </div>
       </div>
@@ -409,12 +409,12 @@ export function HeatTile({ position }: { position: LivePosition }) {
 export function BestWorstCard({ position, type }: { position: LivePosition; type: 'best' | 'worst' }) {
   return (
     <div className={`p-4 ${type === 'best' ? componentStyles.card.accentBullish : componentStyles.card.accentBearish}`}>
-      <div className="text-[10px] uppercase tracking-wider mb-2 text-muted-foreground">
+      <div className="text-[11px] uppercase tracking-wider mb-2 text-muted-foreground">
         {type === 'best' ? '🏆 Best Position' : '⚠️ Worst Position'}
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-2xl font-bold">{position.symbol}</div>
+          <div className="text-lg sm:text-2xl font-bold">{position.symbol}</div>
           <div className="text-xs text-muted-foreground">
             {position.isOption ? `$${position.strikePrice} ${position.optionType?.toUpperCase()}` : 'Shares'} · {position.daysActive}d in
           </div>
@@ -468,7 +468,7 @@ export function PositionRow({ position, onSelect }: { position: LivePosition; on
       <td className="py-2 pr-3 text-center text-muted-foreground">{position.daysActive}d</td>
       <td className="py-2 pr-3 text-center text-muted-foreground">{position.daysToExpiry !== null && position.daysToExpiry !== undefined ? `${position.daysToExpiry}d` : '—'}</td>
       <td className={`py-2 pr-3 ${heatColor}`}>{HEAT_LABEL[position.heatRank]}</td>
-      <td className="py-2 pr-3 text-muted-foreground text-[10px]">{position.source}</td>
+      <td className="py-2 pr-3 text-muted-foreground text-[11px]">{position.source}</td>
     </tr>
   );
 }

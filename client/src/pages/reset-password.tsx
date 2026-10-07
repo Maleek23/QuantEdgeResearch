@@ -81,7 +81,7 @@ export default function ResetPassword() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-destructive">Invalid Link</CardTitle>
+            <CardTitle role="heading" aria-level={1} className="text-destructive">Invalid Link</CardTitle>
             <CardDescription>
               This password reset link is invalid or has expired.
             </CardDescription>
@@ -107,7 +107,7 @@ export default function ResetPassword() {
             <div className="mx-auto w-12 h-12 rounded-full bg-[var(--trade-bullish)]/10 flex items-center justify-center mb-4">
               <CheckCircle className="h-6 w-6 text-[var(--trade-bullish)]" />
             </div>
-            <CardTitle>Password Reset Complete</CardTitle>
+            <CardTitle role="heading" aria-level={1}>Password Reset Complete</CardTitle>
             <CardDescription>
               Your password has been successfully reset. You can now log in with your new password.
             </CardDescription>
@@ -129,7 +129,7 @@ export default function ResetPassword() {
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Lock className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Reset Your Password</CardTitle>
+          <CardTitle role="heading" aria-level={1}>Reset Your Password</CardTitle>
           <CardDescription>
             Enter your new password below.
           </CardDescription>

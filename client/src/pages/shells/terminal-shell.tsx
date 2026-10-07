@@ -158,11 +158,15 @@ export default function TerminalShell() {
   }, [location, search]);
 
   const [guideOpen, setGuideOpen] = useState(false);
-  // First /t visit: open the guide once. Storage can throw (private mode) — then
+  // First /t visit: open the guide once — but only on a screen wide and tall enough
+  // that the drawer leaves the board readable beside it. On phones it covered the whole
+  // page; on a 1366×768 laptop a third of the board (device audit 2026-10-01). Smaller
+  // screens reach it from the rail / menu "Guide". Storage can throw (private mode) — then
   // we simply don't auto-open rather than nag on every visit.
   useEffect(() => {
     try {
-      if (!localStorage.getItem(ONBOARDED_KEY)) setGuideOpen(true);
+      const roomy = window.matchMedia('(min-width: 1600px) and (min-height: 900px)').matches;
+      if (roomy && !localStorage.getItem(ONBOARDED_KEY)) setGuideOpen(true);
     } catch { /* storage unavailable — skip onboarding */ }
   }, []);
   const closeGuide = useCallback(() => {

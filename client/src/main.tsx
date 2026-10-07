@@ -6,6 +6,7 @@ import "./index.css";
 import "./components/lux/lux.css";
 import "./styles/phone-density.css"; // phone content density — ⓘ sheets, compact stamps, clamps (components/ui/qe-phone.tsx)
 import "./styles/modes.css"; // visual modes — html[data-mode] token overrides (lib/visual-mode.ts)
+import "./styles/phone-sleek.css"; // ONE phone type scale + spacing (DESIGN_SYSTEM §10) — loads after the base sheets
 import "./lib/visual-mode"; // applies the saved mode (index.html already did, pre-paint)
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
@@ -64,6 +65,10 @@ if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")
 } else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/nexus-workspace")) {
   // DEV-only NEXUS workspace harness (/dev/nexus-workspace): fixture book, no server or DB
   import("./dev/nexus-workspace-mocks").then((m) => { m.installNexusWorkspaceMocks(); mount(); });
+} else if (import.meta.env.DEV) {
+  // DEV-only device harness (client/src/dev/harness.ts): /__harness or ?harness=1
+  // answers /api from synthetic fixtures so pages render under bare `vite`.
+  import("./dev/harness").then((h) => { if (h.harnessWanted()) h.installHarness(); mount(); }, mount);
 } else {
   mount();
 }

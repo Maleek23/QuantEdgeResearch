@@ -17,7 +17,7 @@
 .sx-page .container{max-width:1400px;padding:0 24px}
 .sx-page section{padding:28px 0}
 .sx-page .sx-hero{padding:26px 0 10px}
-.sx-page .hero-eyebrow{margin-bottom:14px;flex-wrap:wrap}
+.sx-page .hero-eyebrow{margin-bottom:14px;flex-wrap:wrap;border-radius:8px} /* a wrapped 100px-radius pill read as a blob on phones */
 .sx-page .sec-eyebrow{margin-bottom:10px}
 .sx-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,3.4vw,40px);font-weight:700;line-height:1.1;letter-spacing:-0.03em;margin:0 0 10px}
 .sx-title .grad{background:linear-gradient(135deg,var(--nx-title-from,#fff) 0%,var(--cyan-bright) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -238,4 +238,33 @@
 @media (prefers-reduced-motion:reduce){
   .sx-pulse.on .sx-pulse-dot,.sx-today-dot,.sx-flash-up,.sx-flash-dn{animation:none}
   .sx-table tbody tr,.sx-card{transition:none!important;transform:none!important}
+}
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade. */
+@media (max-width:599px){
+  .sx-h3,
+  .sx-hero-meta,
+  .sx-measuring,
+  .sx-chip,
+  .sx-stat-k,
+  .sx-stat-s,
+  .sx-leg,
+  .sx-axis,
+  .sx-end,
+  .sx-table thead th,
+  .sx-delta,
+  .sx-members,
+  .sx-theme,
+  .sx-cons,
+  .sx-regime,
+  .sx-flag,
+  .sx-card-grid i,
+  .sx-ov-list li>span,
+  .sx-kpi i,
+  .sx-kpi small,
+  .sx-score small,
+  .sx-chips li,
+  .sx-earn,
+  .sx-chip-why summary,
+  .sx-chip-why li i{font-size:12px}
 }

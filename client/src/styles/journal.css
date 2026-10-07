@@ -175,6 +175,9 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-cal-d{color:var(--text-mute);font-size:10.5px}
 .jr-cal-p{font-family:var(--jr-mono);font-weight:700;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jr-cal-t{font-size:10px;color:var(--text-dim)}
+/* Tinted (P/L) days: the muted/dim inks fell to 1.4–3.3:1 on the gain/loss tint (device
+   audit 2026-10-01) — use the body ink there (≥ 6.7:1 dark, ≥ 10:1 light, strongest tint). */
+.jr-cal-tint :is(.jr-cal-d,.jr-cal-t){color:var(--text)}
 @media (max-width:480px){.jr-cal-day{min-height:46px;padding:3px}.jr-cal-t{display:none}.jr-cal-p{font-size:10px}}
 .jr-cal-week{flex-direction:column;justify-content:center;align-items:flex-end;padding:4px 6px;border-radius:7px;background:rgba(127,178,255,0.04);
   font-family:var(--jr-mono);font-size:11px;gap:1px}
@@ -353,6 +356,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-day-date b{font-family:var(--jr-disp);font-size:14px}
 .jr-day-date .jr-mute{font-size:11.5px}
 .jr-day-stats{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-family:var(--jr-mono);font-weight:700;flex:1 1 200px}
+.jr-day-stats .jr-n{white-space:normal;min-width:0} /* the won · lost · closed · W/L line ran past the card edge at 375px */
 .jr-day-body{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:0 14px 14px;border-top:1px solid var(--jr-line);padding-top:12px}
 @media (min-width:1024px){.jr-day-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 
@@ -581,4 +585,71 @@ button.jr-heat-c:hover,button.jr-heat-c:focus-visible{outline:1px solid var(--jr
   .jr-kpi-v,.jr-kpis .jr-kpi-v{font-size:20px}
   .jr-kpi-l,.jr-kpi-s{font-size:12px}
   .jr-sec-h .jr-n,.jr-card-h .jr-n{font-size:12px}
+}
+
+/* Phone type floor (DESIGN_SYSTEM §10, device pass 2026-10-01): no text under 12px on phones.
+   Generated from this file's sub-12px rules; same selectors, later in the cascade.
+   The calendar P/L figure (.jr-cal-p) keeps its compact size: seven day columns at
+   375px leave ~40px per cell. */
+@media (max-width:599px){
+  .jr-eyebrow,
+  .jr-seg button,
+  .jr-filter-count,
+  .jr-kpi-l,
+  .jr-kpi-s,
+  .jr-n,
+  .jr-lowsample,
+  .jr-sec-num,
+  .jr-note,
+  .jr-chip,
+  .jr-tag,
+  .jr-table th,
+  .jr-row-card .meta,
+  .jr-bar-k,
+  .jr-bar-v,
+  .jr-cal-wd,
+  .jr-cal-weekhead,
+  .jr-cal-day,
+  .jr-cal-d,
+  .jr-cal-t,
+  .jr-cal-week,
+  .jr-chart .axis,
+  .jr-chart-tip,
+  .jr-stats span,
+  .jr-stats small,
+  .jr-insight .sev,
+  .jr-field>label,
+  .jr-field>.l,
+  .jr-books-l,
+  .jr-books .jr-seg button,
+  .jr-basis-k,
+  .jr-basis-s,
+  .jr-note-item .h,
+  .jr-note-item .att a,
+  .jr-state,
+  .jr-tabs-gl,
+  .jr-more-gl,
+  .jr-more-hint,
+  .jr-book-l,
+  .jr-basis-more,
+  .jr-week-day .wd,
+  .jr-month .wd,
+  .jr-day-date .jr-mute,
+  .jr-heat-cell,
+  .jr-ins-sev,
+  .jr-tool-stat .s,
+  .jr-delta,
+  .jr-reldd-h,
+  .jr-tip,
+  .jr-heat-h,
+  .jr-heat-c .p,
+  .jr-heat-c .n,
+  .jr-att figcaption,
+  .jr-annots .dot,
+  .jr-explorer-head button,
+  .jr-recon-steps span,
+  .jr-recon-steps small,
+  .jr-recon details ul,
+  .jr-ex,
+  .jr-cal-wk{font-size:12px}
 }

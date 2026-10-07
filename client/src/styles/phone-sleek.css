@@ -1,0 +1,90 @@
+/* ══════════════ PHONE SLEEK — one type scale, calmer spacing (device pass 2026-10-06) ══════════════
+   The operator's read of the phone build: "big and tight". Successive phone passes had each
+   enlarged their own page (KPI values 20–30px, hero titles 24–25px, prose forced to 14px,
+   labels forced to 12px uppercase mono) while the boxes kept their desktop padding, so big
+   type sat in narrow boxes. This file is the single phone scale (DESIGN_SYSTEM §10):
+
+     page title 20 · section title 15–16 · body 13.5 · meta 12 · label 11 (uppercase, .05em)
+     KPI value 17 (one hero number per page 22) · prices/levels tabular mono
+
+   Tap targets stay ≥ 44px through min-height / padding (index.css touch floor) — never by
+   enlarging the type. Every rule is prefixed with html[data-mode] (always set, index.html)
+   so it outranks page stylesheets that load later as lazy chunks. NEXUS desk internals
+   (.nxp-*, .nxd-*) are another agent's and are not touched here; GEX layout neither. */
+
+@media (max-width:767px){
+  html[data-mode]{
+    --ph-title:20px; --ph-sec:16px; --ph-body:13.5px; --ph-meta:12px; --ph-label:11px;
+    --ph-kpi:17px; --ph-hero-num:22px; --ph-price:20px;
+  }
+
+  /* ── page + section titles ── */
+  html[data-mode] :is(.lx-page-title,.qe-page-title,.sx-title,.leaps-title,.jr-top-h){font-size:var(--ph-title);line-height:1.2;letter-spacing:-0.015em}
+  html[data-mode] .qe-terminal .today-page .hero-title,
+  html[data-mode] .qe-terminal .today-l .hero-title,
+  html[data-mode] .flowdash .td-week .hero-title{font-size:var(--ph-title);line-height:1.25}
+  html[data-mode] :is(.qe-section-title,.sx-h2),
+  html[data-mode] .qe-terminal .today-page :is(.lsec-title,.feature-title,.cta-title){font-size:17px;line-height:1.25}
+  html[data-mode] .flowdash .pg-sec-head h2,
+  html[data-mode] .flowdash .fd-tool-title>span:first-child{font-size:var(--ph-sec)}
+
+  /* ── KPI / stat values: one size, tabular ── */
+  html[data-mode] :is(.lx-kpi-v,.lx-kpi-value,.stat-val,.tk-stat-v,.jr-kpi-v,.context-v,.sx-stat-v),
+  html[data-mode] .flowdash .stats-bar .stat-val,
+  html[data-mode] .flowdash .of-val,
+  html[data-mode] .jr-kpis .jr-kpi-v,
+  html[data-mode] .qe-terminal .today-page .tl-keys b,
+  html[data-mode] .flowdash .td-week .tl-keys b{font-size:var(--ph-kpi);line-height:1.2;font-variant-numeric:tabular-nums}
+  html[data-mode] .today-page .lstat-val{font-size:var(--ph-hero-num);font-variant-numeric:tabular-nums}
+  html[data-mode] :is(.today-page .t-price,.tk-price){font-size:var(--ph-price)}
+  html[data-mode] .tk-sym{font-size:22px}
+  html[data-mode] .today-page .td-sym{font-size:28px}
+  html[data-mode] .today-page :is(.td-index-row strong,.td-index-row>b,.td-ladder-labels b,.lsig-level .v){font-size:15px;font-variant-numeric:tabular-nums}
+  html[data-mode] .today-page .lsig-ticker{font-size:17px}
+  html[data-mode] .today-page .td-index-head b{font-size:15px}
+  html[data-mode] .zd-banner-count strong{font-size:18px}
+  html[data-mode] .grade-badge{font-size:15px}
+  html[data-mode] .ticker-sym-big{font-size:16px}
+
+  /* ── labels: 11px uppercase, tighter tracking (was 12px mono at .1em — it read loud) ── */
+  html[data-mode] :is(.lx-kpi-l,.stat-label,.context-k,.tk-stat-k,.jr-kpi-l,.sx-stat-k,.lx-eyebrow,.lsig-level .l),
+  html[data-mode] .flowdash .of-lbl{font-size:var(--ph-label)!important;letter-spacing:.05em}
+
+  /* ── prose: 13.5px (index.css had forced max(14px,1em)) ── */
+  html[data-mode] #main-content :is(p,li,dd,blockquote,figcaption){font-size:max(var(--ph-body),.92em)}
+  html[data-mode] #main-content :is(.lx-empty,.fd-tool-blurb,.bot-desc-text,.wu-empty,.wu-note,.of-hint,.tl-map-foot,.hero-sub,.sx-purpose){font-size:var(--ph-body)}
+
+  /* Today dealer keys: the label/sub ran at 14px beside an 18px value */
+  html[data-mode] .tl-keys span{font-size:12px}
+  html[data-mode] .tl-keys small{font-size:11px}
+
+  /* Bot open positions: the symbol column was 76–90px, so "$100C Oct 16 · 2x @ $4.25" broke
+     one word per line — on phones the symbol + contract take the full first row */
+  html[data-mode] .flowdash .bot-only .book-pos>div:first-child,
+  html[data-mode] .botlab .book-pos>div:first-child{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+
+  /* LEAPS / CATALYST (mock boards): the header and summary carried desktop padding (20px 28px)
+     and their own ground inside the page section — a box in a box in a box on a phone */
+  html[data-mode] .nexus-vars .leaps-header{padding:12px 4px 10px;background:none;backdrop-filter:none}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary{padding:12px 4px}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-card{padding:10px 12px}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-val{font-size:var(--ph-kpi);font-variant-numeric:tabular-nums}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-label{font-size:var(--ph-label)!important;letter-spacing:.05em}
+
+  /* freshness chips (qe-phone.tsx) were scaled to 10px by their containers */
+  html[data-mode] .qp-chip{font-size:11px}
+  /* links / text buttons stretched to 44px keep their label centred */
+  html[data-mode] :is(.rti-row-open,.sx-link-btn,.ah-link){display:inline-flex;align-items:center;min-height:44px}
+
+  /* ── spacing: tiles and panels breathe without eating the width ── */
+  html[data-mode] :is(.lx-kpi,.lx-kpi-tile,.stat-card,.sx-kpi){padding:10px 12px}
+  html[data-mode] .lx-panel>:is(.lx-panel-body,.lx-panel-head){padding-left:12px;padding-right:12px}
+  html[data-mode] .flowdash.dash-page:not(.framed) .pg-sec{padding:14px 0 16px}
+  html[data-mode] .flowdash .pg-grid{row-gap:4px}
+  html[data-mode] :is(.lx-kpis,.stats-bar .stats-grid,.sx-kpis,.jr-kpis){gap:8px}
+}
+
+/* small phones: two KPI columns stay, but tighter */
+@media (max-width:389px){
+  html[data-mode] :is(.lx-kpi,.lx-kpi-tile,.stat-card,.sx-kpi){padding:9px 10px}
+}

@@ -157,3 +157,8 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
 .nxp-took-btn:focus-visible, .nxp-took-form input:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
 .nxp-took-form { display: inline-flex; gap: 6px; align-items: center; }
 .nxp-took-form input { min-height: 28px; width: 130px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--lx-line-hi); background: var(--lx-surface, transparent); color: inherit; font-size: 12px; }
+/* Desktop/tablet caption floor (DESIGN_SYSTEM §03: captions 10–11px; device pass 2026-10-01):
+   the 8.5–9.6px literals below it are raised to 10px. Same selectors, later in the cascade. */
+@media (min-width:600px){
+  .flowdash .nxd .nxp-row small{font-size:10px}
+}

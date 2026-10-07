@@ -2829,11 +2829,52 @@ button:not([disabled]):active,
    data cells (tap-to-drill data, not controls) and inline links inside prose are
    exempt. The journal (.jr) is owned by the journal branch and is left alone. */
 @media (max-width:767px){
-  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],[role=option],select,summary,
-      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:44px!important}
-  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],summary):not(.gx-cell){min-width:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell):not([role=switch]){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],summary):not(.gx-cell):not([role=switch]){min-width:44px!important}
   a[href]:not(p a):not(.sr-only){min-height:44px!important}
   label:has(> input[type=checkbox]),label:has(> input[type=radio]){min-height:44px;display:inline-flex;align-items:center}
+}
+/* Touch tablets (iPad 768/1024) are touch devices too: the 44px floor keys on the
+   pointer, not only the width (device audit 2026-10-01). GEX keeps its own layout. */
+@media (min-width:768px) and (pointer:coarse){
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell):not([role=switch]):not([data-page=gex] *){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],summary):not(.gx-cell):not([role=switch]):not([data-page=gex] *){min-width:44px!important}
+  a[href]:not(p a):not(.sr-only):not([data-page=gex] *){min-height:44px!important}
+}
+/* Bare ticker links (SPY, MU, GEV…) were as narrow as the word — 18–35px — and inline
+   in tables, so the min-height above never applied. On touch they are 44×44 boxes. */
+@media (max-width:767px),(pointer:coarse){
+  :is(.sx-sym,.zd-sym-link,.st-link.st-mono,a.lx-tag,.ah-link){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  /* bordered chips keep their compact look; the 44px hit area is an invisible ::after */
+  :is(a.si-sym,.ig-strip a)[href][href][href][href]{position:relative;min-height:0!important} /* outranks the a[href] 44px floor */
+  :is(.si-sym,.ig-strip a)::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+}
+/* Mouse: the same links were 15–22px tall — below WCAG 2.5.8's 24px target minimum. */
+@media (min-width:768px) and (pointer:fine){
+  :is(.sx-sym,.zd-sym-link,.ig-strip a,.si-sym,a.lx-tag){display:inline-flex;align-items:center;min-height:24px}
+  :is(.st-link,.cxi-main){min-height:24px}
+}
+/* Captions ≥ 10px off phones (DESIGN_SYSTEM §03; device pass 2026-10-01). A bare <small>
+   inside 11–12px mono fell to the UA "smaller" (≈9.2px); :where() keeps this at zero
+   specificity so any class that sizes a <small> still wins. */
+:where(#main-content) small{font-size:max(10px,.83em)}
+@media (min-width:600px){
+  .flowdash:not(.dash-gex) .of-lbl{font-size:10px}
+  .jr-cal-wk,.jr-heat-c .n{font-size:10px}
+}
+@media (min-width:768px) and (pointer:fine){
+  :is(.zd-kv-link,.rti-row-open){min-height:24px}
+  .rti-row-open{display:inline-flex;align-items:center}
+}
+/* Switches keep their 36×20 track (a 44×44 floor turned the pill into a circle with
+   the knob outside it); the 44px hit area is an invisible ::after around the track. */
+/* beat the other control floors (nexus.css 40px, the 28/32px desktop floors) for switches only */
+[role=switch]{min-height:0!important;min-width:0!important}
+@media (max-width:767px),(pointer:coarse){
+  [role=switch]{position:relative}
+  [role=switch]::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 }
 @media (max-width:599px){
   #main-content :is(p,li,dd,blockquote,figcaption){font-size:max(14px,1em)}

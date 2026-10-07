@@ -59,7 +59,9 @@ export function EdgeRadar({ components, size = 260 }: { components: EdgeComponen
   const poly = known.filter((x) => x.v != null).map((x) => pt(x.i, x.v as number).join(',')).join(' ');
   return (
     <div className="jr-radar">
-      <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ maxWidth: size, maxHeight: size }} role="img"
+      {/* 32px side gutters inside the viewBox: "Consistency", "Profit factor" and "Avg win/loss"
+          were clipped at the svg edge (device pass 2026-10-01) */}
+      <svg viewBox={`-32 0 ${size + 64} ${size}`} width="100%" style={{ maxWidth: size + 64, maxHeight: size }} role="img"
         aria-label={`Edge score components: ${known.map((x) => `${EDGE_LABELS[x.k]} ${x.v == null ? 'not scored' : Math.round(x.v)}`).join(', ')}`}>
         {[25, 50, 75, 100].map((ring) => (
           <polygon key={ring} points={keys.map((_, i) => pt(i, ring).join(',')).join(' ')} fill="none" stroke="var(--jr-line-hi)" strokeWidth={1} />

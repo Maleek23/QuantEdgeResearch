@@ -500,7 +500,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                         <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
                       </div>
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'max(10px, var(--fs-10, 10px))', color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
                     </div>
                   )}
                 </div>
