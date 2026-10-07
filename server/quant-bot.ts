@@ -238,6 +238,7 @@ let discordAlerts = true;
 export function setBotDiscordAlerts(on: boolean): void { discordAlerts = on; }
 
 async function announceExit(pos: any, exitPrice: number, reason: string): Promise<void> {
+  void import('./bot-discord-notifier').then((n) => n.postBotExit(pos, exitPrice, reason)).catch(() => {});
   if (!discordAlerts) return;
   try {
     const { sendBotTradeExitToDiscord } = await import('./discord-service');
@@ -1039,6 +1040,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
 
 /** Discord entry alert — never rolls back a fill. */
 async function announceEntry(symbol: string, tradeable: any, res: any, pick: any | null, analysis: string | null, grade: NexusGrade | null = null): Promise<void> {
+  void import('./bot-discord-notifier').then((n) => n.postBotEntry(res?.position, tradeable, pick, grade ? `${grade.letter} ${grade.score}` : null)).catch(() => {});
   if (!discordAlerts) return;
   try {
     const { sendBotTradeEntryToDiscord } = await import('./discord-service');

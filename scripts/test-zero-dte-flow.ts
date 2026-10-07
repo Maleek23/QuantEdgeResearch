@@ -114,10 +114,16 @@ t('walls: opposing wall within 0.5% blocks; none held = unchecked', () => {
   assert.equal(u.blocked, false); assert.equal(u.checked, false); assert.match(u.note, /unchecked/);
 });
 
-t('quote check: stale > 2 min and spread > 15% refused', () => {
+t('quote check: delayed ≤ 20 min accepted + labelled; > 20 min, one-sided and spread > 15% refused', () => {
   const now = at(600);
-  assert.equal(core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 30_000).toISOString() }, now).ok, true);
-  assert.match(core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 150_000).toISOString() }, now).reason!, /old/);
+  const live = core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 30_000).toISOString() }, now);
+  assert.equal(live.ok, true); assert.equal(live.delayed, false); assert.equal(live.label, null);
+  const d15 = core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 15 * 60_000).toISOString() }, now);
+  assert.equal(d15.ok, true); assert.equal(d15.delayed, true); assert.equal(d15.label, 'delayed quote · 15m');
+  const feed = core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 30_000).toISOString() }, now, { delayedFeed: true });
+  assert.equal(feed.ok, true); assert.equal(feed.label, 'delayed quote · 1m');
+  assert.match(core.quoteCheck({ bid: 0.8, ask: 0.9, quoteTime: new Date(now - 21 * 60_000).toISOString() }, now).reason!, /21m old \(> 20m/);
+  assert.match(core.quoteCheck({ bid: 0, ask: 0.9, quoteTime: new Date(now).toISOString() }, now).reason!, /two-sided/);
   assert.match(core.quoteCheck({ bid: 0.5, ask: 0.9, quoteTime: new Date(now).toISOString() }, now).reason!, /spread/);
   assert.match(core.quoteCheck({ bid: null, ask: 0.9, quoteTime: new Date(now).toISOString() }, now).reason!, /two-sided/);
 });
@@ -233,6 +239,48 @@ t('engine: dropped heavy-gate slot skips the name, stated', async () => {
   eng.__resetZeroDteFlowForTests();
   const c = await eng.runZeroDteFlow(at(600), { force: true, universe: ['AMZN'], chainFn: chainAt(at(600), 1000), gate: async () => undefined, peek, walls: () => null, log: false });
   assert.deepEqual(c.chains.dropped, ['AMZN']); assert.equal(c.chains.read, 0);
+});
+
+t('engine: all chains read in ONE gated job (index lane by default) — 13 names, one wait', async () => {
+  eng.__resetZeroDteFlowForTests();
+  const names: string[] = [];
+  const g = async <T,>(n: string, fn: () => Promise<T>) => { names.push(n); return fn(); };
+  const uni = ['SPY', 'QQQ', 'IWM', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'AVGO', 'AMD', 'NFLX'];
+  const read: string[] = [];
+  const ch = async (sym: string) => { read.push(sym); return { spot: 100, fetchedAt: at(600), source: 'test', rows: [row({ occ: `${sym}X`, strike: 100 })] }; };
+  const c = await eng.runZeroDteFlow(at(600), { force: true, universe: uni, chainFn: ch, gate: g, peek, walls: () => null, log: false });
+  assert.deepEqual(names, ['zero-dte-flow:chains']);
+  assert.equal(read.length, 13); assert.equal(c.chains.read, 13); assert.deepEqual(c.chains.dropped, []);
+  assert.equal(eng.flowGateLane({}), 'index'); assert.equal(eng.flowGateLane({ ZERO_DTE_FLOW_LANE: 'main' }), 'main');
+  assert.ok(eng.FLOW_GATE_MAX_WAIT_MS > 85_000 && eng.FLOW_GATE_MAX_WAIT_MS < 120_000);
+  // One name throwing does not lose the rest.
+  eng.__resetZeroDteFlowForTests();
+  const c2 = await eng.runZeroDteFlow(at(600), { force: true, universe: ['SPY', 'QQQ'], chainFn: async (s) => { if (s === 'SPY') throw new Error('boom'); return ch(s); }, gate: g, peek, walls: () => null, log: false });
+  assert.equal(c2.chains.read, 1); assert.match(c2.chains.failed[0], /SPY: boom/);
+});
+
+t('engine: a 15-min-old indicative quote publishes, labelled "delayed quote · 15m"; 25 min is refused with the reason', async () => {
+  const delayedChain = (nowMs: number, vol: number, ageMin: number) => async (sym: string) => sym !== 'AMZN' ? null : ({
+    spot: 247.2, fetchedAt: nowMs, source: 'Alpaca indicative',
+    rows: [row({ volume: vol, quoteTime: new Date(nowMs - ageMin * 60_000).toISOString() }), row({ occ: 'AMZN260930P00246000', strike: 246, type: 'put', volume: 100, last: 0.5, bid: 0.5, ask: 0.6, quoteTime: new Date(nowMs).toISOString() })],
+  });
+  for (const [age, ok] of [[15, true], [25, false]] as const) {
+    eng.__resetZeroDteFlowForTests();
+    const published: any[] = [];
+    const publishFn = async (r: any) => { published.push(r); return 'idea-d'; };
+    await eng.runZeroDteFlow(at(598), { force: true, universe: ['AMZN'], chainFn: delayedChain(at(598), 1000, age), gate, peek, walls: () => null, publish: true, publishFn, log: false });
+    await eng.runZeroDteFlow(at(600), { force: true, universe: ['AMZN'], chainFn: delayedChain(at(600), 5000, age), gate, peek, walls: () => null, publish: true, publishFn, log: false });
+    const r = eng.getZeroDteFlowState(at(600)).rows.find((x) => x.side === 'long')!;
+    assert.equal(r.state, 'fired');
+    if (ok) {
+      assert.equal(r.published, true, r.reason ?? '');
+      assert.equal(published[0].contract.quoteLabel, 'delayed quote · 15m');
+      assert.match(r.text, /delayed quote · 15m/);
+    } else {
+      assert.equal(r.published, false); assert.equal(published.length, 0);
+      assert.match(r.reason!, /quote refused: quote 25m old/);
+    }
+  }
 });
 
 t('outcomes: one line per fired trigger from injected bars', async () => {

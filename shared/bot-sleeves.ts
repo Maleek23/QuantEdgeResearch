@@ -16,7 +16,7 @@
  *
  * THE SLEEVES (each its own capacity)
  *   0dte    index & mega-cap 0–2 DTE ideas (index scalps, zero_dte_desk,
- *           zero_dte_flow, gex_magnet ≤ 2 DTE). Entry 09:35–11:30 ET (+13:30–15:00
+ *           zero_dte_flow, gex_magnet ≤ 2 DTE). Entry 09:31–11:30 ET (BOT_0DTE_START; +13:30–15:00
  *           with BOT_0DTE_AFTERNOON=1). Small fixed premium risk. Premium bracket:
  *           −40% stop · +50% arms a breakeven stop · +100% target · flat 15:45 ET.
  *   swing   NEXUS ideas ordered by the NEXUS grade (shared/nexus-grade.ts — the one
@@ -76,7 +76,8 @@ const hhmm = (v: string | undefined, d: number) => {
 };
 
 export function readBotSleeveConfig(env: Env = {}): BotSleeveConfig {
-  const windows: Array<[number, number]> = [[9 * 60 + 35, 11 * 60 + 30]];
+  // BOT_0DTE_START (HH:MM ET, default 09:31 — operator 2026-10-06: take open-drive ideas from the open).
+  const windows: Array<[number, number]> = [[hhmm(env.BOT_0DTE_START, 9 * 60 + 31), 11 * 60 + 30]];
   if (env.BOT_0DTE_AFTERNOON === '1' || env.BOT_0DTE_AFTERNOON === 'true') windows.push([13 * 60 + 30, 15 * 60]);
   const uni = String(env.BOT_0DTE_UNIVERSE ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
   return {

@@ -53,7 +53,14 @@ export const FLOW_CFG = {
   OR_MINUTES: 5,
   HOLD_BARS: 2,
   WALL_BLOCK_PCT: 0.005,
+  /** A quote at most this old is treated as current. */
   MAX_QUOTE_AGE_MS: 2 * 60_000,
+  /**
+   * Delayed quotes (2026-10-06): our option feeds are Alpaca INDICATIVE / CBOE (~15 min), so a
+   * 2-minute rule refused every trigger ("1 trigger(s), 0 published" all morning). A two-sided
+   * quote up to 20 min old with spread ≤ 15% is accepted and LABELLED "delayed quote · Nm".
+   */
+  MAX_DELAYED_QUOTE_AGE_MS: 20 * 60_000,
   MAX_SPREAD: 0.15,
   T1_GAIN: 0.5,
   T2_GAIN: 1.0,
@@ -71,7 +78,7 @@ export const FLOW_CFG = {
 } as const;
 
 export const FLOW_LOSS_RULES = [
-  'Entry only 09:35–11:30 ET; a quote older than 2 min or wider than 15% of mid is refused.',
+  'Entry only 09:35–11:30 ET; a one-sided quote, a quote older than 20 min, or one wider than 15% of mid is refused; a quote older than 2 min (or from a delayed feed) is labelled "delayed quote · Nm".',
   'Stop: underlying back through VWAP / opening-range mid, or premium −40%, whichever first.',
   'Targets in premium: +50% (T1), +100% (T2). Time stop 15:30 ET — never held into the close.',
   'At most 6 per day, one per symbol per side.',
@@ -268,17 +275,29 @@ export function scoreTrigger(f: FlowLeg, s: Structure, side: Side): number {
 
 // ─── quote + plan ────────────────────────────────────────────────────────
 
-export interface QuoteCheck { ok: boolean; mid: number | null; spreadPct: number | null; ageMs: number | null; reason: string | null }
-export function quoteCheck(c: Pick<ChainRow, 'bid' | 'ask' | 'quoteTime'>, nowMs: number): QuoteCheck {
+export interface QuoteCheck {
+  ok: boolean; mid: number | null; spreadPct: number | null; ageMs: number | null; reason: string | null;
+  /** True when the quote is > 2 min old or came from a delayed feed. */
+  delayed: boolean;
+  /** "delayed quote · Nm" when delayed, else null — carried into the idea text. */
+  label: string | null;
+}
+export function delayedQuoteLabel(ageMs: number | null): string {
+  return `delayed quote · ${ageMs == null ? '?' : Math.max(0, Math.round(ageMs / 60_000))}m`;
+}
+export function quoteCheck(c: Pick<ChainRow, 'bid' | 'ask' | 'quoteTime'>, nowMs: number, opts: { delayedFeed?: boolean } = {}): QuoteCheck {
   const mid = midOf(c.bid, c.ask);
   const at = c.quoteTime ? Date.parse(c.quoteTime) : NaN;
   const ageMs = Number.isFinite(at) ? Math.max(0, nowMs - at) : null;
   const spreadPct = mid && c.ask != null && c.bid != null ? +((c.ask - c.bid) / mid).toFixed(4) : null;
-  if (mid == null || !(mid > 0)) return { ok: false, mid: null, spreadPct, ageMs, reason: 'no two-sided quote' };
-  if (ageMs == null) return { ok: false, mid, spreadPct, ageMs, reason: 'quote has no timestamp' };
-  if (ageMs > FLOW_CFG.MAX_QUOTE_AGE_MS) return { ok: false, mid, spreadPct, ageMs, reason: `quote ${Math.round(ageMs / 1000)}s old (> 120s)` };
-  if (spreadPct != null && spreadPct > FLOW_CFG.MAX_SPREAD) return { ok: false, mid, spreadPct, ageMs, reason: `spread ${(spreadPct * 100).toFixed(1)}% of mid (> 15%)` };
-  return { ok: true, mid: +mid.toFixed(2), spreadPct, ageMs, reason: null };
+  const delayed = !!opts.delayedFeed || (ageMs != null && ageMs > FLOW_CFG.MAX_QUOTE_AGE_MS);
+  const label = delayed ? delayedQuoteLabel(ageMs) : null;
+  const no = (reason: string, m: number | null = mid): QuoteCheck => ({ ok: false, mid: m, spreadPct, ageMs, reason, delayed, label });
+  if (mid == null || !(mid > 0) || !(Number(c.bid) > 0) || !(Number(c.ask) > 0)) return no('no two-sided quote', mid != null && mid > 0 ? mid : null);
+  if (ageMs == null) return no('quote has no timestamp');
+  if (ageMs > FLOW_CFG.MAX_DELAYED_QUOTE_AGE_MS) return no(`quote ${Math.round(ageMs / 60_000)}m old (> ${FLOW_CFG.MAX_DELAYED_QUOTE_AGE_MS / 60_000}m, even for a delayed feed)`);
+  if (spreadPct != null && spreadPct > FLOW_CFG.MAX_SPREAD) return no(`spread ${(spreadPct * 100).toFixed(1)}% of mid (> 15%)`);
+  return { ok: true, mid: +mid.toFixed(2), spreadPct, ageMs, reason: null, delayed, label };
 }
 
 export interface FlowPlan {

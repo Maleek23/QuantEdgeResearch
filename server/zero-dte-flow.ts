@@ -6,16 +6,20 @@
  *   CYCLE every 2 min 09:34–15:30 ET (worker role; schedule in
  *   server/idea-producer-schedule.ts, own in-flight guard).
  *     • 09:35–11:30 — for every universe name (SPY QQQ IWM, ten mega caps, NEXUS
- *       tracked names): one small 0–2 DTE / ±2% Alpaca chain (each through the
- *       heavy-job gate, 'high', 20 s wait — a dropped slot skips that name this
- *       cycle, stated on the cycle) + the 0DTE sniper's shared 1-min bar store.
+ *       tracked names): one small 0–2 DTE / ±2% Alpaca chain each, ALL read inside ONE
+ *       heavy-gate job ('zero-dte-flow:chains', 'high', the INDEX lane by default,
+ *       110 s wait — ZERO_DTE_FLOW_LANE=main moves it back). 2026-10-06: 60 per-name
+ *       jobs in the main lane were "dropped after waiting 85s" 09:30–11:30 and only
+ *       8–10 of 13 chains were read per cycle. A dropped batch is stated on the cycle.
+ *       + the 0DTE sniper's shared 1-min bar store.
  *       Flow leg + structure leg + wall leg → a FIRED trigger, a WATCH row (flow
  *       passed, another leg did not), or nothing. SPY additionally runs the
  *       dominant-strike UNWIND detector.
  *     • after 11:30 — chains only for names with a fired row, to mark them
  *       (fired → reached at +50% mid / faded at −40%, the underlying stop, or 15:30).
  *   PUBLISH only with ZERO_DTE_FLOW=true: top ≤ 6/day by score, ≤ 1 per symbol per
- *   side, quote ≤ 2 min old and spread ≤ 15% (else refused, stated), through
+ *   side, two-sided quote ≤ 20 min old and spread ≤ 15% (older than 2 min or from a
+ *   delayed feed = labelled "delayed quote · Nm"; else refused, stated), through
  *   storage.createTradeIdea (publish gates + loss rules apply there) with
  *   lib/option-publish-plan for the holding period. Without the flag every
  *   trigger is watch-only and logged the same way.
@@ -58,6 +62,8 @@ export interface FlowContract {
   occ: string; strike: number; type: 'call' | 'put'; expiry: string; dte: number;
   bid: number | null; ask: number | null; mid: number | null; delta: number | null;
   quoteAt: string | null; quoteAgeS: number | null; spreadPct: number | null; source: string;
+  /** "delayed quote · Nm" when the quote is > 2 min old or from a delayed feed (Alpaca indicative, CBOE). */
+  quoteLabel?: string | null;
 }
 export interface FlowRow {
   id: string; kind: 'ignition' | 'unwind'; dateKey: string; symbol: string; side: Side; state: FlowState;
@@ -152,7 +158,14 @@ const defaultChain: ChainFn = async (sym) => {
     rows: ch.contracts.map((c) => ({ occ: c.occ, strike: c.strike, type: c.type, expiration: c.expiration, volume: c.volume, bid: c.bid, ask: c.ask, last: c.last, quoteTime: c.quoteTime, openInterest: c.openInterest, delta: c.delta })),
   };
 };
-const defaultGate: GateFn = async (name, fn) => (await import('./lib/heavy-job-gate')).runHeavy(name, fn, { priority: 'high', maxWaitMs: 20_000 });
+/** Heavy-gate lane for the batched chain read: 'index' (default) or 'main' (ZERO_DTE_FLOW_LANE=main). */
+export function flowGateLane(env: Record<string, string | undefined> = process.env): 'index' | 'main' {
+  return env.ZERO_DTE_FLOW_LANE === 'main' ? 'main' : 'index';
+}
+export const FLOW_GATE_MAX_WAIT_MS = 110_000; // inside the 2-minute cadence
+const defaultGate: GateFn = async (name, fn) => (await import('./lib/heavy-job-gate')).runHeavy(name, fn, { priority: 'high', lane: flowGateLane(), maxWaitMs: FLOW_GATE_MAX_WAIT_MS });
+/** Feeds whose quotes are delayed by construction. */
+export const isDelayedFeed = (source: string): boolean => /indicative|cboe|delayed|yahoo/i.test(source);
 
 async function trackedSymbols(): Promise<string[]> {
   try { return (await import('./nexus-tracked')).getTrackedSymbols(); } catch { return []; }
@@ -187,7 +200,7 @@ const k$ = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${Math.rou
 const cLabel = (c: { strike: number; type: 'call' | 'put'; dte: number }) => `${c.strike}${c.type === 'call' ? 'C' : 'P'} ${c.dte === 0 ? '0DTE' : `${c.dte}DTE`}`;
 function rowText(r: FlowRow): string {
   const head = `${r.symbol} ${r.side === 'long' ? 'CALLS' : 'PUTS'}`;
-  const c = r.contract ? ` · ${cLabel(r.contract)} @ ${r.plan ? `$${r.plan.entryPremium.toFixed(2)} mid` : '—'}` : '';
+  const c = r.contract ? ` · ${cLabel(r.contract)} @ ${r.plan ? `$${r.plan.entryPremium.toFixed(2)} mid${r.contract.quoteLabel ? ` (${r.contract.quoteLabel})` : ''}` : '—'}` : '';
   if (r.kind === 'unwind') return `${head} — unwind fade: ${r.unwind ?? ''}${c} · measuring`;
   const f = r.flow ? `${k$(r.flow.aggressive)} at-ask on ${r.flow.strike}${r.flow.type === 'call' ? 'C' : 'P'} in 10 min (${r.flow.relSize}× floor, vol ${r.flow.dayVolume} > OI ${r.flow.openInterest ?? '—'})` : 'flow —';
   return `${head} — flow ignition ${r.atEt} ET: ${f}${r.structure?.ok ? `, ${r.side === 'long' ? 'above VWAP + OR-high' : 'below VWAP + OR-low'} held ${r.structure.heldBars} bars` : ''}${c} · measuring`;
@@ -206,12 +219,12 @@ async function publishFlowIdea(r: FlowRow, nowMs: number): Promise<string | null
     symbol: r.symbol, assetType: 'option', direction: r.side,
     entryPrice: spot, targetPrice: target, stopLoss: pp.stopLoss, riskRewardRatio: pp.riskRewardRatio,
     optionType: c.type, strikePrice: c.strike, expiryDate: c.expiry, entryPremium: p.entryPremium,
-    catalyst: `${r.symbol} ${cLabel(c)} — ${r.kind === 'unwind' ? 'dominant-strike unwind fade' : 'opening-flow ignition'} @ ${r.atEt} ET · mid $${p.entryPremium.toFixed(2)} (measuring)`,
+    catalyst: `${r.symbol} ${cLabel(c)} — ${r.kind === 'unwind' ? 'dominant-strike unwind fade' : 'opening-flow ignition'} @ ${r.atEt} ET · mid $${p.entryPremium.toFixed(2)}${c.quoteLabel ? ` · ${c.quoteLabel}` : ''} (measuring)`,
     analysis: [
       r.kind === 'unwind' ? `Trigger: ${r.unwind}.` : `Trigger: ${r.flow ? `${k$(r.flow.aggressive)} aggressive (last print at/near the ask) premium on ${r.flow.occ} in the last 10 min — ${r.flow.relSize}× the ${k$(r.flow.floor)} floor, ${Math.round(r.flow.share * 100)}% of the side's in-band at-ask flow; day volume ${r.flow.dayVolume} > OI ${r.flow.openInterest} (opening). Flow side is a proxy: the contract's last print vs its quote at each 2-min read.` : ''}`,
       r.structure ? `Structure: last ${r.structure.last?.toFixed(2)} vs VWAP ${r.structure.vwap?.toFixed(2)}, opening range ${r.structure.orLow?.toFixed(2)}–${r.structure.orHigh?.toFixed(2)}, broken and held ${r.structure.heldBars} bars.` : '',
       r.wall ? `Walls: ${r.wall}.` : '',
-      `Contract: ${c.occ}, bid ${c.bid ?? '—'} / ask ${c.ask ?? '—'}, mid $${p.entryPremium.toFixed(2)} (${c.source}, quote ${c.quoteAgeS ?? '—'}s old, spread ${c.spreadPct != null ? (c.spreadPct * 100).toFixed(1) : '—'}%).`,
+      `Contract: ${c.occ}, bid ${c.bid ?? '—'} / ask ${c.ask ?? '—'}, mid $${p.entryPremium.toFixed(2)} (${c.source}${c.quoteLabel ? ` · ${c.quoteLabel} — NOT a live quote` : ''}, quote ${c.quoteAgeS ?? '—'}s old, spread ${c.spreadPct != null ? (c.spreadPct * 100).toFixed(1) : '—'}%).`,
       `Plan (premium): T1 $${p.t1Premium} (+50%)${p.t1Underlying != null ? ` ≈ underlying ${p.t1Underlying}` : ''}, T2 $${p.t2Premium} (+100%)${p.t2Underlying != null ? ` ≈ ${p.t2Underlying}` : ''}${p.wallAhead != null ? `; nearest wall ahead ${p.wallAhead}` : ''} — ${p.mapping}. Stop: underlying back through ${p.stopBasis} ${p.stopUnderlying} or premium $${p.stopPremium} (−40%). Time stop ${p.timeStopEt} ET.`,
       pp.note,
       `Loss rules: ${FLOW_LOSS_RULES.join(' ')}`,
@@ -223,7 +236,7 @@ async function publishFlowIdea(r: FlowRow, nowMs: number): Promise<string | null
     exitBy: new Date(etWallMs(r.dateKey, FLOW_CFG.TIME_STOP_MIN)).toISOString(),
     expiryTier: c.dte === 0 ? '0DTE' : 'DAILY', optionDte: c.dte, tradeType: 'scalp', holdingPeriod: pp.holdingPeriod, outcomeStatus: 'open', confidenceScore: 50,
     qualitySignals: [
-      `kind:${r.kind}`, `side:${r.side}`, `trigger_at:${r.at}`, `score:${r.score ?? '—'}`, 'validated:false', 'measuring', 'desk:zero_dte_flow',
+      `kind:${r.kind}`, `side:${r.side}`, c.quoteLabel ? `quote:delayed_${Math.round((c.quoteAgeS ?? 0) / 60)}m` : 'quote:live', `trigger_at:${r.at}`, `score:${r.score ?? '—'}`, 'validated:false', 'measuring', 'desk:zero_dte_flow',
       r.flow ? `flow_aggr:${r.flow.aggressive}` : '', r.flow ? `flow_rel:${r.flow.relSize}` : '', r.flow?.sweeps ? `bullflow_sweeps:${r.flow.sweeps}` : '',
     ].filter(Boolean),
     convergenceSignalsJson: { zeroDteFlow: { ...r, lossRules: FLOW_LOSS_RULES } },
@@ -240,8 +253,8 @@ export async function runZeroDteFlow(nowMs = Date.now(), opts: { force?: boolean
 }
 
 function contractOf(c: ChainRow, todayKey: string, nowMs: number, source: string): FlowContract {
-  const q = quoteCheck(c, nowMs);
-  return { occ: c.occ, strike: c.strike, type: c.type, expiry: c.expiration, dte: calendarDays(todayKey, c.expiration), bid: c.bid, ask: c.ask, mid: q.mid ?? midOf(c.bid, c.ask), delta: c.delta, quoteAt: c.quoteTime, quoteAgeS: q.ageMs != null ? Math.round(q.ageMs / 1000) : null, spreadPct: q.spreadPct, source };
+  const q = quoteCheck(c, nowMs, { delayedFeed: isDelayedFeed(source) });
+  return { occ: c.occ, strike: c.strike, type: c.type, expiry: c.expiration, dte: calendarDays(todayKey, c.expiration), bid: c.bid, ask: c.ask, mid: q.mid ?? midOf(c.bid, c.ask), delta: c.delta, quoteAt: c.quoteTime, quoteAgeS: q.ageMs != null ? Math.round(q.ageMs / 1000) : null, spreadPct: q.spreadPct, source, quoteLabel: q.label };
 }
 
 async function cycle(nowMs: number, opts: Parameters<typeof runZeroDteFlow>[1] = {}): Promise<FlowCycle> {
@@ -291,10 +304,25 @@ async function cycle(nowMs: number, opts: Parameters<typeof runZeroDteFlow>[1] =
   const pendingLog: object[] = [];
   const fresh: FlowRow[] = [];
 
+  // Every chain in ONE gated job, so a busy lane costs one wait per cycle, not one per name.
+  type Read = { chain: FlowChain | null } | { error: string };
+  let reads: Map<string, Read> | undefined;
+  try {
+    reads = await gate('zero-dte-flow:chains', async () => {
+      const out = new Map<string, Read>();
+      for (const sym of syms) {
+        try { out.set(sym, { chain: await chainFn(sym) }); } catch (e) { out.set(sym, { error: (e as Error).message }); }
+      }
+      return out;
+    });
+  } catch (e) { base.errors.push(`chains: ${(e as Error).message}`); }
+  if (reads === undefined) logger.warn(`[0DTE-FLOW] chain batch dropped by the heavy gate (${syms.length} names unread this cycle)`);
+
   for (const sym of syms) {
-    let chain: FlowChain | null | undefined;
-    try { chain = await gate(`zero-dte-flow:${sym}`, () => chainFn(sym)); } catch (e) { base.chains.failed.push(`${sym}: ${(e as Error).message}`); continue; }
-    if (chain === undefined) { base.chains.dropped.push(sym); continue; }
+    const read = reads?.get(sym);
+    if (read === undefined) { base.chains.dropped.push(sym); continue; }
+    if ('error' in read) { base.chains.failed.push(`${sym}: ${read.error}`); continue; }
+    const chain = read.chain;
     if (!chain || !chain.rows.length) { base.chains.failed.push(`${sym}: no chain`); continue; }
     base.chains.read++;
     const held = peek(sym);
@@ -342,7 +370,7 @@ async function cycle(nowMs: number, opts: Parameters<typeof runZeroDteFlow>[1] =
       if (st.ok && !wb.blocked) {
         // FIRED — stamped now (the first cycle all three legs agree).
         row.state = 'fired'; row.at = new Date(nowMs).toISOString(); row.atEt = etSec(nowMs);
-        const q = quoteCheck(fc, nowMs);
+        const q = quoteCheck(fc, nowMs, { delayedFeed: isDelayedFeed(chain.source) });
         if (q.ok && q.mid) row.plan = planFor(side, spot, q.mid, fc.delta, st, walls);
         else row.reason = `quote refused: ${q.reason}`;
         fresh.push(row);
@@ -371,7 +399,7 @@ async function cycle(nowMs: number, opts: Parameters<typeof runZeroDteFlow>[1] =
           stateWhy: null, lastMid: null, lastMarkAt: null, text: '', measuring: true,
         };
         if (atm) {
-          const q = quoteCheck(atm, nowMs);
+          const q = quoteCheck(atm, nowMs, { delayedFeed: isDelayedFeed(chain.source) });
           const st = structureFor(bars, sig.side);
           // Stop for a fade = back through the strike it was rejected from.
           if (q.ok && q.mid) row.plan = { ...planFor(sig.side, spot, q.mid, atm.delta, st, walls), stopUnderlying: sig.strike, stopBasis: `the unwound ${sig.strike} strike` };
@@ -401,6 +429,7 @@ async function cycle(nowMs: number, opts: Parameters<typeof runZeroDteFlow>[1] =
       }
     }
     r.text = rowText(r);
+    if (!r.published) logger.info(`[0DTE-FLOW] not published: ${r.symbol} ${r.kind} ${r.side}${r.contract ? ` ${r.contract.occ}` : ''} — ${r.reason ?? (r.plan ? 'unknown' : 'no plan')}`);
     pendingLog.push({ type: r.kind === 'unwind' ? 'unwind' : 'fired', key: r.id, dateKey, at: r.at, row: r });
     try { const { pulse } = await import('./system-pulse'); pulse('alert', r.text); } catch { /* decoration */ }
   }
@@ -461,7 +490,7 @@ export function getZeroDteFlowState(nowMs = Date.now()) {
       flow: `≥ $${Math.round(FLOW_CFG.MIN_PREMIUM_INDEX / 1000)}K (SPY/QQQ/IWM) / $${Math.round(FLOW_CFG.MIN_PREMIUM_SINGLE / 1000)}K (single names) at-ask premium in 10 min on a 0–2 DTE strike 0.5% ITM–1.5% OTM, day volume > OI`,
       structure: 'above VWAP with the 5-min opening-range high broken and held 2 closed 1-min bars (puts mirror)',
       wall: 'no opposing GEX wall within 0.5% (wall-touch map; unchecked when none held)',
-      plan: 'contract = the flowed strike, entry = live mid (quote ≤ 2 min, spread ≤ 15%); +50% / +100% premium targets; stop underlying through VWAP/OR-mid or −40% premium; time stop 15:30',
+      plan: 'contract = the flowed strike, entry = mid (two-sided quote ≤ 20 min, labelled "delayed quote · Nm" past 2 min or on a delayed feed; spread ≤ 15%); +50% / +100% premium targets; stop underlying through VWAP/OR-mid or −40% premium; time stop 15:30',
       unwind: 'SPY dominant 0DTE strike: aggressor-signed net contracts −40% from a ≥ 3,000 peak in 30 min + price rejected from the strike → ATM opposite-side fade',
       caps: '≤ 6 published per day, ≤ 1 per symbol per side; ZERO_DTE_FLOW=true to publish',
     },
