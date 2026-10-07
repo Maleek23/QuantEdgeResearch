@@ -1,6 +1,7 @@
 /**
- * DEV-ONLY fixtures for the /dev/zerodte harness (never imported by a
- * production build: main.tsx loads this behind `import.meta.env.DEV`).
+ * Fixtures for the /dev/zerodte harness (DEV-only through main.tsx) — and, via
+ * zeroDteDemoAnswer(), the landing's real-app frames (demo/demo-embed.ts, the
+ * 'live' session), which load only inside a same-origin landing iframe.
  *
  *   /dev/zerodte?fx=preopen   09:20 ET — pre-market, nothing actionable, engine idle
  *   /dev/zerodte?fx=live      09:40 ET — flow ignition LIVE, ideas ARMED / WATCH, a stale quote
@@ -159,6 +160,19 @@ function sniper(fx: Fx) {
 }
 
 const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+/** The 'live' session (09:40 ET) the landing's demo frames are pinned to. */
+export const ZD_DEMO_NOW = NOW.live;
+/** Answers for the 0DTE desk's reads in the 'live' session, or null for other paths. */
+export function zeroDteDemoAnswer(p: string): unknown | null {
+  const fx: Fx = 'live';
+  if (p === '/api/zero-dte/desk') return desk(fx);
+  if (p === '/api/zero-dte/flow') return flow(fx);
+  if (p === '/api/zero-dte/sniper') return sniper(fx);
+  if (p === '/api/wall-touch') return { enabled: true, lastCycle: null, rows: [], alerts: [], map: null, honesty: '' };
+  if (p === '/api/wall-touch/report') return { sessions: 12, all: { n: 0, rejectionRate: null, avgMfePct: null, avgOptMaxMult: null, options: 0 }, awaitingOutcome: 0, byWall: {} };
+  return null;
+}
 
 export function installZeroDteMocks(): Fx {
   const sp = new URLSearchParams(window.location.search);

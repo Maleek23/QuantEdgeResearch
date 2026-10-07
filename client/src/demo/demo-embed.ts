@@ -19,6 +19,83 @@
  * (sources labelled as fixtures); the landing badges every frame "Sample data".
  */
 import { harnessApi } from '../dev/harness-fixtures';
+import { demoConvictions } from './demo-picks';
+import { ZD_DEMO_NOW, zeroDteDemoAnswer } from '../dev/zerodte-mocks';
+
+/**
+ * The frame's clock: pinned to a live morning session (09:40 ET, the 0DTE fixture's
+ * minute) and running forward in real time — every desk shows an active session.
+ */
+function pinClock() {
+  const RealDate = Date;
+  const offset = ZD_DEMO_NOW - RealDate.now();
+  class DemoDate extends RealDate {
+    constructor(...a: unknown[]) {
+      if (a.length === 0) super(RealDate.now() + offset);
+      else super(...(a as [number]));
+    }
+    static now() { return RealDate.now() + offset; }
+  }
+  (window as unknown as { Date: DateConstructor }).Date = DemoDate as unknown as DateConstructor;
+}
+
+/** A balanced sample journal: ~half winners, small sizes, a modest net — not a P&L headline. */
+function demoJournal(now: number) {
+  const syms = ['SPY', 'NVDA', 'QQQ', 'TSLA', 'AMD', 'AAPL', 'META', 'MSFT', 'IWM', 'PLTR'];
+  let seed = 7; const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  const trades = Array.from({ length: 38 }, (_, i) => {
+    // 18 winners / 20 losers, similar sizes: a working, unglamorous book.
+    const win = [0, 2, 3, 6, 8, 9, 12, 14, 15, 18, 20, 23, 25, 27, 30, 32, 34, 36].includes(i);
+    const entry = +(0.8 + r() * 2.4).toFixed(2);
+    const move = win ? 0.14 + r() * 0.26 : -(0.13 + r() * 0.24);
+    const exit = +(entry * (1 + move)).toFixed(2);
+    const qty = 1 + (i % 4 === 0 ? 1 : 0);
+    const t0 = now - (i * 0.8 + 0.2) * 864e5;
+    const pnl = +((exit - entry) * qty * 100 - 1.3).toFixed(2);
+    return { id: `demo-t${i}`, symbol: syms[i % syms.length], assetType: 'option', direction: 'long', optionType: i % 3 ? 'call' : 'put',
+      strikePrice: 100 + (i % 9) * 5, expiryDate: new Date(t0 + 7 * 864e5).toISOString().slice(0, 10), quantity: qty, entryPrice: entry, exitPrice: exit, fees: 1.3,
+      entryTime: new Date(t0).toISOString(), exitTime: new Date(t0 + (40 + i * 7) * 60_000).toISOString(), holdingMinutes: 40 + i * 7,
+      realizedPnL: pnl, realizedPnLPercent: +(move * 100).toFixed(1), grossPnL: pnl + 1.3, status: 'closed', outcome: pnl >= 0 ? 'win' : 'loss',
+      notes: null, emotion: null, setupType: ['breakout', 'pullback', 'vwap reclaim', 'opening range'][i % 4], mistakeTag: win ? null : i % 5 === 0 ? 'chased entry' : null,
+      rating: null, screenshot: null, broker: 'webull' };
+  });
+  return { trades, count: trades.length };
+}
+
+/** Realistic wording where the shared fixtures carry test labels (the frames never say "fixture"). */
+const SOURCE_FOR_KEY: Record<string, string> = { optionsSource: 'tradier', chainSource: 'tradier', broker: 'webull', provenance: 'nexus', streamState: 'live' };
+function sanitize(v: unknown, key = ''): unknown {
+  if (typeof v === 'string') {
+    if (/^(test_harness_fixture|TEST HARNESS fixture|fixture)$/i.test(v)) {
+      if (SOURCE_FOR_KEY[key]) return SOURCE_FOR_KEY[key];
+      if (key === 'regime') return 'risk-on';
+      if (key === 'owner') return 'index engine';
+      if (key === 'label' || key === 'note' || key === 'basis' || key === 'why' || key === 'origin') return '';
+      return 'tradier';
+    }
+    if (/^fixture session$/i.test(v)) return 'Regular session';
+    if (/harness/i.test(v)) return 'Model output — unvalidated, educational.';
+    if (/test-harness fixture — not a real idea/i.test(v)) return 'Setup published by the NEXUS engine with its levels printed.';
+    if (/synthetic test-harness fixture/i.test(v)) return 'Model output — unvalidated, educational.';
+    if (/fixture idea - synthetic/i.test(v)) return 'VWAP reclaim with calls leading; dealers long gamma into the call wall.';
+    return v
+      .replace(/\s*\((?:test[- ]harness )?fixture(?:[^)]*)?\)/gi, '')
+      .replace(/test[_ -]?harness[_ ]?fixture/gi, 'tradier')
+      .replace(/\bFIXTURE\b/g, 'W')
+      .replace(/\bfixture[:\s]*/gi, '')
+      .replace(/^Synthetic /, '');
+  }
+  if (Array.isArray(v)) {
+    const out = v.map((x) => sanitize(x, key));
+    return key === 'notes' || key === 'gradeWhy' || key === 'alertNames' ? out.filter((x) => x !== '' && x !== 'tradier') : out;
+  }
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) o[k] = sanitize(x, k);
+    return o;
+  }
+  return v;
+}
 
 /**
  * Answers the landing frames need that the dev harness has no fixture for. Sample
@@ -26,6 +103,17 @@ import { harnessApi } from '../dev/harness-fixtures';
  */
 function demoExtra(path: string): { status: number; body: unknown } | null {
   const now = Date.now();
+  const zd = zeroDteDemoAnswer(path);
+  if (zd) return { status: 200, body: zd };
+  if (path === '/api/convictions') return { status: 200, body: demoConvictions(now) };
+  if (path.startsWith('/api/quotes/batch/')) {
+    const picks = demoConvictions(now).picks;
+    const syms = decodeURIComponent(path.slice('/api/quotes/batch/'.length)).split(',').filter(Boolean);
+    const known = Object.fromEntries(picks.map((p) => [p.symbol, p.currentPrice]));
+    const base: Record<string, number> = { SPY: 671.6, QQQ: 603.4, IWM: 246.1, SPX: 6741.2, ...known };
+    return { status: 200, body: { quotes: Object.fromEntries(syms.map((s, i) => [s, { price: base[s] ?? +(60 + ((i * 37) % 300)).toFixed(2), changePercent: +(((i * 13) % 7) / 5 - 0.4).toFixed(2), asOf: new Date(now - 20_000).toISOString(), session: 'regular', source: 'alpaca-iex' }])) } };
+  }
+  if (path === '/api/journal/trades') return { status: 200, body: demoJournal(now) };
   const iso = (ms: number) => new Date(now - ms).toISOString();
   if (path.startsWith('/api/volume-read/')) {
     return { status: 200, body: { asOf: iso(4 * 60_000), sessionRvol: 1.4, recentRvol: 1.8, sessionVolume: 31_200_000,
@@ -39,8 +127,8 @@ function demoExtra(path: string): { status: number; body: unknown } | null {
   }
   if (path.startsWith('/api/bullflow/net-premium-series/')) {
     const sym = decodeURIComponent(path.split('/').pop() ?? 'SPY');
-    const open = new Date(); open.setUTCHours(13, 30, 0, 0);
-    const n = 48; let c = 0; let p = 0;
+    const open = new Date(); open.setUTCHours(open.getUTCMonth() >= 2 && open.getUTCMonth() <= 10 ? 13 : 14, 30, 0, 0);
+    const n = Math.max(6, Math.min(78, Math.floor((now - open.getTime()) / 300_000))); let c = 0; let p = 0;
     const points = Array.from({ length: n }, (_, i) => { c += 40_000 + Math.sin(i / 4) * 60_000; p += 25_000 + Math.cos(i / 5) * 50_000; return { t: new Date(open.getTime() + i * 5 * 60_000).toISOString(), calls: Math.round(c), puts: Math.round(p) }; });
     return { status: 200, body: { enabled: true, symbol: sym, series: { points }, generatedAt: iso(60_000) } };
   }
@@ -81,6 +169,11 @@ export function installDemo() {
   try { Object.defineProperty(window, 'localStorage', { value: memoryStorage(seed), configurable: true }); } catch { /* keep native */ }
   try { Object.defineProperty(window, 'sessionStorage', { value: memoryStorage({ 'qe-boot-seen': '1' }), configurable: true }); } catch { /* keep native */ }
   document.documentElement.setAttribute('data-qe-demo', '');
+  pinClock();
+  // Belt and braces: no test-mode strip can ever paint inside a landing frame.
+  const st = document.createElement('style');
+  st.textContent = '[data-harness]{display:none!important}';
+  document.head.appendChild(st);
 
   const misses = new Set<string>();
   (window as unknown as { __qeDemoMisses: Set<string> }).__qeDemoMisses = misses;
@@ -94,7 +187,19 @@ export function installDemo() {
       ? demoExtra(url.pathname) ?? harnessApi(url.pathname, url.searchParams, { tier: 'pro' })
       : { status: 200, body: { ok: true, demo: true } };
     if (a.status === 404) misses.add(url.pathname);
-    return new Response(JSON.stringify(a.body), { status: a.status, headers: { 'content-type': 'application/json' } });
+    let body = sanitize(a.body);
+    // Charts for the board's setups end at the setup's own price (the shared bar fixture is generic).
+    const hp = url.pathname.match(/^\/api\/historical-prices\/([^/]+)/);
+    if (hp && body && typeof body === 'object' && Array.isArray((body as { data?: unknown }).data)) {
+      const target = demoConvictions(Date.now()).picks.find((p) => p.symbol === decodeURIComponent(hp[1]).toUpperCase())?.currentPrice;
+      const bars = (body as { data: Array<Record<string, number>> }).data;
+      const last = bars[bars.length - 1]?.close;
+      if (target && last) {
+        const k = target / last;
+        body = { ...(body as object), data: bars.map((b) => ({ ...b, open: +(b.open * k).toFixed(2), high: +(b.high * k).toFixed(2), low: +(b.low * k).toFixed(2), close: +(b.close * k).toFixed(2) })) };
+      }
+    }
+    return new Response(JSON.stringify(body), { status: a.status, headers: { 'content-type': 'application/json' } });
   };
   // A socket that never connects (and never logs a connection error): readyState CLOSED.
   class NoSocket extends EventTarget {
