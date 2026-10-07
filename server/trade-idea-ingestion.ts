@@ -229,7 +229,17 @@ function markIngested(symbol: string, source: IdeaSource, assetType?: string): v
  */
 export async function persistPreparedTradeIdea(
   rawIdea: Record<string, any>,
-  options: { cooldownMs?: number; dedupWindowHours?: number } = {},
+  options: {
+    cooldownMs?: number;
+    dedupWindowHours?: number;
+    /**
+     * Skip the open-row checks (same source open on the symbol; same-direction
+     * open from any source). For intraday contract publishers (index 0DTE
+     * scalps) whose own instrument-level dedup window is the right unit: a swing
+     * SPY idea must not block a 0DTE SPY scalp, nor one scalp the next.
+     */
+    intradayContract?: boolean;
+  } = {},
 ): Promise<boolean> {
   const symbol = String(rawIdea.symbol ?? '').trim().toUpperCase();
   const source = String(rawIdea.source ?? '') as IdeaSource;
@@ -241,11 +251,11 @@ export async function persistPreparedTradeIdea(
   const priorIngest = recentIngestions.get(key);
   const cooldownMs = options.cooldownMs ?? INGESTION_COOLDOWN_MS;
   if (priorIngest != null && Date.now() - priorIngest < cooldownMs) return false;
-  if (await isDuplicateInDb(symbol, source)) {
+  if (!options.intradayContract && await isDuplicateInDb(symbol, source)) {
     markIngested(symbol, source, assetType);
     return false;
   }
-  const held = await isSymbolAlreadyHeld(symbol, rawIdea.direction);
+  const held = options.intradayContract ? { held: false } as { held: boolean; existingSource?: string; n?: number } : await isSymbolAlreadyHeld(symbol, rawIdea.direction);
   if (held.held) {
     markIngested(symbol, source, assetType);
     logger.info(`[INGESTION] ⛔ Blocked prepared ${symbol} from ${source}: already held (${held.n} open row(s) from ${held.existingSource})`);

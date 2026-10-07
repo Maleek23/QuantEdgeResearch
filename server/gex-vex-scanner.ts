@@ -902,7 +902,10 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
           entryPrice: play.spotPrice,
           targetPrice: underlyingTarget,
           stopLoss: underlyingStop,
-          riskRewardRatio: Math.abs(underlyingTarget - play.spotPrice) / Math.abs(play.spotPrice - underlyingStop),
+          riskRewardRatio: (() => {
+            const risk = Math.abs(play.spotPrice - underlyingStop);
+            return risk > 0 ? +(Math.abs(underlyingTarget - play.spotPrice) / risk).toFixed(2) : 0;
+          })(),
           // Contract premium is separate from the share-price ladder.
           entryPremium: enriched.entryPrice,
           optionType: enriched.optionType,

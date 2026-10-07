@@ -677,7 +677,7 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
 
   try {
     const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
-    if (!(await persistPreparedTradeIdea(tradeIdea, { cooldownMs: 30 * 60_000, dedupWindowHours: 0.5 }))) {
+    if (!(await persistPreparedTradeIdea(tradeIdea, { cooldownMs: 0, dedupWindowHours: 0.5, intradayContract: true }))) {
       // Same contract already open / published this session — no re-alert.
       recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
       logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not published — a shared persistence gate blocked it`);
