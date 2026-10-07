@@ -18,6 +18,7 @@ import { expiryCloseIso } from '../shared/journal-expiry';
 import { horizonTradingDays } from '../shared/loss-rules';
 import { planExitTiming, barrierFill, formatExitDate, type TimedBar, type ExitTimingIdea } from '../shared/exit-hit-time';
 import { premiumAtTouch, priceOptionBarrierExit, PRICED_AT_PASS } from '../shared/option-exit-pricing';
+import { exceedsOptionValue, fillOnStrikeScale, maxOptionValue, safeIntrinsic } from '../shared/option-value-bounds';
 import { ensureScorableOptionIdea, UNDERLYING_ONLY_SIGNAL, UNDERLYING_ONLY_NOTE_HEAD } from '../shared/option-premium-guard';
 import { computeAtrStopFloor, atr14, type DailyBar } from '../server/lib/atr-stop-floor';
 import { optionPublishPlan } from '../server/lib/option-publish-plan';
@@ -242,6 +243,31 @@ t('a stop never books a gain unless the stop fill itself is on the profitable si
   // Targets may gain; intrinsic floor at the fill.
   const tgt = priceOptionBarrierExit({ outcome: 'hit_target', direction: 'long', entryPrice: 80, fillPrice: 88.92, entryPremium: 4.55, touchPremium: null, passPremium: 5.22, strike: 77, optionType: 'call' });
   assert.equal(tgt.exitPremium, 11.92);
+});
+t('intrinsic floor skipped when the fill is not on the strike scale (premium-space / foreign-scale fill)', () => {
+  // SMCI-style premium ladder: put strike 40, stop "fill" 1.55 (a premium). Old floor: 40 − 1.55 = $38.45 exit.
+  const put = priceOptionBarrierExit({ outcome: 'hit_stop', direction: 'short', entryPrice: 3.09, fillPrice: 1.55, entryPremium: 3.09, touchPremium: null, passPremium: 2.1, strike: 40, optionType: 'put' });
+  assert.equal(put.exitPremium, 2.1);
+  assert.match(put.note, /intrinsic floor skipped/);
+  // SPX strike against a SPY-scale fill.
+  const spx = priceOptionBarrierExit({ outcome: 'hit_target', direction: 'short', entryPrice: 670, fillPrice: 668, entryPremium: 4, touchPremium: null, passPremium: 6, strike: 6700, optionType: 'put' });
+  assert.equal(spx.exitPremium, 6);
+  assert.equal(safeIntrinsic('put', 6700, 668), null);
+  assert.equal(safeIntrinsic('call', 100, 104), 4);
+  assert.equal(fillOnStrikeScale(1.55, 40), false);
+});
+t('a recorded exit premium above the contract maximum (call ≤ S, put ≤ K) is withheld', () => {
+  const bad = priceOptionBarrierExit({ outcome: 'hit_target', direction: 'long', entryPrice: 100, fillPrice: 104, entryPremium: 2, touchPremium: 866, passPremium: null, strike: 100, optionType: 'call' });
+  assert.equal(bad.exitPremium, null);
+  assert.equal(bad.basis, 'withheld');
+  assert.match(bad.note, /exceeds what the contract can be worth/);
+  assert.equal(exceedsOptionValue(41, 'put', 40, null), true);
+  assert.equal(exceedsOptionValue(39, 'put', 40, null), false);
+  assert.equal(maxOptionValue('call', 100, null), Infinity);
+  const s = src('server/performance-validation-service.ts');
+  assert.match(s, /safeIntrinsic\(isCall \? 'call' : 'put', strike, underlyingExit\)/);
+  assert.match(s, /exceedsOptionValue\(effective/);
+  assert.match(src('research/repair-option-gains.ts'), /safeIntrinsic\(x\.option_type, k, und\)/);
 });
 t('service wiring: barrier option exits priced via the touch helper, stop gains logged', () => {
   const s = src('server/performance-validation-service.ts');

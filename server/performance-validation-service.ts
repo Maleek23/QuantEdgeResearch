@@ -3,6 +3,7 @@ import { PerformanceValidator, computeRealisedPnl } from "./performance-validato
 import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
 import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pricing";
+import { exceedsOptionValue, fillOnStrikeScale, safeIntrinsic } from "@shared/option-value-bounds";
 import { expiryDay } from "@shared/option-expiry";
 import { readLossRulesStamp, progressR } from "@shared/loss-rules";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
@@ -377,11 +378,11 @@ class PerformanceValidationService {
             const isCall = String((ideaForResult as any).optionType ?? '').toLowerCase().startsWith('c');
             const underlyingExit = Number(result.exitPrice);
 
-            let effective = livePremium;
+            let effective: number | null = livePremium;
             if (Number.isFinite(strike) && strike > 0 && Number.isFinite(underlyingExit) && underlyingExit > 0) {
-              const intrinsic = isCall
-                ? Math.max(0, underlyingExit - strike)
-                : Math.max(0, strike - underlyingExit);
+              // Only on the strike's scale (shared/option-value-bounds.ts): a
+              // premium-space or foreign-scale exit made "intrinsic" ≈ strike.
+              const intrinsic = safeIntrinsic(isCall ? 'call' : 'put', strike, underlyingExit) ?? 0;
               if (intrinsic > livePremium) {
                 console.log(
                   `  ⚠️  ${ideaForResult.symbol} quoted exit premium $${livePremium.toFixed(2)} is below ` +
@@ -391,7 +392,12 @@ class PerformanceValidationService {
                 effective = intrinsic;
               }
             }
-            exitPremium = Math.round(effective * 100) / 100;
+            const capUnderlying = fillOnStrikeScale(underlyingExit, strike) ? underlyingExit : null;
+            if (exceedsOptionValue(effective, isCall ? 'call' : 'put', strike, capUnderlying)) {
+              console.warn(`  🚩 ${ideaForResult.symbol} ${ideaId}: exit premium $${effective} exceeds the contract's maximum value — not recorded`);
+              effective = null;
+            }
+            exitPremium = effective == null ? null : Math.round(effective * 100) / 100;
           }
           if (exitPremium != null) {
             const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;

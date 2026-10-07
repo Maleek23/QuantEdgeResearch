@@ -20,6 +20,8 @@
  *     win, and the caller logs the row.
  */
 
+import { exceedsOptionValue, fillOnStrikeScale, optionSideOf, safeIntrinsic } from './option-value-bounds';
+
 export interface PremiumBar { t: number; o: number; h: number; l: number; c: number }
 
 export const EXIT_PREMIUM_TAG_RE = /\[exit-premium:(touch_bar|pass|withheld)\]/;
@@ -80,11 +82,21 @@ export function priceOptionBarrierExit(i: OptionBarrierExitInput): OptionBarrier
   let floorNote = '';
   const strike = Number(i.strike);
   if (Number.isFinite(strike) && strike > 0 && Number.isFinite(i.fillPrice) && i.fillPrice > 0) {
-    const intrinsic = String(i.optionType ?? '').toLowerCase().startsWith('p')
-      ? Math.max(0, strike - i.fillPrice) : Math.max(0, i.fillPrice - strike);
-    if (intrinsic > px) { floorNote = ` (quote ${r2(raw)} below intrinsic ${r2(intrinsic)} at the fill — intrinsic used)`; px = intrinsic; }
+    // NEXUS book audit 2026-10-06: the floor only applies when the fill is on
+    // the strike's scale — a premium-space or foreign-scale fill made the
+    // "intrinsic" ≈ the strike and booked thousands per contract.
+    const intrinsic = safeIntrinsic(i.optionType, strike, i.fillPrice);
+    if (intrinsic == null) floorNote = ` (fill ${i.fillPrice} not on strike ${strike}'s scale — intrinsic floor skipped)`;
+    else if (intrinsic > px) { floorNote = ` (quote ${r2(raw)} below intrinsic ${r2(intrinsic)} at the fill — intrinsic used)`; px = intrinsic; }
   }
   px = r2(px);
+  const underlyingForCap = fillOnStrikeScale(i.fillPrice, strike) ? i.fillPrice : null;
+  if (exceedsOptionValue(px, i.optionType, strike, underlyingForCap)) {
+    return {
+      exitPremium: null, basis: 'withheld',
+      note: `[exit-premium:withheld] exit premium ${px} exceeds what the contract can be worth (${optionSideOf(i.optionType) === 'put' ? `put ≤ strike ${strike}` : `call ≤ underlying ${underlyingForCap}`}) — not recorded`,
+    };
+  }
   const how = basis === 'touch_bar'
     ? `[exit-premium:touch_bar] priced from the contract's own bar at the touch${i.touchDetail ? ` (${i.touchDetail})` : ''}`
     : `[exit-premium:pass] ${PRICED_AT_PASS}`;
