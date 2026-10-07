@@ -685,6 +685,8 @@ export interface IStorage {
   getPaperPositionById(id: string): Promise<PaperPosition | undefined>;
   updatePaperPosition(id: string, updates: Partial<PaperPosition>): Promise<PaperPosition | undefined>;
   closePaperPosition(id: string, exitPrice: number, exitReason: string): Promise<PaperPosition | undefined>;
+  /** Split `quantity` units off an open position into a new open row (same entry, no idea re-execution); the original keeps the rest. */
+  splitPaperPosition(id: string, quantity: number): Promise<PaperPosition | undefined>;
 
   // Paper Trading - Equity Snapshots
   createPaperEquitySnapshot(snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot>;
@@ -2456,6 +2458,10 @@ export class MemStorage implements IStorage {
   }
 
   async closePaperPosition(_id: string, _exitPrice: number, _exitReason: string): Promise<PaperPosition | undefined> {
+    return undefined;
+  }
+
+  async splitPaperPosition(_id: string, _quantity: number): Promise<PaperPosition | undefined> {
     return undefined;
   }
 
@@ -4524,6 +4530,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(paperPositionsTable.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  async splitPaperPosition(id: string, quantity: number): Promise<PaperPosition | undefined> {
+    const position = await this.getPaperPositionById(id);
+    if (!position || position.status !== 'open') return undefined;
+    if (!(quantity > 0) || !(position.quantity - quantity > 0)) return undefined;
+    // Direct insert (not createPaperPosition): the linked idea's execution audit
+    // must keep pointing at the original fill — this is the same fill, split.
+    const { id: _id, createdAt: _c, ...rest } = position;
+    return await db.transaction(async (tx) => {
+      const [clone] = await tx.insert(paperPositionsTable).values({ ...rest, quantity } as any).returning();
+      await tx.update(paperPositionsTable).set({ quantity: position.quantity - quantity }).where(eq(paperPositionsTable.id, id));
+      return clone;
+    });
   }
 
   async closePaperPosition(id: string, exitPrice: number, exitReason: string): Promise<PaperPosition | undefined> {

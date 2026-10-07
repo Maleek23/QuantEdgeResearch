@@ -296,6 +296,12 @@ export const JOBS: JobDef[] = [
     disabled: () => (process.env.AFTER_STOP_JOB === 'off' ? 'AFTER_STOP_JOB=off' : null),
     start: async ({ log }) => { await (await import('./after-stop-job')).scheduleAfterStopJob(log); },
   },
+  {
+    name: 'option-peak', role: 'worker', bootDelayMs: 345_000,
+    what: 'option peak (MFE) backfill 16:30 + 09:15 ET (Massive prior-day → Alpaca → Yahoo bars) → [peak:…] tag / bot entry_signals; 0DTE runner pass every 5 min in session (RUNNER_POLICY)',
+    disabled: () => (process.env.OPTION_PEAK_JOB === 'off' ? 'OPTION_PEAK_JOB=off' : null),
+    start: async ({ log }) => { await (await import('./option-peak-job')).scheduleOptionPeakJob(log); },
+  },
 ];
 
 /** Worker start order: by bootDelayMs (missing = 0), registry order within a tie. */
