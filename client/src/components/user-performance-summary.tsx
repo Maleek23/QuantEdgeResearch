@@ -16,9 +16,12 @@ import { cn, safeToFixed } from "@/lib/utils";
 import { CanonRate } from "@/components/canon";
 import type { TrackRecord, TrackRow } from "@shared/track-record";
 import type { RunUpSummary } from "@shared/run-up";
+import type { CallAccuracyHeadline } from "@shared/call-accuracy";
 
 export type TrackRecordPayload = TrackRecord & {
   runUp: (RunUpSummary & { reportableRate: number | null; sampleFloor: number; observerSince: string }) | null;
+  /** Call accuracy over the managed-replay ledger (server/managed-replay-ledger.ts) — null without a ledger. */
+  callAccuracy?: CallAccuracyHeadline | null;
   asOf: string;
 };
 
@@ -136,6 +139,7 @@ export function UserPerformanceSummary({ query = "" }: { query?: string }) {
             </p>
             <p className="text-[10px] text-muted-foreground font-mono">as of {tr.asOf.slice(11, 16)} UTC</p>
           </div>
+          {tr.callAccuracy && <CallAccuracyHero ca={tr.callAccuracy} floor={floor} />}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div data-testid="tr-expectancy">
               <p className="text-xs text-muted-foreground uppercase flex items-center gap-1">
@@ -296,3 +300,25 @@ export function UserPerformanceSummary({ query = "" }: { query?: string }) {
 }
 
 export default UserPerformanceSummary;
+
+const pctOf = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`);
+const dd = (iso: string | null) => (iso ? iso.slice(0, 10) : '—');
+
+/** Headline: was the CALL right? Beside it (below), what was captured — realized expectancy and the strict hit rate. */
+function CallAccuracyHero({ ca, floor }: { ca: CallAccuracyHeadline; floor: number }) {
+  const o = ca.overall;
+  return (
+    <div data-testid="tr-call-accuracy" className="border-b border-border/40 pb-4">
+      <p className="text-xs text-muted-foreground uppercase" title={ca.definition}>Win rate (call accuracy) — called vs captured</p>
+      <p className="text-4xl font-bold font-mono">{o.n >= floor ? pctOf(o.rate) : '—'}</p>
+      <p className="text-[11px] text-muted-foreground font-mono">
+        {o.wins} called right · {o.losses} stopped first · n={o.n}{o.n < floor ? ` (rate shown at n ≥ ${floor})` : ''} · {dd(o.from)} → {dd(o.to)}
+        {' · '}halves {pctOf(ca.firstHalf.rate)} (n={ca.firstHalf.n}) / {pctOf(ca.secondHalf.rate)} (n={ca.secondHalf.n})
+        {' · '}{o.noResult} no result, {o.pending} pending, {o.notTriggered} never triggered (not in the rate)
+      </p>
+      <p className="text-[11px] text-muted-foreground font-mono">
+        {ca.definition} All NEXUS ideas in the replay ledger ({ca.ledgerAsOf.slice(0, 16).replace('T', ' ')}Z), not narrowed by the filters above. Captured (realized) results are below.
+      </p>
+    </div>
+  );
+}

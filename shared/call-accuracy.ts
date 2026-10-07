@@ -141,3 +141,15 @@ export function callRateText(s: CallSummary): string {
   if (s.rate == null) return '—';
   return `${Math.round(s.rate * 1000) / 10}%`;
 }
+
+/** Call-accuracy headline as the API serves it (server/managed-replay-ledger.ts callAccuracyHeadline). */
+export interface CallAccuracyHeadline {
+  overall: CallSummary;
+  firstHalf: CallSummary;
+  secondHalf: CallSummary;
+  /** When the replay ledger was produced — the headline's age. */
+  ledgerAsOf: string;
+  definition: string;
+}
+
+export const CALL_ACCURACY_DEFINITION = 'WIN = T1 or +1R reached in the called direction before the stop (first touch on 5-minute bars; same bar → stop). LOSS = stop first. Neither inside the hold window = no result (not in the rate).';

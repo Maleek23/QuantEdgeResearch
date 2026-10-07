@@ -16,6 +16,7 @@ import {
   JOURNAL_PARAM, parseJournalKey, type JournalKey, type JournalNoteKind, type JournalSourceListItem, type JournalSourceMeta,
 } from '@shared/journal-sources';
 import { settleExpiredRows } from '@shared/journal-expiry';
+import { summarizeCalls } from '@shared/call-accuracy';
 import { applyDeskView, parseDeskView, parseSizingChoice, type DeskView } from '@shared/desk-view';
 import { DEFAULT_SIZING, sizingParam, type SizingChoice } from '@shared/position-sizing';
 import { apiRequest } from '@/lib/queryClient';
@@ -250,6 +251,12 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
     : null), [settled, key, desk?.view, desk?.sizing.mode, desk?.sizing.riskDollars]); // eslint-disable-line react-hooks/exhaustive-deps
   const allRows = deskView ? deskView.rows : settled;
   const rows = useMemo(() => allRows.filter((r) => matchesJournalFilters(r, filters)), [allRows, filters]);
+  // NEXUS ideas: CALL ACCURACY (shared/call-accuracy.ts) — independent of sizing and exit view, so it is
+  // computed on the book's rows as published (filters applied), not on the re-priced ones.
+  const calls = useMemo(() => {
+    if (key !== 'desk' || !settled.some((r) => r.call)) return null;
+    return summarizeCalls(settled.filter((r) => matchesJournalFilters(r, filters)).map((r) => ({ result: r.call?.result, publishedAt: r.entryTime })));
+  }, [key, settled, filters]);
   // Operator rule 2026-10-07: every called trade is SHOWN (listTrades — trade lists,
   // calendar day lists, activity), but the headline numbers and analytics (trades,
   // days, curve, metrics) stay on verified + integrity-checked P&L. Unverified rows
@@ -280,7 +287,7 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
   const rawMeta = tradesQ.data?.journal ?? null;
   // The server describes the unit book; when the desk book is risk-sized / replayed the sizing line says so.
   const meta = useMemo(() => (rawMeta && deskView ? { ...rawMeta, sizing: deskSizingText(deskView) ?? rawMeta.sizing } : rawMeta), [rawMeta, deskView]);
-  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, listTrades, unverified, days, curve, metrics, options, deskView };
+  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, listTrades, unverified, days, curve, metrics, options, deskView, calls };
 }
 
 export type JournalData = ReturnType<typeof useJournalData>;

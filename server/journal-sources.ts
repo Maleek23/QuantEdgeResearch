@@ -333,7 +333,10 @@ export async function loadJournal(j: ResolvedJournal, opts: { includeUnverified?
     return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], runs: meta.runs ?? [] } };
   }
   if (j.kind === 'desk') {
-    const { rows, meta } = await loadDesk(!!opts.includeUnverified);
+    const { rows: deskRows, meta } = await loadDesk(!!opts.includeUnverified);
+    // Managed-exit replay / peak / call accuracy — a separate labelled view (server/managed-replay-ledger.ts).
+    const { attachManagedReplay } = await import('./managed-replay-ledger');
+    const rows = attachManagedReplay(deskRows);
     return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], excludedRows: meta.excludedRows ?? [], verification: meta.verification } };
   }
   // origin: 'quantedge_idea' for a trade taken from a NEXUS idea ("I took this"), else 'own_idea'.

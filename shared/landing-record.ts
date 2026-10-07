@@ -35,6 +35,11 @@ export interface PublicRecord {
   to: string | null;
   /** When the bar-verification ledger was produced (ISO) — the record's age. */
   ledgerAsOf: string | null;
+  /**
+   * Headline (operator decision 2026-10-07): CALL ACCURACY over the managed-replay
+   * ledger — T1 or +1R before the stop. Rate withheld below minSample; n and range always.
+   */
+  callAccuracy?: { rate: number | null; wins: number; losses: number; n: number; from: string | null; to: string | null; ledgerAsOf: string } | null;
 }
 
 export interface RecordInputRow {

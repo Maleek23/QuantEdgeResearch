@@ -44,7 +44,8 @@ export interface DeskPeak {
 }
 
 export interface DeskManaged {
-  status: 'closed' | 'open';
+  /** skipped = could not be replayed (never triggered, no bars, no stop) — exitReason says why. */
+  status: 'closed' | 'open' | 'skipped';
   /** Unit-size realized P&L under the managed policy (closed only). */
   pnlUnit: number | null;
   rMultiple: number | null;
@@ -132,7 +133,8 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
     // ── view ──
     if (opts.view === 'managed') {
       const m = row.managed;
-      if (!m) { skip('not in the managed-replay ledger (no bars, or replayed before this idea)'); continue; }
+      if (!m) { skip('not in the managed-replay ledger (published after the last replay run)'); continue; }
+      if (m.status === 'skipped') { skip(`not replayed: ${m.exitReason.replace(/\s*\(.*$/, '') || 'no data'}`); continue; }
       const closed = m.status === 'closed' && m.pnlUnit != null;
       const pnl = closed ? r2(m.pnlUnit!) : null;
       const opt = row.riskBasis?.assetType === 'option';

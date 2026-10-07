@@ -26,7 +26,8 @@ function ago(iso: string | null | undefined, now: number) {
 // ── #4 stat strip ────────────────────────────────────────────────────────
 /**
  * Four big mono numbers under the hero. Only counts that are verified, sourced and
- * age-stamped — never P&L or a win rate. Live cells come from the bar-verified NEXUS
+ * age-stamped — never P&L. The one rate shown is CALL ACCURACY (operator decision
+ * 2026-10-07; withheld below n=30), always with n and its date range. Live cells come from the bar-verified NEXUS
  * book (server/public-showcase.ts `record`); until it is read (or if it is not
  * available) the strip shows four standing facts of how the record is kept, which
  * are true by construction — so it is never empty and never "—".
@@ -44,7 +45,13 @@ export function StatStrip() {
         { v: rec.published.toLocaleString('en-US'), k: 'Ideas timestamped', s: 'entry · stop · target, ET', t: `${src} — every idea, open or closed` },
         { v: rec.symbols.toLocaleString('en-US'), k: 'Symbols covered', s: 'stocks · options · crypto', t: `${src} — distinct symbols published` },
         { v: rec.verifiedClosed.toLocaleString('en-US'), k: 'Checked against bars', s: age ? `closed ideas · ledger ${age}` : 'closed ideas', t: `${src} — closed ideas whose P&L was re-computed from market bars and matched` },
-        { v: '7', k: 'Desks', s: 'one terminal', t: 'NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot · Journal' },
+        rec.callAccuracy && rec.callAccuracy.rate != null
+          ? {
+            v: `${Math.round(rec.callAccuracy.rate * 1000) / 10}%`, k: 'Win rate (call accuracy)',
+            s: `n=${rec.callAccuracy.n} · ${rec.callAccuracy.from?.slice(5, 10) ?? ''}→${rec.callAccuracy.to?.slice(5, 10) ?? ''}`,
+            t: `NEXUS ideas: T1 or +1R reached before the stop (first touch on 5-minute bars) — ${rec.callAccuracy.wins} right, ${rec.callAccuracy.losses} stopped first; ideas with neither are not in the rate. The call, not a realized P&L. Replay ledger ${rec.callAccuracy.ledgerAsOf.slice(0, 10)}.`,
+          }
+          : { v: '7', k: 'Desks', s: 'one terminal', t: 'NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot · Journal' },
       ]
     : [
         { v: '7', k: 'Desks', s: 'one terminal', t: 'NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot · Journal' },

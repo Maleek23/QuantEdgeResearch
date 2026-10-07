@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { Readout } from '@/components/templates/kit';
 import { sizingFor } from '@shared/sizing';
 import { manageSignal, type ExitPolicyPlan } from '@shared/exit-policy';
+import { managedLiveSignal, type ManagedLivePlan } from '@shared/managed-exit';
 import { LiveValue } from '@/components/viz';
 import { GapMagnets } from './gap-magnets';
 import { SignalTrajectory } from '@/components/hunt/cockpit/signal-trajectory';
@@ -601,6 +602,8 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
     expectedRange: number; horizonDays: number; publishedTargetNote: string | null; note: string;
     /** EXIT_POLICY manage schedule (null under the default published plan). */
     exitPolicy?: ExitPolicyPlan | null;
+    /** MANAGED_EXITS manage plan (null unless the flag is on). */
+    managedExit?: ManagedLivePlan | null;
   }>({
     queryKey: [`/api/target-ladder/${pick.symbol}?direction=${pick.direction}&entry=${pick.entryPrice}&stop=${pick.stopLoss}&hp=${pick.holdingPeriod ?? ''}&target=${pick.targetPrice ?? ''}&pub=${encodeURIComponent(pick.generatedAt ?? '')}&exp=${pick.expiryDate ? String(pick.expiryDate).slice(0, 10) : ''}`],
     enabled: !!(pick.entryPrice && pick.stopLoss) && (pick as any).levelBasis !== 'contract',
@@ -615,6 +618,12 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
     direction: pick.direction, entry: pick.entryPrice, stop: pick.stopLoss, target: pick.targetPrice ?? null,
     live: live || pick.currentPrice || null, nowMs: Date.now(),
   }) : null;
+  // MANAGED_EXITS (default off): the managed instruction from the live underlying. The card does not carry
+  // the best price since the trigger, so the state is computed from the live price (labelled).
+  const liveNow = live || pick.currentPrice || null;
+  const managedSig = lad?.managedExit ? managedLiveSignal(lad.managedExit, {
+    direction: pick.direction, entry: pick.entryPrice, stop: pick.stopLoss, target: pick.targetPrice ?? null, live: liveNow, peak: liveNow,
+  }) : null;
   const manageColor = manage?.state === 'time_exit' || manage?.state === 'stopped' ? 'var(--bear, #e5484d)'
     : manage?.state === 'target' || manage?.state === 'kept' ? BULL : 'var(--foreground)';
   return (
@@ -624,6 +633,13 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
           <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">Manage · {lad?.exitPolicy?.label}</div>
           <div className="mt-0.5 text-value font-mono font-bold" style={{ color: manageColor }}>{manage.headline}</div>
           <div className="text-label font-mono text-muted-foreground">{manage.detail}</div>
+        </div>
+      )}
+      {managedSig && (
+        <div className="border-b border-border/30 px-4 py-2.5" data-testid="managed-exit-manage">
+          <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">Managed exits · {lad?.managedExit?.label}</div>
+          <div className="mt-0.5 text-value font-mono font-bold">{managedSig.headline}</div>
+          <div className="text-label font-mono text-muted-foreground">{managedSig.detail} · state from the live price (peak since trigger not on this card)</div>
         </div>
       )}
       {lad && lad.rungs.length > 0 ? (

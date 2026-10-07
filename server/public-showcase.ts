@@ -256,11 +256,19 @@ function refreshRecord(): Promise<void> {
   recordInflight = (async () => {
     const { loadNexusBookForPublicRecord } = await import('./journal-sources');
     const { rows, verification } = await loadNexusBookForPublicRecord();
+    const { callAccuracyHeadline } = await import('./managed-replay-ledger');
+    const ca = callAccuracyHeadline();
     recordCache = {
-      data: summarizeVerifiedBook(rows, {
-        unverified: verification?.unverified.count ?? 0, ledgerAsOf: verification?.ledger?.asOf ?? null, minSample: MIN_SAMPLE,
-        unverifiedSymbols: verification?.unverified.rows.map((r) => r.symbol),
-      }),
+      data: {
+        ...summarizeVerifiedBook(rows, {
+          unverified: verification?.unverified.count ?? 0, ledgerAsOf: verification?.ledger?.asOf ?? null, minSample: MIN_SAMPLE,
+          unverifiedSymbols: verification?.unverified.rows.map((r) => r.symbol),
+        }),
+        callAccuracy: ca ? {
+          rate: ca.overall.n >= MIN_SAMPLE ? ca.overall.rate : null, wins: ca.overall.wins, losses: ca.overall.losses, n: ca.overall.n,
+          from: ca.overall.from, to: ca.overall.to, ledgerAsOf: ca.ledgerAsOf,
+        } : null,
+      },
       at: Date.now(),
     };
   })().catch((err) => { logger.warn('[showcase] record refresh failed', { err: err instanceof Error ? err.message : String(err) }); })

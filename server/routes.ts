@@ -7683,7 +7683,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exitPolicy = policy === "plan" ? null : exitPolicyPlan({
         policy, publishedMs: Number.isFinite(pub) ? pub : null, holdingPeriod: q.hp ?? null, expiryDate: q.exp || null,
       });
-      res.json({ ...r, exitPolicy });
+      // MANAGED_EXITS (default OFF; docs in shared/managed-exit.ts): the managed exit instruction —
+      // BE after +1R, ½ at T1, trail 1×ATR, time exit. Absent unless the flag is on.
+      const { readManagedExits, MANAGED_POLICY_ID, MANAGED_POLICY_LABEL } = await import("@shared/managed-exit");
+      const exp = q.exp ? String(q.exp).slice(0, 10) : null;
+      const managedExit = readManagedExits(process.env)
+        ? { policy: MANAGED_POLICY_ID, label: MANAGED_POLICY_LABEL, atr: Number.isFinite((r as any).atr) ? (r as any).atr : null, zeroDte: !!exp && exp === new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }) }
+        : null;
+      res.json({ ...r, exitPolicy, managedExit });
     } catch (err) {
       logger.error("[API] target ladder failed:", err);
       res.status(500).json({ error: "ladder failed" });
@@ -10696,7 +10703,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // sample floor as the win rate; the counts are always shown.
         runUp = { ...s, reportableRate: s.triggered >= FLOOR ? s.rate : null, sampleFloor: FLOOR, observerSince: rec.triggerObserverSince };
       } catch (e) { logger.warn('track-record run-up unavailable', e); }
-      const data = { ...rec, runUp, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
+      // Headline: CALL ACCURACY over every NEXUS idea in the managed-replay ledger (operator decision
+      // 2026-10-07). Ledger-wide (not narrowed by the window/engine/asset filters) — the UI says so.
+      let callAccuracy: any = null;
+      try { callAccuracy = (await import('./managed-replay-ledger')).callAccuracyHeadline(); } catch (e) { logger.warn('track-record call accuracy unavailable', e); }
+      const data = { ...rec, runUp, callAccuracy, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
       trackRecordCache.set(key, { at: Date.now(), data });
       res.json(data);
     } catch (error) {

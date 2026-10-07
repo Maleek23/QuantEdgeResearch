@@ -19,6 +19,7 @@ import { ArrowRight } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
 import { expiryCounts, expiryCountsText } from '@shared/journal-expiry';
 import { useJournal, useJournalDrill } from '@/components/journal/journal-context';
+import { CALL_ACCURACY_DEFINITION } from '@shared/call-accuracy';
 import { LowSample, N, Pnl } from '@/components/journal/parts';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { EquityChart } from '@/components/journal/equity-chart';
@@ -77,7 +78,11 @@ export default function DashboardView() {
         <Kpi k={data.meta?.verification ? 'Net P&L (verified)' : 'Net P&L'} v={<Pnl value={m.netPnl} />} s={<>n={m.closedTrades} closed{m.fees ? ` · fees ${fmtMoney(m.fees, { signed: false })}` : ''}
           {data.unverified.count > 0 && <span className="jr-incl-unv" title={`${data.unverified.count} unverified closed trade${data.unverified.count === 1 ? '' : 's'} recorded ${fmtMoney(data.unverified.netPnl)} — listed with an amber chip, not in the verified total`}>incl. unverified: {fmtMoney(m.netPnl + data.unverified.netPnl)} ({data.unverified.count} unverified)</span>}</>}
           x={delta && <span className={`jr-delta ${delta.v >= 0 ? 'up' : 'down'}`}>{delta.v >= 0 ? '▲' : '▼'} {fmtMoney(Math.abs(delta.v), { signed: false, compact: true })} vs prior 7d</span>} />
-        <Kpi k="Win rate" v={fmtPct(m.winRate)} s={<>{m.wins}W · {m.breakevens}BE · {m.losses}L <LowSample n={m.closedTrades} /></>} />
+        {data.calls && (
+          <Kpi k="Win rate (call accuracy)" v={data.calls.rate == null ? '—' : fmtPct(data.calls.rate)}
+            s={<span title={CALL_ACCURACY_DEFINITION}>called: {data.calls.wins}W · {data.calls.losses}L · n={data.calls.n}{data.calls.from ? ` · ${data.calls.from.slice(5, 10)}→${data.calls.to?.slice(5, 10)}` : ''} · {data.calls.noResult} no result <LowSample n={data.calls.n} /></span>} />
+        )}
+        <Kpi k={data.calls ? 'Realized win rate (captured)' : 'Win rate'} v={fmtPct(m.winRate)} s={<>{m.wins}W · {m.breakevens}BE · {m.losses}L{data.deskView ? ` · ${data.deskView.view === 'managed' ? 'managed replay' : 'recorded'} exits` : ''} <LowSample n={m.closedTrades} /></>} />
         <Kpi k="Profit factor" v={fmtRatio(m.profitFactor, m.profitFactorIsInfinite)} s={<>{fmtMoney(m.grossProfit, { compact: true })} ÷ {fmtMoney(m.grossLoss, { compact: true, signed: false })}</>} />
         <Kpi k="Expectancy" v={<Pnl value={m.expectancy} />} s="per closed trade" />
         <Kpi k="Avg win / loss" v={fmtRatio(m.avgWinLossRatio)} s={<><span className="jr-gain">{fmtMoney(m.avgWin, { compact: true })}</span> / <span className="jr-loss">{fmtMoney(m.avgLoss != null ? -m.avgLoss : null, { compact: true })}</span></>} />

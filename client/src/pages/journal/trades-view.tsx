@@ -5,6 +5,7 @@
  * exactly the rows in view.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { CALL_ACCURACY_DEFINITION } from '@shared/call-accuracy';
 import { ArrowDown, ArrowUp, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, OutcomeChip, Pnl, SideChip, UnverifiedChip, useJournalPortalClass } from '@/components/journal/parts';
@@ -34,6 +35,9 @@ function exportCsv(trades: JTrade[], book: string) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+const CALL_LABEL: Record<string, string> = { win: 'called ✓', loss: 'stopped first', no_result: 'no result', pending: 'pending', not_triggered: 'not triggered' };
+const callLabel = (r: string | null | undefined) => (r ? CALL_LABEL[r] ?? r : '—');
 
 export default function TradesView() {
   const { data, openTrade, openEditor, openImport, simSymbol, filters } = useJournal();
@@ -68,6 +72,9 @@ export default function TradesView() {
   }, [trades, sort]);
   // Desk book: capture ratio (realized ÷ best favourable move) on closed rows — docs/EXIT_RULE_REPLAY.md.
   const showCapture = useMemo(() => trades.some((t) => t.row.captureRatio != null), [trades]);
+  // NEXUS ideas with a replay ledger: the peak (MFE) and the call result sit beside realized P&L —
+  // "called vs captured". The peak is never a win; it is what was available.
+  const showPeak = useMemo(() => data.key === 'desk' && trades.some((t) => t.row.peak != null || t.row.call != null), [data.key, trades]);
   const order = sorted.map((t) => t.id);
   const shown = sorted.slice(0, limit);
 
@@ -119,6 +126,8 @@ export default function TradesView() {
                 {th('pnl', 'Net P&L', true)}
                 <th scope="col">Result</th>
                 {showCapture && <th scope="col" className="num" title="Realized move ÷ the best favourable move of the underlying while open (closed rows)">Capture</th>}
+                {showPeak && <th scope="col" className="num" title="Best price inside the hold window (MFE) — $ at this row's size, and in R of the underlying. Hindsight, not a fill.">Peak</th>}
+                {showPeak && <th scope="col" title={CALL_ACCURACY_DEFINITION}>Call</th>}
                 {th('hold', 'Held', true)}
                 <th scope="col">Setup</th>
                 <th scope="col">Source</th>
@@ -146,6 +155,10 @@ export default function TradesView() {
                     : <Pnl value={t.netPnl} />}</td>
                   <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.sizedAs?.capped && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title={`Recorded exit was worse than the stop; capped at −$${t.row.sizedAs.riskToStop} (assumes the stop filled). Uncapped: ${t.row.sizedAs.uncappedPnL}`}>capped at stop</div>}{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}</td>
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
+                  {showPeak && <td className="num jr-dim" title={t.row.peak?.underlying ? `underlying ${t.row.peak.underlying.px} at ${t.row.peak.underlying.at}${t.row.peak.premium ? ` · premium ${t.row.peak.premium.px} at ${t.row.peak.premium.at}` : ''}` : undefined}>
+                    {t.row.peak?.unitPnl != null ? <Pnl value={t.row.peak.unitPnl} /> : '—'}{t.row.peak?.underlying?.r != null ? <span className="jr-mute"> {t.row.peak.underlying.r.toFixed(1)}R</span> : null}
+                  </td>}
+                  {showPeak && <td className="jr-dim" title={t.row.call?.at ? `decided ${t.row.call.at}${t.row.call.winKind ? ` · win level ${t.row.call.winKind} ${t.row.call.winLevel}` : ''}` : undefined}>{callLabel(t.row.call?.result)}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
                   <td className="jr-dim">{t.row.origin === 'quantedge_idea' ? 'QuantEdge idea' : t.row.broker}</td>
