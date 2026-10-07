@@ -148,3 +148,12 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
 .flowdash .nxd-strip .ig-strip{padding:0;border:0;border-radius:0;background:transparent;font-size:12px;gap:2px 12px}
 .flowdash .nxd-strip .nxd-track-item{min-height:18px;gap:2px 10px}.flowdash .nxd-strip .nxd-track-list{gap:0;margin-top:1px}
 .flowdash .nxd-strip .nxd-track-item button{padding:0 5px;min-height:0!important;height:18px!important;line-height:16px}
+
+/* "I took this" (components/journal/took-it-button.tsx) */
+.nxp-took { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 6px; font-size: 12px; }
+.nxp-took.done { color: var(--lx-accent-text, var(--lx-accent)); }
+.nxp-took-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--lx-line-hi); background: transparent; color: inherit; font-size: 12px; cursor: pointer; }
+.nxp-took-btn.primary { background: var(--lx-accent); border-color: var(--lx-accent); color: var(--lx-on-accent, #fff); }
+.nxp-took-btn:focus-visible, .nxp-took-form input:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
+.nxp-took-form { display: inline-flex; gap: 6px; align-items: center; }
+.nxp-took-form input { min-height: 28px; width: 130px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--lx-line-hi); background: var(--lx-surface, transparent); color: inherit; font-size: 12px; }

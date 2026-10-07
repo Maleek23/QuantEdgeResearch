@@ -147,7 +147,7 @@ export default function TradesView() {
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
-                  <td className="jr-dim">{t.row.broker}</td>
+                  <td className="jr-dim">{t.row.origin === 'quantedge_idea' ? 'QuantEdge idea' : t.row.broker}</td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     {!readOnly && <button type="button" className="jr-icon-btn" aria-label={`Edit ${t.symbol} trade`} onClick={() => openEditor(t.row)}><Pencil className="h-3.5 w-3.5" /></button>}

@@ -18,16 +18,18 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import {
-  DESK_BOT_CAPS, canManageDesk, defaultDeskBotConfig, deskBotOwnerId, deskBotsToRun, deskEngineConfig, deskEntryCheck,
-  normalizeStoredDeskConfig, parseDeskBotPatch, resolveDeskAccess, type DeskBotConfig,
+  DESK_BOT_CAPS, QUANTEDGE_IDEA_BROKER, buildTookIdeaTrade, canManageDesk, defaultDeskBotConfig, deskBotOwnerId, deskBotsToRun, deskEngineConfig, deskEntryCheck,
+  deskSleeveConfig, journalOriginOf, normalizeStoredDeskConfig, parseDeskBotPatch, resolveDeskAccess, tookIdeaKey, traderBookVisible, type DeskBotConfig,
 } from '../shared/desk-admin';
+import { readBotSleeveConfig } from '../shared/bot-sleeves';
 
 let checks = 0;
 const ok = (cond: unknown, msg: string) => { assert.ok(cond, msg); checks++; };
 const eq = (a: unknown, b: unknown, msg: string) => { assert.deepEqual(a, b, msg); checks++; };
 const src = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
-const PLATFORM = { minConviction: 18, maxOpen: 10, startingCapital: 100_000, riskPerTradePct: 2, maxProgressPct: 35, minUnderlyingRR: 1, maxOptionSpreadPct: 0.15, maxDebitPct: 0.03, maxRiskDollars: 250, maxDebitDollars: 300, minContractRoiAtT1Pct: 30, delayedFillNotBeforeEtMinutes: 600 };
+const PLATFORM = { minConviction: 18, maxOpen: 10, startingCapital: 100_000, riskPerTradePct: 2, maxProgressPct: 35, minUnderlyingRR: 1, maxOptionSpreadPct: 0.15, maxDebitPct: 0.03, maxRiskDollars: 500, maxDebitDollars: 1_500, minContractRoiAtT1Pct: 30, delayedFillNotBeforeEtMinutes: 600, zeroDteDelayedNotBeforeEtMinutes: 590 };
+const SLEEVES = readBotSleeveConfig({}); // the platform bot's defaults (no env)
 
 async function main() {
   // ── 1. Who is who ─────────────────────────────────────────────────────────
@@ -50,49 +52,54 @@ async function main() {
   ok(['femi', 'uzo', 'ayo', 'leek'].every((s) => canManageDesk(boss, s)), 'the super-admin manages every desk');
   ok(!canManageDesk(boss, '../etc') && !canManageDesk(femi, 'FEMI ') && !canManageDesk(boss, ''), 'malformed slugs are refused for everyone');
 
-  // ── 2. Bot config: replica of the platform bot, inside platform caps ─────
-  const def = defaultDeskBotConfig(PLATFORM);
-  eq([def.minConviction, def.riskPerTradePct, def.maxRiskDollars, def.maxDebitDollars, def.maxProgressPct, def.minUnderlyingRR, def.minContractRoiAtT1Pct],
-    [18, 2, 250, 300, 35, 1, 30], "defaults clone the platform bot's current rules");
-  eq(def.maxOpen, DESK_BOT_CAPS.maxOpen.max, 'max open is clamped to the desk cap (platform bot runs 10)');
+  // ── 2. Bot config: replica of the platform bot's sleeves, inside platform caps ─
+  const def = defaultDeskBotConfig(PLATFORM, SLEEVES);
+  eq([def.zeroDteMax, def.zeroDteRiskUsd, def.swingMax, def.swingRiskUsd, def.swingMaxDebitUsd, def.swingMinGrade, def.maxProgressPct, def.minUnderlyingRR, def.minContractRoiAtT1Pct],
+    [3, 150, 4, 500, 1500, 65, 35, 1, 30], "defaults clone the platform bot's current sleeves and filters");
+  const sl = deskSleeveConfig({ ...def, zeroDteMax: 1, swingRiskUsd: 200, swingMinGrade: 80 }, SLEEVES);
+  eq([sl.zeroDteMax, sl.swingRiskUsd, sl.swingMinGrade, sl.timeStopRetired, sl.premStopPct], [1, 200, 80, false, 0.4], 'desk sleeves: desk choices applied; premium stop/targets stay platform-set; no retired-run time stops');
+  const tighter = deskSleeveConfig({ ...def, zeroDteMax: 3, swingMinGrade: 65 }, { ...SLEEVES, zeroDteMax: 1, swingMinGrade: 75 });
+  eq([tighter.zeroDteMax, tighter.swingMinGrade], [1, 75], 'a desk is never looser than the platform bot\'s CURRENT env config');
   const eng = deskEngineConfig(def, PLATFORM);
   eq([eng.startingCapital, eng.maxOptionSpreadPct, eng.maxDebitPct, eng.delayedFillNotBeforeEtMinutes], [100_000, 0.15, 0.03, 600], 'fresh 100K book; spread/debit/delayed-fill rules stay platform-set');
   for (const [k, cap] of Object.entries(DESK_BOT_CAPS)) {
     ok(!parseDeskBotPatch({ [k]: cap.min - cap.step }, def).ok, `${k} below ${cap.min} refused`);
     ok(!parseDeskBotPatch({ [k]: cap.max + cap.step }, def).ok, `${k} above ${cap.max} refused`);
   }
-  ok(DESK_BOT_CAPS.minConviction.min >= PLATFORM.minConviction && DESK_BOT_CAPS.riskPerTradePct.max <= PLATFORM.riskPerTradePct
-    && DESK_BOT_CAPS.maxRiskDollars.max <= PLATFORM.maxRiskDollars && DESK_BOT_CAPS.maxDebitDollars.max <= PLATFORM.maxDebitDollars
+  ok(DESK_BOT_CAPS.zeroDteMax.max <= SLEEVES.zeroDteMax && DESK_BOT_CAPS.swingMax.max <= SLEEVES.swingMax
+    && DESK_BOT_CAPS.zeroDteRiskUsd.max <= SLEEVES.zeroDteRiskUsd && DESK_BOT_CAPS.swingRiskUsd.max <= SLEEVES.swingRiskUsd
+    && DESK_BOT_CAPS.swingMaxDebitUsd.max <= SLEEVES.swingMaxDebitUsd && DESK_BOT_CAPS.swingMinGrade.min >= SLEEVES.swingMinGrade
     && DESK_BOT_CAPS.maxProgressPct.max <= PLATFORM.maxProgressPct && DESK_BOT_CAPS.minUnderlyingRR.min >= PLATFORM.minUnderlyingRR
-    && DESK_BOT_CAPS.minContractRoiAtT1Pct.min >= PLATFORM.minContractRoiAtT1Pct, 'no cap lets a desk bot be looser than the platform bot');
-  ok(!parseDeskBotPatch({ startingCapital: 1e9 }, def).ok && !parseDeskBotPatch({ maxOptionSpreadPct: 1 }, def).ok && !parseDeskBotPatch({ delayedFillNotBeforeEtMinutes: 0 }, def).ok, 'platform-set fields cannot be changed');
-  ok(!parseDeskBotPatch({ riskPerTradePct: '2' }, def).ok && !parseDeskBotPatch({ riskPerTradePct: NaN }, def).ok, 'numbers must be numbers');
+    && DESK_BOT_CAPS.minContractRoiAtT1Pct.min >= PLATFORM.minContractRoiAtT1Pct, 'no cap lets a desk bot be looser than the platform bot defaults');
+  ok(!parseDeskBotPatch({ startingCapital: 1e9 }, def).ok && !parseDeskBotPatch({ maxOptionSpreadPct: 1 }, def).ok && !parseDeskBotPatch({ premStopPct: 0.9 }, def).ok && !parseDeskBotPatch({ zeroDteWindows: [[0, 1440]] }, def).ok, 'platform-set fields cannot be changed');
+  ok(!parseDeskBotPatch({ swingRiskUsd: '200' }, def).ok && !parseDeskBotPatch({ swingRiskUsd: NaN }, def).ok, 'numbers must be numbers');
   ok(!parseDeskBotPatch({ allowLongs: false, allowShorts: false }, def).ok, 'a bot with neither longs nor shorts refused');
+  ok(!parseDeskBotPatch({ zeroDteMax: 0, swingMax: 0 }, def).ok, 'a bot with no sleeve capacity refused');
   ok(!parseDeskBotPatch({ entryStartEt: 900, entryEndEt: 905 }, def).ok, 'entry window under 15 minutes refused');
   ok(!parseDeskBotPatch({ blockedSymbols: ['NVDA', 'DROP TABLE'] }, def).ok && !parseDeskBotPatch({ blockedSymbols: Array.from({ length: 51 }, (_, i) => `A${i}`) }, def).ok, 'block list: tickers only, at most 50');
   ok(!parseDeskBotPatch([], def).ok && !parseDeskBotPatch(null, def).ok, 'body must be an object');
-  const good = parseDeskBotPatch({ riskPerTradePct: 1, maxOpen: 3, allowShorts: false, universe: 'watchlist', blockedSymbols: ['$tsla', 'nvda', 'TSLA'], minStopWidthPct: 2 }, def);
+  const good = parseDeskBotPatch({ swingRiskUsd: 200, zeroDteMax: 1, allowShorts: false, universe: 'watchlist', blockedSymbols: ['$tsla', 'nvda', 'TSLA'], minStopWidthPct: 2 }, def);
   ok(good.ok, 'a change inside the caps is accepted');
   if (good.ok) {
     eq(good.value.blockedSymbols, ['NVDA', 'TSLA'], 'tickers normalised and de-duplicated');
-    eq(good.changed.sort(), ['allowShorts', 'blockedSymbols', 'maxOpen', 'minStopWidthPct', 'riskPerTradePct', 'universe'], 'changed keys reported for the audit log');
+    eq(good.changed.sort(), ['allowShorts', 'blockedSymbols', 'minStopWidthPct', 'swingRiskUsd', 'universe', 'zeroDteMax'], 'changed keys reported for the audit log');
   }
-  const stored = normalizeStoredDeskConfig({ riskPerTradePct: 9, maxOpen: 99, allowLongs: false, allowShorts: false, blockedSymbols: ['OK', 'bad sym'], universe: 'everything' }, PLATFORM);
-  eq([stored.riskPerTradePct, stored.maxOpen, stored.allowLongs, stored.blockedSymbols, stored.universe], [2, 5, true, ['OK'], 'board'], 'a stored row is pulled back inside the caps on read');
+  const stored = normalizeStoredDeskConfig({ swingRiskUsd: 9999, zeroDteMax: 99, allowLongs: false, allowShorts: false, blockedSymbols: ['OK', 'bad sym'], universe: 'everything' }, PLATFORM, SLEEVES);
+  eq([stored.swingRiskUsd, stored.zeroDteMax, stored.allowLongs, stored.blockedSymbols, stored.universe], [500, 3, true, ['OK'], 'board'], 'a stored row is pulled back inside the caps on read');
 
   // ── 3. Desk entry rules sit on top of the platform gates ─────────────────
-  const cfg: DeskBotConfig = { ...def, allowShorts: false, allowIndex0dte: false, universe: 'watchlist', blockedSymbols: ['TSLA'], minStopWidthPct: 1, entryStartEt: 600, entryEndEt: 900 };
+  const cfg: DeskBotConfig = { ...def, allowShorts: false, universe: 'watchlist', blockedSymbols: ['TSLA'], minStopWidthPct: 1, entryStartEt: 600, entryEndEt: 900 };
   const wl = new Set(['NVDA', 'AMD', 'TSLA']);
   const at = (m: number) => ({ etMinutes: m, watchlist: wl });
   ok(deskEntryCheck(cfg, { symbol: 'NVDA', direction: 'long', entryPrice: 100, stopLoss: 97 }, null, at(700)).ok, 'long on the watchlist with a 3% stop inside the window: allowed');
   eq((deskEntryCheck(cfg, { symbol: 'NVDA', direction: 'long', entryPrice: 100, stopLoss: 97 }, null, at(599)) as any).code, 'desk_window', 'before the window: refused');
   eq((deskEntryCheck(cfg, { symbol: 'NVDA', direction: 'long', entryPrice: 100, stopLoss: 97 }, null, at(901)) as any).code, 'desk_window', 'after the window: refused');
-  eq((deskEntryCheck(cfg, { symbol: 'NVDA', direction: 'short', entryPrice: 100, stopLoss: 103 }, null, at(700)) as any).code, 'desk_no_shorts', 'shorts off: refused');
+  eq((deskEntryCheck(cfg, { symbol: 'NVDA', direction: 'SHORT', entryPrice: 100, stopLoss: 103 }, null, at(700)) as any).code, 'desk_no_shorts', 'shorts off: refused (any case)');
   eq((deskEntryCheck(cfg, { symbol: 'TSLA', direction: 'long', entryPrice: 100, stopLoss: 95 }, null, at(700)) as any).code, 'desk_blocked', 'blocked symbol: refused');
   eq((deskEntryCheck(cfg, { symbol: 'META', direction: 'long', entryPrice: 100, stopLoss: 95 }, null, at(700)) as any).code, 'desk_universe', 'off-watchlist in watchlist mode: refused');
-  eq((deskEntryCheck(cfg, { symbol: 'AMD', direction: 'long', entryPrice: 100, stopLoss: 99.5 }, null, at(700)) as any).code, 'desk_stop_width', 'stop tighter than the desk minimum: refused');
-  eq((deskEntryCheck(cfg, { symbol: 'AMD', direction: 'long' }, { source: 'gex_scanner', dataSourceUsed: 'GEX_index_scalp_spx' }, at(700)) as any).code, 'desk_no_0dte', 'index 0DTE off: refused');
-  ok(deskEntryCheck({ ...cfg, universe: 'board' }, { symbol: 'META', direction: 'long', entryPrice: 100, stopLoss: 95 }, null, at(700)).ok, 'board mode trades any published pick');
+  eq((deskEntryCheck(cfg, { symbol: 'AMD', direction: 'long', entryPrice: 100, stopLoss: 99.5 }, null, at(700)) as any).code, 'desk_stop_width', 'underlying stop tighter than the desk minimum: refused');
+  ok(deskEntryCheck(cfg, { symbol: 'AMD', direction: 'long' }, null, at(700)).ok, '0DTE sleeve call (premium plan, no underlying levels): stop width not applied');
+  ok(deskEntryCheck({ ...cfg, universe: 'board' }, { symbol: 'META', direction: 'long', entryPrice: 100, stopLoss: 95 }, null, at(700)).ok, 'board mode trades any published idea');
 
   // ── 4. Ledger ownership and the bot cap ───────────────────────────────────
   eq(deskBotOwnerId('femi'), 'desk-bot:femi', 'desk ledger owner id');
@@ -108,23 +115,27 @@ async function main() {
 
   // ── 5. Engine wiring (source) ─────────────────────────────────────────────
   const qb = src('server/quant-bot.ts');
-  const inner = qb.slice(qb.indexOf('async function runBotCycleInner'), qb.indexOf('export interface BotOpenPositionView'));
-  ok(/const alerts = owner\.primary && discordAlerts/.test(inner) && !/if \(discordAlerts\)/.test(inner) && !/announceExit\(/.test(inner.replace('announceExit(pos, px, why, alerts)', '')),
-    'every Discord side effect in the cycle is the platform bot only');
-  ok(/owner\.primary \? lossRulesMod\.noteBotSkip : \(\) => \{\}/.test(inner), "a desk bot's refusals never reach the platform's blocked-trade ledger");
+  const inner = qb.slice(qb.indexOf('async function runBotCycleInner'), qb.indexOf('/** A LIVE two-sided quote for a held contract'));
+  const enter = qb.slice(qb.indexOf('async function enterSleeves'), qb.indexOf('/** Discord entry alert'));
+  ok(/const announce = \(pos: any, px: number, why: string\) => \(owner\.primary \? announceExit/.test(inner) && !/await announceExit\(/.test(inner) && !/if \(discordAlerts\)/.test(inner),
+    'every exit alert (Discord + notifier) in the cycle is the platform bot only');
+  ok((enter.match(/if \(owner\.primary\) await announceEntry\(/g) ?? []).length === 2 && !/[^.]\bawait announceEntry\(/.test(enter.replace(/if \(owner\.primary\) await announceEntry\(/g, '')), 'entry alerts: platform bot only, in both sleeves');
+  ok(/owner\.primary \? lossRulesMod\.noteBotSkip : \(\) => \{\}/.test(enter), "a desk bot's refusals never reach the platform's blocked-trade ledger");
+  ok(/const sleeves = owner\.sleeves \?\? readBotSleeveConfig\(process\.env\)/.test(inner), 'a desk bot runs the sleeves engine with its own sleeve config');
   ok(/reconcileExpiredBotPositions\(\{ apply: true, ownerId: owner\.userId \}\)/.test(inner), 'expiry settlement is scoped to the owner');
-  ok(/if \(owner\.primary\) try \{ await repriceRetiredRuns/.test(inner) && /owner\.primary && gapWatch\.length/.test(inner), 'retired runs + gap watch: platform bot only');
-  ok(inner.indexOf('owner.entryCheck') > 0 && inner.indexOf('owner.entryCheck') < inner.indexOf('if (rules.botEntryWindow)')
-    && inner.indexOf('if (rules.botConfluence)') > inner.indexOf('owner.entryCheck'), 'desk rules run in ADDITION to the loss-rule gates, before a slot is assigned');
-  ok(/getCachedConvictions\(\{\}\)/.test(inner) && /tapeGate/.test(inner), 'desk bots trade the same published board under the same tape gate');
-  ok(/if \(owner\.primary \|\| owner\.userId === BOT_USER\) throw/.test(qb), 'runDeskBotCycle refuses to run the platform bot');
-  ok(/runBotCycleInner\(cfg\);/.test(qb.slice(qb.indexOf('export async function runBotCycle('), qb.indexOf('export async function runBotCycle(') + 1800)), 'the platform cycle still runs with its default (primary) owner');
+  ok(/if \(owner\.primary\) try \{ await repriceRetiredRuns/.test(inner) && /owner\.primary && gapWatch\.length/.test(inner) && /sleeves\.timeStopRetired && owner\.primary/.test(inner), 'retired runs, retired time stops and gap watch: platform bot only');
+  ok(!/botPortfolios\(\)/.test(enter) && /botPortfolios\(owner\)/.test(enter), 'one-side-per-symbol and stopped-today read the OWNER\'s books');
+  const z = enter.indexOf("refuse('0dte', idea, 'btc_proxy'"), zc = enter.indexOf('owner.entryCheck', z), zl = enter.indexOf('rules.botEntryWindow', z);
+  const s0 = enter.indexOf("'not_option'"), sc = enter.indexOf('owner.entryCheck', s0), sw = enter.indexOf('rules.botEntryWindow', s0);
+  ok(z > 0 && zc > z && zc < zl && s0 > 0 && sc > s0 && sc < sw, 'desk rules run in BOTH sleeves, in ADDITION to the loss-rule gates (before them)');
+  ok(/if \(owner\.primary \|\| owner\.userId === BOT_USER\) throw/.test(qb) && /runDeskBotCycle[\s\S]{0,900}botCycleAllowedHere\(\)/.test(qb), 'runDeskBotCycle refuses the platform bot and runs only where the bot may run (worker)');
+  ok(/runBotCycleInner\(cfg\);/.test(qb.slice(qb.indexOf('export async function runBotCycle('), qb.indexOf('export async function runBotCycle(') + 2500)), 'the platform cycle still runs with its default (primary) owner');
   const sched = src('server/quant-bot-schedule.ts');
   ok(/if \(!deskAdminsEnabled\(\)\) return;/.test(sched) && /runDeskBots\(origin\)/.test(sched), 'desk bots run only with DESK_ADMINS=true, after the platform bot');
-  ok(/reconcileExpiredBotPositions\(opts: \{[^}]*ownerId\?: string/.test(src('server/bot-reconcile.ts')) && /opts\.ownerId \?\? BOT_USER_ID/.test(src('server/bot-reconcile.ts')), 'reconcile defaults to the platform bot');
+  ok(/opts\.ownerId \?\? BOT_USER_ID/.test(src('server/bot-reconcile.ts')), 'reconcile defaults to the platform bot');
   const da = src('server/desk-admin.ts');
   ok(/at most \$\{max\} desk bot/.test(da) && /DESK_BOTS_MAX/.test(da), 'enabling past DESK_BOTS_MAX is refused');
-  ok(!/isDevBypass|NODE_ENV/.test(da) && !/NODE_ENV/.test(src('server/desk-admin-routes.ts')), 'no dev bypass in desk access');
+  ok(!/isDevBypass|NODE_ENV/.test(da) && !/NODE_ENV/.test(src('server/desk-admin-routes.ts')) && !/NODE_ENV/.test(src('server/took-idea-routes.ts')), 'no dev bypass in desk access');
 
   // ── 6. Role isolation through real routes ─────────────────────────────────
   process.env.JWT_SECRET = 'test-desk-admins-secret';
@@ -143,6 +154,7 @@ async function main() {
     'u-femi': { id: 'u-femi', email: 'femi@x.io', subscriptionTier: 'pro', hasBetaAccess: true },
     'u-uzo': { id: 'u-uzo', email: 'uzo@x.io', subscriptionTier: 'free', hasBetaAccess: false },
     'u-rando': { id: 'u-rando', email: 'r@x.io', subscriptionTier: 'pro', hasBetaAccess: true },
+    'u-plain': { id: 'u-plain', email: 'p@x.io', subscriptionTier: 'pro', hasBetaAccess: true },
     'u-gone': { id: 'u-gone', email: 'g@x.io', subscriptionTier: 'pro', subscriptionStatus: 'disabled' },
   };
   const book = [
@@ -174,16 +186,39 @@ async function main() {
     getTrader: async (slug) => book.find((t) => t.slug === slug) ?? null,
     getUser: async (id) => users[id] ?? null,
     isProtectedAdmin: (u) => isSuperAdminUser(u),
-    readBot: async (slug) => { const b = bots.get(slug); return { enabled: b?.enabled ?? false, config: b?.config ?? def, exists: !!b, updatedAt: null }; },
+    readBot: async (slug) => { const b = bots.get(slug); return { enabled: b?.enabled ?? false, shareBook: false, config: b?.config ?? def, exists: !!b, updatedAt: null }; },
     writeBotConfig: async (slug, c) => { writes.push(`config:${slug}`); bots.set(slug, { enabled: bots.get(slug)?.enabled ?? false, config: c }); },
     setBotEnabled: async (slug, on) => { writes.push(`enabled:${slug}:${on}`); bots.set(slug, { enabled: on, config: bots.get(slug)?.config ?? def }); return { ok: true }; },
     listBots: async () => [...bots.entries()].map(([slug, b]) => ({ slug, ...b, exists: true, updatedAt: null })),
     botStatus: async () => ({ setUp: true, enabled: false, portfolio: null }),
     bookStats: async () => ({ trades: 0 }),
     setPasscodeHash: async (slug, h) => { writes.push(`passcode:${slug}:${h ? 'set' : 'clear'}`); const t = book.find((x) => x.slug === slug); if (t) t.passcodeHash = h; },
+    setShareBook: async (slug, share) => { writes.push(`share:${slug}:${share}`); },
     hashPasscode: async (c) => `hash(${c.length})`,
     setLinkedUser: async (slug, uid) => { writes.push(`link:${slug}:${uid}`); const t = book.find((x) => x.slug === slug); if (t) t.linkedUserId = uid; },
     runCycle: async (slug) => { writes.push(`run:${slug}`); return { opened: [] }; },
+  });
+  // "I took this" on the same app: a stub beta gate (session = member) and an in-memory journal.
+  const { registerTookIdeaRoutes } = await import('../server/took-idea-routes');
+  const journal: Record<string, unknown>[] = [];
+  const beta: express.RequestHandler = (req, res, next) => ((req as any).session?.userId ? next() : res.status(401).json({ error: 'Sign in' }));
+  registerTookIdeaRoutes(app, beta, {
+    // Same rule as journal-sources writableOwner: 'mine' = you; trader:<slug> = its linked user or an admin.
+    resolveBook: async (req, requested) => {
+      const uid = (req as any).session?.userId as string;
+      const u = users[uid];
+      const acc = resolveDeskAccess({ userId: uid, isSuperAdmin: isSuperAdminUser(u), disabled: isAccountDisabled(u), traders: book });
+      const key = requested ?? (acc.role === 'desk' ? `trader:${acc.deskSlug}` : 'mine');
+      if (key === 'mine') return { ownerId: uid, key, userId: uid, deskSlug: null };
+      const t = book.find((x) => `trader:${x.slug}` === key);
+      if (!t) throw Object.assign(new Error('No such trader'), { status: 404 });
+      if (!(acc.role === 'super' || t.linkedUserId === uid)) throw Object.assign(new Error(`Only an admin or ${t.name} can change ${t.name}'s journal`), { status: 403 });
+      return { ownerId: `trader:${t.id}`, key, userId: uid, deskSlug: t.slug };
+    },
+    getIdea: async (id) => (id === 'idea-1' ? { id, symbol: 'AMD', assetType: 'stock', direction: 'long', entryPrice: 150, targetPrice: 160, stopLoss: 145, source: 'quant', timestamp: '2026-10-06T14:00:00Z' } : null),
+    findTaken: async (owner, k) => (journal.find((r) => r.userId === owner && r.brokerOrderId === k) as { id: string } | undefined) ?? null,
+    listTakenIdeaIds: async (owner) => journal.filter((r) => r.userId === owner).map((r) => String(r.brokerOrderId).replace(/^idea:/, '')),
+    insert: async (row) => { const r = { ...row, id: `j${journal.length + 1}` }; journal.push(r); return r as { id: string }; },
   });
   const server = app.listen(0);
   try {
@@ -234,9 +269,9 @@ async function main() {
 
     // 6b. The desk routes.
     const DESK_ROUTES: [string, string, unknown?][] = [
-      ['GET', '/api/desk/SLUG'], ['GET', '/api/desk/SLUG/bot'], ['PATCH', '/api/desk/SLUG/bot', { riskPerTradePct: 1 }],
+      ['GET', '/api/desk/SLUG'], ['GET', '/api/desk/SLUG/bot'], ['PATCH', '/api/desk/SLUG/bot', { swingRiskUsd: 200 }],
       ['POST', '/api/desk/SLUG/bot/enabled', { enabled: true }], ['PUT', '/api/desk/SLUG/passcode', { passcode: 'abcdef12' }],
-      ['POST', '/api/desk/SLUG/bot/run', {}],
+      ['POST', '/api/desk/SLUG/bot/run', {}], ['PUT', '/api/desk/SLUG/privacy', { shareWithGroup: true }],
     ];
     for (const [m, r, b] of DESK_ROUTES) {
       const own = r.replace('SLUG', 'femi');
@@ -260,8 +295,8 @@ async function main() {
     ok(writes.includes('config:femi') && writes.includes('enabled:femi:true') && writes.includes('passcode:femi:set') && writes.includes('run:uzo'), 'own-desk writes landed; the super-admin ran a cycle');
 
     // caps through the route
-    const bad = await call('PATCH', '/api/desk/femi/bot', 'u-femi', { riskPerTradePct: 5 });
-    ok(bad.status === 400 && /between/.test(bad.body?.error ?? ''), 'over-cap risk → 400 with the reason');
+    const bad = await call('PATCH', '/api/desk/femi/bot', 'u-femi', { swingRiskUsd: 5000 });
+    ok(bad.status === 400 && /between/.test(bad.body?.error ?? ''), 'over-cap swing risk → 400 with the reason');
     eq((await call('PATCH', '/api/desk/femi/bot', 'u-femi', { startingCapital: 1e9 })).status, 400, 'platform-set field → 400');
     eq((await call('PUT', '/api/desk/femi/passcode', 'u-femi', { passcode: 'abc' })).status, 400, 'short passcode → 400');
     eq((await call('PUT', '/api/desk/femi/passcode', 'u-femi', { passcode: 42 })).status, 400, 'non-string passcode → 400');
@@ -303,12 +338,72 @@ async function main() {
     // 6d. Audit
     const log = readAdminAudit(200);
     const cfgRow = log.find((e) => e.action === 'desk.bot_config' && e.target === 'femi' && e.actor === 'user:u-femi');
-    ok(cfgRow && (cfgRow.detail as any).role === 'desk' && (cfgRow.detail as any).changed?.riskPerTradePct === 1, 'desk admin config change is audited with actor, role and the change');
+    ok(cfgRow && (cfgRow.detail as any).role === 'desk' && (cfgRow.detail as any).changed?.swingRiskUsd === 200, 'desk admin config change is audited with actor, role and the change');
     ok(log.some((e) => e.action === 'desk.passcode_set' && e.target === 'femi') && !JSON.stringify(log).includes('abcdef12'), 'passcode set is audited, the passcode never is');
     ok(log.some((e) => e.action === 'desk.bot_enable' && e.actor === 'user:u-femi'), 'bot enable audited');
     ok(log.some((e) => e.action === 'desk.bot_run' && e.actor === 'user:u-malik' && (e.detail as any).role === 'super'), 'super-admin run audited as super');
     ok(['desk.assign', 'desk.unassign'].every((a) => log.some((e) => e.action === a && e.actor === 'admin-hub')), 'assign / unassign audited from the hub');
+
+    // 6e. "I took this": lands in the caller's own desk book; never someone else's.
+    eq((await call('POST', '/api/journal/took-idea', undefined, { ideaId: 'idea-1' })).status, 401, 'took-idea: signed out → 401');
+    const t1 = await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'idea-1' });
+    ok(t1.status === 201 && t1.body.journal === 'trader:femi' && t1.body.origin === 'quantedge_idea', "a desk admin's take lands in their desk book as quantedge_idea");
+    ok((journal[0] as any).userId === 'trader:t1' && (journal[0] as any).rawCsvRow.takenBy === 'u-femi' && (journal[0] as any).rawCsvRow.deskSlug === 'femi', 'attribution: user + desk slug on the row');
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'idea-1' })).status, 409, 'one take per idea per book');
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'idea-1', journal: 'trader:uzo' })).status, 403, "a desk admin cannot write a take into another trader's book");
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'idea-1', journal: 'trader:leek' })).status, 403, "…nor into Malik's");
+    eq((await call('POST', '/api/journal/took-idea', 'u-plain', { ideaId: 'idea-1' })).body.journal, 'mine', 'a member with no desk takes into their own journal');
+    eq((await call('POST', '/api/journal/took-idea', 'u-malik', { ideaId: 'idea-1', journal: 'trader:uzo' })).status, 201, 'the super-admin may log into any book');
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'nope' })).status, 404, 'unknown idea → 404');
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: 'idea-1', journal: 'desk' })).status, 400, 'read-only books (desk/bot) refused');
+    eq((await call('POST', '/api/journal/took-idea', 'u-femi', { ideaId: "x' OR 1=1" })).status, 400, 'odd idea id → 400');
+    const mine = await call('GET', '/api/journal/took-ideas', 'u-femi');
+    eq([mine.body.journal, mine.body.ideaIds], ['trader:femi', ['idea-1']], 'took-ideas: the button state for the caller\'s own book only');
+    ok(readAdminAudit(500).some((e) => e.action === 'desk.privacy' && e.target === 'femi' && (e.detail as any).shareWithGroup === true), 'privacy change audited');
   } finally { server.close(); }
+
+  // ── 8. Privacy: trader books private by default ───────────────────────────
+  const tFemi = { slug: 'femi', linkedUserId: 'u-femi' };
+  ok(traderBookVisible({ userId: 'u-femi', isAdmin: false }, tFemi, false), 'the desk admin sees their own private book');
+  ok(traderBookVisible({ userId: 'u-malik', isAdmin: true }, tFemi, false), 'the super-admin sees every book');
+  ok(!traderBookVisible({ userId: 'u-uzo', isAdmin: false }, tFemi, false), "another trader does NOT see a private book");
+  ok(!traderBookVisible({ userId: null, isAdmin: false }, tFemi, false), 'signed out sees nothing');
+  ok(traderBookVisible({ userId: 'u-uzo', isAdmin: false }, tFemi, true), 'opt-in sharing makes the book group-visible');
+  const js = src('server/journal-sources.ts');
+  ok(/traderVisibilityFor\(actor\)\)\(trader\)\) throw new JournalAccessError\(404/.test(js) && js.indexOf('traderVisibilityFor') < js.indexOf('if (isTraderLocked(actor, trader))'), 'resolveJournal hides a private book (404) before the passcode check — every journal read and write goes through it');
+  const jr = src('server/journals-routes.ts');
+  for (const [what, re] of [
+    ['sources list', /\.filter\(await visibleTo\(actor\)\)\.map\(/],
+    ['traders list', /\(await listTraders\(\)\)\.filter\(await visibleTo\(actor\)\)/],
+    ['watchlist read', /if \(!t \|\| !\(await visibleTo\(actor\)\)\(t\)\) return res\.status\(404\)/],
+    ['passcode unlock', /if \(!t \|\| !\(await visibleTo\(await journalActor\(req\)\)\)\(t\)\) return res\.status\(404\)/],
+    ['analysis', /if \(!t0 \|\| !\(await visibleTo\(await journalActor\(req\)\)\)\(t0\)\) return res\.status\(404\)/],
+    ['leaderboard', /rows: board\.rows\.filter\(\(r: \{ slug: string \}\) => ok\.has\(r\.slug\)\)/],
+    ['trader calls', /calls: feed\.calls\.filter\(/],
+  ] as const) ok(re.test(jr), `privacy applied: ${what}`);
+  const daSrc = src('server/desk-admin.ts');
+  ok(/if \(!deskAdminsEnabled\(\)\) return \(\) => true;/.test(daSrc), 'flag off: visibility unchanged (every book visible, passcodes apply)');
+  ok(/treating every book as private/.test(daSrc) && /if \(!isMissingTable\(e\)\)/.test(daSrc), 'no desk_bots table / read error: every book private (fails closed)');
+  ok(/share_book" boolean NOT NULL DEFAULT false/.test(src('migrations/0005_desk_admins.sql')), 'share_book defaults to private');
+
+  // ── 9. "I took this" ──────────────────────────────────────────────────────
+  const ideaOpt = { id: 'i1', symbol: 'nvda', assetType: 'option', direction: 'long', optionType: 'call', strikePrice: 150, expiryDate: '2026-10-17', entryPrice: 140, entryPremium: 3.2, targetPrice: 150, stopLoss: 135, source: 'quant', timestamp: '2026-10-06T14:00:00Z' };
+  const b1 = buildTookIdeaTrade(ideaOpt, { ownerId: 'trader:t1', takenBy: 'u-femi', deskSlug: 'femi', journalKey: 'trader:femi', nowIso: '2026-10-06T15:00:00Z' });
+  ok(b1.ok, 'taken option idea builds a journal row');
+  if (b1.ok) {
+    const r = b1.row as any;
+    eq([r.userId, r.symbol, r.assetType, r.direction, r.entryPrice, r.quantity, r.status, r.broker, r.brokerOrderId], ['trader:t1', 'NVDA', 'option', 'long', 3.2, 1, 'open', QUANTEDGE_IDEA_BROKER, tookIdeaKey('i1')], 'row: the book, the contract at the published premium, origin broker, one key per idea');
+    eq([r.rawCsvRow.origin, r.rawCsvRow.takenBy, r.rawCsvRow.deskSlug, r.rawCsvRow.entryBasis], ['quantedge_idea', 'u-femi', 'femi', 'published'], 'attribution: origin, who, which desk, entry basis');
+    ok(/PUBLISHED premium, not your fill/.test(r.notes), 'a published entry is stamped as such — never presented as the fill');
+    eq(journalOriginOf(r), 'quantedge_idea', 'origin read back from the row');
+  }
+  eq(journalOriginOf({ broker: 'discord' }), 'own_idea', 'imported / manual trades are own ideas');
+  const b2 = buildTookIdeaTrade(ideaOpt, { ownerId: 'u1', takenBy: 'u1', deskSlug: null, journalKey: 'mine', nowIso: 'x', entryPrice: 2.9, quantity: 3 });
+  ok(b2.ok && (b2.row as any).entryPrice === 2.9 && (b2.row as any).quantity === 3 && (b2.row as any).rawCsvRow.entryBasis === 'fill', 'the trader\'s fill and size win');
+  ok(!buildTookIdeaTrade(ideaOpt, { ownerId: 'u1', takenBy: 'u1', deskSlug: null, journalKey: 'mine', nowIso: 'x', entryPrice: -1 }).ok, 'negative fill refused');
+  ok(!buildTookIdeaTrade(ideaOpt, { ownerId: 'u1', takenBy: 'u1', deskSlug: null, journalKey: 'mine', nowIso: 'x', quantity: 0 }).ok, 'zero quantity refused');
+  ok(!buildTookIdeaTrade({ id: 'i2', symbol: 'X', assetType: 'option', optionType: 'call' }, { ownerId: 'u1', takenBy: 'u1', deskSlug: null, journalKey: 'mine', nowIso: 'x' }).ok, 'no published premium and no fill → refused, never a $0 entry');
+  ok(/rows\.filter\(\(r\) => r\.broker !== 'quantedge'\)/.test(src('server/trader-analysis.ts')), "taken QuantEdge ideas never count as the trader's own calls");
 
   // ── 7. Client ────────────────────────────────────────────────────────────
   const hook = src('client/src/lib/desk-role.ts');

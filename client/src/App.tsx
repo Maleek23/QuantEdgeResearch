@@ -49,6 +49,7 @@ const AdminWaitlist = lazyWithRetry(() => import("@/pages/admin/waitlist"), "adm
 const AdminSystem = lazyWithRetry(() => import("@/pages/admin/system"), "admin-system");
 const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog");
 const AdminTraders = lazyWithRetry(() => import("@/pages/admin/traders"), "admin-traders");
+const DeskPortalPage = lazyWithRetry(() => import("@/pages/desk"), "desk");
 const AdminAudit = lazyWithRetry(() => import("@/pages/admin/audit"), "admin-audit");
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
@@ -146,6 +147,8 @@ const ProtectedTodayPage = withBetaProtection(TodayPage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
 const ProtectedSettingsPage = withBetaProtection(SettingsPage);
 const ProtectedAlertsPage = withBetaProtection(AlertsPage);
+// Desk portal (docs/DESK_ADMINS.md): any signed-in member route; the server decides whose desk.
+const DeskPortal = withBetaProtection(DeskPortalPage);
 
 function SmartLanding() {
   const { user, isLoading } = useAuth();
@@ -277,6 +280,8 @@ function Router() {
       {/* System Pages */}
       <Route path="/settings" component={ProtectedSettingsPage} />
       <Route path="/alerts" component={ProtectedAlertsPage} />
+      <Route path="/desk" component={DeskPortal} />
+      <Route path="/desk/:slug" component={DeskPortal} />
 
       {/* Admin hub — own access gate (AdminLayout). Four sections; the retired
           admin pages redirect via lib/legacy-redirects.ts (docs/ADMIN_HUB.md). */}

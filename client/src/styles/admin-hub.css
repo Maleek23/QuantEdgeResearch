@@ -85,3 +85,8 @@
   .ah-acts { justify-content: flex-start; }
   .ah-subnav { flex-wrap: wrap; }
 }
+
+/* Desk portal (pages/desk.tsx) */
+.ah-h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--lx-text, inherit); }
+.ah-x { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 4px; min-height: 24px; }
+.ah-x:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }

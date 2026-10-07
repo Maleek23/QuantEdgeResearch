@@ -85,4 +85,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   'waitlist.approve': 'Approved waitlist', 'waitlist.reject': 'Rejected waitlist', 'waitlist.invite': 'Invited from waitlist',
   'user.tier': 'Changed tier', 'user.beta': 'Changed beta access', 'user.disable': 'Disabled account', 'user.enable': 'Enabled account',
   'user.delete': 'Deleted account', 'user.password_reset': 'Sent password reset', 'trader.passcode_set': 'Set book passcode', 'trader.passcode_clear': 'Cleared book passcode',
+  'desk.assign': 'Made desk admin', 'desk.unassign': 'Removed desk admin', 'desk.bot_config': 'Changed desk bot settings',
+  'desk.bot_enable': 'Turned desk bot on', 'desk.bot_disable': 'Turned desk bot off', 'desk.bot_run': 'Ran a desk bot cycle',
+  'desk.passcode_set': 'Desk set book passcode', 'desk.passcode_clear': 'Desk cleared book passcode', 'desk.privacy': 'Desk changed book sharing',
 };
