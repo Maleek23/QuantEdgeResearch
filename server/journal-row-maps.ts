@@ -13,6 +13,7 @@ import {
 } from '@shared/desk-integrity';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
 import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
+import { deskRiskBasis, type DeskCall, type DeskManaged, type DeskPeak, type DeskRiskBasis } from '@shared/desk-view';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -50,6 +51,12 @@ export type JournalWireRow = Pick<JournalTrade,
   /** Bot book only: whether option P&L reconciles to its saved execution/settlement evidence. */
   measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';
   measurementNote?: string | null;
+  /** Desk rows: published plan levels for equal-risk re-sizing (shared/desk-view.ts, shared/position-sizing.ts). */
+  riskBasis?: DeskRiskBasis | null;
+  /** Desk rows: managed-exit replay, peak (MFE) and call accuracy from the replay ledger (server/managed-replay-ledger.ts). */
+  managed?: DeskManaged | null;
+  peak?: DeskPeak | null;
+  call?: DeskCall | null;
 };
 
 /**
@@ -272,6 +279,10 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       ...(exitTimeNote ? { exitTimeNote } : {}),
       ...(capture != null ? { captureRatio: capture } : {}),
       ...(afterStop ? { afterStop } : {}),
+      riskBasis: deskRiskBasis({
+        assetType: i.assetType, direction: planDirection, entry: planEntry, stop: planStop, entryPremium: option ? entry : null,
+        expiryDate: planExpiry, publishedAt: i.timestamp, unitQty: qty,
+      }),
     },
   };
 }
