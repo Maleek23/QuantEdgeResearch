@@ -71,7 +71,7 @@ export const PLANS: Plan[] = [
     name: 'Free',
     monthly: 0,
     annual: 0,
-    blurb: 'Look around the terminal with delayed data and daily limits.',
+    blurb: 'During the invite-only beta every desk is open on delayed data. The limits below apply once paid plans launch.',
     highlighted: false,
     cta: { label: 'Start free', action: 'signup' },
     features: [
