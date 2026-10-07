@@ -12,6 +12,7 @@
  *            the overlay never adds time points (drawings and layers map
  *            through the main series' bar indices).
  */
+import { canonicalChartSymbol } from '../../../../../shared/index-symbols';
 
 export interface Bar { time: number; open: number; high: number; low: number; close: number; volume?: number }
 
@@ -52,8 +53,19 @@ export function alignToTimes<T extends { time: number }>(compare: readonly T[], 
   return compare.filter((b) => want.has(b.time));
 }
 
-/** A ticker a user may type into "Compare with": letters, digits, . - ^ = /, 1–15 chars. */
+/** A ticker a user may type into "Compare with": letters, digits, . - ^ = /, 1–15 chars.
+ *  Index aliases resolve to the terminal's name ($SPX / ^GSPC / SPXW → SPX). */
 export function cleanCompareSymbol(raw: string): string | null {
-  const s = raw.trim().toUpperCase();
+  const s = canonicalChartSymbol(raw);
   return /^[A-Z0-9.^=/-]{1,15}$/.test(s) ? s : null;
+}
+
+/**
+ * The index's own bars plus its out-of-RTH proxy bars, in time order. A proxy
+ * bar never replaces a real one at the same time (the real print wins).
+ */
+export function mergeProxyBars<T extends { time: number; proxy?: boolean }>(own: readonly T[], proxy: readonly T[]): T[] {
+  if (!proxy.length) return own as T[];
+  const taken = new Set(own.map((b) => b.time));
+  return [...own, ...proxy.filter((p) => !taken.has(p.time))].sort((a, b) => a.time - b.time);
 }

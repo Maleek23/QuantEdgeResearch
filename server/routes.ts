@@ -5215,16 +5215,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // implementation now serves both, so the route and direct callers cannot drift.
   app.get("/api/historical-prices/:symbol", async (req, res) => {
     try {
-      const { symbol } = req.params;
-      const { fetchCandles, normalizeRange } = await import("./historical-candles");
+      const { fetchChartSeries, normalizeRange } = await import("./historical-candles");
       const range = normalizeRange(req.query.range as string, "1mo");
       const interval = (req.query.interval as string) || "1d";
 
-      const data = await fetchCandles(symbol, range, interval);
-      if (!data.length) {
+      // Cash indices ($SPX / ^GSPC / SPXW → SPX) come back regular-session
+      // only, with the ETF's volume (labelled) and the future-scaled
+      // extended-hours bars as a separate, labelled array.
+      const series = await fetchChartSeries(req.params.symbol, range, interval);
+      if (!series.data.length) {
         return res.status(404).json({ error: "No historical data found" });
       }
-      res.json({ symbol, range, data });
+      res.json({ ...series, range });
     } catch (error) {
       logger.error(`Error fetching historical prices for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to fetch historical prices" });
@@ -6617,8 +6619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? oilAliases.map((item) => ({ ...item, type: 'stock' as const }))
         : [];
 
+      // Cash indices: "$SPX", "^GSPC", "SPXW", "S&P" → SPX (one canonical name,
+      // shared/index-symbols.ts). Listed first — an index query means the index.
+      const { canonicalChartSymbol, INDEX_INFO } = await import('@shared/index-symbols');
+      const canonQ = canonicalChartSymbol(query);
+      const indexResults = Object.values(INDEX_INFO)
+        .filter((i) => i.symbol === canonQ || (query.length >= 2 && (i.symbol.startsWith(canonQ) || i.name.toUpperCase().includes(query))))
+        .map((i) => ({ symbol: i.symbol, name: i.name, type: 'index' as const }));
+
       // Combine and limit results - prioritize exact matches
       const allResults = [
+        ...indexResults,
         ...futuresResults.slice(0, 5),
         ...oilResults,
         ...stockResults.slice(0, 10),
@@ -15434,7 +15445,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // the GEX timeline starts when recording started (see server/chart-overlays).
   app.get("/api/chart/overlays/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const symbol = canonicalChartSymbol(String(req.params.symbol ?? '')); // $SPX / ^GSPC / SPXW → SPX
       if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
       const rawRange = String(req.query.range ?? '1D').toUpperCase();
       const range = ['1D', '2D', '5D'].includes(rawRange) ? rawRange : '1D';
@@ -32612,7 +32624,8 @@ Use this checklist before entering any trade:
    */
   app.get("/api/levels/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const sym = String(req.params.symbol || '').toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const sym = canonicalChartSymbol(String(req.params.symbol || ''));
       if (!/^[A-Z.^-]{1,10}$/.test(sym)) return res.status(400).json({ error: 'bad symbol' });
       const { getLevelMap, levelSnapEnabled } = await import('./levels/level-map');
       const map = await getLevelMap(sym);

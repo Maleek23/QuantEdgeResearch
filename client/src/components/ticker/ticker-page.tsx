@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
+import { indexInfo } from '@shared/index-symbols';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
@@ -104,6 +105,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const snap = d.dealer.data?.snapshot;
   const week = d.week.data;
   const earn = d.earnings.data?.ownEarnings ?? null;
+  const volProxySym = indexInfo(sym)?.volumeProxy ?? null;
+  const proxyVolQ = useQuotes(volProxySym ? [volProxySym] : []);
   const pick = d.conv.data?.picks?.find((p) => p.symbol?.toUpperCase() === sym) ?? null;
 
   // Scroll a legacy section request into view once the page has laid out.
@@ -188,7 +191,10 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const up = (q?.changePercent ?? 0) >= 0;
   // Yahoo's quote leg reports volume 0 outside its session feed — that is
   // "not reported", not "nothing traded", so it prints as a dash.
-  const liveVol = q?.volume && q.volume > 0 ? q.volume : null;
+  // A cash index has no traded volume: its daily bars carry the ETF's volume
+  // (server fetchChartSeries), so the live figure is the ETF's too — labelled.
+  const ownVol = q?.volume && q.volume > 0 ? q.volume : null;
+  const liveVol = volProxySym ? (proxyVolQ.data?.[volProxySym]?.volume || null) : ownVol;
   const volRatio = liveVol && stats.avgVol20 ? liveVol / stats.avgVol20 : null;
   const pos52 = price != null && stats.h52 != null && stats.l52 != null && stats.h52 > stats.l52 ? ((price - stats.l52) / (stats.h52 - stats.l52)) * 100 : null;
 
@@ -342,8 +348,10 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       {miniNav}
 
       <div className="tk-stats" id="overview" aria-label="Key stats">
-        {CASH_INDEX.has(sym)
-          ? <Stat k="Volume" v="n/a" sub="cash index · see SPY" unit />
+        {volProxySym
+          ? <Stat k={`Volume · ${volProxySym}`} v={fmtBig(liveVol)} title={`${sym} is a calculated index with no traded volume — this is ${volProxySym}'s session volume`} sub={volRatio != null ? `${volProxySym} proxy · ${volRatio.toFixed(1)}× 20d` : `${volProxySym} proxy`} unit />
+          : CASH_INDEX.has(sym)
+          ? <Stat k="Volume" v="n/a" sub="index · no volume" unit />
           : <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />}
         <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && price)} />
         <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} unit={stats.rsi == null || (stats.rsi < 70 && stats.rsi > 30)} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />

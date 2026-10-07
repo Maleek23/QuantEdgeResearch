@@ -52,6 +52,7 @@ import {
   etInfo, etClock, shortDate, fmtUsd, ageOf,
   type DpLevel, type FlowPrint,
 } from '@/components/charting/chart-layers';
+import { canonicalChartSymbol } from '@shared/index-symbols';
 import '@/styles/nexus.css';
 
 /* The full variant is the TradingView-style chart (tv/tv-chart.tsx) on
@@ -150,7 +151,7 @@ function QEChartCompact({
   onOpenLab,
   onOpenChartPage,
 }: QEChartProps) {
-  const symbol = rawSymbol.toUpperCase();
+  const symbol = canonicalChartSymbol(rawSymbol); // $SPX / ^GSPC / SPXW → SPX
   // The full variant is TvChart (see QEChart below); this is the compact embed.
   const compact = true;
   const shared = useChartPrefs();
