@@ -46,6 +46,13 @@ export const LEADERS_CFG = {
   minRvolSessions: 2,
   /** Opening range length (minutes from 09:30). */
   orMinutes: 15,
+  /**
+   * Which OR edge a leader must hold: 'high' (default — above the OR high for longs,
+   * below the OR low for shorts) or 'low' (the range has not FAILED: above the OR low
+   * for longs). 2026-10-06 replay: gap-and-hold names (ZS, CRWD, AAOI) set the OR high
+   * on the opening spike and never re-took it. LEADERS_OR_HOLD=low switches.
+   */
+  orHold: 'high' as 'high' | 'low',
   /** Continuation: entry no further than this × daily ATR beyond VWAP. */
   maxExtensionAtr: 1.0,
   /** Retest: look-back in closed 5-min bars, and the touch tolerance as a fraction of daily ATR. */
@@ -213,7 +220,11 @@ export function qualify(i: QualifyInput, cfg = LEADERS_CFG): Qualify {
     { key: 'move', pass: Math.abs(movePct) + 1e-9 >= threshold, detail: `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}% vs prior close (needs ${threshold.toFixed(2)}%: ${cfg.minMovePct}% or ${cfg.minMoveAtrMult}× ATR% ${atrPct ?? '—'}%)` },
     { key: 'rvol', pass: read.rvol != null && read.rvol + 1e-9 >= cfg.minRvol, detail: read.rvol == null ? `relative volume unknown (${read.rvolSessions} prior session(s) in the bars)` : `${read.rvol.toFixed(2)}× time-of-day volume (needs ${cfg.minRvol}×, ${read.rvolSessions} sessions)` },
     { key: 'vwap', pass: L ? read.last > read.vwap : read.last < read.vwap, detail: `last $${r2(read.last)} ${read.last > read.vwap ? 'above' : 'below'} VWAP $${r2(read.vwap)}` },
-    { key: 'or', pass: L ? read.last > read.orHigh : read.last < read.orLow, detail: `${L ? `OR high $${r2(read.orHigh)}` : `OR low $${r2(read.orLow)}`} (${cfg.orMinutes}-min opening range)` },
+    (() => {
+      // 'high': beyond the OR edge on the trend side; 'low': the range has not failed (opposite edge holds).
+      const edge = cfg.orHold === 'low' ? (L ? read.orLow : read.orHigh) : (L ? read.orHigh : read.orLow);
+      return { key: 'or' as const, pass: L ? read.last > edge : read.last < edge, detail: `${L ? 'above' : 'below'} OR ${(L === (cfg.orHold !== 'low')) ? 'high' : 'low'} $${r2(edge)} (${cfg.orMinutes}-min opening range, hold=${cfg.orHold})` };
+    })(),
     { key: 'sector', pass: i.regime != null && sideRegimes.includes(i.regime), detail: i.regime == null ? 'no sector-board read for this name' : `${i.sectorLabel ?? 'sector'} reads ${i.regime} (${side} needs ${sideRegimes.join('/')})` },
   ];
   const failed = checks.filter((c) => !c.pass);

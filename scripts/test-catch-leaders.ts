@@ -195,6 +195,10 @@ async function main() {
     assert.match(qualify({ symbol: 'X', prevClose: 100, atr: ATR, read: thin, regime: 'leading' }).reason!, /rvol: 1\.20×/);
     const under = { ...read, last: read.vwap - 0.1 };
     assert.equal(qualify({ symbol: 'X', prevClose: 100, atr: ATR, read: under, regime: 'leading' }).checks.find((c) => c.key === 'vwap')!.pass, false);
+    // OR hold: 'high' (default) needs the OR high; 'low' only needs the range not to have failed.
+    const insideOr = { ...read, orHigh: read.last + 1, orLow: read.last - 3 };
+    assert.equal(qualify({ symbol: 'X', prevClose: 100, atr: ATR, read: insideOr, regime: 'leading' }).checks.find((c) => c.key === 'or')!.pass, false);
+    assert.equal(qualify({ symbol: 'X', prevClose: 100, atr: ATR, read: insideOr, regime: 'leading' }, { ...LEADERS_CFG, orHold: 'low' }).checks.find((c) => c.key === 'or')!.pass, true);
     // Shorts need Weakening.
     const down = { ...read, last: 96, vwap: 97, orLow: 97.5 };
     assert.equal(qualify({ symbol: 'Z', prevClose: 100, atr: ATR, read: down, regime: 'weakening' }).ok, true);

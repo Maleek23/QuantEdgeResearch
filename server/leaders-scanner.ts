@@ -291,6 +291,7 @@ export async function runLeadersScan(deps: LeadersDeps = {}): Promise<LeadersPas
   catch (err) { logger.warn(`[LEADERS] stage B bars unavailable: ${(err as Error).message}`); return done(0, deep.length, universe.length); }
   const sectors = await (deps.sectors ?? liveSectors)();
   const minRR = readMinRrPublish(env);
+  const qcfg = { ...LEADERS_CFG, orHold: String(env.LEADERS_OR_HOLD ?? '').toLowerCase() === 'low' ? 'low' as const : 'high' as const };
   const { nexusStopAtrK } = await import('./lib/atr-stop-floor');
   const floorK = nexusStopAtrK(env);
 
@@ -306,7 +307,7 @@ export async function runLeadersScan(deps: LeadersDeps = {}): Promise<LeadersPas
     if (!read) { await emit({ symbol: sym, side: null, status: 'withheld', stage: 'qualify', reason: 'no session read (opening range not complete or no bars)', movePct: r2(m.move) }); continue; }
     const side: Side = m.move >= 0 ? 'long' : 'short';
     const sector = pickSector(sectors.get(sym), side);
-    const q = qualify({ symbol: sym, prevClose: m.ctx.prevClose, atr: m.ctx.atr, read, regime: sector?.regime ?? null, sectorLabel: sector?.label ?? null });
+    const q = qualify({ symbol: sym, prevClose: m.ctx.prevClose, atr: m.ctx.atr, read, regime: sector?.regime ?? null, sectorLabel: sector?.label ?? null }, qcfg);
     const baseRow = { symbol: sym, side: q.side, movePct: q.movePct, rvol: read.rvol, sector, checks: q.checks };
     if (!q.ok) { await emit({ ...baseRow, status: 'withheld', stage: 'qualify', reason: q.reason }); continue; }
     if (!m.ctx.atr) { await emit({ ...baseRow, status: 'withheld', stage: 'plan', reason: 'no daily ATR — the stop cannot be floored' }); continue; }
