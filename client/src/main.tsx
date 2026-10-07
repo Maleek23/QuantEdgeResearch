@@ -61,6 +61,9 @@ if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")
 } else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/zerodte")) {
   // DEV-only 0DTE desk harness: fixture API + pinned clock (dev/zerodte-mocks.ts).
   import("./dev/zerodte-mocks").then((m) => { m.installZeroDteMocks(); mount(); });
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/nexus-workspace")) {
+  // DEV-only NEXUS workspace harness (/dev/nexus-workspace): fixture book, no server or DB
+  import("./dev/nexus-workspace-mocks").then((m) => { m.installNexusWorkspaceMocks(); mount(); });
 } else {
   mount();
 }

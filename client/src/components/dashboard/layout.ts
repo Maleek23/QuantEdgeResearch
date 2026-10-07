@@ -26,7 +26,15 @@ export interface PlacedTool {
   i: string;            // instance id
   type: string;         // tool id in the global registry
   x: number; y: number; w: number; h: number;
+  /**
+   * COLLAPSED: the tile shows only its header (h = COLLAPSED_H) and this is
+   * the height it returns to on expand. Absent = expanded.
+   */
+  c?: number;
 }
+
+/** Rows a collapsed tile keeps (its header). */
+export const COLLAPSED_H = 1;
 
 export interface Dashboard {
   id: string;
@@ -140,7 +148,7 @@ export function autoArrange(
  * area, and whether the layout is exactly COLS × VIEW_ROWS. Pure; used by a
  * DEV-only assertion in pages.ts and by the layout audit.
  */
-export function tilingIssues(tools: Array<{ x: number; y: number; w: number; h: number; type?: string }>): string[] {
+export function tilingIssues(tools: Array<{ x: number; y: number; w: number; h: number; type?: string }>, opts: { tall?: boolean } = {}): string[] {
   const out: string[] = [];
   const bottom = tools.reduce((m, t) => Math.max(m, t.y + t.h), 0);
   const grid: string[][] = Array.from({ length: bottom }, () => Array(COLS).fill(''));
@@ -154,7 +162,8 @@ export function tilingIssues(tools: Array<{ x: number; y: number; w: number; h: 
   let holes = 0;
   for (const row of grid) for (const c of row) if (!c) holes++;
   if (holes) out.push(`${holes} empty cells`);
-  if (bottom !== VIEW_ROWS) out.push(`height ${bottom} rows, not ${VIEW_ROWS}`);
+  // `tall` (NEXUS): the first screen is VIEW_ROWS rows and more tools follow below the fold
+  if (opts.tall ? bottom < VIEW_ROWS : bottom !== VIEW_ROWS) out.push(`height ${bottom} rows, ${opts.tall ? 'less than' : 'not'} ${VIEW_ROWS}`);
   return out;
 }
 
