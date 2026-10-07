@@ -280,7 +280,7 @@ function mockCryptoIdeas() {
   const coins: Array<[string, number]> = [['BTC', 64210], ['ETH', 2480], ['SOL', 148], ['XRP', 0.58], ['DOGE', 0.12], ['AVAX', 27.4]];
   const ideas = coins.slice(0, 6).map(([symbol, px], i) => {
     const long = i % 3 !== 1; const s = long ? 1 : -1; const st = i < 3 ? 'open' : i === 3 ? 'hit_target' : i === 4 ? 'hit_stop' : 'open';
-    return { id: `fx-cr-${i}`, symbol, direction: long ? 'long' : 'short', timestamp: ago((i + 1) * 3.3 * 36e5), setup: ['trend_pullback', 'range_fade', 'breakout'][i % 3], horizon: 'swing', grade: ['A', 'B', 'A', 'C', 'B', 'B'][i], points: 78 - i * 5,
+    return { id: `fx-cr-${i}`, symbol, direction: long ? 'long' : 'short', timestamp: ago((i + 1) * 3.3 * 36e5), setup: ['trend_pullback', 'range_fade', 'breakout'][i % 3], horizon: 'swing', grade: ['A', 'B', 'A', 'C', 'B', 'B'][i], points: Math.max(4, 8 - i),
       entry: px, entryZone: [+(px * 0.995).toPrecision(6), +(px * 1.005).toPrecision(6)] as [number, number], stop: +(px * (1 - s * 0.03)).toPrecision(6), t1: +(px * (1 + s * 0.04)).toPrecision(6), t2: +(px * (1 + s * 0.08)).toPrecision(6), rr: 1.8,
       timeStopAt: ago(-3 * 864e5), exitBy: ago(-5 * 864e5), why: `${symbol} ${long ? 'reclaimed' : 'lost'} the 4h mid-range (fixture)`, evidence: ['funding neutral (fixture)', 'OI rising (fixture)'], proxies: symbol === 'BTC' ? ['IBIT', 'MSTR', 'COIN'] : [],
       outcomeStatus: st, exitPrice: st === 'open' ? null : +(px * (st === 'hit_target' ? 1.04 : 0.97)).toPrecision(6), percentGain: st === 'open' ? null : st === 'hit_target' ? 4 : -3, resolutionReason: st === 'open' ? null : st };

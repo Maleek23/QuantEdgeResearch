@@ -2848,7 +2848,7 @@ button:not([disabled]):active,
 @media (max-width:767px),(pointer:coarse){
   :is(.sx-sym,.zd-sym-link,.st-link.st-mono,a.lx-tag){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
   /* bordered chips keep their compact look; the 44px hit area is an invisible ::after */
-  :is(.si-sym,.ig-strip a){position:relative}
+  :is(a.si-sym,.ig-strip a)[href][href]{position:relative;min-height:0!important} /* outranks the a[href] 44px floor */
   :is(.si-sym,.ig-strip a)::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 }
 /* Mouse: the same links were 15–22px tall — below WCAG 2.5.8's 24px target minimum. */
@@ -2856,8 +2856,22 @@ button:not([disabled]):active,
   :is(.sx-sym,.zd-sym-link,.ig-strip a,.si-sym,a.lx-tag){display:inline-flex;align-items:center;min-height:24px}
   :is(.st-link,.cxi-main){min-height:24px}
 }
+/* Captions ≥ 10px off phones (DESIGN_SYSTEM §03; device pass 2026-10-01). A bare <small>
+   inside 11–12px mono fell to the UA "smaller" (≈9.2px); :where() keeps this at zero
+   specificity so any class that sizes a <small> still wins. */
+:where(#main-content) small{font-size:max(10px,.83em)}
+@media (min-width:600px){
+  .flowdash:not(.dash-gex) .of-lbl{font-size:10px}
+  .jr-cal-wk,.jr-heat-c .n{font-size:10px}
+}
+@media (min-width:768px) and (pointer:fine){
+  :is(.zd-kv-link,.rti-row-open){min-height:24px}
+  .rti-row-open{display:inline-flex;align-items:center}
+}
 /* Switches keep their 36×20 track (a 44×44 floor turned the pill into a circle with
    the knob outside it); the 44px hit area is an invisible ::after around the track. */
+/* beat the other control floors (nexus.css 40px, the 28/32px desktop floors) for switches only */
+[role=switch]{min-height:0!important;min-width:0!important}
 @media (max-width:767px),(pointer:coarse){
   [role=switch]{position:relative}
   [role=switch]::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}

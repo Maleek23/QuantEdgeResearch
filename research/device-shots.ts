@@ -94,6 +94,16 @@ function probe(phone: boolean) {
     const hit = af.content !== 'none' && af.position === 'absolute' ? { w: Math.max(r.width, parseFloat(af.width) || 0), h: Math.max(r.height, parseFloat(af.height) || 0) } : { w: r.width, h: r.height };
     if (!inline && (hit.h < minT || hit.w < minT)) small.push(`${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
   }
+  // label not vertically centred in a control the touch floor stretched (text hugs the top)
+  const offc: string[] = [];
+  for (const el of document.querySelectorAll('button, a[href], [role="tab"]')) {
+    if (!vis(el) || el.closest('[data-harness]')) continue;
+    const r = el.getBoundingClientRect(); if (r.height < 36 || r.height > 70) continue;
+    const t = Array.from(el.childNodes).find((n) => n.nodeType === 3 && (n.textContent || '').trim()); if (!t) continue;
+    const rg = document.createRange(); rg.selectNodeContents(t); const tr = rg.getBoundingClientRect(); if (!tr.height) continue;
+    const top = tr.top - r.top, bottom = r.bottom - tr.bottom;
+    if (bottom - top > 10) offc.push(`${name(el)} top=${Math.round(top)} bottom=${Math.round(bottom)}`);
+  }
   const tiny: string[] = [];
   const floor = phone ? 11 : 10;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -109,6 +119,7 @@ function probe(phone: boolean) {
     overflow: overflow.slice(0, 15), overflowCount: overflow.length,
     small: small.slice(0, 20), smallCount: small.length,
     tiny: tiny.slice(0, 15), tinyCount: tiny.length,
+    offCentre: offc.slice(0, 15), offCentreCount: offc.length,
     notFound: (document.body.innerText || '').includes('no fixture'),
   };
 }
@@ -151,7 +162,7 @@ async function shoot(browser: any, s: (typeof SIZES)[number], mode: string, page
       if (extra > 0) { await page.setViewportSize({ width: s.w, height: Math.min(s.h + extra, 5000) }); await page.waitForTimeout(700); }
       await page.screenshot({ path: path.join(OUT, `${key}.jpg`), type: 'jpeg', quality: 45 });
       const r = report[key] as any;
-      console.log(`${key.padEnd(28)} docOverflow=${r.docOverflow} overflow=${r.overflowCount} small=${r.smallCount} tiny=${r.tinyCount}${errors.length ? ' errors=' + errors.length : ''}`);
+      console.log(`${key.padEnd(28)} docOverflow=${r.docOverflow} overflow=${r.overflowCount} small=${r.smallCount} tiny=${r.tinyCount} offc=${r.offCentreCount}${errors.length ? ' errors=' + errors.length : ''}`);
     } catch (e) {
       console.log(`${key} FAILED ${(e as Error).message.slice(0, 120)}`);
     }

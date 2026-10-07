@@ -356,6 +356,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-day-date b{font-family:var(--jr-disp);font-size:14px}
 .jr-day-date .jr-mute{font-size:11.5px}
 .jr-day-stats{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-family:var(--jr-mono);font-weight:700;flex:1 1 200px}
+.jr-day-stats .jr-n{white-space:normal;min-width:0} /* the won · lost · closed · W/L line ran past the card edge at 375px */
 .jr-day-body{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:0 14px 14px;border-top:1px solid var(--jr-line);padding-top:12px}
 @media (min-width:1024px){.jr-day-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 

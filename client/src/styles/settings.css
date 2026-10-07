@@ -5,6 +5,7 @@
 
 .st-jump { display: flex; flex-wrap: wrap; gap: 4px 6px; }
 .st-jump a {
+  display: inline-flex; align-items: center; /* label centred when the touch floor makes it 44px tall */
   font-size: 12px; font-weight: 600; color: var(--lx-dim); text-decoration: none;
   padding: 4px 9px; border: 1px solid var(--lx-line); border-radius: var(--lx-radius-sm); background: var(--lx-surface);
 }

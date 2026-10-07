@@ -9,7 +9,9 @@
 .zd-tool-body{height:100%;overflow-y:auto;overflow-x:hidden}
 .zd-view{padding:12px 16px 32px;max-width:1680px;margin:0 auto}
 .zd-view-head{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:600 12px var(--zd-mono,monospace);color:var(--text-mute,#7f889a)}
-.zd-view-head strong{color:var(--text,#e6ebf5);letter-spacing:.06em;text-transform:uppercase}
+.zd-view-head strong{color:var(--text,#e6ebf5);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+/* phones: "0DTE DESK" broke over two lines beside a wrapped subtitle — the subtitle goes under */
+@media (max-width:599px){.zd-view-head{flex-wrap:wrap;gap:2px 8px}.zd-view-head span{flex-basis:100%}}
 .zd-mono{font-family:var(--zd-mono)}
 .zd-up{color:var(--zd-up)}.zd-dn{color:var(--zd-dn)}.zd-flat{color:var(--text-mute,#7f889a)}
 
