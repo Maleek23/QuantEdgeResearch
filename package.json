@@ -46,6 +46,7 @@
     "test:sector-board": "tsx scripts/test-sector-board.ts",
     "test:sector-board-live": "tsx scripts/test-sector-board-live.ts",
     "test:sector-rotation-ideas": "tsx scripts/test-sector-rotation-ideas.ts",
+    "test:catch-leaders": "tsx scripts/test-catch-leaders.ts",
     "test:holy-grail": "tsx scripts/test-holy-grail.ts",
     "test:wall-touch": "tsx scripts/test-wall-touch.ts",
     "test:nexus-tracked": "tsx scripts/test-nexus-tracked.ts",

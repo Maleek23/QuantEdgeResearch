@@ -91,11 +91,49 @@ async function sendDiscord(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   return res.ok && res.status !== 204;
 }
 
+/**
+ * Level-map clusters + this row's own GEX walls / zero gamma, then the pure rebuild.
+ * `deps` are test seams; production reads the shared level map and the loss-rule cap.
+ */
+export async function rebuildFromStructure(
+  s: Pick<MagnetSetup, 'symbol' | 'side' | 'strike' | 'expiry'>,
+  r: Pick<GexRankRow, 'callWall' | 'putWall' | 'zeroGamma'>,
+  entry: number,
+  flooredStop: number,
+  minRR: number,
+  horizon: 'day' | 'swing' | 'position',
+  deps: {
+    levelMap?: (sym: string) => Promise<{ clusters: Array<{ price: number; low: number; high: number; score: number; label: string }>; tolerance: number } | null>;
+    cap?: (p: { symbol: string; direction: 'long' | 'short'; entry: number; stop: number; targets: number[]; horizon: 'day' | 'swing' | 'position'; expiryDate?: string | null }) => Promise<number | null>;
+  } = {},
+) {
+  const { rebuildMagnetPlan } = await import('@shared/magnet-plan');
+  const side: 'long' | 'short' = s.side === 'call' ? 'long' : 'short';
+  let clusters: Array<{ price: number; low?: number; high?: number; score: number; label: string }> = [];
+  let tolerance = 0;
+  try {
+    const map = await (deps.levelMap ?? (async (sym: string) => (await import('./levels/level-map')).getLevelMap(sym)))(s.symbol);
+    if (map) { clusters = map.clusters.map((c) => ({ price: c.price, low: c.low, high: c.high, score: c.score, label: c.label })); tolerance = map.tolerance; }
+  } catch { /* no map — walls only */ }
+  if (r.callWall) clusters.push({ price: r.callWall, score: 1, label: `call wall ${r.callWall}` });
+  if (r.putWall) clusters.push({ price: r.putWall, score: 1, label: `put wall ${r.putWall}` });
+  if (r.zeroGamma) clusters.push({ price: r.zeroGamma, score: 1, label: `zero gamma ${r.zeroGamma.toFixed(2)}` });
+  let maxTarget: number | null = null;
+  try {
+    maxTarget = await (deps.cap ?? (async (p) => (await import('./levels/level-map')).expectedMoveCapFor(p)))({
+      // Probe with a far target: expectedMoveCapFor returns the cap only when T1 is
+      // beyond it, so a ±50% probe reads the cap itself (null = the rule is off).
+      symbol: s.symbol, direction: side, entry, stop: flooredStop, targets: [entry * (side === 'long' ? 1.5 : 0.5)], horizon, expiryDate: s.expiry ?? null,
+    });
+  } catch { maxTarget = null; }
+  return rebuildMagnetPlan({ side, entry, strike: s.strike, flooredStop, levels: clusters, maxTarget, minRR, tolerance });
+}
+
 async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   if (!s.expiry) return false;
   const long = s.side === 'call';
   const entry = r.spot;
-  const target = s.strike;
+  let target = s.strike;
   // Risk half the distance to the strike (R:R 2): the thesis is "price is pulled
   // INTO the strike"; losing half that distance means the pull is not there.
   const rawStop = long ? entry - (target - entry) / 2 : entry + (entry - target) / 2;
@@ -108,7 +146,25 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     symbol: s.symbol, direction: long ? 'long' : 'short', entry, stop: rawStop, target,
     expiryDate: s.expiry, fallbackHolding: (s.dte ?? 99) <= 0 ? 'day' : 'swing',
   });
-  const stop = plan.stopLoss;
+  let stop = plan.stopLoss;
+  let rr = plan.riskRewardRatio;
+  let rebuildNote = '';
+  // 2026-10-07: a magnet closer than the floored stop used to reach storage at
+  // R:R < 0.5 and be refused ("AVGO long: R:R 0.31 < 0.5 (trap)"). Rebuild the
+  // plan from structure (shared/magnet-plan.ts) and reject only when no valid
+  // plan exists — logged with the reason.
+  const { readMinRrPublish } = await import('@shared/publish-rr');
+  const minRR = readMinRrPublish();
+  if (!(rr + 1e-9 >= minRR)) {
+    const rebuilt = await rebuildFromStructure(s, r, entry, stop, minRR, plan.holdingPeriod);
+    if (!rebuilt.plan) {
+      logger.info(`[GEX-MAGNET] ${s.symbol} ${s.strike}${long ? 'C' : 'P'} withheld — ${rebuilt.reason}`);
+      return false;
+    }
+    stop = rebuilt.plan.stop; target = rebuilt.plan.target; rr = rebuilt.plan.rr;
+    rebuildNote = `Plan rebuilt (magnet was ${rebuilt.plan.strikeRR.toFixed(2)}R on the ${plan.stopLoss.toFixed(2)} floored stop): stop ${stop.toFixed(2)} — ${rebuilt.plan.stopBasis}; T1 ${target.toFixed(2)} — ${rebuilt.plan.targetBasis} (${rr.toFixed(2)}R).`;
+    logger.info(`[GEX-MAGNET] ${s.symbol} ${s.strike}${long ? 'C' : 'P'}: ${rebuildNote}`);
+  }
   const premium = s.premium?.mid ?? s.premium?.last ?? null;
   const idea: Record<string, any> = {
     symbol: s.symbol,
@@ -117,13 +173,13 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     entryPrice: +entry.toFixed(2),
     targetPrice: +target.toFixed(2),
     stopLoss: +stop.toFixed(2),
-    riskRewardRatio: plan.riskRewardRatio,
+    riskRewardRatio: rr,
     ...(premium != null && premium > 0 ? { entryPremium: +premium.toFixed(2) } : {}),
     optionType: s.side,
     strikePrice: s.strike,
     expiryDate: s.expiry,
     catalyst: `GEX ${s.side} magnet — ${s.strike}${long ? 'C' : 'P'} exp ${s.expiry}, strike ${s.distPct >= 0 ? '+' : ''}${s.distPct.toFixed(1)}% ${long ? 'above' : 'below'} spot`,
-    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, target = strike, stop at half the distance.${plan.note ? ` ${plan.note}` : ''}`,
+    analysis: `${s.why.join(' | ')} | Detector score ${s.score}/100 (uncalibrated ordering). Levels in underlying price; entry ${entry.toFixed(2)}, ${rebuildNote ? rebuildNote : `target = strike, stop at half the distance.${plan.note ? ` ${plan.note}` : ''}`}`,
     source: 'gex_magnet',
     dataSourceUsed: `GEX_magnet_${s.side}_${r.dataSource}`,
     sessionContext: 'regular',
@@ -134,6 +190,7 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     qualitySignals: [
       `magnet_score:${s.score}`,
       'score_uncalibrated',
+      rebuildNote ? 'plan:rebuilt_from_structure' : '',
       `share:${(s.share * 100).toFixed(1)}`,
       `vol_oi:${s.volOI.toFixed(2)}`,
       `side_rank:${s.sideRank}`,

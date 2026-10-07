@@ -939,6 +939,32 @@ function calculateLevels(
   };
 }
 
+/**
+ * Plan-then-gate for the quant sweep (server/lib/publish-plan.ts): widen the stop to
+ * the shared ATR floor, then require ≥ MIN_RR_PUBLISH (default 1.0) to T1. Daily OHLC
+ * comes from the cached provider read the ingestion floor already uses; crypto (no
+ * floor) and a missing chart keep the producer's stop and are judged on it.
+ */
+async function gateQuantPlan(
+  data: MarketData,
+  direction: 'long' | 'short',
+  levels: { entryPrice: number; stopLoss: number; targetPrice: number | null },
+) {
+  const { floorAndGatePlan } = await import('./lib/publish-plan');
+  let daily: Array<{ high: number; low: number; close: number }> = [];
+  if (data.assetType !== 'crypto') {
+    try {
+      const { fetchCandles } = await import('./historical-candles');
+      daily = await fetchCandles(data.symbol, '3mo', '1d');
+    } catch { daily = []; }
+  }
+  return floorAndGatePlan({
+    // A missing target fails rrToT1 → refused as "no valid plan".
+    symbol: data.symbol, direction, entry: levels.entryPrice, stop: levels.stopLoss, target: levels.targetPrice ?? NaN,
+    assetType: data.assetType === 'crypto' ? 'crypto' : 'stock',
+  }, daily);
+}
+
 // Generate catalyst for signal type
 // v3.0: Simplified for proven signals only
 function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Catalyst[]): string {
@@ -1711,22 +1737,30 @@ export async function generateQuantIdeas(
     
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🚫 QUALITY FILTER: RELAXED for idea generation
-    // v3.4: Confidence scores now range 45-65 (recalibrated from old 70-100 scale)
-    // Accept anything with confidence >= 50 (C+ or better) to ensure ideas are generated
-    if (confidenceScore < 50) {
-      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below minimum threshold`);
-      dataQuality.lowQuality++;
-      continue;
-    }
+    // LEGACY SCORE — logged, never a publish gate (2026-10-07, fix/catch-leaders).
+    // The confidence/"grade" score here is the legacy evidence score, which the
+    // outcome study found INVERTED (higher score, worse result). Filtering on it
+    // removed AMD and ZS (score 48, "C-grade") on 2026-10-06 while both ran.
+    logger.info(`[QUANT] ${data.symbol}: legacy score ${Math.round(confidenceScore)} (${probabilityBand}) — informational only, not a publish gate`);
 
-    // 2. Risk/Reward ratio must meet BALANCED minimum thresholds
-    // Analysis: 2.5:1 generated zero trades (too strict), need 2.0:1 minimum
-    const minRiskReward = data.assetType === 'crypto' ? 1.8 : 2.0;
-    if (riskRewardRatio < minRiskReward) {
-      logger.info(`Filtered out ${data.symbol} - insufficient R:R (${riskRewardRatio.toFixed(2)} < ${minRiskReward})`);
-      dataQuality.lowQuality++;
-      continue;
+    // 2. PLAN FIRST, THEN R:R (2026-10-07). Was: refuse R:R < 2.0 on the raw
+    // formula stop ("insufficient R:R (1.00 < 2)" — AAOI, CRWD, ZS on 10-06).
+    // Stated R:R is negatively associated with outcomes and stop width vs ATR
+    // is the strongest measured loss driver, so: widen the stop to the shared
+    // 1.25× ATR floor, then require ≥ MIN_RR_PUBLISH (default 1.0) to T1 on
+    // that stop. A plan at ≥ 1.0R is never refused on R:R.
+    {
+      const gated = await gateQuantPlan(data, normalizedSignal.direction === 'short' || initialOptionType === 'put' ? 'short' : 'long', levels);
+      if (!gated.ok) {
+        logger.info(`Filtered out ${data.symbol} - ${gated.reason} (stop $${gated.stop.toFixed(2)}${gated.widened ? `, widened from $${gated.rawStop.toFixed(2)} to the ATR floor` : ''}, T1 $${gated.target.toFixed(2)})`);
+        dataQuality.lowQuality++;
+        continue;
+      }
+      if (gated.widened) {
+        levels = { ...levels, stopLoss: gated.stop };
+        logger.info(`[QUANT] ${data.symbol}: ${gated.note}`);
+      }
+      riskRewardRatio = gated.rr ?? riskRewardRatio;
     }
 
     // 3. Volume must meet asset-specific thresholds
@@ -1802,15 +1836,16 @@ export async function generateQuantIdeas(
         // Determine option type first (needed for correct price levels)
         const tempOptionType = signal.direction === 'long' ? 'call' : 'put';
         levels = calculateLevels(data, normalizedSignal, assetType, tempOptionType, historicalPrices);
-        
-        // Recalculate R:R with new option levels
-        const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
-        const rewardDistance = Math.abs(levels.targetPrice - levels.entryPrice);
-        riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
-        if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) {
-          riskRewardRatio = 0;
+
+        // Same plan-then-gate as above on the option's underlying levels.
+        const regated = await gateQuantPlan(data, tempOptionType === 'put' ? 'short' : 'long', levels);
+        if (!regated.ok) {
+          logger.info(`Filtered out ${data.symbol} option - ${regated.reason} (stop $${regated.stop.toFixed(2)}, T1 $${regated.target.toFixed(2)})`);
+          dataQuality.lowQuality++;
+          continue;
         }
-        riskRewardRatio = Math.min(riskRewardRatio, 99.9);
+        if (regated.widened) levels = { ...levels, stopLoss: regated.stop };
+        riskRewardRatio = Math.min(regated.rr ?? 0, 99.9);
       }
     }
     // Crypto stays as crypto (already filtered to hidden gems only)
