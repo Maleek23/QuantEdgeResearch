@@ -17,12 +17,13 @@ const t = (name: string, fn: () => void) => { try { fn(); n++; } catch (e) { con
 const et = (day: string, hhmm: string) => Date.parse(`${day}T${hhmm}:00-04:00`);
 const NOW = et('2026-10-06', '10:15'); // Tuesday
 
-t('sleeve defaults: BOT_0DTE_MAX=3, BOT_SWING_MAX=4, −40/+50/+100, flat 15:45, 09:35–11:30', () => {
+t('sleeve defaults: BOT_0DTE_MAX=3, BOT_SWING_MAX=4, −40/+50/+100, flat 15:45, 09:31–11:30 (BOT_0DTE_START overrides)', () => {
   const c = readBotSleeveConfig({});
   assert.equal(c.zeroDteMax, 3); assert.equal(c.swingMax, 4);
   assert.equal(c.premStopPct, 0.4); assert.equal(c.premT1Pct, 0.5); assert.equal(c.premT2Pct, 1);
   assert.equal(c.flattenEt, 15 * 60 + 45);
-  assert.deepEqual(c.zeroDteWindows, [[9 * 60 + 35, 11 * 60 + 30]]);
+  assert.deepEqual(c.zeroDteWindows, [[9 * 60 + 31, 11 * 60 + 30]]);
+  assert.deepEqual(readBotSleeveConfig({ BOT_0DTE_START: '09:35' }).zeroDteWindows, [[9 * 60 + 35, 11 * 60 + 30]]);
   assert.equal(c.zeroDteMaxDte, 2);
   assert.equal(readBotSleeveConfig({ BOT_0DTE_MAX: '5', BOT_SWING_MAX: '2' }).zeroDteMax, 5);
 });

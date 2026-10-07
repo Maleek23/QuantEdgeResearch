@@ -72,18 +72,30 @@ export function classifyExitReason(raw: string | null | undefined): 'target' | '
 
 function quoteLine(source?: string | null, delayed?: boolean | null, ageSec?: number | null): string {
   if (!source) return 'quote source unknown — treat as delayed';
-  const age = ageSec != null && Number.isFinite(ageSec) ? ` · fetched ${Math.round(ageSec)}s before fill` : '';
+  const age = ageSec != null && Number.isFinite(ageSec) ? ` · quote ${ageSec >= 120 ? `${Math.round(ageSec / 60)}m` : `${Math.round(ageSec)}s`} old at fill` : '';
   if (delayed === false) return `${source} · real-time${age}`;
   const lag = source === 'cboe' ? ' (~15 min)' : source === 'alpaca' ? ' (indicative feed)' : '';
   return `${source} · DELAYED${lag}${age}`;
 }
 
-/** Pulls "[INDEX 0DTE · cboe · delayed]" / "mark: tradier" tags the bot writes on the fill's catalyst. */
-export function quoteFromCatalyst(catalyst: string | null | undefined): { source: string | null; delayed: boolean | null } {
+/**
+ * Quote provenance from the fill's catalyst: the bot's entry audit tag
+ * "[entry ask=… source=X feed=… delayed=true quoteTime=… observedAt=…]" (with the quote's
+ * age when quoteTime is known), else the older "[INDEX 0DTE · cboe · delayed]" / "mark: tradier" tags.
+ */
+export function quoteFromCatalyst(catalyst: string | null | undefined): { source: string | null; delayed: boolean | null; ageSec: number | null } {
   const c = String(catalyst ?? '');
+  const audit = /\[entry [^\]]*source=(\S+)[^\]]*delayed=(true|false)[^\]]*quoteTime=(\S+) observedAt=(\S+)\]/.exec(c);
+  if (audit) {
+    const raw = Number(audit[3]);
+    const qMs = Number.isFinite(raw) ? (raw < 1e12 ? raw * 1000 : raw) : Date.parse(audit[3]);
+    const obs = Date.parse(audit[4]);
+    const ageSec = Number.isFinite(qMs) && Number.isFinite(obs) ? Math.max(0, Math.round((obs - qMs) / 1000)) : null;
+    return { source: audit[1] === 'unknown' ? null : audit[1], delayed: audit[2] === 'true', ageSec };
+  }
   const m = /\[INDEX 0DTE · (\w+)( · delayed)?\]/.exec(c) ?? /mark: (\w+)( · delayed)?/.exec(c);
-  if (!m) return { source: null, delayed: null };
-  return { source: m[1], delayed: !!m[2] };
+  if (!m) return { source: null, delayed: null, ageSec: null };
+  return { source: m[1], delayed: !!m[2], ageSec: null };
 }
 
 export interface BotEntryEvent {
@@ -225,7 +237,7 @@ export async function notifyBotExit(e: BotExitEvent): Promise<NotifyResult> {
 // ─── Adapters from the bot's own objects (keep the call sites one line) ─────
 
 /** Entry event from a filled paper position + the tradeable idea + the board pick. Never throws. */
-export async function entryFromFill(position: any, tradeable: any, pick: any): Promise<BotEntryEvent | null> {
+export async function entryFromFill(position: any, tradeable: any, pick: any, grade: string | null = null): Promise<BotEntryEvent | null> {
   if (!position?.id) return null;
   const q = quoteFromCatalyst(tradeable?.catalyst);
   const signals: string[] = Array.isArray(tradeable?.qualitySignals) ? tradeable.qualitySignals : [];
@@ -248,12 +260,12 @@ export async function entryFromFill(position: any, tradeable: any, pick: any): P
     direction: tradeable?.direction ?? pick?.direction ?? null,
     entryPremium: Number(position.entryPrice ?? tradeable?.entryPrice ?? 0),
     quantity: Number(position.quantity ?? 1),
-    quoteSource: q.source, quoteDelayed: q.delayed, quoteAgeSec: null,
+    quoteSource: q.source, quoteDelayed: q.delayed, quoteAgeSec: q.ageSec,
     premiumStop: Number(position.stopLoss ?? tradeable?.stopLoss) || null,
     premiumTarget: Number(position.targetPrice ?? tradeable?.targetPrice) || null,
     underlyingStop: Number(pick?.stopLoss) || null,
     underlyingTarget: Number(pick?.targetPrice) || null,
-    grade: pick?.grade ?? pick?.convictionBand ?? null,
+    grade: grade ?? pick?.grade ?? pick?.convictionBand ?? null,
     sourceEngine: [tradeable?.source, tradeable?.dataSourceUsed].filter(Boolean).join(' / ') || null,
     policy,
     spxMirror,
@@ -273,8 +285,8 @@ export function exitFromPosition(pos: any, exitPrice: number, reason: string): B
 }
 
 /** Fire-and-forget wrappers for the bot's call sites — a notification never blocks or fails a fill/close. */
-export function postBotEntry(position: any, tradeable: any, pick: any): void {
-  entryFromFill(position, tradeable, pick)
+export function postBotEntry(position: any, tradeable: any, pick: any, grade: string | null = null): void {
+  entryFromFill(position, tradeable, pick, grade)
     .then((e) => (e ? notifyBotEntry(e) : null))
     .catch((err) => logger.warn(`[BOT-DISCORD] entry: ${err?.message ?? err}`));
 }

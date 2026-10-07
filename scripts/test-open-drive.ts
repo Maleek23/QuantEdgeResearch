@@ -178,9 +178,10 @@ t('exit embed: % and $ P&L, reason class, hold time', () => {
 });
 
 t('quote tag parsing from the bot catalyst', () => {
-  assert.deepEqual(quoteFromCatalyst('[INDEX 0DTE · cboe · delayed] SPY …'), { source: 'cboe', delayed: true });
-  assert.deepEqual(quoteFromCatalyst('[A · B · mark: tradier] x'), { source: 'tradier', delayed: false });
-  assert.deepEqual(quoteFromCatalyst('nothing'), { source: null, delayed: null });
+  assert.deepEqual(quoteFromCatalyst('[INDEX 0DTE · cboe · delayed] SPY …'), { source: 'cboe', delayed: true, ageSec: null });
+  assert.deepEqual(quoteFromCatalyst('[A · B · mark: tradier] x'), { source: 'tradier', delayed: false, ageSec: null });
+  assert.deepEqual(quoteFromCatalyst('nothing'), { source: null, delayed: null, ageSec: null });
+  assert.deepEqual(quoteFromCatalyst('[0DTE SLEEVE · x] y [entry ask=1.2000 bid=1.1000 source=alpaca feed=indicative delayed=true quoteTime=2026-10-06T13:40:00.000Z observedAt=2026-10-06T13:41:30.000Z]'), { source: 'alpaca', delayed: true, ageSec: 90 });
 });
 
 t('delivery: off without env; dedupe per position id; 204 from the shared gate = gated', async () => {
