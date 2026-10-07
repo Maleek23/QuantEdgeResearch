@@ -90,32 +90,25 @@ export const NEXUS_TOOLS: ToolDef[] = [
 ];
 
 /**
- * NEXUS default — a TOOL WORKSPACE (operator 2026-10-01: "I wanna be able to
- * resize the elements… like tools"). The first screen is 12 × 18; the rest
- * follows below the fold (PageSpec.tall), never hidden.
+ * NEXUS default (operator 2026-10-07: "way too many irrelevant tools open —
+ * default should have ranked setups, setup details and market context side by
+ * side; 0DTE at the bottom, then developing candidates; trader calls last").
+ * Everything else (tracked symbols, rotation strip, sector ignition, bot
+ * positions, book by horizon, classic board) stays one click away in Tools.
  *
- *   ┌──── tracked symbols 7×4 ──────────┬─ rotation strip 5×4 ────┐  thin reads on top
- *   ├ ranked setups 5×14 ──────────┼ setup detail 7×14 ───────────┤  master → detail:
- *   │ filters, then ≥ 4 rows at    │ chart with trigger/stop/T1,  │  the board ~40% left,
- *   │ 1366×768                     │ price ladder, tabs           │  the chart above the fold
- *   ├ context 4×10 ┬ sector ign. 4×10 ┬ bot positions 4×10 ──────┤  ── fold ──
- *   ├ developing 6×8 ─────────────┬ trader calls 6×8 ─────────────┤
- *   └ 0DTE desk 12×16 ────────────────────────────────────────────┘
- *
- * Book by horizon and the classic all-in-one board: Tools menu.
+ *   ┌ ranked setups 4×16 ┬ setup detail 5×16 ──────┬ market context 3×16 ┐
+ *   ├ 0DTE desk 12×16 ──────────────────────────────────────────────────┤
+ *   ├ developing candidates 12×8 ─────────────────────────────────────────┤
+ *   └ trader calls 12×6 ──────────────────────────────────────────────────┘
  */
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
   tools: [
-    ['nexus-tracked', 0, 0, 7, 4],
-    ['nexus-rotation', 7, 0, 5, 4],
-    ['nexus-board', 0, 4, 5, 14],
-    ['nexus-detail', 5, 4, 7, 14],
-    ['nexus-context', 0, 18, 4, 10],
-    ['nexus-sector-ignition', 4, 18, 4, 10],
-    ['nexus-positions', 8, 18, 4, 10],
-    ['nexus-developing', 0, 28, 6, 8],
-    ['nexus-trader-calls', 6, 28, 6, 8],
-    ['nexus-0dte', 0, 36, 12, 16],
+    ['nexus-board', 0, 0, 4, 16],
+    ['nexus-detail', 4, 0, 5, 16],
+    ['nexus-context', 9, 0, 3, 16],
+    ['nexus-0dte', 0, 16, 12, 16],
+    ['nexus-developing', 0, 32, 12, 8],
+    ['nexus-trader-calls', 0, 40, 12, 6],
   ],
 }];
