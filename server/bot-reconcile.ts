@@ -63,10 +63,11 @@ export async function syncBotPortfolioValue(portfolioId: string): Promise<void> 
     where id = ${portfolioId}`);
 }
 
-export async function reconcileExpiredBotPositions(opts: { apply: boolean; now?: Date; portfolioIds?: string[] }): Promise<ReconcileResult> {
+export async function reconcileExpiredBotPositions(opts: { apply: boolean; now?: Date; portfolioIds?: string[]; ownerId?: string }): Promise<ReconcileResult> {
   const now = opts.now ?? new Date();
   const { BOT_USER_ID } = await import('./quant-bot');
-  const owned = await db.select({ id: paperPortfolios.id }).from(paperPortfolios).where(eq(paperPortfolios.userId, BOT_USER_ID));
+  // ownerId: a desk bot (docs/DESK_ADMINS.md) settles only its own book. Default = the platform bot.
+  const owned = await db.select({ id: paperPortfolios.id }).from(paperPortfolios).where(eq(paperPortfolios.userId, opts.ownerId ?? BOT_USER_ID));
   const ids = owned.map((p) => p.id).filter((id) => !opts.portfolioIds || opts.portfolioIds.includes(id));
   const result: ReconcileResult = { asOf: now.toISOString(), applied: opts.apply, settlements: [], skipped: [], realizedDelta: 0, cashDelta: {} };
   if (!ids.length) return result;

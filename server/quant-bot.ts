@@ -18,7 +18,7 @@ import {
   readBotSleeveConfig, classifyZeroDteIdea, zeroDteKindOf, zeroDteQuantity, premiumManage, sleeveOfPosition, sleeveTag,
   swingOrder, isLiveGrade, timeStopDue, executableQuote, etMinutesOf, in0dteWindow, daysToExpiry, underlyingSide, SkipTally, formatSkipSummary,
   stoppedOutToday,
-  type BotSleeve, type SkipSummary,
+  type BotSleeve, type BotSleeveConfig, type SkipSummary,
 } from '@shared/bot-sleeves';
 import { gradePick, gradeIdeaRow, gradeComponentsTag, formatNexusGrade, gradeAtLeast, type NexusGrade } from '@shared/nexus-grade';
 import {
@@ -39,6 +39,26 @@ export const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
 const BOT_USER = 'system-quant-bot';
 /** Owner id of every paper portfolio the bot trades (read by the journal's Accounts page). */
 export const BOT_USER_ID = BOT_USER;
+
+/**
+ * Whose bot a cycle runs. The platform bot (primary) owns Discord / notifier
+ * alerts, the new-signal announcements, the blocked-trade ledger, gap watch and
+ * retired runs. A desk bot (docs/DESK_ADMINS.md) runs the SAME cycle - same
+ * sleeves logic, every gate - on its own paper book with its own sleeve config,
+ * none of those side effects, plus its own entry rules.
+ */
+export interface BotOwner {
+  /** paper_portfolios.user_id of the book. */
+  userId: string;
+  portfolioName: string;
+  label: string;
+  primary: boolean;
+  /** Per-desk sleeve config (capacity, risk, grade floor, 0DTE windows). Default: the env config. */
+  sleeves?: BotSleeveConfig;
+  /** Desk rules, checked in both sleeves after the platform's own refusals and before the loss-rule gates. */
+  entryCheck?: (pick: any, idea: any) => { ok: true } | { ok: false; code: string; reason: string };
+}
+export const PRIMARY_BOT_OWNER: BotOwner = { userId: BOT_USER, portfolioName: BOT_PORTFOLIO_NAME, label: 'Quant Bot', primary: true };
 
 export interface BotConfig {
   /**
@@ -157,18 +177,18 @@ function easternDateKey(date = new Date()): string {
  * explicitly rather than by whatever order the DB returned. Older runs stay in
  * the DB, untouched, and every record surface reads them (see shared/bot-runs.ts).
  */
-async function findBotPortfolio() {
+async function findBotPortfolio(owner: BotOwner = PRIMARY_BOT_OWNER) {
   const all = await storage.getAllPaperPortfolios();
   const { pickActiveBotPortfolio } = await import('@shared/bot-runs');
-  const mine = (Array.isArray(all) ? all : []).filter((p: any) => p.userId === BOT_USER);
-  return pickActiveBotPortfolio(mine as any[], BOT_PORTFOLIO_NAME);
+  const mine = (Array.isArray(all) ? all : []).filter((p: any) => p.userId === owner.userId);
+  return pickActiveBotPortfolio(mine as any[], owner.portfolioName);
 }
 
 /** Every paper portfolio the bot owns (all runs), oldest first. */
-async function botPortfolios(): Promise<any[]> {
+async function botPortfolios(owner: BotOwner = PRIMARY_BOT_OWNER): Promise<any[]> {
   const all = await storage.getAllPaperPortfolios();
   return (Array.isArray(all) ? all : [])
-    .filter((p: any) => p.userId === BOT_USER)
+    .filter((p: any) => p.userId === owner.userId)
     .sort((a: any, b: any) => Date.parse(a.createdAt ?? 0) - Date.parse(b.createdAt ?? 0));
 }
 
@@ -185,13 +205,13 @@ async function repriceRetiredRuns(activeId: string): Promise<void> {
 }
 
 /** The bot trades one dedicated portfolio; create it only when a cycle is explicitly run. */
-export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
-  const existing = await findBotPortfolio();
+export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG, owner: BotOwner = PRIMARY_BOT_OWNER) {
+  const existing = await findBotPortfolio(owner);
   if (existing) return existing;
 
   return storage.createPaperPortfolio({
-    userId: BOT_USER,
-    name: BOT_PORTFOLIO_NAME,
+    userId: owner.userId,
+    name: owner.portfolioName,
     startingCapital: cfg.startingCapital,
     cashBalance: cfg.startingCapital,
     totalValue: cfg.startingCapital,
@@ -318,13 +338,90 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG, origin = 
   return cycleInFlight;
 }
 
-async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
+/**
+ * One desk bot cycle (docs/DESK_ADMINS.md). Same engine, same gates, its own
+ * paper book and sleeve config; worker-only like the platform bot; serialised
+ * per desk by its own advisory lock so a second process never doubles it.
+ */
+const deskInFlight = new Map<string, Promise<BotRunResult>>();
+const deskLastCycle = new Map<string, BotCycleStamp>();
+/** The newest desk cycle stamp: this process's, or the worker's via shared state (the portal is served by web). */
+export async function deskBotLastCycle(slug: string): Promise<BotCycleStamp | null> {
+  const mine = deskLastCycle.get(slug) ?? null;
+  try {
+    const { readShared } = await import('./lib/shared-state');
+    const shared = readShared<BotCycleStamp>(`desk-bot-cycle-${slug}`)?.data ?? null;
+    if (!mine) return shared;
+    if (!shared) return mine;
+    return Date.parse(shared.at) > Date.parse(mine.at) ? shared : mine;
+  } catch { return mine; }
+}
+function deskLockKey(userId: string): number {
+  let h = 0;
+  for (const ch of userId) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0;
+  return 853_100_000 + (Math.abs(h) % 99_000);
+}
+export async function runDeskBotCycle(slug: string, cfg: BotConfig, owner: BotOwner, origin = 'desk'): Promise<BotRunResult> {
+  if (owner.primary || owner.userId === BOT_USER) throw new Error('runDeskBotCycle never runs the platform bot');
+  const stamp = (r: BotRunResult | null, error?: string) => {
+    const st: BotCycleStamp = {
+      at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, skipped: r?.skipped ?? 0, openCount: r?.openCount ?? 0, error,
+      pid: process.pid, role: processRole(), skipSummary: r?.skipSummary, openedList: r?.opened,
+    } as BotCycleStamp;
+    deskLastCycle.set(slug, st);
+    void import('./lib/shared-state').then(({ writeSharedSync }) => writeSharedSync(`desk-bot-cycle-${slug}`, st)).catch(() => {});
+  };
+  const here = botCycleAllowedHere();
+  if (!here.ok) {
+    const refused: BotRunResult = { ranAt: new Date().toISOString(), portfolioId: '', opened: [], closed: [], skipped: 0, openCount: 0, gapWatch: [], error: `desk bot cycles run only in the worker (ROLE=${here.role}) - refused` };
+    stamp(refused, refused.error);
+    return refused;
+  }
+  const existing = deskInFlight.get(slug);
+  if (existing) return existing;
+  const run = (async () => {
+    const { pool } = await import('./db');
+    const client = await pool.connect();
+    let locked = false;
+    const key = deskLockKey(owner.userId);
+    try {
+      const r = await client.query('SELECT pg_try_advisory_lock($1) AS ok', [key]);
+      locked = r.rows?.[0]?.ok === true;
+      if (!locked) {
+        const skipped: BotRunResult = { ranAt: new Date().toISOString(), portfolioId: '', opened: [], closed: [], skipped: 0, openCount: 0, gapWatch: [], error: 'another process is running this desk bot - skipped' };
+        stamp(skipped, skipped.error);
+        return skipped;
+      }
+      const res = await runBotCycleInner(cfg, owner);
+      stamp(res, res.error);
+      return res;
+    } catch (err) {
+      stamp(null, (err as Error)?.message ?? String(err));
+      throw err;
+    } finally {
+      if (locked) await client.query('SELECT pg_advisory_unlock($1)', [key]).catch(() => {});
+      client.release();
+    }
+  })().finally(() => { deskInFlight.delete(slug); });
+  deskInFlight.set(slug, run);
+  return run;
+}
+
+/** Read-only: a desk bot's active book (never creates one). */
+export async function findDeskBotPortfolio(owner: BotOwner) {
+  return findBotPortfolio(owner);
+}
+
+async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OWNER): Promise<BotRunResult> {
+  // Side effects belong to the platform bot only (see BotOwner).
+  const alerts = owner.primary && discordAlerts;
+  const announce = (pos: any, px: number, why: string) => (owner.primary ? announceExit(pos, px, why) : Promise.resolve());
   const ranAt = new Date().toISOString();
   const opened: BotRunResult['opened'] = [];
   const closed: BotRunResult['closed'] = [];
   // Levels we exited on, so a later fill can flip the name back to a candidate.
   const gapWatch: { symbol: string; level: number }[] = [];
-  const portfolio: any = await getBotPortfolio(cfg);
+  const portfolio: any = await getBotPortfolio(cfg, owner);
   if (!portfolio?.id) {
     return { ranAt, portfolioId: '', opened, closed, skipped: 0, openCount: 0, gapWatch: [], error: 'no portfolio' };
   }
@@ -348,9 +445,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   // Retired runs still hold live contracts (e.g. Run 2's DKS/JNJ Oct 16 calls).
   // They are not managed any more, but their marks must not freeze at the day
   // the run stopped — the record shows them with a mark and its age.
-  try { await repriceRetiredRuns(portfolio.id); } catch (err) { logger.warn('[QUANT-BOT] retired-run re-price failed:', err); }
+  if (owner.primary) try { await repriceRetiredRuns(portfolio.id); } catch (err) { logger.warn('[QUANT-BOT] retired-run re-price failed:', err); }
 
-  const sleeves = readBotSleeveConfig(process.env);
+  const sleeves = owner.sleeves ?? readBotSleeveConfig(process.env);
   const tally = new SkipTally();
 
   // 2 — same-day contracts outside the 0DTE sleeve (legacy rows): flatten before
@@ -369,7 +466,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       const live = await liveContractQuote(pos, 0.6);
       if (!live) { logger.warn(`[QUANT-BOT] ${pos.symbol} same-day flatten skipped — no live quote (reconciler settles at intrinsic)`); continue; }
       await closePosition(pos.id, live.bid, `0dte_eod_exit ${exitAuditTag(live.q, new Date())}`);
-      await announceExit(pos, live.bid, `0DTE time exit before close (${live.stamp})`);
+      await announce(pos, live.bid, `0DTE time exit before close (${live.stamp})`);
       closed.push({ symbol: pos.symbol, reason: `0DTE time exit before close (${live.stamp})` });
     }
   } catch (err) {
@@ -398,7 +495,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       const code = v.action === 'flatten' ? '0dte_flatten_1545' : v.action === 'target' ? 'premium_target' : v.action === 'breakeven_stop' ? 'breakeven_stop' : 'premium_stop';
       await closePosition(pos.id, live.bid, `${code} ${exitAuditTag(live.q, new Date())}`);
       const why = `${v.reason} · ${live.stamp}`;
-      await announceExit(pos, live.bid, why);
+      await announce(pos, live.bid, why);
       closed.push({ symbol: pos.symbol, reason: why });
     }
   } catch (err) {
@@ -411,7 +508,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   //      would have booked every expiry as worthless. See server/bot-reconcile.ts.
   try {
     const { reconcileExpiredBotPositions } = await import('./bot-reconcile');
-    const rec = await reconcileExpiredBotPositions({ apply: true });
+    const rec = await reconcileExpiredBotPositions({ apply: true, ownerId: owner.userId });
     for (const st of rec.settlements) {
       closed.push({ symbol: st.symbol, reason: `expired — intrinsic $${st.exitPrice.toFixed(2)} at ${st.symbol} close $${st.underlyingClose}` });
     }
@@ -428,7 +525,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   try {
     const { readExitPolicy } = await import('@shared/exit-policy');
     const policy = readExitPolicy(process.env);
-    const books = sleeves.timeStopRetired ? await botPortfolios() : [portfolio];
+    const books = sleeves.timeStopRetired && owner.primary ? await botPortfolios(owner) : [portfolio];
     for (const book of books) {
       for (const pos of (await getOpenPositions(book.id)) as any[]) {
         if (pos.assetType !== 'option' || sleeveOfPosition(pos) !== 'swing') continue;
@@ -461,7 +558,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         // audit classifies it as a mid, not a bid fill.
         await closePosition(pos.id, live.mid, `time_stop [fill-mid mid=${live.mid.toFixed(4)} bid=${live.q.bid.toFixed(4)} ask=${live.q.ask.toFixed(4)} source=${live.q.source ?? 'unknown'} delayed=${!!live.q.delayed} observedAt=${new Date().toISOString()}]`);
         const why = `time stop — ${v.why} · mid ${live.mid.toFixed(2)} (${live.stamp})${book.id !== portfolio.id ? ' · retired run' : ''}`;
-        await announceExit(pos, live.mid, why);
+        await announce(pos, live.mid, why);
         closed.push({ symbol: pos.symbol, reason: why });
       }
     }
@@ -472,7 +569,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   // Announce anything the board has newly published. Piggy-backs on the bot cycle
   // because it already holds a fresh conviction set; a separate cron would rebuild
   // the same expensive thing on its own schedule and drift out of step with it.
-  if (discordAlerts) try {
+  if (alerts) try {
     const { alertNewSignals } = await import('./signal-alerts');
     // peekConvictions() is a CACHE-ONLY read that returns null on a cold cache and
     // never computes. Using it here meant alerts fired only if a human had loaded
@@ -558,7 +655,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       const mark = Number(pos.currentPrice ?? pos.entryPrice);
       const gx = await closeOptionPositionAtBid(pos.id, 'gap_magnet');
       if (!gx.success) continue;
-      await announceExit(pos, Number(gx.position?.exitPrice ?? mark), `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
+      await announce(pos, Number(gx.position?.exitPrice ?? mark), `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
       closed.push({ symbol: pos.symbol, reason: `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%` });
       gapWatch.push({ symbol: pos.symbol, level: signal.gapLevel ?? 0 });
     }
@@ -629,7 +726,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         const fx0 = await closeOptionPositionAtBid(pos.id, 'thesis_flip');
         if (!fx0.success) continue;
         const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (NEXUS ${formatNexusGrade(flipGrade)}) — ${pnlWord}`;
-        await announceExit(pos, Number(fx0.position?.exitPrice ?? mark), why);
+        await announce(pos, Number(fx0.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
         continue;
       }
@@ -647,7 +744,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         if (!fr.success) continue;
         const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
         const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;
-        await announceExit(pos, Number(fr.position?.exitPrice ?? mark), why);
+        await announce(pos, Number(fr.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
       }
     }
@@ -662,7 +759,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
     for (const p of exited ?? []) {
       const reason = (p as any).exitReason ?? 'stop/target';
       closed.push({ symbol: p.symbol, reason });
-      await announceExit(p, Number((p as any).exitPrice ?? 0), reason);
+      await announce(p, Number((p as any).exitPrice ?? 0), reason);
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] exit check failed:', err);
@@ -670,7 +767,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
   // 4 — entries: two sleeves, separate capacity (shared/bot-sleeves.ts).
   try {
-    await enterSleeves({ cfg, sleeves, portfolio, opened, tally });
+    await enterSleeves({ cfg, sleeves, portfolio, opened, tally, owner });
   } catch (err) {
     logger.warn('[QUANT-BOT] entry pass failed:', err);
   }
@@ -680,13 +777,13 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   // total_value = cash + open positions at their marks, for every run, every cycle.
   try {
     const { syncBotPortfolioValue } = await import('./bot-reconcile');
-    for (const p of await botPortfolios()) await syncBotPortfolioValue(p.id);
+    for (const p of await botPortfolios(owner)) await syncBotPortfolioValue(p.id);
   } catch (err) { logger.warn('[QUANT-BOT] value sync failed:', err); }
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
   const skipSummary = tally.summary();
-  logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open · ${formatSkipSummary(skipSummary)}`);
-  try {
+  logger.info(`[QUANT-BOT] ${owner.primary ? 'cycle' : `${owner.label} cycle`}: +${opened.length} opened, -${closed.length} closed, ${openCount} open · ${formatSkipSummary(skipSummary)}`);
+  if (owner.primary) try {
     const { pulse } = await import('./system-pulse');
     if (opened.length || closed.length) {
       pulse('bot', `bot: ${opened.length ? `opened ${opened.map((o) => o.symbol).join(', ')}` : ''}${opened.length && closed.length ? ' · ' : ''}${closed.length ? `closed ${closed.map((c) => c.symbol).join(', ')}` : ''} — ${openCount} open`);
@@ -699,7 +796,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   // the reason for leaving is gone. This does NOT re-enter on its own: the
   // conviction engine still has to publish a fresh signal. It only clears the block,
   // which is the difference between a rule and a hunch.
-  if (gapWatch.length) {
+  if (owner.primary && gapWatch.length) {
     try {
       const { setBotGapWatch } = await import('./gap-aware-exits');
       await setBotGapWatch(gapWatch);
@@ -731,6 +828,7 @@ interface EnterCtx {
   portfolio: any;
   opened: BotRunResult['opened'];
   tally: SkipTally;
+  owner: BotOwner;
 }
 
 /**
@@ -741,7 +839,7 @@ interface EnterCtx {
  * executable live quote (stamped into the fill).
  */
 async function enterSleeves(ctx: EnterCtx): Promise<void> {
-  const { cfg, sleeves, portfolio, opened, tally } = ctx;
+  const { cfg, sleeves, portfolio, opened, tally, owner } = ctx;
   const nowMs = Date.now();
   const open = await getOpenPositions(portfolio.id);
   const held = { '0dte': 0, swing: 0 } as Record<BotSleeve, number>;
@@ -750,7 +848,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
 
   // Every open position the bot holds in ANY run: one symbol, one side.
   const sideBySymbol = new Map<string, Set<'long' | 'short'>>();
-  for (const book of await botPortfolios()) {
+  for (const book of await botPortfolios(owner)) {
     for (const p of (await getOpenPositions(book.id)) as any[]) {
       const k = String(p.symbol).toUpperCase();
       if (!sideBySymbol.has(k)) sideBySymbol.set(k, new Set());
@@ -760,7 +858,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
   const heldSymbols = new Set((open as any[]).map((p) => String(p.symbol).toUpperCase()));
   // No same-day re-entry after a stop-out (any run).
   const stoppedToday = new Set<string>();
-  for (const book of await botPortfolios()) {
+  for (const book of await botPortfolios(owner)) {
     try {
       const rows = await storage.getPaperPositionsByPortfolio(book.id);
       for (const s of stoppedOutToday(rows as any[], nowMs)) stoppedToday.add(s);
@@ -796,7 +894,10 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
   const riskFraction = tapeVerdict === 'selective' ? (cfg.riskPerTradePct / 100) / 2 : cfg.riskPerTradePct / 100;
   if (tapeVerdict === 'selective') logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade)`);
 
-  const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip } = await import('./loss-rules');
+  const lossRulesMod = await import('./loss-rules');
+  const { lossRulesConfig, botConfluenceGate, botEntryWindowGate } = lossRulesMod;
+  // The blocked-trade ledger is the platform bot's discipline record; a desk bot's refusals are tallied, never written there.
+  const noteBotSkip: typeof lossRulesMod.noteBotSkip = owner.primary ? lossRulesMod.noteBotSkip : () => {};
   const { LOSS_RULES_TAG } = await import('@shared/loss-rules');
   const rules = lossRulesConfig();
   const { isBtcProxy, evaluateShortDiscipline } = await import('./short-discipline');
@@ -864,6 +965,10 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       if (sideConflict(idea.symbol, side)) { refuse('0dte', idea, 'opposite_held', `already holding the opposite side of ${idea.symbol} — never both directions at once`, rank); continue; }
       const btc = await btcProxyBlock(idea.symbol, side);
       if (btc) { refuse('0dte', idea, 'btc_proxy', btc, rank); continue; }
+      if (owner.entryCheck) {
+        const dk = owner.entryCheck({ symbol: idea.symbol, direction: side }, null); // premium-level plan: no underlying stop-width test
+        if (!dk.ok) { refuse('0dte', idea, dk.code, dk.reason, rank, false); continue; }
+      }
       // Loss rule 2 inside the morning window; the afternoon window is the operator's explicit BOT_0DTE_AFTERNOON opt-in.
       if (rules.botEntryWindow && !afternoon) {
         const w = await botEntryWindowGate({ symbol: idea.symbol, direction: side, entryPrice: Number(idea.entryPrice), currentPrice: null }, idea);
@@ -901,7 +1006,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       slots--;
       noteFilled(idea.symbol, side);
       opened.push({ symbol: idea.symbol, reason: `0DTE sleeve · ${c.kind} ${c.dte}DTE ${idea.optionType} $${idea.strikePrice} x${res.position?.quantity ?? qty} @ $${q.ask.toFixed(2)} (${qv.stamp})` });
-      await announceEntry(idea.symbol, tradeable, res, null, idea.analysis ?? null, zGrade);
+      if (owner.primary) await announceEntry(idea.symbol, tradeable, res, null, idea.analysis ?? null, zGrade);
     }
   }
 
@@ -962,6 +1067,10 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       if (!idea) { refuse('swing', pick, 'idea_missing', 'idea row not found', rank, false); continue; }
       if (zeroBound(idea.source, idea.dataSourceUsed, idea.expiryDate, idea.holdingPeriod)) continue; // the 0DTE sleeve decides it
       if (idea.assetType !== 'option') { refuse('swing', pick, 'not_option', 'idea has no option vehicle — the bot trades contracts only', rank); continue; }
+      if (owner.entryCheck) {
+        const dk = owner.entryCheck(pick, idea);
+        if (!dk.ok) { refuse('swing', pick, dk.code, dk.reason, rank, false); continue; }
+      }
       if (rules.botEntryWindow) {
         const w = await botEntryWindowGate({ symbol: pick.symbol, direction: side, entryPrice: pick.entryPrice, currentPrice: pick.currentPrice }, idea);
         if (!w.ok) { refuse('swing', pick, w.code, w.reason, rank); continue; }
@@ -1033,7 +1142,7 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       slots--;
       noteFilled(pick.symbol, side);
       opened.push({ symbol: pick.symbol, reason: `swing sleeve · ${gtxt} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)} · ${qv.stamp}` });
-      await announceEntry(pick.symbol, tradeable, res, pick, pick.thesis ?? null, grade);
+      if (owner.primary) await announceEntry(pick.symbol, tradeable, res, pick, pick.thesis ?? null, grade);
     }
   }
 }

@@ -16,6 +16,7 @@ import { WatchStar } from '@/components/watch/watch-star';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { useDeskRole } from '@/lib/desk-role';
 import {
   CommandDialog,
   CommandEmpty,
@@ -79,6 +80,12 @@ const NESTED_TABS: NavTarget[] = [
 ];
 
 // Quick popular tickers for tap-jump (extend over time / pull from watchlist)
+/** Role-gated destinations (useDeskRole): the platform admin's hub and a desk admin's own desk. */
+const ROLE_DESTINATIONS = {
+  admin: { href: '/admin', label: 'Admin', hint: 'Users, invite codes, waitlist, desks, audit log', keywords: ['admin', 'users', 'invites', 'waitlist', 'hub'] },
+  desk: { href: '/desk', label: 'My desk', hint: 'Your bot, book and watchlist', keywords: ['desk', 'my bot', 'book', 'passcode'] },
+} as const;
+
 const POPULAR_TICKERS = [
   'SPY','QQQ','IWM','NVDA','AAPL','MSFT','TSLA','AMD','META','GOOGL','AMZN',
   'AVGO','ARM','MU','SMCI','PLTR','COIN','SHOP','NOK','BB','MP','CRDO','LITE','AAOI',
@@ -89,6 +96,7 @@ export function CommandPalette({ defaultOpen = false }: { defaultOpen?: boolean 
   const [open, setOpen] = useState(defaultOpen);
   const [search, setSearch] = useState('');
   const [, setLocation] = useLocation();
+  const deskRole = useDeskRole();
   const tickerQuery = search.trim().toUpperCase();
   const { data: tickerResults = [] } = useQuery<Array<{ symbol: string; name?: string; type?: string; changePct?: number | null }>>({
     queryKey: ['/api/search/symbols', tickerQuery, 'global-palette'],
@@ -258,6 +266,18 @@ export function CommandPalette({ defaultOpen = false }: { defaultOpen?: boolean 
         <CommandSeparator />
 
         <CommandGroup heading="Pages">
+          {deskRole.isSuperAdmin && (
+            <CommandItem value={`${ROLE_DESTINATIONS.admin.label} ${ROLE_DESTINATIONS.admin.keywords.join(' ')}`} onSelect={() => go(ROLE_DESTINATIONS.admin.href)} data-testid="palette-admin">
+              <Search className="w-3.5 h-3.5 mr-2" />
+              <span className="text-xs">{ROLE_DESTINATIONS.admin.label}</span>
+            </CommandItem>
+          )}
+          {(deskRole.deskSlug || (deskRole.isSuperAdmin && deskRole.enabled)) && (
+            <CommandItem value={`${ROLE_DESTINATIONS.desk.label} ${ROLE_DESTINATIONS.desk.keywords.join(' ')}`} onSelect={() => go(ROLE_DESTINATIONS.desk.href)} data-testid="palette-desk">
+              <Wallet className="w-3.5 h-3.5 mr-2" />
+              <span className="text-xs">{deskRole.deskSlug ? ROLE_DESTINATIONS.desk.label : 'Desks'}</span>
+            </CommandItem>
+          )}
           <CommandItem onSelect={() => go('/alerts')}>
             <Bell className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Alerts</span>

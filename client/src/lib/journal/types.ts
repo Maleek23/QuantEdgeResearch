@@ -30,6 +30,8 @@ export interface JournalTradeRow {
   rating?: number | null;
   screenshot?: string | null;
   broker: string;
+  /** 'quantedge_idea' = taken from a NEXUS idea ("I took this"); 'own_idea' = the trader's own (docs/DESK_ADMINS.md). */
+  origin?: 'own_idea' | 'quantedge_idea';
   /** Bot book only: the run (paper portfolio) this fill belongs to — see shared/bot-runs.ts. */
   runId?: string | null;
   runLabel?: string | null;

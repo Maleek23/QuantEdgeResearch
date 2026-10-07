@@ -10,6 +10,7 @@
  * are pure functions of those responses — nothing is invented here.
  */
 import { WatchStar } from '@/components/watch/watch-star';
+import { TookItButton } from '@/components/journal/took-it-button';
 import { ageLabel } from '../flow/tape';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -446,7 +447,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
         <div>
-          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span></div>
+          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span>{!selected.isBotHeld && <TookItButton ideaId={selected.ideaId} symbol={selected.symbol} />}</div>
           <p className="nxp-times">
             <span>Called <strong>{fmtExactET(selected.calledAt ?? selected.generatedAt) ?? '—'}</strong></span>
             {selected.triggeredAt ? <span> · Triggered <strong>{fmtExactET(selected.triggeredAt)}</strong></span> : selected.lifecycleState === 'pending_trigger' ? <span> · not triggered yet</span> : null}

@@ -37,6 +37,7 @@
     "test:roles": "tsx scripts/test-roles.ts",
     "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",
     "test:admin-ops": "tsx scripts/test-admin-ops.ts",
+    "test:desk-admins": "tsx scripts/test-desk-admins.ts",
     "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:sector-board": "tsx scripts/test-sector-board.ts",
