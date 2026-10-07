@@ -80,7 +80,9 @@
     "research:bot-diagnose": "tsx research/bot-diagnose.ts",
     "research:grade-audit": "tsx research/grade-audit.ts",
     "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts",
-    "test:discord-lifecycle": "tsx scripts/test-discord-lifecycle.ts"
+    "test:discord-lifecycle": "tsx scripts/test-discord-lifecycle.ts",
+    "test:admin-session": "tsx scripts/test-admin-session.ts",
+    "test:waitlist": "tsx scripts/test-waitlist-capture.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

@@ -30,6 +30,7 @@ import { reasonOf } from '@/lib/optimistic';
 import { authHref, clearStashedReturnTo, readReturnTo, stashReturnTo } from '@/lib/return-to';
 import NextSteps from '@/components/landing/next-steps';
 import { DISCORD_INVITE_URL } from '@/lib/public-config';
+import { attributionPayload } from '@/lib/attribution';
 import { ThemePicker } from '@/components/landing/theme-picker';
 import { useTheme } from '@/components/theme-provider';
 import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '@shared/password-policy';
@@ -107,7 +108,7 @@ export default function Signup() {
   const signup = useMutation({
     mutationFn: async (data: SignupFormData) => {
       const { confirmPassword: _c, ...payload } = data;
-      const r = await apiRequest('POST', '/api/auth/signup', { ...payload, email: payload.email.trim(), inviteCode: payload.inviteCode.trim() });
+      const r = await apiRequest('POST', '/api/auth/signup', { ...payload, email: payload.email.trim(), inviteCode: payload.inviteCode.trim(), ...attributionPayload() });
       return r.json();
     },
     onSuccess: (_res, vars) => {
@@ -120,7 +121,7 @@ export default function Signup() {
 
   const join = useMutation({
     mutationFn: async (data: WaitlistData) => {
-      const r = await apiRequest('POST', '/api/waitlist/join', { email: data.email.trim(), source: 'signup' });
+      const r = await apiRequest('POST', '/api/waitlist/join', { email: data.email.trim(), source: 'signup', ...attributionPayload() });
       return r.json() as Promise<{ alreadyExists?: boolean }>;
     },
     onSuccess: (res) => setWaitlisted(res?.alreadyExists

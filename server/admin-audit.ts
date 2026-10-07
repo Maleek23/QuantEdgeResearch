@@ -29,7 +29,7 @@ export interface AdminAuditEntry {
 
 export const ADMIN_AUDIT_ACTIONS = [
   'invite.generate', 'invite.revoke', 'invite.create', 'invite.send',
-  'waitlist.approve', 'waitlist.reject', 'waitlist.invite',
+  'waitlist.approve', 'waitlist.approve_all', 'waitlist.reject', 'waitlist.invite',
   'user.tier', 'user.beta', 'user.disable', 'user.enable', 'user.delete', 'user.password_reset',
   'trader.passcode_set', 'trader.passcode_clear',
   // Desk admins (docs/DESK_ADMINS.md) — actor is the desk admin's user (or the hub), detail.role says which.

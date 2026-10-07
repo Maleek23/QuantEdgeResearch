@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { attributionPayload } from "@/lib/attribution";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Loader2 } from "lucide-react";
 
@@ -25,7 +26,7 @@ export function WaitlistPopup({ open, onOpenChange }: WaitlistPopupProps) {
 
   const joinWaitlist = useMutation({
     mutationFn: async (email: string) => {
-      const res = await apiRequest("POST", "/api/waitlist/join", { email, source: "popup" });
+      const res = await apiRequest("POST", "/api/waitlist/join", { email, source: "popup", ...attributionPayload() });
       return res.json();
     },
     onSuccess: (data) => {

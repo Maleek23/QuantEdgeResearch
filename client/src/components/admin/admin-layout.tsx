@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,36 @@ import {
 } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Shield, Lock, ChevronLeft, LogOut } from "lucide-react";
+import { Shield, Lock, ChevronLeft } from "lucide-react";
 import { LuxPage, LuxPageHeader } from "@/components/lux";
 import { CURRENT_RELEASE } from "@shared/release";
 import "@/styles/admin-hub.css";
 import { cn } from "@/lib/utils";
 
-type AuthStep = "pin" | "password" | "authenticated";
+type AuthStep = "pin" | "password";
+
+/**
+ * One source of truth for "is the admin signed in": the check-auth query.
+ * Every admin page mounts its own <AdminLayout>, so local state reset to the
+ * code step on every navigation, and the check-auth result cached BEFORE the
+ * login ({authenticated:false}, staleTime 2 min) was never updated after it —
+ * so each click inside the hub asked for the code + password again.
+ * Now login/lock write this cache entry, and pages render from it.
+ */
+export const ADMIN_AUTH_KEY = ['/api/admin/check-auth'] as const;
+interface AdminAuthState { authenticated: boolean; expiresAt?: string; absoluteExpiresAt?: string }
+
+async function fetchAdminAuth(): Promise<AdminAuthState> {
+  const res = await fetch('/api/admin/check-auth', { credentials: 'include', cache: 'no-store' });
+  if (!res.ok) return { authenticated: false };
+  return res.json();
+}
+
+const fmtClock = (iso?: string) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+};
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -47,27 +70,24 @@ const ACCESS_TABS = [
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [location] = useLocation();
+  const qc = useQueryClient();
   const [authStep, setAuthStep] = useState<AuthStep>("pin");
   const [pinCode, setPinCode] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
 
-  // Check if already authenticated (has valid admin session)
-  const { data: authCheck, isLoading: checkingAuth } = useQuery({
-    queryKey: ['/api/admin/check-auth'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/check-auth', { credentials: 'include' });
-      if (!res.ok) return { authenticated: false };
-      return res.json();
-    },
+  // Cached across admin pages; re-checked on every mount and on focus, but a
+  // cached "signed in" renders the page at once (no gate flash on navigation).
+  const { data: authCheck, isLoading: checkingAuth } = useQuery<AdminAuthState>({
+    queryKey: ADMIN_AUTH_KEY,
+    queryFn: fetchAdminAuth,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    placeholderData: undefined,
   });
-
-  useEffect(() => {
-    if (authCheck?.authenticated) {
-      setAuthStep('authenticated');
-    }
-  }, [authCheck]);
+  const authenticated = !!authCheck?.authenticated;
 
   const handlePinSubmit = async () => {
     if (pinCode.length !== 4) {
@@ -110,18 +130,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       }
 
       const response = await res.json();
-      setAuthStep('authenticated');
+      qc.setQueryData<AdminAuthState>(ADMIN_AUTH_KEY, { authenticated: true, expiresAt: response.expiresAt, absoluteExpiresAt: response.absoluteExpiresAt });
+      setPassword("");
+      setPinCode("");
+      setAuthStep('pin');
       toast({
         title: "Admin access granted",
-        description: `Session expires in ${response.expiresIn || '24h'}`
+        description: "Stays unlocked for 8 hours of activity (at most 24 h). Use “Lock admin” when you step away.",
       });
     } catch (error: any) {
+      if (/access code/i.test(error?.message ?? '')) { setAuthStep('pin'); setPinCode(''); }
       toast({ title: error.message || "Invalid password", variant: "destructive" });
     }
   };
 
-  // Loading state
-  if (checkingAuth) {
+  // Loading state (first check only — a cached answer renders immediately)
+  if (checkingAuth && !authCheck) {
     return (
       <div className="ah-root ah-center">
         <div className="flex flex-col items-center gap-3">
@@ -133,7 +157,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Authentication gate
-  if (authStep !== 'authenticated') {
+  if (!authenticated) {
     return (
       <div className="ah-root ah-center p-4">
         <Card className="ah-gate w-full max-w-md">
@@ -204,17 +228,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const section = ADMIN_SECTIONS.find((s) => (s.match as readonly string[]).includes(location)) ?? ADMIN_SECTIONS[0];
-  const signOut = async () => {
-    try { await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' }); } catch { /* cookie expires anyway */ }
-    window.location.href = '/';
+  const lockAdmin = async () => {
+    try {
+      const m = document.cookie.match(/csrf_token=([^;]+)/);
+      await fetch('/api/admin/logout', { method: 'POST', credentials: 'include', headers: m ? { 'x-csrf-token': m[1] } : {} });
+    } catch { /* the cookie still expires on its own */ }
+    qc.setQueryData<AdminAuthState>(ADMIN_AUTH_KEY, { authenticated: false });
+    qc.removeQueries({ predicate: (q) => typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('/api/admin') && q.queryKey[0] !== ADMIN_AUTH_KEY[0] });
+    setAuthStep('pin');
+    toast({ title: 'Admin locked', description: 'The code and password are needed to open it again.' });
   };
+  const until = fmtClock(authCheck?.expiresAt);
 
   return (
     <div className="ah-root">
       <LuxPage width="default" className="ah-page">
         <div className="ah-top">
           <Link href="/t" className="ah-back"><ChevronLeft aria-hidden size={14} /> Back to app</Link>
-          <button type="button" className="ah-back" onClick={signOut}><LogOut aria-hidden size={13} /> Leave admin</button>
+          <span className="ah-mute" style={{ marginLeft: 'auto', fontSize: 12 }} data-testid="text-admin-session">{until ? `Unlocked · until ${until} if idle` : 'Unlocked'}</span>
+          <button type="button" className="ah-back" onClick={() => void lockAdmin()} data-testid="button-lock-admin"><Lock aria-hidden size={13} /> Lock admin</button>
         </div>
         <LuxPageHeader section="Admin" context={`v${CURRENT_RELEASE.version} · ${CURRENT_RELEASE.series}`} title={section.title}
           purpose={

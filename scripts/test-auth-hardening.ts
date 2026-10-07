@@ -144,7 +144,8 @@ async function main() {
   // ── 2. Waitlist input ───────────────────────────────────────────────────
   ok(/"\/api\/waitlist\/join", \.\.\.waitlistLimiters,/.test(routes), 'waitlist has the per-IP limiters');
   ok(/parseWaitlistInput\(req\.body\)/.test(handler('/api/waitlist/join')), 'waitlist validates its body');
-  ok(/23505/.test(handler('/api/waitlist/join')), 'concurrent duplicate email answered as a duplicate');
+  // 2026-10-07: the insert + 23505 handling moved to server/waitlist-capture.ts (shared by every capture path).
+  ok(/captureWaitlistEmail/.test(handler('/api/waitlist/join')) && /'23505'/.test(readFileSync(new URL('../server/waitlist-capture.ts', import.meta.url), 'utf8')), 'concurrent duplicate email answered as a duplicate');
   const good = parseWaitlistInput({ email: '  Me@Example.COM ', source: 'signup' });
   eq(good, { ok: true, value: { email: 'me@example.com', source: 'signup', referralCode: null } }, 'email normalised for dedupe');
   eq(parseWaitlistInput({ email: 'a@b.co' }), { ok: true, value: { email: 'a@b.co', source: 'landing', referralCode: null } }, 'default source');

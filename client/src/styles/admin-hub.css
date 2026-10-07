@@ -4,7 +4,7 @@
 .ah-center { display: flex; align-items: center; justify-content: center; }
 .ah-mute { color: var(--lx-dim); font-size: 13px; }
 .ah-page { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; padding-bottom: 40px; }
-.ah-top { display: flex; justify-content: space-between; gap: 8px; }
+.ah-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .ah-back {
   display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--lx-dim);
   text-decoration: none; background: none; border: 0; padding: 4px 0; cursor: pointer; font-family: inherit;
@@ -90,3 +90,4 @@
 .ah-h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--lx-text, inherit); }
 .ah-x { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 4px; min-height: 24px; }
 .ah-x:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
+.ah-linkbtn { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; min-height: 24px; }

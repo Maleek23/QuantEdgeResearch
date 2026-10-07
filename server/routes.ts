@@ -59,7 +59,7 @@ import {
 import { validatePassword } from "@shared/password-policy";
 import { RELEASE_LABEL } from "@shared/release";
 // LAZY-LOADED: auto-idea-generator — imported via await import() in handlers
-import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
+import { requireAdminJWT, generateAdminToken, verifyAdminToken, setAdminCookie, clearAdminCookies, setAdminCodeTicket, verifyAdminCodeTicket, adminSessionInfo, ADMIN_CODE_COOKIE } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPassword } from "./userAuth";
@@ -749,7 +749,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // signup (e.g. email already exists) would permanently burn a valid invite.
       // Invite codes come only from the beta_invites table — the ADMIN access code
       // is NOT an invite code (it used to be accepted here, compared with ===).
+      // A sign-up attempt without a usable code is a beta request: the email goes
+      // on the waitlist (source 'signup_code'). The response is unchanged — the
+      // capture runs for every failure reason, so it is no code oracle.
+      const { captureLostSignup, parseAttribution } = await import('./waitlist-capture');
+      const captureRejected = () => captureLostSignup(emailLower, 'signup_code', parseAttribution(req.body));
       if (!inviteCode) {
+        await captureRejected();
         return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
       }
 
@@ -757,6 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const normalizedInviteCode = normalizeInviteCode(inviteCode);
       if (!normalizedInviteCode || !signupInviteAttempts.attempt(normalizedInviteCode)) {
         logger.warn('Signup rejected: malformed or over-budget invite code', { ip: req.ip });
+        await captureRejected();
         return res.status(403).json({ error: GENERIC_INVITE_ERROR });
       }
       const candidateInvite = await storage.getBetaInviteByToken(normalizedInviteCode);
@@ -774,6 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         !inviteEmailMatches(candidateInvite, emailLower)
       ) {
         logger.warn('Signup rejected: invite code not usable', { ip: req.ip, found: !!candidateInvite });
+        await captureRejected();
         return res.status(403).json({ error: GENERIC_INVITE_ERROR });
       }
 
@@ -1013,25 +1021,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         alreadyExists: true,
       });
 
-      // Dedupe by (normalised) email
-      const existing = await storage.getWaitlistEntry(emailLower);
-      if (existing) {
-        return alreadyOnList();
+      // Dedupe by (normalised) email; referrer / landing path / utm_* stored
+      // when migrations/0006 is applied (server/waitlist-capture.ts).
+      const { captureWaitlistEmail, defaultCaptureDeps, parseAttribution } = await import('./waitlist-capture');
+      const captured = await captureWaitlistEmail(await defaultCaptureDeps(), {
+        email: emailLower, source, referralCode, attribution: parseAttribution(req.body),
+      });
+      if (captured.status === 'exists') return alreadyOnList();
+      if (captured.status === 'error' && captured.savedToFallback) {
+        // DB write failed but the email is kept on disk (.cache/waitlist-fallback.jsonl)
+        // for research/waitlist-recovery.ts — the visitor is on the list.
+        return res.json({ success: true, message: "Welcome to the Lab! We'll be in touch soon." });
       }
-
-      // Add to waitlist. The email column is UNIQUE, so a concurrent duplicate
-      // lands here as a unique violation: answer it as a duplicate, not a 500.
-      let entry;
-      try {
-        entry = await storage.createWaitlistEntry({
-          email: emailLower,
-          source,
-          referralCode,
-        });
-      } catch (insertError) {
-        if ((insertError as any)?.code === '23505') return alreadyOnList();
-        throw insertError;
+      if (captured.status !== 'created') {
+        throw new Error(captured.status === 'error' ? captured.error : 'waitlist capture rejected a parsed email');
       }
+      const entry = { id: captured.id };
       
       // Discord notification — dedicated operator webhook only, email redacted to
       // its domain by default (server/privacy-redact.ts; docs/PRIVACY_IMPACT_ASSESSMENT.md).
@@ -1203,6 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!invite) {
         logger.warn('Beta verification failed - code not found', { email: emailLower });
+        { const { captureLostSignup } = await import('./waitlist-capture'); await captureLostSignup(emailLower, 'join_beta'); }
         return res.status(400).json({ error: "Invalid invite code" });
       }
       
@@ -1934,6 +1940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (safeSecretEqual(req.body?.code, adminCode)) { // constant-time
         logger.info('Admin access code verified', { ip: req.ip });
+        // 5-minute httpOnly ticket: /api/admin/login refuses a password without it.
+        setAdminCodeTicket(res);
         res.json({ success: true });
       } else {
         logger.warn('Invalid admin access code attempt', { ip: req.ip });
@@ -1967,6 +1975,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.error('CRITICAL: ADMIN_PASSWORD environment variable not set');
         return res.status(500).json({ error: 'Server configuration error' });
       }
+      // The access code is a server-side step: no valid ticket from
+      // /api/admin/verify-code (5 min), no password check at all.
+      if (!verifyAdminCodeTicket(req.cookies?.[ADMIN_CODE_COOKIE])) {
+        logger.warn('Admin login without a verified access code', { ip: clientIp });
+        return res.status(403).json({ error: 'Enter the access code first', codeRequired: true });
+      }
       if (safeSecretEqual(req.body?.password, adminPassword)) { // constant-time
         // Clear failed attempts on successful login
         recordSuccessfulLogin(clientIp);
@@ -1974,24 +1988,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Generate JWT token
         const token = generateAdminToken();
         
-        // Set secure HTTP-only cookie (primary auth method)
-        // Use longer expiry (7 days) and lax sameSite for better cross-device persistence
-        const rememberMe = req.body.rememberMe !== false; // Default to remember
-        res.cookie('admin_token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax', // Allow cookie on same-site navigation
-          path: '/', // Ensure cookie is sent for all routes
-          maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 7 days or 24 hours
-        });
+        // httpOnly, Secure (prod), SameSite=Strict, path /api, 8 h sliding,
+        // 24 h absolute (server/auth.ts). The code ticket is spent.
+        clearAdminCookies(res);
+        setAdminCookie(res, token);
         
         logger.info('Admin logged in successfully', { ip: clientIp });
         logAdminAction('ADMIN_LOGIN_SUCCESS', req, res, { ip: clientIp });
         
         // DO NOT return token in response - it's in HTTP-only cookie
+        const session = verifyAdminToken(token);
         res.json({ 
           success: true,
-          expiresIn: '24h'
+          expiresIn: '8h',
+          ...(session ? adminSessionInfo(session) : {}),
         });
       } else {
         // Record failed attempt
@@ -2008,8 +2018,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/logout", (req, res) => {
     try {
-      res.clearCookie('admin_token', { path: '/' });
+      clearAdminCookies(res);
       logger.info('Admin logged out', { ip: req.ip });
+      logAdminAction('ADMIN_LOCK', req, res, { ip: req.ip });
       res.json({ success: true });
     } catch (error) {
       logError(error as Error, { context: 'admin logout' });
@@ -2019,7 +2030,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Simple JWT auth check endpoint (lightweight)
   app.get("/api/admin/check-auth", requireAdminJWT, (_req, res) => {
-    res.json({ authenticated: true });
+    res.set('Cache-Control', 'no-store');
+    const session = res.locals.adminSession;
+    res.json({ authenticated: true, ...(session ? adminSessionInfo(session) : {}) });
   });
 
   // Admin hub › System health: process / pm2 / faults / Discord bot / rate limits (server/admin-hub-routes.ts)
@@ -3373,11 +3386,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check email service status
-  app.get("/api/admin/email-status", requireAdminJWT, (_req, res) => {
+  app.get("/api/admin/email-status", requireAdminJWT, async (_req, res) => {
+    // The real default sender is onboarding@resend.dev (server/emailService.ts) —
+    // this used to report onboarding@quantedgelabs.net, hiding the sandbox sender.
+    const { inviteSenderConfig } = await import('./invite-mailer');
+    const cfg = inviteSenderConfig();
     res.json({
-      configured: !!(process.env.RESEND_API_KEY),
+      configured: cfg.configured,
       provider: 'resend',
-      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.net',
+      fromEmail: cfg.from,
+      sandbox: cfg.sandbox,
+      problem: cfg.problem,
     });
   });
 

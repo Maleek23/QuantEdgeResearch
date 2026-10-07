@@ -75,12 +75,19 @@ export async function setupGoogleAuth(app: Express) {
           
           // Allow access if: whitelisted, existing user, or has valid invite (including redeemed - they already have an account)
           if (!isWhitelisted && !existingUser && !hasValidInviteForLogin) {
+            // Capture, don't drop: a Google sign-in without an invite is a beta
+            // request. Before 2026-10-07 this email only reached the log.
+            const { captureLostSignup } = await import("./waitlist-capture");
+            const captured = await captureLostSignup(emailLower, "google");
             logger.warn("Google OAuth: user not authorized for beta", { 
               email: emailLower,
               hasInvite: !!invite,
-              inviteStatus: invite?.status 
+              inviteStatus: invite?.status,
+              waitlist: captured.status,
             });
-            return done(new Error("INVITE_REQUIRED"));
+            const onList = captured.status === "created" || captured.status === "exists"
+              || (captured.status === "error" && captured.savedToFallback);
+            return done(new Error(onList ? "INVITE_REQUIRED_WAITLISTED" : "INVITE_REQUIRED"));
           }
 
           // If user has a pending invite, redeem it now
@@ -171,6 +178,9 @@ export async function setupGoogleAuth(app: Express) {
       if (err) {
         logger.error("Google OAuth callback error", { error: err.message });
         // Handle invite required error specially
+        if (err.message === "INVITE_REQUIRED_WAITLISTED") {
+          return res.redirect("/login?error=invite_waitlisted");
+        }
         if (err.message === "INVITE_REQUIRED") {
           return res.redirect("/login?error=invite_required");
         }
