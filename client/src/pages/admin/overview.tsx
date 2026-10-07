@@ -12,6 +12,7 @@
  */
 import { Link } from 'wouter';
 import { AdminLayout } from '@/components/admin/admin-layout';
+import { TraderAccountsPanel } from '@/components/admin/trader-accounts-panel';
 import { LuxKpi, LuxKpiGrid, LuxPanel, LuxTag } from '@/components/lux';
 import { QEError } from '@/components/ui/qe-states';
 import {
@@ -45,6 +46,9 @@ export default function AdminOverview() {
     <AdminLayout>
       <div className="ah-stack">
         {ov.isError && <QEError title="The overview didn't load" message="/api/admin/ops/overview failed — the server may be on an older build." onRetry={() => void ov.refetch()} />}
+
+        {/* Operator 2026-10-07: trader accounts first, right after the admin code. */}
+        <TraderAccountsPanel />
 
         <LuxKpiGrid cols={4}>
           <LuxKpi label="Users" value={o?.users.total ?? '—'}
