@@ -271,7 +271,7 @@ export function registerTraderAccountRoutes(
       const method = parseCredentialMethod(req.body?.method);
       if (!method) return res.status(400).json({ error: "method must be 'link' or 'temp'" });
       const t = await traderAccount(d, String(req.params.id ?? ''));
-      if ('error' in t) return res.status(t.status).json({ error: t.error });
+      if ('error' in t) return res.status(t.status ?? 400).json({ error: t.error });
       if (t.user.subscriptionStatus === 'disabled') return res.status(400).json({ error: 'That account is disabled — enable it in Users first' });
       const { secret, credential } = await issue(d, t.user, method, req);
       // A temp password replaces the old one at once: sign the account out everywhere.
@@ -287,7 +287,7 @@ export function registerTraderAccountRoutes(
     try {
       const d = await deps();
       const t = await traderAccount(d, String(req.params.id ?? ''));
-      if ('error' in t) return res.status(t.status).json({ error: t.error });
+      if ('error' in t) return res.status(t.status ?? 400).json({ error: t.error });
       await d.revokeSetupRows(t.user.id);
       const tempRevoked = passwordState(t.user.passwordHash) === 'must_change';
       if (tempRevoked) await d.setPasswordHash(t.user.id, pendingPasswordHash());
