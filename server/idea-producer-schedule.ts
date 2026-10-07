@@ -427,6 +427,20 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('15 16 * * 1-5', board, ET);
     cron.schedule('45 17 * * 1-5', board, ET);
     (await import('./sector-board')).scheduleSectorBoardBootstrap();
+    // Live quotes-only pass (no daily-bar refetch): today / since open / last 30m,
+    // intraday + live composite rank, breadth, the in-day sparkline ring. On ≡1 mod 5
+    // so the :07/:22/:37/:52 board run one minute later reuses the 60 s quote cache.
+    // SECTOR_BOARD_LIVE=false turns it off.
+    if (process.env.SECTOR_BOARD_LIVE !== 'false') {
+      const live = guarded('sector-board-live', async () => {
+        const { runSectorBoardLive } = await import('./sector-board');
+        return runSectorBoardLive();
+      }, 'normal');
+      cron.schedule('1-51/10 8 * * 1-5', live, ET);
+      cron.schedule('1-56/5 9-15 * * 1-5', live, ET);
+      cron.schedule('1,6,11,31 16 * * 1-5', live, ET);
+      cron.schedule('1,31 17-19 * * 1-5', live, ET);
+    }
   }
 
   // ── Sector rotation ideas (server/sector-rotation-ideas.ts) — OFF unless
