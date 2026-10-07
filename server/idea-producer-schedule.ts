@@ -179,6 +179,10 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   }, 'high', 'index');
   cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
+  // Open drive (server/open-drive-core.ts): every minute 09:31–09:44 ET — the 1-minute
+  // opening-range policy decides on 1-minute closes. Same guarded pass (the scanner
+  // reuses a pass younger than 60 s), same index lane. OPEN_DRIVE=off disables the policy.
+  cron.schedule('31-44 9 * * 1-5', index0dte, ET);
 
   // ── Index pre-open warm (server/index-prewarm.ts): SPY/QQQ/IWM chains + GEX
   // snapshots and the SPX desk chain, warmed 09:20–09:28 ET and refreshed every
