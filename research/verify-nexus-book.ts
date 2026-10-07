@@ -13,13 +13,19 @@
  *       If not, replay the plan's stop/target from the trigger (stop first on a
  *       bar touching both; a gap fills at the open) and price that.
  *   options
- *     - the contract's own bars by OCC symbol (Alpaca options bars 1Min;
- *       Yahoo OPR trade bars as fallback; SPX → SPXW/SPX, NDX → NDXP/NDX)
+ *     - the contract's own bars by OCC symbol through the source chain in
+ *       research/verify-nexus-book-sources.ts: Massive (Polygon) option aggs
+ *       1m → 5m → option trades → Alpaca 1Min (indicative) → Yahoo OPR 1m/5m
+ *       (SPX → SPXW/SPX, NDX → NDXP/NDX)
  *     - entry premium AT THE TRIGGER (executionAudit.triggerObservedAt, else the
  *       first underlying bar trading at entry, else publication)
  *     - exit premium AT THE EXIT (the touch bar when the recorded exit time is a
- *       tracker cycle; 16:00 ET settlement for expiries — intrinsic from the
- *       underlying close when the contract has no bar)
+ *       tracker cycle). Expiry exits settle EXACTLY at intrinsic from the expiry
+ *       day's official underlying close (Massive unadjusted daily → Yahoo daily;
+ *       AM-settled index monthlies flagged approximate); the last print is kept
+ *       as evidence only. An expiry exit that disagrees with settlement is a
+ *       MISMATCH even when the entry premium cannot be priced (the recorded entry
+ *       is then used and labelled unverified).
  *
  * Each trade gets VERIFIED (within tolerance) / MISMATCH (recorded vs
  * recomputed, with the bug class that explains it) / UNVERIFIABLE (no data,
@@ -40,6 +46,15 @@
  *   --throttle MS         pause between network calls (default 350)
  *   --cache DIR           bar cache (default /tmp/nexus-verify-cache)
  *   --offline             integrity checks only, no network (every trade UNVERIFIABLE)
+ *   --only-unverifiable <ledger.json>
+ *                         re-check ONLY the rows that ledger marked UNVERIFIABLE and merge the
+ *                         new verdicts into it (every other row kept as-is; the prior file is
+ *                         copied to <ledger>.bak-<stamp>.json first). --out defaults to the ledger.
+ *   --massive-throttle MS pause before each Massive call (default 12500 = the 5 calls/min free
+ *                         tier; pass 250 on a paid plan). Key: POLYGON_API_KEY.
+ *   --no-massive          skip Massive entirely (old Alpaca → Yahoo chain)
+ *   --massive-probe       no database: probe each Massive endpoint once and print the
+ *                         entitlement answer (403 / NOT_AUTHORIZED = not on this plan), then exit
  *
  * The server reads the --out file as its verification ledger
  * (NEXUS_BOOK_VERIFY_LEDGER, default /tmp/nexus-book-verify.json): only
@@ -53,18 +68,25 @@ import { OUTCOME_BASELINE_DATE } from '../shared/constants';
 import { mapDeskIdea, type DeskIdea, type JournalWireRow } from '../server/journal-row-maps';
 import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, type DeskIntegrityFlag } from '../shared/desk-integrity';
 import { optionSideOf } from '../shared/option-value-bounds';
+import {
+  attemptsText, expirySettlement, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
+  unverifiableIds, type ChainDeps, type ChainResult, type HttpResult, type MassiveEndpoint,
+} from './verify-nexus-book-sources';
 
 // ─── args ────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 const arg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
-const OUT = arg('--out') ?? '/tmp/nexus-book-verify.json';
+const ONLY_UNV = arg('--only-unverifiable') ?? null;
+const OUT = arg('--out') ?? ONLY_UNV ?? '/tmp/nexus-book-verify.json';
 const CSV = OUT.replace(/\.json$/i, '') + '.csv';
-const SINCE = arg('--since') ?? OUTCOME_BASELINE_DATE;
+let SINCE = arg('--since') ?? OUTCOME_BASELINE_DATE;
 const IDS = arg('--ids')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null;
 const LIMIT = arg('--limit') ? Number(arg('--limit')) : null;
 const THROTTLE = Number(arg('--throttle') ?? 350);
 const CACHE = arg('--cache') ?? '/tmp/nexus-verify-cache';
 const OFFLINE = argv.includes('--offline');
+const MASSIVE_THROTTLE = Number(arg('--massive-throttle') ?? 12_500);
+const MASSIVE_KEY = argv.includes('--no-massive') ? null : process.env.POLYGON_API_KEY?.trim() || null;
 
 /** Tolerances: options trade on prints (not NBBO mids), so they get more room. */
 const TOL = { stockAbs: 5, stockRel: 0.10, optionAbs: 15, optionRel: 0.20, pricePct: 0.005, premiumPct: 0.10, nearMs: 30 * 60_000 };
@@ -139,18 +161,6 @@ function yahooSymbol(symbol: string, assetType: string): string {
   if (assetType === 'future' || assetType === 'futures') return s.endsWith('=F') ? s : `${s.replace(/[A-Z]\d{1,2}$/, '')}=F`;
   return YAHOO_INDEX[s] ?? s;
 }
-function parseYahoo(j: any): Bar[] {
-  const res = j?.chart?.result?.[0];
-  const q = res?.indicators?.quote?.[0];
-  const ts: number[] = res?.timestamp ?? [];
-  if (!q) return [];
-  const out: Bar[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = num(q.open?.[i]), h = num(q.high?.[i]), l = num(q.low?.[i]), c = num(q.close?.[i]);
-    if (o != null && h != null && l != null && c != null && h > 0) out.push({ t: ts[i] * 1000, o, h, l, c, v: num(q.volume?.[i]) ?? 0 });
-  }
-  return out;
-}
 const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** Underlying 5m bars covering [fromMs, toMs] (Yahoo, 60-day window; Alpaca stock bars fallback; daily last resort). */
@@ -189,35 +199,43 @@ function occRoots(symbol: string): string[] {
   const s = symbol.toUpperCase();
   return s === 'SPX' ? ['SPXW', 'SPX'] : s === 'NDX' ? ['NDXP', 'NDX'] : s === 'RUT' ? ['RUTW', 'RUT'] : s === 'VIX' ? ['VIXW', 'VIX'] : [s];
 }
-/** The contract's bars over [fromMs, toMs]: Alpaca 1Min, then Yahoo OPR trade bars. */
-async function optionBars(occ: string, fromMs: number, toMs: number): Promise<{ bars: Bar[]; source: string }> {
-  const end = Math.min(toMs, Date.now() - 16 * 60_000);
-  if (process.env.ALPACA_API_KEY && end > fromMs) {
-    const out: Bar[] = [];
-    let token: string | null = null;
-    for (let page = 0; page < 5; page++) {
-      const qs = new URLSearchParams({ symbols: occ, timeframe: '1Min', start: new Date(fromMs).toISOString(), end: new Date(end).toISOString(), limit: '10000' });
-      if (token) qs.set('page_token', token);
-      const j = await cachedJson(`ao1m_${occ}_${fromMs}_${end}_${page}`, `https://data.alpaca.markets/v1beta1/options/bars?${qs}`,
-        { 'APCA-API-KEY-ID': process.env.ALPACA_API_KEY!, 'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY ?? '' });
-      for (const b of j?.bars?.[occ] ?? []) {
-        const t = Date.parse(b?.t);
-        if (fin(t) && fin(b?.o) && fin(b?.h) && fin(b?.l) && fin(b?.c)) out.push({ t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0 });
-      }
-      token = j?.next_page_token ?? null;
-      if (!token) break;
-    }
-    if (out.length) return { bars: out.sort((a, b) => a.t - b.t), source: `alpaca:${occ}:1Min(indicative)` };
+/**
+ * Massive raw GET: own throttle (free tier = 5 calls/min), back-off on 429,
+ * key in the Authorization header (never in a URL / cache file / log). Only
+ * successful answers are cached — a refusal is re-asked next run, so a plan
+ * upgrade takes effect without clearing the cache.
+ */
+async function massiveGet(key: string, url: string): Promise<HttpResult | null> {
+  const file = path.join(CACHE, key.replace(/[^A-Za-z0-9._-]/g, '_') + '.json');
+  if (fs.existsSync(file)) { cacheHits++; try { return { status: 200, body: JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch { /* refetch */ } }
+  if (OFFLINE || !MASSIVE_KEY) return null;
+  let last: HttpResult | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await sleep(MASSIVE_THROTTLE);
+    netCalls++;
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${MASSIVE_KEY}`, 'User-Agent': 'QuantEdge-verify/1.0' } });
+      const body = await res.json().catch(() => ({}));
+      last = { status: res.status, body };
+      if (res.status === 429 || res.status >= 500) { await sleep(res.status === 429 ? 61_000 : 3000 * (attempt + 1)); continue; }
+      if (res.ok && (body?.status == null || body.status === 'OK' || body.status === 'DELAYED')) fs.writeFileSync(file, JSON.stringify(body));
+      return last;
+    } catch { /* retry */ }
   }
-  const p1 = Math.floor((fromMs - 3600_000) / 1000), p2 = Math.floor((toMs + 3600_000) / 1000);
-  for (const interval of ['1m', '5m']) {
-    const j = await cachedJson(`yo${interval}_${occ}_${p1}_${p2}`,
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(occ)}?period1=${p1}&period2=${p2}&interval=${interval}&includePrePost=false`);
-    const bars = parseYahoo(j).filter((b) => (b.v ?? 0) > 0 || interval === '5m');
-    if (bars.length) return { bars, source: `yahoo-opr:${occ}:${interval}` };
-  }
-  return { bars: [], source: 'none' };
+  return last;
 }
+
+const entitlement = new MassiveEntitlement(!!MASSIVE_KEY);
+entitlement.onRefusal = (ep, kind, status, message) => console.warn(kind === 'bad_key'
+  ? `\n[massive] KEY REJECTED (HTTP ${status}: ${message}) — POLYGON_API_KEY is invalid; Massive skipped for the rest of the run\n`
+  : `\n[massive] ${ep} NOT ENTITLED (HTTP ${status}: ${message}) — skipping it for the rest of the run.\n  needs: ${MASSIVE_ENTITLEMENT_HINT[ep]}\n`);
+const chainDeps: ChainDeps = {
+  massive: MASSIVE_KEY ? massiveGet : null,
+  entitlement,
+  alpaca: process.env.ALPACA_API_KEY ? { id: process.env.ALPACA_API_KEY, secret: process.env.ALPACA_SECRET_KEY ?? '' } : null,
+  json: cachedJson,
+  now: () => Date.now(),
+};
 
 /** Bar containing t (given bar width), else the nearest bar within nearMs (after first, then before). */
 function barAt(bars: Bar[], t: number, widthMs: number, nearMs = TOL.nearMs): Bar | null {
@@ -412,16 +430,22 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   }
 
   // The contract's own bars.
-  let ob: { bars: Bar[]; source: string } = { bars: [], source: 'none' };
+  let ob: ChainResult = { bars: [], source: 'none', attempts: [] };
   let occ = '';
-  for (const root of occRoots(i.symbol)) {
-    occ = occOf(root, day, side, strike);
-    ob = await optionBars(occ, Math.min(pubMs, trigMs!) - 60 * 60_000, Math.max(exitMs, Math.min(expiryCloseMs, exitMs + 60 * 60_000)));
-    if (ob.bars.length) break;
+  let root = occRoots(i.symbol)[0];
+  const tried: string[] = [];
+  for (const r of occRoots(i.symbol)) {
+    occ = occOf(r, day, side, strike);
+    ob = await optionBarChain(occ, Math.min(pubMs, trigMs!) - 60 * 60_000, Math.max(exitMs, Math.min(expiryCloseMs, exitMs + 60 * 60_000)), chainDeps);
+    tried.push(`${occ}: ${attemptsText(ob.attempts)}`);
+    if (ob.bars.length) { root = r; break; }
   }
+  if (!ob.bars.length) occ = occOf(root, day, side, strike);
   base.evidence.occ = occ;
   base.evidence.optionSource = ob.source;
   base.evidence.optionBars = ob.bars.length;
+  base.evidence.optionAttempts = tried;
+  const chainWhy = ob.bars.length ? ob.source : tried.join(' | ');
   const bars = ob.bars;
   const w = widthOf(bars);
 
@@ -430,17 +454,26 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   const pubRange = bars.length ? rangeAround(bars, pubMs, 15 * 60_000) : null;
   base.evidence.entryBar = eb ? { at: iso(eb.t), o: eb.o, h: eb.h, l: eb.l, c: eb.c } : null;
   base.evidence.publishRange = pubRange;
-  // Exit premium at the exit (expiry: last print before 16:00 ET, else intrinsic at the underlying close).
+  // Exit premium at the exit. Expiry: EXACT settlement = intrinsic at the expiry
+  // day's official underlying close; last print only as evidence / fallback.
   let exitPx: number | null = null;
   let exitBasis = '';
+  let exitExact = false;
   if (status === 'expired' && Math.abs(exitMs - expiryCloseMs) < 3600_000) {
     const last = [...bars].reverse().find((b) => b.t <= expiryCloseMs && b.t >= expiryCloseMs - 2 * 3600_000);
-    if (last) { exitPx = last.c; exitBasis = `last print ${iso(last.t)}`; }
+    if (last) base.evidence.lastPrintBeforeClose = { at: iso(last.t), c: last.c };
+    const st = await expirySettlement(root, day, side, strike, chainDeps);
+    base.evidence.settlement = st;
+    if (st) {
+      exitPx = st.intrinsic;
+      exitExact = !st.approximate;
+      exitBasis = `settlement intrinsic ${st.intrinsic} (${st.underlying} ${st.field} ${st.S} on ${day}, ${st.source}${st.approximate ? `; ${st.approximate}` : ''})`;
+    } else if (last) { exitPx = last.c; exitBasis = `last print ${iso(last.t)} (no settlement print)`; }
     else {
       const uc = [...ubars].reverse().find((b) => b.t <= expiryCloseMs);
       if (uc && Math.abs(uc.t - expiryCloseMs) < 3600_000) {
         exitPx = side === 'call' ? Math.max(0, uc.c - strike) : Math.max(0, strike - uc.c);
-        exitBasis = `intrinsic at underlying close ${uc.c} (${iso(uc.t)})`;
+        exitBasis = `approx intrinsic at last underlying bar ${uc.c} (${iso(uc.t)})`;
       }
     }
   } else if (bars.length) {
@@ -451,9 +484,23 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   base.evidence.exitRange = exitRange;
   base.evidence.exitBasis = exitBasis;
 
-  if (!eb && exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bars for ${occ} (${ob.source}) around entry or exit`, { triggerAt: iso(trigMs) });
-  if (!eb) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the trigger ${iso(trigMs)} (${occ})`, { triggerAt: iso(trigMs), recomputedExit: exitPx });
-  if (exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the exit ${iso(exitMs)} (${occ})`, { triggerAt: iso(trigMs), recomputedEntry: eb.c });
+  if (!eb && exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bars for ${occ} (${chainWhy}) around entry or exit`, { triggerAt: iso(trigMs) });
+  if (!eb && exitExact && exitPx != null) {
+    // Exit is exact (settlement) but the entry premium has no print: the
+    // recorded entry is taken as given (labelled unverified). A settlement that
+    // disagrees with the recorded exit is a provable error on its own.
+    const pnlRecEntry = r2((exitPx - row.entryPrice) * 100);
+    const d = r2(pnlRecEntry - row.realizedPnL!);
+    base.evidence.entryBasis = 'recorded (unverified — no contract print near the trigger)';
+    base.evidence.exitVerified = true;
+    const agree = within(pnlRecEntry, row.realizedPnL!, TOL.optionAbs, TOL.optionRel);
+    const why = `exit ${row.exitPrice} vs ${exitBasis}; entry ${row.entryPrice} unverified (no contract bar within 30m of the trigger ${iso(trigMs)}; ${chainWhy})`;
+    return agree
+      ? out('UNVERIFIABLE', 'bar_unverifiable', `exit settlement verified; ${why}`, { triggerAt: iso(trigMs), recomputedExit: r2(exitPx) })
+      : out('MISMATCH', 'expiry_settlement', why, { triggerAt: iso(trigMs), recomputedEntry: row.entryPrice, recomputedExit: r2(exitPx), recomputedPnL: pnlRecEntry, diff: d });
+  }
+  if (!eb) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the trigger ${iso(trigMs)} (${occ}; ${chainWhy})`, { triggerAt: iso(trigMs), recomputedExit: exitPx });
+  if (exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the exit ${iso(exitMs)} (${occ}; ${chainWhy})`, { triggerAt: iso(trigMs), recomputedEntry: eb.c });
 
   const entryPx = eb.c;
   const recomputedPnL = r2((exitPx - entryPx) * 100);
@@ -465,7 +512,8 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   if (!ok) {
     const exitTraded = recExit != null && exitRange && recExit >= exitRange.lo * (1 - TOL.premiumPct) && recExit <= exitRange.hi * (1 + TOL.premiumPct);
     const entryTradedAtPub = pubRange && recEntry >= pubRange.lo * (1 - TOL.premiumPct) && recEntry <= pubRange.hi * (1 + TOL.premiumPct);
-    if (recExit != null && exitRange && !exitTraded) bug = 'exit_premium_not_traded';
+    if (exitExact && recExit != null && !within(recExit, exitPx, 0.05, TOL.premiumPct)) bug = 'expiry_settlement';
+    else if (recExit != null && exitRange && !exitTraded) bug = 'exit_premium_not_traded';
     else if (status === 'expired') bug = 'expiry_settlement';
     else if (entryTradedAtPub && !within(entryPx, recEntry, 0.05, 0.2) && trigMs! - pubMs > 5 * 60_000) bug = 'entry_premium_at_publish_not_trigger';
     else if (pubRange && !entryTradedAtPub) bug = 'entry_premium_not_traded';
@@ -481,7 +529,18 @@ const OVERRIDING = new Set(['premium_scale_ladder', 'synthetic_or_retroactive', 
 
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set (set -a && . ./.env && set +a)');
-  console.log(`[verify-nexus-book] since ${SINCE} · out ${OUT} · cache ${CACHE}${OFFLINE ? ' · OFFLINE' : ''}`);
+  // --only-unverifiable: the prior ledger decides the set (and the --since it was built with).
+  let prior: any = null;
+  let priorIds: Set<string> | null = null;
+  if (ONLY_UNV) {
+    prior = JSON.parse(fs.readFileSync(ONLY_UNV, 'utf8'));
+    if (!Array.isArray(prior?.trades)) throw new Error(`${ONLY_UNV} has no trades[] — not a verify-nexus-book ledger`);
+    priorIds = new Set(unverifiableIds(prior));
+    if (!arg('--since') && typeof prior?.summary?.since === 'string') SINCE = prior.summary.since;
+    console.log(`[verify-nexus-book] --only-unverifiable ${ONLY_UNV}: ${priorIds.size} UNVERIFIABLE of ${prior.trades.length} rows to re-check`);
+  }
+  console.log(`[verify-nexus-book] since ${SINCE} · out ${OUT} · cache ${CACHE}${OFFLINE ? ' · OFFLINE' : ''}`
+    + ` · massive ${MASSIVE_KEY ? `on (throttle ${MASSIVE_THROTTLE}ms)` : 'off'}`);
   const ideas = await loadBook();
   const pairs: { idea: IdeaRow; row: JournalWireRow }[] = [];
   const notScored = new Map<string, number>();
@@ -492,6 +551,13 @@ async function main() {
   }
   let closed = pairs.filter((p) => p.row.status === 'closed' && p.row.realizedPnL != null);
   if (IDS) closed = closed.filter((p) => IDS.includes(p.idea.id));
+  const missingFromBook: string[] = [];
+  if (priorIds) {
+    const present = new Set(closed.map((p) => p.idea.id));
+    for (const id of priorIds) if (!present.has(id)) missingFromBook.push(id);
+    closed = closed.filter((p) => priorIds!.has(p.idea.id));
+    if (missingFromBook.length) console.warn(`  ${missingFromBook.length} ledger ids are no longer closed+scored in the book — kept as-is: ${missingFromBook.slice(0, 10).join(', ')}${missingFromBook.length > 10 ? ' …' : ''}`);
+  }
   closed.sort((a, b) => Math.abs(b.row.realizedPnL!) - Math.abs(a.row.realizedPnL!));
   if (LIMIT) closed = closed.slice(0, LIMIT);
   const dups = findDuplicates(pairs.filter((p) => p.row.status === 'closed').map(({ idea, row }) => ({
@@ -501,7 +567,7 @@ async function main() {
   const recordedBook = r2(pairs.filter((p) => p.row.status === 'closed').reduce((s, p) => s + (p.row.realizedPnL ?? 0), 0));
   console.log(`  ${ideas.length} ideas read (read-only txn) · ${pairs.length} scored rows · ${closed.length} closed to verify · book recorded total ${recordedBook}`);
 
-  const results: TradeResult[] = [];
+  let results: TradeResult[] = [];
   let n = 0;
   for (const { idea: i, row } of closed) {
     n++;
@@ -533,6 +599,21 @@ async function main() {
     if (over) { r.verdict = 'MISMATCH'; r.reason = `${over.code}: ${over.detail}; bars: ${r.bugClass ?? 'match'} — ${r.reason}`; r.bugClass = over.code; }
     results.push(r);
     if (n % 10 === 0 || n === closed.length) console.log(`  ${n}/${closed.length} · net calls ${netCalls} · cache hits ${cacheHits}`);
+  }
+
+  // ─── --only-unverifiable merge ────────────────────────────
+  let recheck: Record<string, unknown> | null = null;
+  if (prior) {
+    const rechecked = results;
+    const m = mergeRechecked(prior.trades as TradeResult[], rechecked);
+    results = m.trades;
+    const bySource: Record<string, number> = {};
+    for (const r of rechecked) { const k = String(r.evidence.optionSource ?? r.evidence.underlyingSource ?? 'none').split(':')[0]; bySource[k] = (bySource[k] ?? 0) + 1; }
+    recheck = {
+      at: new Date().toISOString(), fromLedger: ONLY_UNV, priorGeneratedAt: prior.generatedAt ?? null, candidates: priorIds!.size,
+      rechecked: rechecked.length, replaced: m.replaced, missingFromBook, transitions: m.transitions, optionSourceOfRechecked: bySource,
+      previousRechecks: prior.summary?.recheck ? [prior.summary.recheck, ...(prior.summary.previousRechecks ?? [])] : (prior.summary?.previousRechecks ?? []),
+    };
   }
 
   // ─── summary ──────────────────────────────────────────────
@@ -576,6 +657,8 @@ async function main() {
     notScoredByBook: Object.fromEntries(notScored),
     tolerance: TOL,
     network: { calls: netCalls, cacheHits },
+    massive: entitlement.report(),
+    ...(recheck ? { recheck } : {}),
   };
   const top30 = [...results].sort((a, b) => Math.abs(b.recordedPnL) - Math.abs(a.recordedPnL)).slice(0, 30);
   const ledger = {
@@ -587,6 +670,11 @@ async function main() {
     trades: results,
   };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  if (fs.existsSync(OUT)) {
+    const bak = OUT.replace(/\.json$/i, '') + `.bak-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    fs.copyFileSync(OUT, bak);
+    console.log(`  previous ledger kept at ${bak}`);
+  }
   fs.writeFileSync(OUT, JSON.stringify(ledger, null, 1));
   const cols = ['id', 'symbol', 'source', 'assetType', 'direction', 'optionType', 'strike', 'expiry', 'publishedAt', 'triggerAt', 'exitAt', 'exitDayET',
     'outcomeStatus', 'recordedEntry', 'recordedExit', 'recomputedEntry', 'recomputedExit', 'recordedPnL', 'recomputedPnL', 'diff', 'verdict', 'bugClass',
@@ -617,6 +705,18 @@ async function main() {
   for (const r of top30) {
     console.log(`  ${r.verdict.padEnd(12)} ${r.symbol.padEnd(6)} ${String(r.optionType ?? r.assetType).padEnd(6)} ${String(r.strike ?? '').padEnd(7)} ${String(r.exitDayET).padEnd(10)} recorded ${$(r.recordedPnL).padStart(9)} recomputed ${r.recomputedPnL == null ? '—'.padStart(9) : $(r.recomputedPnL).padStart(9)}  ${r.bugClass ?? ''}${r.duplicateOf ? ` dup-of:${r.duplicateOf}` : ''}`);
     console.log(`      ${r.reason.slice(0, 220)}`);
+  }
+  const mr = entitlement.report();
+  console.log(`\nMassive: ${MASSIVE_KEY ? '' : '(no POLYGON_API_KEY / --no-massive) '}calls ${mr.calls} · 429s ${mr.rateLimited} · errors ${mr.errors}`);
+  for (const ep of Object.keys(mr.state) as MassiveEndpoint[]) {
+    const ref = mr.refusal[ep];
+    console.log(`  ${ep.padEnd(13)} ${mr.state[ep]}${ref ? ` — HTTP ${ref.status}: ${ref.message}` : ''}`);
+  }
+  if (mr.needs.length) { console.log('  NOT ENTITLED — to unlock:'); for (const n2 of mr.needs) console.log(`    • ${n2}`); }
+  if (recheck) {
+    console.log(`\nre-check of ${recheck.rechecked} UNVERIFIABLE rows from ${ONLY_UNV}:`);
+    for (const [k, v] of Object.entries(recheck.transitions as Record<string, number>)) console.log(`  ${k.padEnd(28)} ${v}`);
+    console.log(`  winning option source: ${JSON.stringify(recheck.optionSourceOfRechecked)}`);
   }
   console.log(`\nwrote ${OUT} and ${CSV} (read-only; nothing written to the database)`);
 }
@@ -662,4 +762,28 @@ async function selfTest() {
   process.exit(pass ? 0 : 1);
 }
 
-(argv.includes('--self-test') ? selfTest() : main()).catch((e) => { console.error(e); process.exit(1); });
+/**
+ * --massive-probe: no database. One call per Massive endpoint against a
+ * long-expired, heavily traded contract; prints what the plan allows.
+ */
+async function massiveProbe() {
+  if (!MASSIVE_KEY) { console.log('massive-probe: POLYGON_API_KEY not set'); process.exit(1); }
+  const occ = arg('--massive-probe-occ') ?? 'SPY251219C00600000';
+  const from = Date.parse('2025-12-18T14:30:00Z'), to = Date.parse('2025-12-19T21:00:00Z');
+  const probes: [MassiveEndpoint, string][] = [
+    ['optionAggs', `${MASSIVE_BASE}/v2/aggs/ticker/O:${occ}/range/1/minute/${from}/${to}?adjusted=true&sort=asc&limit=50000`],
+    ['optionTrades', `${MASSIVE_BASE}/v3/trades/O:${occ}?timestamp.gte=${from}000000&timestamp.lte=${to}000000&order=asc&sort=timestamp&limit=1000`],
+    ['stockDaily', `${MASSIVE_BASE}/v2/aggs/ticker/SPY/range/1/day/2025-12-19/2025-12-19?adjusted=false&sort=asc&limit=5`],
+  ];
+  console.log(`massive-probe (${occ}; throttle ${MASSIVE_THROTTLE}ms):`);
+  for (const [ep, url] of probes) {
+    const res = await massiveGet(`probe_${ep}_${occ}_${Date.now()}`, url);
+    const c = entitlement.note(ep, res);
+    const n = Array.isArray(res?.body?.results) ? res!.body.results.length : 0;
+    console.log(`  ${ep.padEnd(13)} HTTP ${res?.status ?? '—'} → ${c.kind}${c.kind === 'ok' ? ` (${n} results)` : ` — ${c.message}`}`);
+    if (c.kind === 'not_entitled' || c.kind === 'bad_key') console.log(`      needs: ${MASSIVE_ENTITLEMENT_HINT[ep]}`);
+  }
+  process.exit(0);
+}
+
+(argv.includes('--self-test') ? selfTest() : argv.includes('--massive-probe') ? massiveProbe() : main()).catch((e) => { console.error(e); process.exit(1); });
