@@ -52,6 +52,10 @@ export function displayedScore(idea: ScoredIdea | null | undefined): number {
 export function displayedBand(idea: ScoredIdea | null | undefined): string | null {
   if (!idea) return null;
   if (typeof idea.convictionScore === "number") return convictionBandForScore(idea.convictionScore);
+  if (typeof idea.confidenceScore === "number") {
+    const grade = confidenceToGrade(idea.confidenceScore);
+    return grade.startsWith("A") ? "A" : grade.startsWith("B") ? "B" : "C";
+  }
   if (idea.convictionBand) return idea.convictionBand;
   const legacy = idea.probabilityBand;
   if (!legacy) return null;
@@ -108,8 +112,9 @@ function isValidGradeString(g: unknown): g is LetterGrade {
 }
 
 /**
- * Returns the letter grade (A+ … F) for a trade idea. See resolution order
- * above. Use this everywhere a "how good is this trade?" badge is rendered.
+ * Returns the letter grade (A+ … F) for the same score displayed by
+ * displayedScore(). A stale stored probabilityBand must not contradict its
+ * numeric score. Use this for the single canonical score badge.
  * Keep the underlying numeric score in the tooltip so power users can still
  * see the raw value.
  */
@@ -123,10 +128,10 @@ export function displayedGrade(idea: ScoredIdea | null | undefined): LetterGrade
   if (typeof idea.convictionScore === "number") {
     return convictionScoreToGrade(idea.convictionScore);
   }
-  if (isValidGradeString(idea.probabilityBand)) return idea.probabilityBand;
   if (typeof idea.confidenceScore === "number") {
     return confidenceToGrade(idea.confidenceScore);
   }
+  if (isValidGradeString(idea.probabilityBand)) return idea.probabilityBand;
   return "F";
 }
 

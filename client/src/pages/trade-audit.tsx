@@ -33,6 +33,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
+import { NexusGradeChip, LegacyScoreDiagnostics, nexusGradeColor, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from "@/components/canon/nexus-grade";
+import { gradeIdeaRowAtPublish, gradeBreakdown } from "@shared/nexus-grade";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
 interface AuditTrailData {
@@ -179,9 +181,6 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
             {idea.source === 'ai' ? <Brain className="h-3 w-3" /> : idea.source === 'quant' ? <Zap className="h-3 w-3" /> : <BarChart3 className="h-3 w-3" />}
             {idea.source}
           </Badge>
-          {idea.confidenceScore && (
-            <Badge variant="secondary">{idea.confidenceScore}pts signal strength</Badge>
-          )}
           {idea.holdingPeriod && (
             <Badge variant="outline">{idea.holdingPeriod === 'day' ? 'Day Trade' : idea.holdingPeriod === 'swing' ? 'Swing' : 'Position'}</Badge>
           )}
@@ -194,19 +193,18 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
   );
 }
 
-// Audit 2026-10-01 P0 #16: grades come from the shared cutoffs (shared/grading.ts),
-// and no per-signal points are invented client-side — the engine does not store
-// a points breakdown, so only the stored signal names are listed.
-function getGradeColor(score: number): string {
-  if (score >= 85) return 'text-[var(--trade-bullish)]';
-  if (score >= 70) return 'text-[var(--trade-neutral)]';
-  return 'text-[var(--trade-bearish)]';
-}
-
+// Audit 2026-10-01 P0 #16: no per-signal points are invented client-side — the
+// engine does not store a points breakdown, so only the stored signal names are listed.
 function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
-  const rawScore = Number(idea.confidenceScore);
-  const score = idea.confidenceScore != null && Number.isFinite(rawScore) ? rawScore : null;
-  const grade = score != null ? sharedLetterGrade(score) : '—';
+  // The ONE grade as published (shared/nexus-grade.ts): the logged stamp when the
+  // board recorded it, else rebuilt from the generation-time evidence.
+  const logged = (idea.convergenceSignalsJson as any)?.nexusGradeAtPublish as { letter?: string; score?: number } | undefined;
+  const rebuilt = gradeIdeaRowAtPublish(idea as any);
+  const grade = rebuilt && logged?.letter && Number.isFinite(Number(logged.score))
+    ? { ...rebuilt, letter: logged.letter as typeof rebuilt.letter, score: Number(logged.score) }
+    : rebuilt;
+  const score = grade?.score ?? null;
+  const gradeTint = grade ? nexusGradeColor(grade.letter) : 'var(--text-mute)';
   const signals = idea.qualitySignals || [];
   
   return (
@@ -221,10 +219,8 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
             <CardTitle className="text-lg">Scoring Breakdown</CardTitle>
           </div>
           <div className="text-right">
-            <div className={cn("text-3xl font-bold font-mono", score != null ? getGradeColor(score) : 'text-muted-foreground')}>
-              {grade}
-            </div>
-            <div className="text-xs text-muted-foreground">{score != null ? `${Math.round(score)}/100 stored` : 'no stored score'}</div>
+            {grade ? <NexusGradeChip grade={grade} size="lg" /> : <span className="text-xs text-muted-foreground">not graded</span>}
+            <div className="text-xs text-muted-foreground">{NEXUS_GRADE_LABEL} at publish</div>
           </div>
         </div>
       </CardHeader>
@@ -232,18 +228,20 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {/* Score Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Signal Strength</span>
-            <span className={cn("font-semibold", score != null ? getGradeColor(score) : 'text-muted-foreground')}>{score != null ? `${Math.round(score)}/100` : '—'}</span>
+            <span className="text-muted-foreground" title={grade ? gradeBreakdown(grade) : undefined}>{NEXUS_GRADE_LABEL} · {NEXUS_GRADE_CAVEAT}</span>
+            <span className="font-semibold" style={{ color: gradeTint }}>{score ?? '—'}/100</span>
           </div>
           <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-            {score != null && <div 
-              className={cn(
-                "h-full rounded-full transition-all duration-500",
-                score >= 85 ? "bg-[var(--trade-bullish)]" : score >= 70 ? "bg-amber-500" : "bg-red-500"
-              )}
-              style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
-            />}
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ backgroundColor: gradeTint, width: `${score ?? 0}%` }}
+            />
           </div>
+          <LegacyScoreDiagnostics rows={[
+            ['confidence score', idea.confidenceScore != null ? `${idea.confidenceScore}` : null],
+            ['conviction at publish', idea.genConvictionScore != null ? `${idea.genConvictionScore} pts · band ${idea.genConvictionBand ?? '—'}` : null],
+            ['probability band', idea.probabilityBand ?? null],
+          ]} />
         </div>
         
         {/* Signal Breakdown */}

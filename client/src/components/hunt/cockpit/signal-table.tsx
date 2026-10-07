@@ -9,7 +9,8 @@
  */
 import { motion, useReducedMotion } from 'framer-motion';
 import { geometryFor } from '@/components/oracle/signal-detail';
-import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import type { ConvictionPick } from '@/lib/convictions';
+import { gradeOfPick, nexusGradeColor, nexusGradeTitle, formatNexusGrade } from '@/components/canon/nexus-grade';
 import { cn } from '@/lib/utils';
 import { usePhone } from '@/components/ui/qe-phone';
 
@@ -59,7 +60,7 @@ export function SignalTable({
               <th className={cn("w-10 px-3 py-2 text-right", x)}>#</th>
               <th className="px-3 py-2">Ticker ↕</th>
               <th className="px-3 py-2">Side</th>
-              <th className="px-3 py-2">Evidence ↓</th>
+              <th className="px-3 py-2" title="NEXUS grade — actionability score, unvalidated, not a win probability">Grade</th>
               <th className={cn("px-3 py-2", x)}>Triggered</th>
               <th className="px-3 py-2 text-right">Live ↕</th>
               <th className={cn("px-3 py-2 text-right", x)}>Entry</th>
@@ -77,8 +78,7 @@ export function SignalTable({
               const g = geometryFor(pick, px);
               const pending = /pending|trigger/i.test(g.statusLabel ?? '');
               const bullish = pick.direction === 'long';
-              const score = pick.convictionScore;
-              const evidencePct = convictionPercent(score);
+              const grade = gradeOfPick({ ...pick, currentPrice: px });
 
               return (
                 <motion.tr
@@ -108,10 +108,9 @@ export function SignalTable({
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-foreground/[0.08]">
-                        <div className="h-full rounded-full bg-gradient-to-r from-[var(--trade-bullish)] to-[var(--brand-cyan)]" style={{ width: `${Math.max(5, evidencePct)}%` }} />
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(5, grade.score)}%`, background: nexusGradeColor(grade.letter) }} />
                       </div>
-                      <span className="text-[12px] font-bold text-foreground">{evidencePct}</span>
-                      <span className="text-[9px] text-muted-foreground">{pick.convictionBand} · {pick.layerCount}L</span>
+                      <span className="text-[12px] font-bold" style={{ color: nexusGradeColor(grade.letter) }} title={nexusGradeTitle(grade)}>{formatNexusGrade(grade)}</span>
                     </div>
                   </td>
                   <td className={cn("px-3 py-2", x)}>

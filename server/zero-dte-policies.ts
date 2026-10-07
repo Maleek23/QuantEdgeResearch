@@ -59,7 +59,8 @@ export interface GexInput {
 export interface Level { name: string; price: number }
 
 export interface ZeroDteSetup {
-  policy: ZeroDtePolicy;
+  /** 'open_drive' only when the 0DTE desk mirrors an index open-drive idea (server/open-drive-core.ts). */
+  policy: ZeroDtePolicy | 'open_drive';
   powerHour: boolean;
   direction: 'long' | 'short';
   entry: number;

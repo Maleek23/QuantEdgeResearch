@@ -91,8 +91,14 @@ console.log('\n4. storage wiring (static)');
   ok(/findSameInstrumentIdea\(idea\)/.test(s) && /\[INSTRUMENT-DEDUP\] rejected/.test(s) && /existing idea \$\{hit\.row\.id\}/.test(s), 'createTradeIdea runs the rule and logs the existing id');
   for (const f of ['index-scalp-engine.ts', 'zero-dte-desk.ts', 'gex-idea-scanner.ts', 'gex-vex-scanner.ts', 'universal-idea-generator.ts']) {
     const t = fs.readFileSync(path.resolve(import.meta.dirname ?? __dirname, '../server', f), 'utf8');
-    ok(t.includes('isDedupedResult(created)'), `${f} does not announce a deduped row as new`);
+    // Either checks the dedup sentinel itself, or persists through the shared
+    // prepared-plan gate, which does (asserted below).
+    ok(t.includes('isDedupedResult(created)') || /persistPreparedTradeIdea\(/.test(t), `${f} does not announce a deduped row as new`);
   }
+  const ing = fs.readFileSync(path.resolve(import.meta.dirname ?? __dirname, '../server/trade-idea-ingestion.ts'), 'utf8');
+  const prep = ing.slice(ing.indexOf('export async function persistPreparedTradeIdea'));
+  ok(prep.includes('isDedupedResult(created)') && /return false/.test(prep.slice(prep.indexOf('isDedupedResult(created)'), prep.indexOf('isDedupedResult(created)') + 60)),
+    'persistPreparedTradeIdea returns false for a deduped row');
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');

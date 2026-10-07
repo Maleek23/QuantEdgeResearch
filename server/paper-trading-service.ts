@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
-import { getOptionQuote, getTradierHistoryOHLC } from "./tradier-api";
+import { getOptionMark, getTradierHistoryOHLC, optionMarkExecutionIssue } from "./tradier-api";
 import { logger } from "./logger";
 import { isUSMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { analyzeTrade, recordWin } from "./loss-analyzer-service";
@@ -259,6 +259,27 @@ export async function executeTradeIdea(
       }
     }
     
+    // 🛑 NEVER BOTH SIDES OF ONE SYMBOL — across every book this owner holds
+    // (the bot's runs, the lotto books). A long put + long call on MU was open
+    // at once on 2026-10-01: two theses cancelling, double the premium bleed.
+    try {
+      const { oppositeSideHeld, underlyingSide } = await import('@shared/bot-sleeves');
+      const side = underlyingSide(tradeIdea as any);
+      const owner = (portfolio as any).userId as string | undefined;
+      const books = owner ? await storage.getPaperPortfoliosByUser(owner) : [];
+      for (const b of (books?.length ? books : [portfolio])) {
+        const rows = b.id === portfolioId ? existingPositions : await storage.getPaperPositionsByPortfolio(b.id);
+        const clash = oppositeSideHeld(rows as any[], tradeIdea.symbol, side);
+        if (clash) {
+          logger.warn(`🛑 [OPPOSITE-SIDE] Rejecting ${tradeIdea.symbol} ${side} — ${clash.optionType ?? clash.direction} already open in "${b.name}"`);
+          return { success: false, error: `Already holding the opposite side of ${tradeIdea.symbol} (${clash.optionType ?? clash.direction} in ${b.name})` };
+        }
+      }
+    } catch (err) {
+      logger.warn('[PAPER] opposite-side check failed — refusing the fill', { error: err });
+      return { success: false, error: 'opposite-side check unavailable' };
+    }
+
     if (symbolPositions.length > 0) {
       // 🛑 ONE POSITION PER SYMBOL - Block any new trades on same underlying
       if (ONE_POSITION_PER_SYMBOL && tradeIdea.assetType === 'option') {
@@ -508,6 +529,62 @@ export async function closePosition(
 }
 
 /**
+ * Close a long option at the quoted BID (the side it can be sold at), with the
+ * quote's provenance appended to the exit reason so shared/bot-fill-verification
+ * can tell a verified fill from an unverified one.
+ *
+ * Preference: a fresh live two-sided quote → a delayed two-sided quote (tagged
+ * delayed=true, audit = unverified) → the position's own last mark when it is
+ * under OPTION_MARK_MAX_AGE_MS old (tagged source=last_mark, unverified). Only
+ * when none exists does the position stay open. An exit is risk management: a
+ * stop or a 0DTE flatten must not be skipped because the feed is delayed.
+ */
+export const OPTION_MARK_MAX_AGE_MS = 10 * 60_000;
+
+export async function closeOptionPositionAtBid(
+  positionId: string,
+  exitReason: string,
+): Promise<ClosePositionResult> {
+  const position = await storage.getPaperPositionById(positionId);
+  if (!position) return { success: false, error: "Position not found" };
+  if (position.assetType !== "option" || !position.optionType || !position.strikePrice || !position.expiryDate) {
+    return { success: false, error: "Option contract metadata is incomplete" };
+  }
+
+  const quote = await getOptionMark({
+    underlying: position.symbol,
+    expiryDate: position.expiryDate,
+    optionType: position.optionType as "call" | "put",
+    strike: position.strikePrice,
+  }).catch(() => null);
+  const observedAt = new Date();
+  const usable = quote && !optionMarkExecutionIssue(quote, observedAt.getTime(), 60_000, { allowDelayed: true }) ? quote : null;
+
+  if (!usable) {
+    const lastMs = Date.parse(String(position.lastPriceUpdate ?? ''));
+    const last = Number(position.currentPrice);
+    if (Number.isFinite(lastMs) && observedAt.getTime() - lastMs <= OPTION_MARK_MAX_AGE_MS && last > 0) {
+      const audit = `[fill-fallback source=last_mark mark=${last.toFixed(4)} markTime=${new Date(lastMs).toISOString()} delayed=true observedAt=${observedAt.toISOString()}]`;
+      logger.warn(`[PAPER] No two-sided option quote for ${position.symbol} ${position.optionType} $${position.strikePrice}; closing at last mark ${last} (unverified)`);
+      return closePosition(positionId, last, `${exitReason} ${audit}`);
+    }
+    const issue = quote ? optionMarkExecutionIssue(quote, observedAt.getTime(), 60_000, { allowDelayed: true }) : 'quote unavailable';
+    logger.warn(`[PAPER] Option close deferred — no quote and no recent mark (${issue}): ${position.symbol} ${position.optionType} $${position.strikePrice}`);
+    return { success: false, error: `No option quote (${issue}) and no recent mark; position left open` };
+  }
+
+  const quoteTimeNumeric = usable.quoteTime == null ? NaN : Number(usable.quoteTime);
+  const quoteTimeMs = Number.isFinite(quoteTimeNumeric)
+    ? quoteTimeNumeric < 1e12 ? quoteTimeNumeric * 1000 : quoteTimeNumeric
+    : Date.parse(String(usable.quoteTime ?? ''));
+  const quoteAgeSeconds = Number.isFinite(quoteTimeMs)
+    ? Math.round((observedAt.getTime() - quoteTimeMs) / 1000)
+    : null;
+  const audit = `[fill bid=${usable.bid.toFixed(4)} ask=${usable.ask.toFixed(4)} source=${usable.source} feed=${usable.feed ?? 'unknown'} delayed=${usable.delayed} quoteTime=${usable.quoteTime ?? 'unknown'} quoteAgeSeconds=${quoteAgeSeconds ?? 'unknown'} observedAt=${observedAt.toISOString()}]`;
+  return closePosition(positionId, usable.bid, `${exitReason} ${audit}`);
+}
+
+/**
  * Fetch current price for a position
  * For options, we MUST fetch the actual option premium, NEVER fall back to stock prices
  * This prevents P&L calculation errors where stock prices are used instead of option premiums
@@ -530,53 +607,24 @@ async function fetchCurrentPrice(
         return fallbackPrice || null;
       }
       
-      // Fetch actual option premium from Tradier
-      const quote = await getOptionQuote({
+      // Mark at the BID — the side a long option sells at, and the side the
+      // close fills at, so open and closed P&L use one rule. Delayed two-sided
+      // quotes are accepted (they are the feeds production has) and logged as
+      // delayed; one-sided, crossed or missing quotes keep the previous mark
+      // and its original timestamp, so the stop check can see it is stale.
+      const quote = await getOptionMark({
         underlying: optionDetails.underlying,
         expiryDate: optionDetails.expiryDate,
         optionType: optionDetails.optionType,
         strike: optionDetails.strike,
       });
-      
-      if (quote) {
-        // Mark to BID, not mid. These are long positions and the exit path fills
-        // at the bid (see closePosition), so marking the open book at mid while
-        // closing it at bid overstates every unrealized gain by half the spread.
-        // On the $0.05-$1.00 premium this bot actually trades that is 5-10% of
-        // the position. Open and closed have to be valued by the same rule or the
-        // two halves of the book cannot be compared to each other.
-        const price = quote.bid > 0 ? quote.bid : (quote.mid > 0 ? quote.mid : quote.last);
-        if (price > 0) {
-          logger.info(`📊 [PAPER] Option price for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
-          return price;
-        }
+      const quoteIssue = quote ? optionMarkExecutionIssue(quote, Date.now(), 60_000, { allowDelayed: true }) : 'quote unavailable';
+      if (quote && !quoteIssue) {
+        logger.info(`📊 [PAPER] Option bid for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${quote.bid.toFixed(2)} (ask: $${quote.ask}, source: ${quote.source}${quote.feed ? `/${quote.feed}` : ''}${quote.delayed ? ', delayed' : ''})`);
+        return quote.bid;
       }
-      
-      // Tradier is the primary option quote source and returns 401 on an unfunded account,
-      // so this path was ALWAYS falling through to the entry price — which is why every
-      // paper option position sat at exactly +$0.00 / +0.0% and the bot looked frozen.
-      // A position that can't be marked to market can't be managed: stops and targets
-      // never trigger either. CBOE's delayed chain needs no key and prices the same
-      // contract, so try it before giving up.
-      try {
-        const { getContractQuote } = await import('./cboe-options-fallback');
-        const cboe = await getContractQuote(
-          optionDetails.underlying,
-          optionDetails.optionType,
-          optionDetails.strike,
-          optionDetails.expiryDate,
-        );
-        if (cboe && cboe.mid > 0) {
-          logger.info(`📊 [PAPER] CBOE mark for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${cboe.mid.toFixed(2)} (bid $${cboe.bid} / ask $${cboe.ask}, delayed)`);
-          return cboe.mid;
-        }
-      } catch (err: any) {
-        logger.warn(`📊 [PAPER] CBOE fallback failed for ${symbol}: ${err?.message}`);
-      }
-
-      // Genuinely no mark available — hold the last known value rather than inventing one.
-      logger.warn(`📊 [PAPER] No option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate} - using fallback: $${fallbackPrice?.toFixed(2) || 'null'}`);
-      return fallbackPrice || null;
+      logger.info(`📊 [PAPER] No two-sided option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate}: ${quoteIssue}; retaining last mark`);
+      return null;
     } else {
       // Only use stock prices for actual stocks
       const data = await fetchStockPrice(symbol);
@@ -723,12 +771,13 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
   }
 }
 
-export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPosition[]> {
+export async function checkStopsAndTargets(portfolioId: string, opts?: { skipIds?: ReadonlySet<string> }): Promise<PaperPosition[]> {
   const closedPositions: PaperPosition[] = [];
   
   try {
     const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
-    const openPositions = positions.filter(p => p.status === 'open');
+    // skipIds: rows the caller manages with its own bracket (the bot's 0DTE sleeve).
+    const openPositions = positions.filter(p => p.status === 'open' && !opts?.skipIds?.has(p.id));
     
     // Check if market is open for options - needed for valid price-based closures
     const marketStatus = isOptionsMarketOpen();
@@ -742,7 +791,13 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
       
       // For options, only check stops/targets if market is open (real prices available)
       const isOption = position.assetType === 'option';
-      const canUsePrice = !isOption || marketStatus.isOpen;
+      const lastMarkAtMs = Date.parse(String(position.lastPriceUpdate ?? ''));
+      const markAgeMs = Number.isFinite(lastMarkAtMs) ? Date.now() - lastMarkAtMs : Number.POSITIVE_INFINITY;
+      const optionMarkFresh = markAgeMs >= -5_000 && markAgeMs <= OPTION_MARK_MAX_AGE_MS;
+      const canUsePrice = !isOption || (marketStatus.isOpen && optionMarkFresh);
+      if (isOption && marketStatus.isOpen && !optionMarkFresh) {
+        logger.info(`[PAPER] Skipping option stop/target check for ${position.symbol}: last eligible mark is ${Number.isFinite(markAgeMs) ? `${Math.round(markAgeMs / 1000)}s old` : 'undated'}`);
+      }
       
       // Check if current price is stale (equals entry price, suggesting no real update)
       const priceIsStale = isOption && 
@@ -895,28 +950,9 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
         // This prevents P&L inflation from using stale/assumed prices
         let realExitPrice = position.currentPrice;
         
-        if (position.assetType === 'option' && position.strikePrice && position.optionType && position.expiryDate) {
-          try {
-            const freshQuote = await getOptionQuote({
-              underlying: position.symbol,
-              expiryDate: position.expiryDate,
-              optionType: position.optionType as 'call' | 'put',
-              strike: position.strikePrice,
-            });
-            
-            if (freshQuote && freshQuote.bid > 0) {
-              // Use BID price for selling (realistic fill)
-              realExitPrice = freshQuote.bid;
-              logger.info(`📊 [REAL-PRICE] ${position.symbol}: Closing at REAL bid $${realExitPrice.toFixed(2)} (was $${position.currentPrice?.toFixed(2)})`);
-            } else {
-              logger.warn(`📊 [REAL-PRICE] ${position.symbol}: No fresh quote available, using cached price $${position.currentPrice?.toFixed(2)}`);
-            }
-          } catch (quoteErr) {
-            logger.warn(`📊 [REAL-PRICE] ${position.symbol}: Quote fetch failed, using cached price`, { error: quoteErr });
-          }
-        }
-        
-        const result = await closePosition(position.id, realExitPrice, exitReason);
+        const result = position.assetType === 'option'
+          ? await closeOptionPositionAtBid(position.id, exitReason)
+          : await closePosition(position.id, realExitPrice, exitReason);
         if (result.success && result.position) {
           closedPositions.push(result.position);
         }

@@ -28,6 +28,7 @@
  * DTE setting per page (useDashState 'flow:*'), so they always describe the
  * same slice, and one /api/flow/tape?symbol= request per refresh.
  */
+import { gradeOfLoosePick, formatNexusGrade, nexusGradeTitle } from '@/components/canon/nexus-grade';
 import { WatchStar } from '@/components/watch/watch-star';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -1004,7 +1005,7 @@ export function FlowSetupsTool() {
           <button key={p.ideaId ?? `${p.symbol}-${p.direction}`} type="button" className={`fx-setup${p.symbol === focus ? ' sel' : ''}`} onClick={() => setFocus(p.symbol)} onDoubleClick={() => openWorkup(p.symbol)} title="Click: focus every FLOW ticker tool · double-click: workup">
             <span className="tk">{p.symbol}</span>
             <span className="dir" style={{ color: sideColor(p.direction) }}>{p.direction === 'short' ? 'Short' : 'Long'}</span>
-            <span className="sc">{p.convictionBand ? `${p.convictionBand} · ` : ''}{Math.round(p.convictionScore)}</span>
+            {(() => { const g = gradeOfLoosePick(p as any); return <span className="sc" title={g ? nexusGradeTitle(g) : undefined}>{g ? formatNexusGrade(g) : '—'}</span>; })()}
             <span className={`tag${origin ? ' o' : ''}`}>{origin ? 'flow-originated' : 'flow-confirmed'}</span>
             <span className="ev">{p.optionType && p.strikePrice ? <b style={{ color: typeColor(p.optionType) }}>${fmtStrike(p.strikePrice)}{p.optionType === 'call' ? 'C' : 'P'}{p.expiryDate ? ` ${p.expiryDate.slice(5, 10)}` : ''} · </b> : null}{evidence}</span>
           </button>

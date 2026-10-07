@@ -29,6 +29,7 @@
     "test:zero-dte-sniper": "tsx scripts/test-zero-dte-sniper.ts",
     "test:zero-dte-flow": "tsx scripts/test-zero-dte-flow.ts",
     "test:index-open": "tsx scripts/test-index-open.ts",
+    "test:open-drive": "tsx scripts/test-open-drive.ts",
     "test:zero-dte-actionability": "tsx scripts/test-zero-dte-actionability.ts",
     "test:spx-fast-moves": "tsx scripts/test-spx-fast-moves.ts",
     "test:roles": "tsx scripts/test-roles.ts",
@@ -61,6 +62,8 @@
     "test:spx-mirror": "tsx scripts/test-spx-mirror.ts",
     "test:track-record": "tsx scripts/test-track-record.ts",
     "test:nexus-grade": "tsx scripts/test-nexus-grade.ts",
+    "test:bot-sleeves": "tsx scripts/test-bot-sleeves.ts",
+    "research:bot-diagnose": "tsx research/bot-diagnose.ts",
     "research:grade-audit": "tsx research/grade-audit.ts",
     "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts"
   },

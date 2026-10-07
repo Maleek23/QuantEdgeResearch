@@ -95,7 +95,7 @@ export async function reconcileExpiredBotPositions(opts: { apply: boolean; now?:
           status: 'closed',
           exitPrice: s.exitPrice,
           exitTime: s.exitTime,
-          exitReason: 'expired',
+          exitReason: `expired [expiry-intrinsic exit=${s.exitPrice} underlyingClose=${s.underlyingClose} day=${s.expiryDay} source=${px.source}]`,
           realizedPnL: s.realizedPnL,
           realizedPnLPercent: s.realizedPnLPercent,
           currentPrice: s.exitPrice,

@@ -15,14 +15,18 @@ import { logger } from './logger';
 import { signalKey } from '@shared/signal-continuity';
 import { marketDateET } from '@shared/market-day';
 import { convictionDisplayPercent } from '@shared/conviction-display';
-import { CONVICTION_BAND_CUTOFFS, convictionLetterGrade, convictionBandForScore } from '@shared/conviction-bands';
+import { convictionBandForScore } from '@shared/conviction-bands';
+import { gradePick, gradeAtLeast, type NexusGradeLetter } from '@shared/nexus-grade';
 
 /** Ideas already announced. Keyed by idea id, cleared daily. */
 let _sent = new Set<string>();
 let _sentDay = marketDateET();
 
-/** Only announce setups worth interrupting someone for. */
-const MIN_CONVICTION = CONVICTION_BAND_CUTOFFS.A;
+/**
+ * Only announce setups worth interrupting someone for: NEXUS grade B or better
+ * (shared/nexus-grade.ts) — the same letter the board, Today and the bot show.
+ */
+export const MIN_ALERT_GRADE: NexusGradeLetter = 'B';
 
 export interface AlertablePick {
   ideaId?: string;
@@ -39,8 +43,14 @@ export interface AlertablePick {
   expiryDate?: string | null;
   entryPremium?: number | null;
   thesis?: string | null;
-  layers?: { why?: string; points: number }[];
+  layers?: { kind?: string; why?: string; points: number }[];
   generatedAt?: string;
+  calledAt?: string | null;
+  holdingPeriod?: string | null;
+  assetType?: string | null;
+  source?: string | null;
+  exitBy?: string | null;
+  currentPrice?: number | null;
 }
 
 function rollDay(): void {
@@ -70,7 +80,7 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
       expiryDate: p.expiryDate,
     });
     if (!key || _sent.has(key)) return false;
-    if ((p.convictionScore ?? 0) < MIN_CONVICTION) return false;
+    if (!gradeAtLeast(gradePick(p as any), MIN_ALERT_GRADE)) return false;
     return true;
   });
 
@@ -92,8 +102,8 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
 
     try {
       const { sendTradeIdeaToDiscord } = await import('./discord-service');
-      // The engine emits confluence points while Discord grades on 0–100.
-      // Passing raw points made an S/A Oracle call look like an F and vanish.
+      // The ONE grade travels with the alert; Discord shows it and gates on it.
+      const g = gradePick(p as any);
       await sendTradeIdeaToDiscord({
         symbol: p.symbol,
         direction: p.direction,
@@ -101,9 +111,7 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
         targetPrice: p.targetPrice,
         stopLoss: p.stopLoss,
         confidenceScore: convictionDisplayPercent(p.convictionScore),
-        // Grade from the shared raw-score table (same letter as the web badge), and the
-        // band that already passed MIN_CONVICTION so Discord's grade gate cannot drop it.
-        grade: convictionLetterGrade(p.convictionScore),
+        nexusGrade: { letter: g.letter, score: g.score },
         convictionBand: convictionBandForScore(p.convictionScore),
         riskRewardRatio: p.riskRewardRatio ?? undefined,
         optionType: p.optionType ?? undefined,

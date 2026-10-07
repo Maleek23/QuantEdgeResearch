@@ -224,7 +224,8 @@ export function tradeContext(row: LossRow): TradeContext {
   const exitRaw = deskOutcome ? `${deskOutcome[1]}${deskOutcome[2] ? ` (${deskOutcome[2]})` : ''}` : botRaw;
   // The desk's outcome status is the category; its parenthesised reason is prose.
   const exitCat = exitCategory(deskOutcome ? deskOutcome[1] : botRaw);
-  const conviction = notes.match(/conviction band at publish:\s*([^\s\n]+)/i)?.[1] ?? null;
+  // The ONE grade's letter at publish (server/journal-row-maps.ts); legacy band notes are diagnostics only.
+  const conviction = notes.match(/NEXUS grade at publish:\s*([A-F])\b/i)?.[1] ?? null;
   const expiryMs = isOption && row.expiryDate ? Date.parse(`${row.expiryDate.slice(0, 10)}T20:00:00Z`) : null;
   const entryDay = Number.isFinite(entryMs) ? Date.parse(new Date(entryMs).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })) : NaN;
   const dte = expiryMs != null && Number.isFinite(entryDay) ? Math.round((Date.parse(row.expiryDate!.slice(0, 10)) - entryDay) / 86_400_000) : null;
@@ -506,7 +507,7 @@ export type DriverDim = 'source' | 'direction' | 'instrument' | 'dte' | 'hour' |
 
 export const DRIVER_DIM_LABEL: Record<DriverDim, string> = {
   source: 'Source / setup', direction: 'Direction (underlying)', instrument: 'Instrument', dte: 'DTE at entry', hour: 'Entry hour (ET)',
-  weekday: 'Entry weekday (ET)', hold: 'Hold time', conviction: 'Conviction band', exit: 'Exit reason', symbol: 'Symbol', session: 'Entry session (ET)',
+  weekday: 'Entry weekday (ET)', hold: 'Hold time', conviction: 'NEXUS grade at publish', exit: 'Exit reason', symbol: 'Symbol', session: 'Entry session (ET)',
 };
 
 export function dteBucket(dte: number | null): string {
