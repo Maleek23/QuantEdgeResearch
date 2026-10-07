@@ -129,6 +129,9 @@ export async function resolveJournal(actor: JournalActor, key: JournalKey): Prom
   if (kind === 'desk') return { key, kind, label: 'NEXUS ideas', ownerId: null, trader: null, readOnly: true, canWrite: false };
   const trader = await getTraderBySlug(traderSlugOf(key)!);
   if (!trader) throw new JournalAccessError(404, 'No such trader');
+  // DESK_ADMINS: trader books are private by default (docs/DESK_ADMINS.md §Privacy) — a hidden book reads as missing.
+  const { traderVisibilityFor } = await import('./desk-admin');
+  if (!(await traderVisibilityFor(actor))(trader)) throw new JournalAccessError(404, 'No such trader');
   if (isTraderLocked(actor, trader)) throw new JournalAccessError(423, `locked:${trader.slug} — ${trader.name}'s journal is passcode-protected`);
   const canWrite = canWriteTrader(actor, trader);
   return { key, kind, label: trader.name, ownerId: traderOwnerId(trader.id), trader, readOnly: !canWrite, canWrite };
@@ -316,7 +319,10 @@ export async function loadJournal(j: ResolvedJournal, opts: { includeUnverified?
     const { rows, meta } = await loadDesk(!!opts.includeUnverified);
     return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], verification: meta.verification } };
   }
-  const rows = (await storage.getJournalTrades(j.ownerId!)) as unknown as JournalWireRow[];
+  // origin: 'quantedge_idea' for a trade taken from a NEXUS idea ("I took this"), else 'own_idea'.
+  const { journalOriginOf } = await import('@shared/desk-admin');
+  const rows = ((await storage.getJournalTrades(j.ownerId!)) as unknown as JournalWireRow[])
+    .map((r) => ({ ...r, origin: journalOriginOf(r) }));
   const basis = j.kind === 'mine'
     ? 'Your journal — trades you logged, imported from a broker CSV, or synced from Alpaca'
     : `${j.label}'s journal — trades imported from ${j.trader?.source ?? 'their posts'}${j.trader?.handle ? ` (${j.trader.handle})` : ''} or logged by an admin`;

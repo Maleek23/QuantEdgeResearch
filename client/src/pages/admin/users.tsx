@@ -10,6 +10,12 @@
  *   delete             DELETE /api/admin/ops/users/:id { confirmEmail }  — full cascade
  *
  * Every change lands in the audit log. The admin account itself is read-only here.
+ *
+ * Desk admins (docs/DESK_ADMINS.md, flag DESK_ADMINS) — the panel under the list:
+ *   list               GET    /api/admin/ops/desks
+ *   make desk admin    POST   /api/admin/ops/desks/:slug/assign { userId, replace? }
+ *   remove             DELETE /api/admin/ops/desks/:slug/assign
+ *   bot on / off       POST   /api/admin/ops/desks/:slug/bot { enabled }
  */
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -152,7 +158,82 @@ export default function AdminUsers() {
           )}
           {q.data && !rows.length && <p className="ah-note">No users match.</p>}
         </LuxPanel>
+        <DeskAdminsPanel users={q.data?.users ?? []} />
       </div>
     </AdminLayout>
+  );
+}
+
+interface DeskRow {
+  slug: string; name: string;
+  deskAdmin: { id: string; email: string | null; hasBetaAccess: boolean; isSuperAdmin: boolean } | null;
+  bot: { enabled: boolean; updatedAt: string | null };
+}
+const DESKS_KEY = '/api/admin/ops/desks';
+
+/** "Make desk admin of → [trader]": one signed-in member runs one trader book's desk. */
+function DeskAdminsPanel({ users }: { users: AdminUserRow[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const q = useQuery<{ enabled: boolean; setUp: boolean; maxBots: number; enabledBots: number; desks: DeskRow[] }>({ queryKey: [DESKS_KEY], queryFn: () => getJson(DESKS_KEY) });
+  const [pick, setPick] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const assignable = users.filter((u) => !u.isAdmin && !u.disabled);
+  const act = async (slug: string, label: string, fn: () => Promise<unknown>) => {
+    setBusy(slug);
+    try {
+      const r = await fn() as { warning?: string | null } | null;
+      toast({ title: label, description: r?.warning ?? undefined });
+      await qc.invalidateQueries({ queryKey: [DESKS_KEY] });
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (/confirm the replacement/.test(msg) && window.confirm(`${msg}. Replace?`)) {
+        try { await adminWrite('POST', `${DESKS_KEY}/${slug}/assign`, { userId: pick[slug], replace: true }); toast({ title: 'Desk admin replaced' }); await qc.invalidateQueries({ queryKey: [DESKS_KEY] }); }
+        catch (e2) { toast({ title: 'Not done', description: (e2 as Error).message, variant: 'destructive' }); }
+      } else toast({ title: 'Not done', description: msg, variant: 'destructive' });
+    } finally { setBusy(null); }
+  };
+  return (
+    <LuxPanel title="Desk admins" meta={q.data ? <LuxTag tone={q.data.enabled ? 'accent' : 'mute'}>{q.data.enabled ? 'DESK_ADMINS ON' : 'DESK_ADMINS OFF'}</LuxTag> : undefined}
+      sub="A desk admin is a normal member linked to one trader book. They run that book's paper bot, passcode, privacy and watchlist at /desk — nothing in this hub. They sign in with their own account.">
+      {q.isError && <QEError title="Desks didn't load" message={(q.error as Error)?.message ?? ''} onRetry={() => void q.refetch()} />}
+      {q.data && !q.data.setUp && <p className="ah-banner">Desk bots are not set up on this database yet — run migrations/0005_desk_admins.sql. Assigning desk admins works without it.</p>}
+      {q.data && <p className="ah-note">Desk bots on: {q.data.enabledBots} of at most {q.data.maxBots} (DESK_BOTS_MAX).</p>}
+      {!!q.data?.desks.length && (
+        <div className="ah-scroll" style={{ marginTop: 10 }}>
+          <table className="ah-table ah-rows">
+            <thead><tr><th>Trader book</th><th>Desk admin</th><th>Bot</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+            <tbody>
+              {q.data.desks.map((d) => (
+                <tr key={d.slug} data-testid={`row-desk-${d.slug}`}>
+                  <td data-label="Book">{d.name}<span className="ah-sub2">{d.slug} · <a href={`/desk/${d.slug}`}>open desk</a></span></td>
+                  <td data-label="Desk admin">
+                    {d.deskAdmin ? <>{d.deskAdmin.email ?? d.deskAdmin.id}{d.deskAdmin.isSuperAdmin ? <span className="ah-sub2">platform admin (already manages every desk)</span> : !d.deskAdmin.hasBetaAccess ? <span className="ah-sub2">no beta access — turn it on above</span> : null}</> : <span className="ah-mute">none</span>}
+                  </td>
+                  <td data-label="Bot">
+                    <LuxButton disabled={busy === d.slug} onClick={() => void act(d.slug, d.bot.enabled ? `${d.name}'s bot off` : `${d.name}'s bot on`, () => adminWrite('POST', `${DESKS_KEY}/${d.slug}/bot`, { enabled: !d.bot.enabled }))}>
+                      {d.bot.enabled ? 'ON — turn off' : 'OFF — turn on'}
+                    </LuxButton>
+                  </td>
+                  <td data-label="">
+                    <div className="ah-bar" style={{ justifyContent: 'flex-end' }}>
+                      <select className="ah-select" value={pick[d.slug] ?? ''} aria-label={`Desk admin for ${d.name}`} onChange={(e) => setPick({ ...pick, [d.slug]: e.target.value })} data-testid={`select-desk-admin-${d.slug}`}>
+                        <option value="">Choose a member…</option>
+                        {assignable.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+                      </select>
+                      <LuxButton variant="primary" disabled={!pick[d.slug] || busy === d.slug}
+                        onClick={() => void act(d.slug, `Desk admin of ${d.name} set`, () => adminWrite('POST', `${DESKS_KEY}/${d.slug}/assign`, { userId: pick[d.slug] }))}>Make desk admin</LuxButton>
+                      {d.deskAdmin && !d.deskAdmin.isSuperAdmin && <LuxButton className="ah-danger" disabled={busy === d.slug}
+                        onClick={() => void act(d.slug, `Desk admin removed from ${d.name}`, () => adminWrite('DELETE', `${DESKS_KEY}/${d.slug}/assign`))}>Remove</LuxButton>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {q.data && !q.data.desks.length && <p className="ah-note">No trader books yet — add one first.</p>}
+    </LuxPanel>
   );
 }

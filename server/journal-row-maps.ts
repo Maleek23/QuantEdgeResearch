@@ -21,6 +21,8 @@ export type JournalWireRow = Pick<JournalTrade,
 > & {
   broker: string;
   userId?: string;
+  /** Personal / trader books: 'quantedge_idea' = taken from a NEXUS idea ("I took this"); 'own_idea' = the trader's own. */
+  origin?: 'own_idea' | 'quantedge_idea';
   /** Bot book only: the run (paper portfolio) the fill belongs to. */
   runId?: string | null;
   runLabel?: string | null;

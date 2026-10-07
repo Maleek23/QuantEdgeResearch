@@ -4,6 +4,7 @@ import { getLetterGrade } from "./grading";
 import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
 import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
+import { applyEnrichedContract } from "@shared/idea-price-scale";
 import { validateTradeWithChart } from "./chart-analysis";
 import { getMarketContext, getTradingSession, type TradingSession } from "./market-context-service";
 import { recordSymbolAttention } from "./attention-tracking-service";
@@ -451,7 +452,8 @@ Focus on tickers that closed red today — reversal after -3%+ red day is the hi
             continue;
           }
           
-          processedIdea = enrichedOption;
+          // Underlying levels stay; the premium goes to entryPremium (shared/idea-price-scale.ts).
+          processedIdea = applyEnrichedContract(aiIdea as any, enrichedOption);
           isLotto = enrichedOption.isLottoPlay;
           logger.info(`✅ [AUTO-GEN] Enriched ${aiIdea.symbol} option${isLotto ? ' (LOTTO PLAY)' : ''}`);
         }
@@ -685,6 +687,7 @@ Focus on tickers that closed red today — reversal after -3%+ red day is the hi
           expiryDate: processedIdea.expiryDate || null,
           strikePrice: processedIdea.strikePrice || null,
           optionType: processedIdea.optionType || null,
+          entryPremium: processedIdea.entryPremium ?? null,
           source: 'ai',
           isLottoPlay: isLotto,
           confidenceScore: finalConfidence, // Calibrated from historical win rate + R:R + signals
@@ -867,7 +870,8 @@ This is a WATCHLIST scan - be more inclusive of speculative setups.`;
             continue;
           }
           
-          processedIdea = enrichedOption;
+          // Underlying levels stay; the premium goes to entryPremium (shared/idea-price-scale.ts).
+          processedIdea = applyEnrichedContract(aiIdea as any, enrichedOption);
           isLotto = enrichedOption.isLottoPlay;
           logger.info(`✅ [EVENING MODE] Enriched ${aiIdea.symbol} option${isLotto ? ' (LOTTO PLAY)' : ''}`);
         }
@@ -951,6 +955,7 @@ This is a WATCHLIST scan - be more inclusive of speculative setups.`;
           expiryDate: processedIdea.expiryDate || null,
           strikePrice: processedIdea.strikePrice || null,
           optionType: processedIdea.optionType || null,
+          entryPremium: processedIdea.entryPremium ?? null,
           source: 'ai',
           isLottoPlay: isLotto,
           confidenceScore: finalConfidence,

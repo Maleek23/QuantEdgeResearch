@@ -7,6 +7,7 @@ import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { validateAndLog } from './trade-validation';
 import { enrichOptionIdea } from './options-enricher';
+import { applyEnrichedContract } from '@shared/idea-price-scale';
 import { multiLLM, generateAI } from './multi-llm-service';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
@@ -730,22 +731,11 @@ Return valid JSON object with structure: {"idea": {trade idea object}}`;
       const enrichedOption = await enrichOptionIdea(idea);
       
       if (enrichedOption) {
-        // Replace AI-estimated prices with real option premium prices
-        idea.entryPrice = enrichedOption.entryPrice;
-        idea.targetPrice = enrichedOption.targetPrice;
-        idea.stopLoss = enrichedOption.stopLoss;
-        
-        // Add option-specific fields and Lotto detection
-        (idea as any).strikePrice = enrichedOption.strikePrice;
-        (idea as any).optionType = enrichedOption.optionType;
-        (idea as any).riskRewardRatio = enrichedOption.riskRewardRatio;
-        (idea as any).isLottoPlay = enrichedOption.isLottoPlay;
-        
-        // Update expiry date with actual option expiry
-        idea.expiryDate = enrichedOption.expiryDate;
-        
-        // Enhance analysis with option details
-        idea.analysis = enrichedOption.analysis;
+        // entry/target/stop STAY on the underlying; the contract mid goes to
+        // entryPremium (shared/idea-price-scale.ts). Overwriting them with the
+        // premium let the write-point premium guard republish the row as a
+        // STOCK idea with a premium-sized "share" entry.
+        Object.assign(idea, applyEnrichedContract(idea as any, enrichedOption));
         
         logger.info(`✅ [NEWS-OPTIONS] Enriched ${idea.symbol} option${enrichedOption.isLottoPlay ? ' (LOTTO PLAY)' : ''} - Premium: $${enrichedOption.entryPrice.toFixed(2)}, Strike: $${enrichedOption.strikePrice}, Type: ${enrichedOption.optionType}`);
       } else {

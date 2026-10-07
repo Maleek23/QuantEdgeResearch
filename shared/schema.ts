@@ -3477,7 +3477,7 @@ export type IvSnapshot = typeof ivSnapshots.$inferSelect;
 // TRADE JOURNAL — Personal trade imports from brokers
 // ==========================================
 
-export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv' | 'alpaca' | 'discord';
+export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv' | 'alpaca' | 'discord' | 'quantedge';
 
 export const journalTrades = pgTable("journal_trades", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -3589,6 +3589,25 @@ export const traderWatchlistItems = pgTable("trader_watchlist_items", {
   uniqueIndex("uq_trader_watchlist_symbol").on(table.traderId, table.symbol),
 ]);
 export type TraderWatchlistItem = typeof traderWatchlistItems.$inferSelect;
+
+/**
+ * Desk bots (docs/DESK_ADMINS.md, flag DESK_ADMINS) — one paper bot per trader
+ * book, configured by that book's desk admin within the caps in
+ * shared/desk-admin.ts. The ledger is ordinary paper_portfolios/paper_positions
+ * rows owned by `desk-bot:<slug>`. Migration: migrations/0005_desk_admins.sql.
+ */
+export const deskBots = pgTable("desk_bots", {
+  traderSlug: varchar("trader_slug", { length: 32 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  enabledAt: timestamp("enabled_at"),
+  config: jsonb("config").notNull(),
+  /** Private by default: the book is visible to the group only when its desk admin opts in. */
+  shareBook: boolean("share_book").notNull().default(false),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+export type DeskBot = typeof deskBots.$inferSelect;
 
 /** Analysis / commentary that isn't a trade leg — linked to tickers and a trading day. */
 export const journalNotes = pgTable("journal_notes", {

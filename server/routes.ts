@@ -2014,6 +2014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin hub › operator actions: overview counts, users, invite codes, waitlist approval,
   // trader books, admin action log (server/admin-ops-routes.ts, docs/ADMIN_TAB.md)
   { const { registerAdminOpsRoutes } = await import('./admin-ops-routes'); registerAdminOpsRoutes(app, requireAdminJWT); }
+  // Desk admins (docs/DESK_ADMINS.md, flag DESK_ADMINS): /api/desk/* (session + own desk) and /api/admin/ops/desks* (admin JWT).
+  { const { registerDeskAdminRoutes } = await import('./desk-admin-routes'); registerDeskAdminRoutes(app, requireAdminJWT); }
 
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
@@ -10135,6 +10137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isNewsCatalyst: true,
           expiryDate: aiIdea.expiryDate || null,
           strikePrice: (aiIdea as any).strikePrice || null,
+          entryPremium: (aiIdea as any).entryPremium ?? null,
           optionType: (aiIdea as any).optionType || null,
           isLottoPlay: (aiIdea as any).isLottoPlay || false,
         });
@@ -10203,6 +10206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isNewsCatalyst: true,
               expiryDate: aiIdea.expiryDate || null,
               strikePrice: (aiIdea as any).strikePrice || null,
+              entryPremium: (aiIdea as any).entryPremium ?? null,
               optionType: (aiIdea as any).optionType || null,
               isLottoPlay: (aiIdea as any).isLottoPlay || false,
             });
@@ -32829,6 +32833,9 @@ Use this checklist before entering any trade:
   {
     const { registerJournalsRoutes } = await import('./journals-routes');
     registerJournalsRoutes(app, requireBetaAccess);
+    // "I took this" on a NEXUS idea → the caller's book, origin quantedge_idea (docs/DESK_ADMINS.md).
+    const { registerTookIdeaRoutes } = await import('./took-idea-routes');
+    registerTookIdeaRoutes(app, requireBetaAccess);
     // Loss rules v1: before/after + hypothetical counterfactual (server/loss-rules-report.ts)
     const { registerLossRulesRoutes } = await import('./loss-rules-report');
     registerLossRulesRoutes(app, requireBetaAccess);

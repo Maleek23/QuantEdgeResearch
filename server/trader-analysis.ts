@@ -113,7 +113,8 @@ async function barsFor(symbols: string[]): Promise<Map<string, BarRow[]>> {
 
 async function computeAnalysis(t: Trader): Promise<TraderAnalysis> {
   const rows = await db.select().from(journalTrades).where(eq(journalTrades.userId, traderOwnerId(t.id)));
-  const calls = rows.map(toCall).sort((a, b) => Date.parse(b.entryTime) - Date.parse(a.entryTime));
+  // A trade taken from a QuantEdge idea ("I took this", origin quantedge_idea) is not the trader's own call.
+  const calls = rows.filter((r) => r.broker !== 'quantedge').map(toCall).sort((a, b) => Date.parse(b.entryTime) - Date.parse(a.entryTime));
   const now = Date.now();
   // Only calls without a stated exit are measured on the underlying.
   const toMeasure = calls.filter((c) => c.status !== 'closed' && now - Date.parse(c.entryTime) < MEASURE_LOOKBACK_MS);

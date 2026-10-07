@@ -150,7 +150,8 @@ const COLS: Col[] = [
   { id: 'mistake', label: 'Mistake', get: (t) => t.row.mistakeTag ?? null },
   { id: 'emotion', label: 'Emotion', get: (t) => t.row.emotion ?? null },
   { id: 'rating', label: 'Rating', num: true, get: (t) => t.row.rating ?? null },
-  { id: 'source', label: 'Source', get: (t) => t.row.broker || 'manual' },
+  { id: 'source', label: 'Source', get: (t) => (t.row.origin === 'quantedge_idea' ? 'QuantEdge idea' : t.row.broker || 'manual') },
+  { id: 'origin', label: 'Origin', get: (t) => (t.row.origin === 'quantedge_idea' ? 'QuantEdge idea' : 'Own idea') },
   { id: 'reviewed', label: 'Reviewed', get: (_t, x) => (x.reviewed ? 'yes' : '') },
   { id: 'rules', label: 'Rules followed', get: (_t, x) => x.rules || null },
 ];
