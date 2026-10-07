@@ -210,7 +210,9 @@ export function ToolFrame({
   const phone = usePhone();
   // GEX workspace (operator 2026-10-01: "it needs to fit to screen"): ONE header
   // row — title · symbol · source + age chip · (i) holding what / units / backing.
-  const oneRow = useDashboard().page === 'gex';
+  // NEXUS workspace (2026-10-01) wears the same one-row head: the strips on top stay thin.
+  const page = useDashboard().page;
+  const oneRow = page === 'gex' || page === 'nexus';
   return (
     <section className={`fd-tool${oneRow ? ' fd-one-row' : ''}${collapsed ? ' fd-collapsed' : ''}`} aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">

@@ -43,6 +43,7 @@ import { COLLAPSED_H, COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowH
 import { DashboardCtx, PhoneMeta, ReportCtx, ToolFrame, ToolInstanceCtx, phoneTitleOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { usePhone } from '@/components/ui/qe-phone';
 import { materialize, useDashboards } from './use-dashboards';
+import { useWorkspaceMode, type WorkspaceMode } from './use-workspace-mode';
 import { undoToast } from '@/lib/undo-toast';
 import { PAGES, inCatalog, skeletonTiles, type PageId, type PageSpec } from './pages';
 
@@ -117,8 +118,10 @@ function useLiveMount(ref: RefObject<HTMLElement>, pause = true) {
  * it), and reports whether there is more above / below so the tile can draw a
  * fade and a "more" cue. Scrollbars themselves are always visible (CSS).
  */
-function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean) {
+function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean, onNatural?: (px: number) => void) {
   const [cue, setCue] = useState({ up: false, down: false });
+  const natRef = useRef(onNatural);
+  natRef.current = onNatural;
   const scRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const root = ref.current;
@@ -130,6 +133,8 @@ function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean) {
       const up = sc.scrollTop > 2;
       const down = sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2;
       setCue((c) => (c.up === up && c.down === down ? c : { up, down }));
+      // PAGE scroll mode: the body's natural height = everything but the scroller + the scroller's content
+      natRef.current?.(root.clientHeight - sc.clientHeight + sc.scrollHeight);
     };
     const pick = () => {
       let best = null as HTMLElement | null; let area = 0;
@@ -140,6 +145,8 @@ function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean) {
         const a = e.clientWidth * e.clientHeight;
         if (a > area) { area = a; best = e; }
       }
+      // a tile grown to its content no longer overflows: keep measuring the scroller it had
+      if (!best && sc && sc.isConnected && root.contains(sc)) best = sc;
       if (best !== sc) {
         sc?.removeEventListener('scroll', update);
         sc = best;
@@ -165,15 +172,49 @@ function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean) {
   return { ...cue, scroll };
 }
 
-function ToolBody({ tool }: { tool: PlacedTool }) {
+/**
+ * Display-only re-flow for an expanded tile: every tile keeps its saved spot
+ * unless something above now overlaps it, then it moves straight down —
+ * nothing floats up into a gap (unlike `compact`), so the layout reads the same.
+ */
+function pushDown(tools: PlacedTool[]): PlacedTool[] {
+  const hit = (a: PlacedTool, b: PlacedTool) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const placed: PlacedTool[] = [];
+  for (const t of [...tools].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const it = { ...t };
+    for (let guard = 0; guard < 500; guard++) {
+      const over = placed.filter((p) => hit(it, p));
+      if (!over.length) break;
+      it.y = Math.max(...over.map((p) => p.y + p.h));
+    }
+    placed.push(it);
+  }
+  return placed;
+}
+
+/** PAGE scroll mode (use-workspace-mode.ts): what a tile body needs to grow to its content. */
+interface PageFlow {
+  /** natural body height in px, reported as content changes */
+  onNatural: (px: number) => void;
+  expanded: boolean;
+  onExpand: () => void;
+}
+
+function ToolBody({ tool, flow }: { tool: PlacedTool; flow?: PageFlow }) {
   const def = TOOL_BY_ID.get(tool.type)!;
   const ref = useRef<HTMLDivElement>(null);
   const live = useLiveMount(ref);
-  const cue = useScrollCue(ref, live === 'live');
+  const cue = useScrollCue(ref, live === 'live', flow?.onNatural);
   const C = def.Component;
   return (
     <div ref={ref} className={cn('fd-live', cue.up && 'more-up', cue.down && 'more-down')}>
-      {cue.down && (
+      {flow && (cue.down || cue.up || flow.expanded) ? (
+        <button type="button" className="fd-cue fd-expand" onClick={flow.onExpand} aria-expanded={flow.expanded}
+          aria-label={`${flow.expanded ? 'Shrink' : 'Expand'} ${def.title}`}
+          title={flow.expanded ? 'Back to the capped height' : 'Grow this tool to show everything — the page scrolls'}>
+          {flow.expanded ? '↑ show less' : '↓ expand'}
+        </button>
+      ) : cue.down && (
         <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll down">
           ↓ more
         </button>
@@ -197,9 +238,14 @@ function ToolBody({ tool }: { tool: PlacedTool }) {
 
 /* ── one draggable tile ── */
 function Tile({
-  tool, rect, onRemove, onCollapse, onNudge, onResizeStart, dragging, resizing, symbol,
+  tool, rect, onRemove, onCollapse, onNudge, onResizeStart, dragging, resizing, symbol, flow, passive, onEngage,
 }: {
   tool: PlacedTool;
+  /** PAGE scroll mode: grow-to-content wiring (absent in Fit to screen) */
+  flow?: PageFlow;
+  /** PAGE scroll mode, not clicked into: wheel / touch scroll goes to the page */
+  passive?: boolean;
+  onEngage?: () => void;
   rect: { left: number; top: number; width: number; height: number };
   onRemove: () => void;
   /** NEXUS (toggles pages): fold the tile to its header / unfold it */
@@ -225,7 +271,8 @@ function Tile({
     if (e.shiftKey) onNudge(0, 0, d[0], d[1]); else onNudge(d[0], d[1], 0, 0);
   };
   return (
-    <div ref={setNodeRef} className={cn('fd-tile', (dragging || resizing) && 'lifted')} style={style}>
+    <div ref={setNodeRef} className={cn('fd-tile', (dragging || resizing) && 'lifted', passive && 'ws-passive', flow && !passive && 'ws-engaged')} style={style}
+      onPointerDownCapture={onEngage} onFocusCapture={onEngage}>
       <ToolFrame
         def={def}
         symbol={symbol}
@@ -240,7 +287,7 @@ function Tile({
         }
         resizeHandle={tool.c ? undefined : <span className="fd-resize" onPointerDown={onResizeStart} aria-hidden title="Drag to resize" />}
       >
-        {!tool.c && <ToolBody tool={tool} />}
+        {!tool.c && <ToolBody tool={tool} flow={flow} />}
       </ToolFrame>
     </div>
   );
@@ -299,6 +346,22 @@ function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: str
   );
 }
 
+/* ── scroll mode: Page (whole page scrolls) / Fit to screen (tools scroll) — use-workspace-mode.ts ── */
+function ScrollModeToggle({ mode, onMode }: { mode: WorkspaceMode; onMode: (m: WorkspaceMode) => void }) {
+  return (
+    <div className="fd-seg" role="radiogroup" aria-label="How this workspace scrolls">
+      <button type="button" role="radio" aria-checked={mode === 'page'} className={cn('fd-btn', mode === 'page' && 'on')} onClick={() => onMode('page')}
+        title="Page: the whole page scrolls. Click into a tool to scroll inside it; expand grows a tool to its content.">
+        Page
+      </button>
+      <button type="button" role="radio" aria-checked={mode === 'fit'} className={cn('fd-btn', mode === 'fit' && 'on')} onClick={() => onMode('fit')}
+        title="Fit to screen: the layout fills the window and each tool scrolls inside its own box.">
+        Fit to screen
+      </button>
+    </div>
+  );
+}
+
 /* ── show / hide picker (NEXUS — PageSpec.toggles): one instance per tool, a check = on the board ── */
 function ToolPicker({ spec, present, onToggle }: { spec: PageSpec; present: Set<string>; onToggle: (id: string) => void }) {
   const { open, setOpen, ref } = useMenu();
@@ -329,7 +392,7 @@ function ToolPickerList({ spec, offered, present, onToggle }: { spec: PageSpec; 
           </button>
         );
       })}
-      <div className="fd-menu-note">Hidden tools keep their settings; showing one puts it back in the first gap that fits.</div>
+      <div className="fd-menu-note">Hide with a click (Undo offered); showing a tool again puts it in the first gap that fits. Reset layout restores the default.</div>
     </div>
   );
 }
@@ -795,9 +858,55 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
   const spec = PAGES[page];
   const api = useDashboards(spec);
   const isMobile = useIsMobile();
-  const tools = api.active?.tools ?? [];
+  const saved = api.active?.tools ?? [];
   const [focus] = useFocusSymbol();
-  const { gridRef, scroller, setScroller, rowH, colW, stepX, stepY } = useGridGeometry(isMobile, `${api.active?.id}|${tools.length > 0}`);
+  const { gridRef, scroller, setScroller, rowH, colW, stepX, stepY } = useGridGeometry(isMobile, `${api.active?.id}|${saved.length > 0}`);
+
+  /* ── scroll mode (use-workspace-mode.ts): PAGE (default) or Fit to screen ──
+     PAGE: the workspace page scrolls; a tile keeps its saved size as a cap and
+     "↓ expand" grows it to its content (the page scrolls further); a tile only
+     takes the wheel after a click / tab into it. FIT: tiles scroll inside. */
+  const [wsMode, setWsMode] = useWorkspaceMode(page);
+  const flowMode = wsMode === 'page' && !isMobile;
+  const [natural, setNatural] = useState<Record<string, number>>({});
+  const onNatural = useCallback((i: string, px: number) => setNatural((n) => (Math.abs((n[i] ?? 0) - px) < 4 ? n : { ...n, [i]: px })), []);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleExpand = useCallback((i: string) => setExpanded((cur) => { const n = new Set(cur); if (n.has(i)) n.delete(i); else n.add(i); return n; }), []);
+  const [engaged, setEngaged] = useState<string | null>(null);
+  useEffect(() => {
+    if (!flowMode) return;
+    // a click outside every tile (or Escape) hands the wheel back to the page
+    const off = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('.fd-tile')) setEngaged(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setEngaged(null); };
+    document.addEventListener('pointerdown', off, true); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', off, true); document.removeEventListener('keydown', esc); };
+  }, [flowMode]);
+  useEffect(() => {
+    if (!flowMode || !scroller) return;
+    // PAGE mode: the wheel over a tile the viewer has not clicked into scrolls the PAGE
+    // (vertical only — horizontal scrolling and pinch-zoom still reach the tool)
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const tile = (e.target as Element | null)?.closest?.('.fd-tile');
+      if (!tile || !tile.classList.contains('ws-passive')) return;
+      e.preventDefault();
+      scroller.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * scroller.clientHeight : e.deltaY });
+    };
+    scroller.addEventListener('wheel', onWheel, { passive: false });
+    return () => scroller.removeEventListener('wheel', onWheel);
+  }, [flowMode, scroller]);
+  /** what is drawn: in PAGE mode an expanded tile is as tall as its content (display only, never saved) */
+  const tools = useMemo(() => {
+    if (!flowMode || !expanded.size) return saved;
+    // body natural px → whole rows, plus the tile's header + frame (~1 row)
+    const grown = saved.map((t) => {
+      const n = natural[t.i];
+      if (t.c || !expanded.has(t.i) || !n) return t;
+      return { ...t, h: Math.max(t.h, Math.ceil((n + GAP) / stepY) + 1) };
+    });
+    return pushDown(grown);
+  }, [flowMode, saved, natural, expanded, stepY]);
+  const shownOf = (id: string) => tools.find((x) => x.i === id);
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<PlacedTool | null>(null);
@@ -821,7 +930,9 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
     setDragId(null); setGhost(null);
     const dx = Math.round(e.delta.x / stepX), dy = Math.round(e.delta.y / stepY);
     if (!dx && !dy) return;
-    api.updateActive((ts) => compact(ts.map((t) => (t.i === id ? moved(t, dx, dy) : t)), id));
+    // from where the tile is DRAWN (an expanded tile may sit lower than its saved y)
+    const base = shownOf(id);
+    api.updateActive((ts) => compact(ts.map((t) => { if (t.i !== id) return t; const m = moved({ ...t, x: base?.x ?? t.x, y: base?.y ?? t.y }, dx, dy); return { ...t, x: m.x, y: m.y }; }), id));
   };
 
   const nudge = useCallback((id: string, dx: number, dy: number, dw: number, dh: number) => {
@@ -844,6 +955,8 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
 
   const startResize = (t: PlacedTool) => (e: RPointerEvent) => {
     e.preventDefault(); e.stopPropagation();
+    // resizing sets the saved size; an expanded tile drops back to it
+    if (expanded.has(t.i)) toggleExpand(t.i);
     const def = TOOL_BY_ID.get(t.type)!;
     const sx = e.clientX, sy = e.clientY;
     let cur = { w: t.w, h: t.h };
@@ -918,7 +1031,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
 
   return (
     <DashboardCtx.Provider value={ctx}>
-      <div className={cn('flowdash dash-fit', `dash-${page}`)} data-page={page} data-view="dashboard" style={chrome != null ? ({ ['--dash-chrome' as string]: `${chrome}px` }) : undefined}>
+      <div className={cn('flowdash dash-fit', `dash-${page}`, flowMode && 'ws-page')} data-page={page} data-view="dashboard" style={chrome != null ? ({ ['--dash-chrome' as string]: `${chrome}px` }) : undefined}>
         <div className="fd-bar">
           <div className="fd-bar-title">
             <span className="fd-eyebrow">{spec.label}</span>
@@ -936,6 +1049,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
           ) : (
           <div className="fd-bar-actions">
             {spec.toggles ? <ToolPicker spec={spec} present={present} onToggle={toggleTool} /> : <AddToolMenu spec={spec} onAdd={addTool} present={present} />}
+            <ScrollModeToggle mode={wsMode} onMode={(m) => { setWsMode(m); setEngaged(null); setExpanded(new Set()); }} />
             {!isMobile && <button type="button" className="fd-btn" disabled={!tools.length}
               onClick={() => api.updateActive((ts) => autoArrange(ts.map(({ c, ...t }) => (c ? { ...t, h: c } : t)), (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
               title="Pack tools into rows with no gaps">
@@ -986,7 +1100,10 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
                       onRemove={() => remove(t.i)}
                       onCollapse={spec.toggles ? () => toggleCollapse(t.i) : undefined}
                       onNudge={(dx, dy, dw, dh) => nudge(t.i, dx, dy, dw, dh)}
-                      onResizeStart={startResize(t)} />
+                      onResizeStart={startResize(t)}
+                      flow={flowMode ? { onNatural: (px) => onNatural(t.i, px), expanded: expanded.has(t.i), onExpand: () => toggleExpand(t.i) } : undefined}
+                      passive={flowMode && engaged !== t.i}
+                      onEngage={flowMode ? () => { if (engaged !== t.i) setEngaged(t.i); } : undefined} />
                   ))}
                 </div>
               </DndContext>

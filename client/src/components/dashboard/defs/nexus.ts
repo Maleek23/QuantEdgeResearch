@@ -19,13 +19,13 @@ export const NEXUS_TOOLS: ToolDef[] = [
     phoneTitle: 'Tracking',
     what: "The operator's time-boxed tracked names: live quote + change, nearest support / resistance, today's options net premium, open ideas on the board and the expiry; a symbol click opens its top setup.",
     units: 'price $, % change, net premium $', source: 'nexus tracked + live quotes', backing: 'TrackedRow (tools/nexus/tracked-row.tsx) ← GET /api/nexus/tracked, /api/levels/:symbol, /api/bullflow/net-premium-batch',
-    ageInside: true, defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusTrackedTool'),
+    ageInside: true, defaultSize: { w: 7, h: 4 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusTrackedTool'),
   },
   {
     id: 'nexus-rotation', category: 'Market', title: 'Rotation Strip',
     what: 'One line: the sector groups money is moving into and out of (igniting / extended), plus laggards to watch; click a group for its members ranked.',
     units: '% move', source: 'sector ignition', backing: 'RotationStrip (components/sector-ignition) ← GET /api/sector-ignition?horizon=daily|swing',
-    defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusRotationTool'),
+    defaultSize: { w: 5, h: 4 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusRotationTool'),
   },
   {
     id: 'nexus-board', category: 'Ideas', title: 'Ranked Setups',
@@ -94,8 +94,8 @@ export const NEXUS_TOOLS: ToolDef[] = [
  * resize the elements… like tools"). The first screen is 12 × 18; the rest
  * follows below the fold (PageSpec.tall), never hidden.
  *
- *   ┌──── tracked symbols 6×2 ─────┬──── rotation strip 6×2 ──────┐  thin reads on top
- *   ├ ranked setups 5×16 ──────────┼ setup detail 7×16 ───────────┤  master → detail:
+ *   ┌──── tracked symbols 7×4 ──────────┬─ rotation strip 5×4 ────┐  thin reads on top
+ *   ├ ranked setups 5×14 ──────────┼ setup detail 7×14 ───────────┤  master → detail:
  *   │ filters, then ≥ 4 rows at    │ chart with trigger/stop/T1,  │  the board ~40% left,
  *   │ 1366×768                     │ price ladder, tabs           │  the chart above the fold
  *   ├ context 4×10 ┬ sector ign. 4×10 ┬ bot positions 4×10 ──────┤  ── fold ──
@@ -107,10 +107,10 @@ export const NEXUS_TOOLS: ToolDef[] = [
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
   tools: [
-    ['nexus-tracked', 0, 0, 6, 2],
-    ['nexus-rotation', 6, 0, 6, 2],
-    ['nexus-board', 0, 2, 5, 16],
-    ['nexus-detail', 5, 2, 7, 16],
+    ['nexus-tracked', 0, 0, 7, 4],
+    ['nexus-rotation', 7, 0, 5, 4],
+    ['nexus-board', 0, 4, 5, 14],
+    ['nexus-detail', 5, 4, 7, 14],
     ['nexus-context', 0, 18, 4, 10],
     ['nexus-sector-ignition', 4, 18, 4, 10],
     ['nexus-positions', 8, 18, 4, 10],

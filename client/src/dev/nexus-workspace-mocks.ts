@@ -9,6 +9,7 @@
  * Anything not mocked answers 404 and the tool shows its own error state.
  */
 import { getMostRecentId } from '@shared/changelog';
+import { setModePref } from '@/lib/visual-mode';
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -219,6 +220,9 @@ function route(path: string): unknown | undefined {
 export function installNexusWorkspaceMocks() {
   try {
     localStorage.setItem('qe-onboarded-v1', new Date().toISOString());
+    // ?theme=light|dark for screenshot runs (the app's own visual-mode pref)
+    const theme = new URLSearchParams(window.location.search).get('theme');
+    if (theme === 'light' || theme === 'dark') setModePref(theme);
     const latest = getMostRecentId(); if (latest) localStorage.setItem('qe_changelog_seen', latest);
   } catch { /* storage blocked */ }
   const real = window.fetch.bind(window);
