@@ -328,7 +328,8 @@ import {
 {
   const { NEXUS_DEFAULTS } = await import('../client/src/components/dashboard/defs/nexus');
   const { tilingIssues } = await import('../client/src/components/dashboard/layout');
-  for (const d of NEXUS_DEFAULTS) assert.deepEqual(tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h }))), [], `nexus default ${d.id} tiles`);
+  // NEXUS is a page-mode workspace since 2026-10-06 (taller than one screen by design): no overlaps/gaps, height may exceed 18 rows.
+  for (const d of NEXUS_DEFAULTS) assert.deepEqual(tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h }))).filter((i) => !/^height \d+ rows, not 18$/.test(i)), [], `nexus default ${d.id} tiles`);
   assert.ok(NEXUS_DEFAULTS[0].tools.some(([t]) => t === 'nexus-trader-calls'), 'Trader calls is on the NEXUS default');
 }
 
