@@ -17,6 +17,7 @@
  * sees the score, not the raw GEX.
  */
 
+import { pickWalls, type PickedWalls } from '../shared/gex-wall-basis';
 import { logger } from "./logger";
 import { calculateAggregateGammaExposure } from "./gamma-exposure";
 import { summarizeGammaMetrics, type GammaCompare } from "../shared/gex-adjusted";
@@ -42,11 +43,21 @@ export interface GexSnapshot {
    * (docs/GAMMA_RAW_VS_ADJUSTED.md). Context only — no scorer reads it.
    */
   gammaCompare?: GammaCompare | null;
+  /**
+   * Display walls on the platform's one basis (shared/gex-wall-basis.ts): the
+   * ≤7d book, else the all-expiry walls labelled as fallback. callWall/putWall
+   * above stay all-expiry for the scanners that read them.
+   */
+  walls?: PickedWalls;
+  /** When the options chain itself was read — the data's own time, not this response's. */
+  chainFetchedAt?: string | null;
 }
 
 interface CacheEntry {
   snap: GexSnapshot | null;
   cachedAt: number;
+  /** Last failed refresh (a failure keeps the previous good snapshot — see LAST_GOOD_MAX_MS). */
+  failedAt?: number;
 }
 
 const cache = new BoundedCache<string, CacheEntry>({ name: 'gex.snapshots', maxEntries: 80, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
@@ -57,6 +68,14 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 12_000;
 /** A failed fetch is retried after 30 s, not after the full TTL. */
 const NULL_TTL_MS = 30_000;
+/**
+ * 2026-10-01 open: every SPY refresh timed out while the droplet was saturated,
+ * each timeout REPLACED the last good snapshot with null, and the index engine
+ * reported "no GEX snapshot" for 46 minutes. A failed refresh now keeps the
+ * previous good snapshot (with its own fetchedAt — the 0DTE policies gate on
+ * its age) for up to this long; only after that does the symbol read as absent.
+ */
+const LAST_GOOD_MAX_MS = 15 * 60_000;
 
 /** Read-only: the cached snapshot for `symbol` with its fetch time, or null. Never fetches. */
 export function peekGexSnapshot(symbol: string): { at: number; snap: GexSnapshot } | null {
@@ -64,14 +83,22 @@ export function peekGexSnapshot(symbol: string): { at: number; snap: GexSnapshot
   return c && c.snap ? { at: c.cachedAt, snap: c.snap } : null;
 }
 
-function isFresh(entry: CacheEntry | undefined): boolean {
+function isFresh(entry: CacheEntry | undefined, maxAgeMs = CACHE_TTL_MS, now = Date.now()): boolean {
   if (!entry) return false;
-  return Date.now() - entry.cachedAt < (entry.snap ? CACHE_TTL_MS : NULL_TTL_MS);
+  if (entry.failedAt && now - entry.failedAt < NULL_TTL_MS) return true; // back off after a failure
+  return entry.snap ? now - entry.cachedAt < maxAgeMs : now - entry.cachedAt < NULL_TTL_MS;
 }
 
-async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+/** The snapshot a cache entry may serve: a kept last-good one expires after LAST_GOOD_MAX_MS. */
+function servable(entry: CacheEntry | undefined, now = Date.now()): GexSnapshot | null {
+  if (!entry?.snap) return null;
+  return now - entry.cachedAt <= LAST_GOOD_MAX_MS ? entry.snap : null;
+}
+
+const TIMED_OUT = Symbol('timed-out');
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null | typeof TIMED_OUT> {
   return new Promise((resolve) => {
-    const t = setTimeout(() => resolve(null), ms);
+    const t = setTimeout(() => resolve(TIMED_OUT), ms);
     p.then((v) => {
       clearTimeout(t);
       resolve(v);
@@ -82,11 +109,9 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
   });
 }
 
-async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
-  const result = await withTimeout(
-    calculateAggregateGammaExposure(symbol),
-    REQUEST_TIMEOUT_MS,
-  );
+type AggregateResult = Awaited<ReturnType<typeof calculateAggregateGammaExposure>>;
+
+function toSnapshot(symbol: string, result: AggregateResult): GexSnapshot | null {
   if (!result || !Number.isFinite(result.spotPrice) || result.spotPrice <= 0) return null;
 
   const spot = result.spotPrice;
@@ -110,18 +135,71 @@ async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
     fetchedAt: new Date().toISOString(),
     modelledGrossShare: result.dataQuality?.modelledGrossShare ?? null,
     gammaCompare: result.gammaMetrics ? summarizeGammaMetrics(result.gammaMetrics, spot) : null,
+    walls: pickWalls({ callWall: result.callWall, putWall: result.putWall, flip, byDte: result.byDte }),
+    chainFetchedAt: result.dataQuality?.chainFetchedAt ?? null,
   };
+}
+
+/** Test seam: replaces the aggregate GEX computation and clears the cache (scripts/test-index-open.ts). */
+let computeAggregate: (symbol: string) => Promise<AggregateResult> = calculateAggregateGammaExposure;
+export function __setGexComputeForTest(fn: ((symbol: string) => Promise<AggregateResult>) | null): void {
+  computeAggregate = fn ?? calculateAggregateGammaExposure;
+  cache.clear();
+}
+
+function storeSnapshot(sym: string, snap: GexSnapshot | null, now = Date.now()): void {
+  if (snap) { cache.set(sym, { snap, cachedAt: now }); return; }
+  const prev = cache.peek(sym);
+  // Keep the last good snapshot through a failed refresh (it carries its own age).
+  if (prev?.snap && now - prev.cachedAt <= LAST_GOOD_MAX_MS) cache.set(sym, { ...prev, failedAt: now });
+  else cache.set(sym, { snap: null, cachedAt: now });
+}
+
+async function fetchOne(symbol: string, timeoutMs: number): Promise<GexSnapshot | null> {
+  const sym = symbol.toUpperCase();
+  const p = Promise.resolve().then(() => computeAggregate(symbol)).then((r) => toSnapshot(sym, r));
+  const result = await withTimeout(p, timeoutMs);
+  if (result === TIMED_OUT) {
+    // The chain keeps loading after we stop waiting. Before 2026-10-01 that late
+    // result was thrown away (and the 60–90 s chain/aggregate caches it filled
+    // had expired by the next 5-minute scan), so a slow open stayed cold. Keep it.
+    p.then((late) => {
+      if (!late) return;
+      const cur = cache.peek(sym);
+      if (cur?.snap && cur.cachedAt > Date.parse(late.fetchedAt)) return;
+      cache.set(sym, { snap: late, cachedAt: Date.now() });
+      logger.info(`[GEX-SNAPSHOT] ${sym}: late result cached after the ${Math.round(timeoutMs / 1000)}s wait expired`);
+    }).catch(() => undefined);
+    logger.warn(`[GEX-SNAPSHOT] ${sym}: aggregate GEX not ready within ${Math.round(timeoutMs / 1000)}s — chain still loading (kept for late fill)`);
+    return null;
+  }
+  return result;
+}
+
+export interface GexBatchOptions {
+  /** Parallel fetches (default 4). */
+  concurrency?: number;
+  /** Per-symbol wait for a cold computation (default 12 s). */
+  timeoutMs?: number;
+  /** Refresh a cached snapshot older than this (default 5 min). */
+  maxAgeMs?: number;
 }
 
 /**
  * Batch fetch GEX snapshots with bounded concurrency (4 parallel requests
  * by default — options chains are heavy and we don't want to flood Tradier).
- * Returns a Map keyed by uppercase symbol; failed fetches are simply absent.
+ * Returns a Map keyed by uppercase symbol; failed fetches are absent — unless a
+ * good snapshot under 15 min old is still held, which is returned with its own
+ * fetchedAt (consumers that care, like the 0DTE policies, gate on that age).
  */
 export async function getGexSnapshotBatch(
   symbols: string[],
-  concurrency = 4,
+  options: number | GexBatchOptions = {},
 ): Promise<Map<string, GexSnapshot>> {
+  const opts: GexBatchOptions = typeof options === 'number' ? { concurrency: options } : options;
+  const concurrency = opts.concurrency ?? 4;
+  const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  const maxAgeMs = opts.maxAgeMs ?? CACHE_TTL_MS;
   const out = new Map<string, GexSnapshot>();
   const unique = Array.from(new Set(symbols.map((s) => s.toUpperCase())));
   if (unique.length === 0) return out;
@@ -130,8 +208,9 @@ export async function getGexSnapshotBatch(
   const remaining: string[] = [];
   for (const sym of unique) {
     const c = cache.get(sym);
-    if (isFresh(c)) {
-      if (c!.snap) out.set(sym, c!.snap);
+    if (isFresh(c, maxAgeMs)) {
+      const s = servable(c);
+      if (s) out.set(sym, s);
     } else {
       remaining.push(sym);
     }
@@ -147,18 +226,16 @@ export async function getGexSnapshotBatch(
       const idx = i++;
       const sym = remaining[idx];
       try {
-        const snap = await fetchOne(sym);
-        cache.set(sym, { snap, cachedAt: Date.now() });
-        if (snap) {
-          out.set(sym, snap);
-          okCount++;
-        } else {
-          errCount++;
-        }
-      } catch (err) {
+        const snap = await fetchOne(sym, timeoutMs);
+        storeSnapshot(sym, snap);
+        if (snap) okCount++;
+        else errCount++;
+      } catch {
         errCount++;
-        cache.set(sym, { snap: null, cachedAt: Date.now() });
+        storeSnapshot(sym, null);
       }
+      const s = servable(cache.peek(sym));
+      if (s) out.set(sym, s);
     }
   });
   await Promise.all(workers);

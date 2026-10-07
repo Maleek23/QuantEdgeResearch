@@ -118,7 +118,7 @@ export function TodayWeekMapTool() {
             <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
               <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>
@@ -416,10 +416,11 @@ export function TodayRotationTool() {
         <div className="feature-visual">
           <div className="rot-map">
             <RotQuad sectors={sectors} />
-            <div className="rot-label tl">Leading</div>
-            <div className="rot-label tr">Improving</div>
-            <div className="rot-label bl">Weakening</div>
-            <div className="rot-label br">Lagging</div>
+            {/* Matches the plot: x = relative strength (right = stronger), y = momentum (up = rising). */}
+            <div className="rot-label tl">Improving</div>
+            <div className="rot-label tr">Leading</div>
+            <div className="rot-label bl">Lagging</div>
+            <div className="rot-label br">Weakening</div>
             <div className="rot-axis x">x · rel strength →</div>
             <div className="rot-axis y">y · momentum →</div>
           </div>

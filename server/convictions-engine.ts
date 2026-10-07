@@ -68,6 +68,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
     reasons: ["Market context is refreshing — no live regime adjustment applied"],
     spyData: null,
     vixLevel: null,
+    regimeUnavailable: true,
     timestamp: new Date(),
   };
 }
@@ -153,6 +154,12 @@ export interface ConvictionPick {
   source: string;
   /** Live price at response time — what P&L / progress are measured against. */
   currentPrice?: number | null;
+  /**
+   * True only when currentPrice came from a live quote this build; false when it
+   * is the idea's carried/stored price. Consumers (NEXUS Live cell, alert
+   * geometry) must not treat a carried price as the market (audit 2026-10-01 #7).
+   */
+  priceIsLive?: boolean;
   /** A published plan is not an executed position. Derived from the durable audit. */
   lifecycleState: OracleLifecycleState;
   /** When the idea was published (exact ISO). */
@@ -179,6 +186,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: the fields above are engine defaults, not a measured market. */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -2863,6 +2872,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // The live price was fetched for revalidation and then never serialised, so every
       // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
       currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
+      priceIsLive: (liveQuotes.get(idea.symbol)?.price ?? 0) > 0 && !liveQuotes.get(idea.symbol)?.stale,
       lifecycleState: readOracleExecutionAudit(idea.convergenceSignalsJson)?.state ?? "pending_trigger",
       // Exact call and trigger times (operator: "we need the EXACT time these are called").
       calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
@@ -3082,6 +3092,7 @@ bandFor(p.convictionScore);
       score: marketCtx.score,
       vixLevel: marketCtx.vixLevel,
       reasons: marketCtx.reasons,
+      ...(marketCtx.regimeUnavailable ? { regimeUnavailable: true } : {}),
     },
     breadth: breadthResponse,
     geopolitical: geo,

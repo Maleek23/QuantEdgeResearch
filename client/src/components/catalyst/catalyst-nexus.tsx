@@ -28,6 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
 import { PhoneNote } from '@/components/ui/qe-phone';
+import { normalizeCatalystRow } from '@/lib/catalyst-rows';
 import '@/styles/nexus.css';
 
 interface BoardSignal {
@@ -98,7 +99,8 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
 
   /* board buckets → one row list with type */
   const rows = useMemo(() => {
-    const mk = (list: BoardSignal[] | undefined, type: Bucket) => (list ?? []).map((s) => ({ ...s, type }));
+    // One row shape for all four payload shapes (lib/catalyst-rows.ts).
+    const mk = (list: BoardSignal[] | undefined, type: Bucket) => (list ?? []).map((s) => normalizeCatalystRow(s, type));
     return [
       ...mk(board?.conflict, 'conflict'),
       ...mk(board?.eventRisk, 'risk'),
@@ -113,7 +115,7 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
     nosignal: rows.filter((r) => r.type === 'nosignal').length,
   }), [rows]);
   const filtered = filter === 'all' ? rows : rows.filter((r) => r.type === filter);
-  const trackedSyms = useMemo(() => new Set(rows.map((r) => r.symbol)), [rows]);
+  const trackedSyms = useMemo(() => new Set(rows.filter((r) => r.type !== 'nosignal').map((r) => r.symbol)), [rows]);
 
   /* earnings → day groups */
   const earnDays = useMemo(() => {
@@ -235,23 +237,26 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
         </thead>
         <tbody>
           {filtered.map((d) => {
-            const side = (d.direction ?? 'long').toUpperCase();
+            // No side for names NEXUS is not trading (NO SIGNAL rows).
+            const side = d.side;
             return (
               <tr key={`${d.type}-${d.symbol}-${d.event?.date}`} onClick={() => openWorkup(d.symbol)}>
                 <td>
                   <div className="impact-ticker">
                     {/* phones: the NEXUS side column drops; its arrow rides on the ticker */}
-                    <span className={`qp-phone-only impact-side ${side === 'SHORT' ? 'short' : 'long'}`} aria-label={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`} title={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`}><span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span></span>
+                    {side && <span className={`qp-phone-only impact-side ${side === 'SHORT' ? 'short' : 'long'}`} aria-label={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`} title={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`}><span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span></span>}
                     {d.symbol}
                     {d.nexusGrade && <span className="score" title={`NEXUS grade ${d.nexusGrade.letter} ${d.nexusGrade.score}/100 — actionability score — unvalidated, not a win probability.${d.nexusGrade.breakdown ? ` ${d.nexusGrade.breakdown}.` : ''}`}>{d.nexusGrade.letter} {d.nexusGrade.score}</span>}
                   </div>
                 </td>
                 <td><div className={`impact-type ${d.type === 'nosignal' ? 'conflict' : d.type}`}>{TYPE_LABEL[d.type]}</div></td>
                 <td className="qp-col-x">
-                  <div className={`impact-side ${side === 'SHORT' ? 'short' : 'long'}`}>
-                    <span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span>
-                    {side}{d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}
-                  </div>
+                  {side ? (
+                    <div className={`impact-side ${side === 'SHORT' ? 'short' : 'long'}`}>
+                      <span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span>
+                      {side}{d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}
+                    </div>
+                  ) : <div className="impact-side" title="Not on the NEXUS book">—</div>}
                 </td>
                 <td>
                   <div className="impact-event">

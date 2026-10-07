@@ -112,3 +112,21 @@ High grades currently mean "strong-looking and takeable", not "more likely to wi
 4. **Pass-priced option exits.** These no longer set `optionPercentGain` (#8), but the journal still prices them from `exitPremium`. Exclude them from the journal too, or keep them?
 5. **Sleeve settings.** Swing grade floor (65), sleeve sizes (`BOT_0DTE_RISK_USD=150`, `BOT_SWING_RISK_USD=500`, `BOT_SWING_MAX_DEBIT_USD=1500`) and `BOT_0DTE_AFTERNOON` (off) are environment settings; confirm them before deploy.
 6. **Deploy rule.** Nothing was deployed. No deploys between 08:30 and 10:30 ET.
+
+## Operator decisions applied (2026-10-06, with the integrate/pdf-fixes merge)
+
+1. Option record: no executable-fill requirement; the strict check stays diagnostic. Bot rows and journal notes label each option fill "verified fill" / "unverified fill".
+2. Grade stays an actionability order; components are logged (`nexusGradeAtPublish`, fill tags).
+3. 0DTE sleeve window 09:35–11:30 ET (effective 09:50 on a delayed feed); its fills are labelled unverified.
+4. Pass-priced option exits are excluded from journal P&L (`server/journal-row-maps.ts`).
+5. Defaults kept: swing grade floor 65, 0DTE risk $150, swing risk $500, swing max debit $1,500, afternoon 0DTE off.
+
+**Merge resolution with fix/audit-p0.** The one-grade display wins over the P0 "/100" evidence displays on ticker, Catalyst, alerts and trade audit. P0's data fixes are kept:
+
+- live-mark "never the entry as live" (the NEXUS detail grade reads the live mark)
+- untriggered ideas are "awaiting entry" in the journal
+- no invented per-signal points on the trade audit
+- alerts fire geometry only on a live quote and pass the trigger state
+- the catalyst row normaliser (now also carries `nexusGrade`)
+- Discord block reasons
+- security fixes (untouched)

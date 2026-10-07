@@ -585,7 +585,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               <div className="bp-kv">in<b>${c.entryPrice}</b></div>
               <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
               <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}${c.measurementNote ? ` · measurement: ${c.measurementNote}` : ''}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
-              {c.assetType === 'option' && <div className="bp-kv" title={c.measurementNote ?? undefined}>measurement<b style={{ color: c.measurementStatus === 'verified' ? 'var(--green)' : 'var(--amber)' }}>{c.measurementStatus ?? 'unverified'}</b></div>}
+              {c.assetType === 'option' && <div className="bp-kv" title={c.measurementNote ?? undefined}>fill<b style={{ color: c.measurementStatus === 'verified' ? 'var(--green)' : 'var(--amber)' }}>{c.measurementStatus === 'verified' ? 'verified fill' : c.measurementStatus === 'pending' ? 'open' : 'unverified fill'}</b></div>}
               <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
                 {pnl >= 0 ? '+' : ''}${Math.round(pnl)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
               </div>

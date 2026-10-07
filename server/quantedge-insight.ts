@@ -91,7 +91,7 @@ export async function getMarketContext(): Promise<MarketContext> {
       regimeLabel: regimeLabels[currentRegime] || currentRegime,
       riskLevel,
       bias,
-      vix: regimeData.indicators?.vix,
+      vix: regimeData.indicators?.vix ?? undefined,
     };
 
     cachedMarketContext = { data: context, timestamp: now };

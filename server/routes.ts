@@ -5217,16 +5217,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // implementation now serves both, so the route and direct callers cannot drift.
   app.get("/api/historical-prices/:symbol", async (req, res) => {
     try {
-      const { symbol } = req.params;
-      const { fetchCandles, normalizeRange } = await import("./historical-candles");
+      const { fetchChartSeries, normalizeRange } = await import("./historical-candles");
       const range = normalizeRange(req.query.range as string, "1mo");
       const interval = (req.query.interval as string) || "1d";
 
-      const data = await fetchCandles(symbol, range, interval);
-      if (!data.length) {
+      // Cash indices ($SPX / ^GSPC / SPXW → SPX) come back regular-session
+      // only, with the ETF's volume (labelled) and the future-scaled
+      // extended-hours bars as a separate, labelled array.
+      const series = await fetchChartSeries(req.params.symbol, range, interval);
+      if (!series.data.length) {
         return res.status(404).json({ error: "No historical data found" });
       }
-      res.json({ symbol, range, data });
+      res.json({ ...series, range });
     } catch (error) {
       logger.error(`Error fetching historical prices for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to fetch historical prices" });
@@ -6619,8 +6621,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? oilAliases.map((item) => ({ ...item, type: 'stock' as const }))
         : [];
 
+      // Cash indices: "$SPX", "^GSPC", "SPXW", "S&P" → SPX (one canonical name,
+      // shared/index-symbols.ts). Listed first — an index query means the index.
+      const { canonicalChartSymbol, INDEX_INFO } = await import('@shared/index-symbols');
+      const canonQ = canonicalChartSymbol(query);
+      const indexResults = Object.values(INDEX_INFO)
+        .filter((i) => i.symbol === canonQ || (query.length >= 2 && (i.symbol.startsWith(canonQ) || i.name.toUpperCase().includes(query))))
+        .map((i) => ({ symbol: i.symbol, name: i.name, type: 'index' as const }));
+
       // Combine and limit results - prioritize exact matches
       const allResults = [
+        ...indexResults,
         ...futuresResults.slice(0, 5),
         ...oilResults,
         ...stockResults.slice(0, 10),
@@ -8010,7 +8021,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         offset: parseInt(req.query.offset as string) || 0,
         days: parseInt(req.query.days as string) || 7,
       });
-      res.json(result);
+      // A DB failure is an error, not "0 prints · today" (audit 2026-10-01 P0 #27).
+      const { flowResponseStatus } = await import("./flow-response-status");
+      res.status(flowResponseStatus(result)).json(result);
     } catch (error) {
       logger.error("[API] Failed to fetch options flow:", error);
       res.status(500).json({ error: "Failed to fetch options flow" });
@@ -8762,19 +8775,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 📨 Share trade idea to Discord - manual trigger for audit page
-  // Manual shares bypass grade/deduplication filters since user explicitly requested it
+  // Operator-only (route-guards.ts) and subject to the same relevance/grade/dedup
+  // filters as automatic posts — audit 2026-10-01 P0 #2 (it used to let any
+  // signed-in user push any idea, ungated, into the public channel).
   app.post("/api/trade-ideas/:id/share-discord", isAuthenticated, async (req, res) => {
     try {
       const idea = await storage.getTradeIdeaById(req.params.id);
       if (!idea) {
         return res.status(404).json({ error: "Trade idea not found" });
       }
-      
+
       const { sendTradeIdeaToDiscord } = await import("./discord-service");
-      // Force bypass filters for manual user-initiated shares
-      await sendTradeIdeaToDiscord(idea, { forceBypassFilters: true });
-      
-      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by user (manual share)`);
+      const result = await sendTradeIdeaToDiscord(idea);
+      if (!result.sent) {
+        return res.status(409).json({ error: `Not shared: ${result.reason || 'blocked by Discord filters'}` });
+      }
+
+      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by operator (manual share)`);
       res.json({ success: true, message: `Shared ${idea.symbol} trade to Discord` });
     } catch (error: any) {
       logger.error("Failed to share trade idea to Discord:", error);
@@ -8795,13 +8812,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Trade idea not found" });
       }
 
-      const { sendTradeCardImageToDiscord } = await import("./discord-service");
+      const { sendTradeCardImageToDiscord, tradeIdeaDiscordBlockReason, markTradeIdeaShared } = await import("./discord-service");
+      const blocked = tradeIdeaDiscordBlockReason(idea);
+      if (blocked) {
+        return res.status(409).json({ error: `Not shared: ${blocked}` });
+      }
       const filename = `${idea.symbol}_${idea.direction}_card.png`;
       const result = await sendTradeCardImageToDiscord(idea, req.file.buffer, filename);
 
       if (!result.success) {
         return res.status(502).json({ error: result.error || "Discord upload failed" });
       }
+      markTradeIdeaShared(idea);
       logger.info(`📨 Trade CARD image ${idea.symbol} shared to Discord by user (manual share)`);
       res.json({ success: true, message: `Shared ${idea.symbol} card to Discord` });
     } catch (error: any) {
@@ -9928,51 +9950,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Performance Tracking Routes
-  app.post("/api/performance/validate", requireBetaAccess, async (_req, res) => {
+  // Operator-only (route-guards.ts). Live quotes only, dry run unless { apply: true }.
+  // Audit 2026-10-01 P0 #1: this used to let any beta user resolve every open idea
+  // against the carried market_data price. See server/performance-validate-live.ts.
+  app.post("/api/performance/validate", requireBetaAccess, async (req, res) => {
     try {
       const { PerformanceValidator } = await import("./performance-validator");
+      const { buildLivePriceMap, isApplyRequest, quoteAssetType } = await import("./performance-validate-live");
+      const apply = isApplyRequest(req.body, req.query);
       const openIdeas = await storage.getOpenTradeIdeas();
-      const marketData = await storage.getAllMarketData();
-      
-      // Build price map
-      const priceMap = new Map<string, number>();
-      marketData.forEach((data) => {
-        priceMap.set(data.symbol, data.currentPrice);
-      });
 
-      // Validate all open ideas
-      const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap);
-      const now = new Date().toISOString();
-      
-      // Build detailed results for frontend display
+      const requestMap = new Map<string, { symbol: string; assetType: RTAssetType }>();
+      for (const i of openIdeas) {
+        const t = quoteAssetType(i.assetType);
+        if (t) requestMap.set(`${t}:${i.symbol}`, { symbol: i.symbol, assetType: t });
+      }
+      const quotes = await getRealtimeBatchQuotes(Array.from(requestMap.values()));
+      const now = new Date();
+      const { priceMap, skipped } = buildLivePriceMap(openIdeas, quotes, now);
+      const skippedIds = new Set(skipped.map((s) => s.id));
+      const priced = openIdeas.filter((i) => !skippedIds.has(i.id));
+
+      const validationResults = PerformanceValidator.validateBatch(priced, priceMap);
+      const stamp = now.toISOString();
       const detailedResults: any[] = [];
-      
-      // Update ideas that need changes
-      const updated: any[] = [];
-      for (const [ideaId, result] of Array.from(validationResults.entries())) {
-        const idea = openIdeas.find(i => i.id === ideaId);
-        if (!idea) continue;
-        
-        const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
-        const updatedIdea = await storage.updateTradeIdeaPerformance(ideaId, {
-          outcomeStatus: result.outcomeStatus,
-          exitPrice: result.exitPrice,
-          percentGain: result.percentGain,
-          realizedPnL: result.realizedPnL,
-          resolutionReason: result.resolutionReason,
-          exitDate: result.exitDate,
-          actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
-          predictionAccurate: result.predictionAccurate,
-          predictionValidatedAt: result.predictionValidatedAt,
-          highestPriceReached: result.highestPriceReached,
-          lowestPriceReached: result.lowestPriceReached,
-          validatedAt: now,
-        });
-        if (updatedIdea) {
-          updated.push(updatedIdea);
+      let updated = 0;
+
+      for (const idea of priced) {
+        const currentPrice = priceMap.get(idea.symbol)!;
+        const result = validationResults.get(idea.id);
+        const percentToTarget = idea.direction === 'long'
+          ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
+          : ((currentPrice - idea.targetPrice) / currentPrice) * 100;
+        const percentToStop = idea.direction === 'long'
+          ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
+          : ((idea.stopLoss - currentPrice) / currentPrice) * 100;
+
+        if (result && apply) {
+          const row = await storage.updateTradeIdeaPerformance(idea.id, {
+            outcomeStatus: result.outcomeStatus,
+            exitPrice: result.exitPrice,
+            percentGain: result.percentGain,
+            realizedPnL: result.realizedPnL,
+            resolutionReason: result.resolutionReason,
+            exitDate: result.exitDate,
+            actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+            predictionAccurate: result.predictionAccurate,
+            predictionValidatedAt: result.predictionValidatedAt,
+            highestPriceReached: result.highestPriceReached,
+            lowestPriceReached: result.lowestPriceReached,
+            validatedAt: stamp,
+          });
+          if (row) updated++;
         }
-        
-        // Add to detailed results
+
         detailedResults.push({
           id: idea.id,
           symbol: idea.symbol,
@@ -9980,80 +10011,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: idea.direction,
           entryPrice: idea.entryPrice,
           currentPrice,
+          priceSource: 'live quote',
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
-          wasUpdated: true,
-          newStatus: result.outcomeStatus,
-          reasoning: result.resolutionReason || 'Price hit target or stop loss',
-          percentToTarget: idea.direction === 'long' 
-            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
-            : ((currentPrice - idea.targetPrice) / currentPrice) * 100,
-          percentToStop: idea.direction === 'long'
-            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
-            : ((idea.stopLoss - currentPrice) / currentPrice) * 100,
-          timestamp: now,
+          wasUpdated: !!result && apply,
+          wouldUpdate: !!result,
+          newStatus: result?.outcomeStatus,
+          reasoning: result
+            ? (result.resolutionReason || 'Live price crossed target or stop')
+            : 'Position still within range - no action taken',
+          percentToTarget,
+          percentToStop,
+          timestamp: stamp,
         });
       }
 
-      // Stamp validatedAt on ALL open ideas that were checked, even if no state change
-      for (const idea of openIdeas) {
-        if (!validationResults.has(idea.id)) {
-          const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
-          
-          // Track price extremes even for open trades
-          const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
-          const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
-          
-          // Idea was checked but didn't need update - still stamp validatedAt and update price extremes
-          await storage.updateTradeIdeaPerformance(idea.id, {
-            validatedAt: now,
-            highestPriceReached: highestPrice,
-            lowestPriceReached: lowestPrice,
-          });
-          
-          // Calculate distance percentages
-          const percentToTarget = idea.direction === 'long' 
-            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
-            : ((currentPrice - idea.targetPrice) / currentPrice) * 100;
-          const percentToStop = idea.direction === 'long'
-            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
-            : ((idea.stopLoss - currentPrice) / currentPrice) * 100;
-          
-          // Generate reasoning for why it stayed open
-          let reasoning = '';
-          if (idea.direction === 'long') {
-            if (currentPrice < idea.targetPrice && currentPrice > idea.stopLoss) {
-              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
-            }
-          } else {
-            if (currentPrice > idea.targetPrice && currentPrice < idea.stopLoss) {
-              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
-            }
-          }
-          
-          detailedResults.push({
-            id: idea.id,
-            symbol: idea.symbol,
-            assetType: idea.assetType,
-            direction: idea.direction,
-            entryPrice: idea.entryPrice,
-            currentPrice,
-            targetPrice: idea.targetPrice,
-            stopLoss: idea.stopLoss,
-            wasUpdated: false,
-            reasoning: reasoning || 'Position still within range - no action taken',
-            percentToTarget,
-            percentToStop,
-            timestamp: now,
-          });
-        }
+      for (const s of skipped) {
+        detailedResults.push({ id: s.id, symbol: s.symbol, wasUpdated: false, wouldUpdate: false, skipped: true, reasoning: `Skipped: ${s.reason}`, timestamp: stamp });
       }
 
       res.json({
         success: true,
-        validated: openIdeas.length,
-        updated: updated.length,
-        timestamp: new Date().toISOString(),
+        dryRun: !apply,
+        validated: priced.length,
+        skipped: skipped.length,
+        updated,
+        wouldUpdate: validationResults.size,
+        timestamp: stamp,
         results: detailedResults,
       });
     } catch (error) {
@@ -15500,7 +15484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // the GEX timeline starts when recording started (see server/chart-overlays).
   app.get("/api/chart/overlays/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const symbol = canonicalChartSymbol(String(req.params.symbol ?? '')); // $SPX / ^GSPC / SPXW → SPX
       if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
       const rawRange = String(req.query.range ?? '1D').toUpperCase();
       const range = ['1D', '2D', '5D'].includes(rawRange) ? rawRange : '1D';
@@ -17424,9 +17409,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── PUBLIC read-only watchlist (shareable link for trading groups) ──
   // No auth: returns a deduped, graded, ranked snapshot safe to share. Only
   // surfaces ticker + grade + edge rationale + added date — no account data.
+  // OPT-IN ONLY (audit 2026-10-01 P0 #3): just the watchlists of users listed in
+  // PUBLIC_WATCHLIST_USER_IDS; private (empty) by default. server/public-watchlist-optin.ts.
   app.get("/api/public/watchlist", async (_req, res) => {
     try {
-      const all = await storage.getAllWatchlist();
+      const { publicWatchlistOwners, filterOptedInWatchlist } = await import('./public-watchlist-optin');
+      const owners = publicWatchlistOwners();
+      if (owners.size === 0) {
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({ name: 'QuantEdge Watchlist', private: true, updatedAt: null, count: 0, items: [] });
+      }
+      const all = filterOptedInWatchlist(await storage.getAllWatchlist(), owners);
       // Dedupe by symbol, keeping the best-graded entry per ticker.
       const bySymbol = new Map<string, any>();
       for (const it of all as any[]) {
@@ -32687,7 +32680,8 @@ Use this checklist before entering any trade:
    */
   app.get("/api/levels/:symbol", requireBetaAccess, async (req, res) => {
     try {
-      const sym = String(req.params.symbol || '').toUpperCase();
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const sym = canonicalChartSymbol(String(req.params.symbol || ''));
       if (!/^[A-Z.^-]{1,10}$/.test(sym)) return res.status(400).json({ error: 'bad symbol' });
       const { getLevelMap, levelSnapEnabled } = await import('./levels/level-map');
       const map = await getLevelMap(sym);
@@ -33441,7 +33435,15 @@ Use this checklist before entering any trade:
         candles,
         orbs,
         heatmap,
-        strikeExpiryMatrix: gex?.strikeExpiryMatrix || [],
+        // CBOE fallback now builds its own matrix (audit 2026-10-01 P0 #13).
+        strikeExpiryMatrix: (gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || [],
+        // The real reason when there is still no matrix — not "pick a wider horizon".
+        ...(((gex?.strikeExpiryMatrix?.length ? gex.strikeExpiryMatrix : (cboeSnapshot as any)?.strikeExpiryMatrix) || []).length === 0
+          ? { strikeExpiryMatrixNote: cboeFallbackUsed ? 'CBOE fallback chain had no strikes within ±15% of spot' : `${gex?.dataSource ?? 'chain'} returned no per-expiry rows` }
+          : {}),
+        // Age = the data's own time (audit #12): when the chain was read, plus its OI date.
+        chainFetchedAt: gex?.dataQuality?.chainFetchedAt ?? (cboeSnapshot as any)?.chainFetchedAt ?? null,
+        openInterestDate: gex?.dataQuality?.openInterestDate ?? null,
         projection,
         peers,
         dataQuality: {

@@ -553,13 +553,14 @@ export async function sendBotTradeExitToDiscord(exit: {
     logger.error('❌ Failed to send Discord bot exit alert:', error);
   }
 }
-export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
-  const forceBypass = options?.forceBypassFilters ?? false;
-  
-  // RELEVANCE CHECK: Validate option play is still actionable (skip if force bypass)
-  if (!forceBypass && idea.assetType === 'option') {
+/**
+ * Why this idea may NOT go to Discord right now, or null when it may: option
+ * relevance, the grade tier, and the 4-hour dedup window. Manual shares (the
+ * trade-audit "Share to Discord" buttons, operator-only) obey this too — audit
+ * 2026-10-01 P0 #2: they used to bypass every filter.
+ */
+export function tradeIdeaDiscordBlockReason(idea: TradeIdea): string | null {
+  if (idea.assetType === 'option') {
     const relevanceCheck = isOptionPlayStillRelevant({
       symbol: idea.symbol,
       expiryDate: (idea as any).expiryDate || (idea as any).expiry,
@@ -570,45 +571,61 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
       generatedAt: idea.timestamp,
       strategyContext: `${(idea as any).dataSourceUsed || ''} ${(idea as any).catalyst || ''} ${(idea as any).analysis || ''}`,
     });
-    
-    if (!relevanceCheck.valid) {
-      logger.info(`[DISCORD] ⛔ BLOCKED outdated trade idea: ${idea.symbol} - ${relevanceCheck.reason}`);
-      return;
-    }
+    if (!relevanceCheck.valid) return `outdated: ${relevanceCheck.reason}`;
   }
-  
-  // STRICT GRADE FILTER: Only A/A+ trades go to Discord (skip if force bypass for manual shares)
-  // SPX scanner signals use relaxed grade filter (B- and above) since scanners already pre-filter
+
+  // THE ONE GRADE (shared/nexus-grade.ts) when the idea carries it: A or B only.
   const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number } | undefined;
-  if (!forceBypass && nexusGrade) {
-    // The ONE grade (shared/nexus-grade.ts): A or B only.
-    if (!['A', 'B'].includes(nexusGrade.letter)) {
-      logger.debug(`[DISCORD] Skipped ${idea.symbol} - NEXUS grade ${nexusGrade.letter} ${nexusGrade.score} below B`);
-      return;
+  if (nexusGrade) {
+    if (!['A', 'B'].includes(nexusGrade.letter)) return `NEXUS grade ${nexusGrade.letter} ${nexusGrade.score} is below B`;
+    if (!shouldSendTradeIdea(idea.symbol, idea.direction || 'long', idea.assetType || 'stock', (idea as any).optionType, (idea as any).strikePrice || (idea as any).strike)) {
+      return 'already posted within the last 4 hours';
     }
-  } else if (!forceBypass) {
-    const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
-    const source = (idea as any).source || '';
-    const isSPXSource = source === 'orb_scanner' || source === 'spx_session';
-    const allowedGrades = isSPXSource ? SECONDARY_DISCORD_GRADES : VALID_DISCORD_GRADES;
-    // A conviction-band S/A signal already passed the engine's own gate (signal-alerts.ts);
-    // its letter can legitimately be B- (raw 19–20), which this list would drop.
-    const bandPass = ['S', 'A'].includes(String((idea as any).convictionBand || ''));
-    if (!bandPass && !allowedGrades.includes(grade)) {
-      logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in ${isSPXSource ? 'SPX' : 'A/A+'} tier`);
-      return;
+    return null;
+  }
+
+  // STRICT GRADE FILTER (legacy rows without a NEXUS grade). SPX scanner signals use
+  // the relaxed (B- and above) list since the scanners already pre-filter.
+  const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
+  const source = (idea as any).source || '';
+  const isSPXSource = source === 'orb_scanner' || source === 'spx_session';
+  const allowedGrades = isSPXSource ? SECONDARY_DISCORD_GRADES : VALID_DISCORD_GRADES;
+  // A conviction-band S/A signal already passed the engine's own gate (signal-alerts.ts);
+  // its letter can legitimately be B- (raw 19–20), which this list would drop.
+  const bandPass = ['S', 'A'].includes(String((idea as any).convictionBand || ''));
+  if (!bandPass && !allowedGrades.includes(grade)) {
+    return `grade ${grade} is below the ${isSPXSource ? 'SPX' : 'Discord'} tier`;
+  }
+
+  // DEDUPLICATION: same symbol/direction/assetType/strike within the cooldown.
+  if (!shouldSendTradeIdea(idea.symbol, idea.direction || 'long', idea.assetType || 'stock', (idea as any).optionType, (idea as any).strikePrice || (idea as any).strike)) {
+    return 'already posted within the last 4 hours';
+  }
+  return null;
+}
+
+/** Record a manual share in the dedup window (the card route posts outside sendTradeIdeaToDiscord). */
+export function markTradeIdeaShared(idea: TradeIdea): void {
+  markTradeIdeaSent(idea.symbol, idea.direction || 'long', idea.assetType || 'stock', (idea as any).optionType, (idea as any).strikePrice || (idea as any).strike);
+}
+
+export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<{ sent: boolean; reason?: string }> {
+  if (DISCORD_DISABLED) return { sent: false, reason: 'Discord disabled' };
+
+  const forceBypass = options?.forceBypassFilters ?? false;
+  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number } | undefined;
+  if (!forceBypass) {
+    const blocked = tradeIdeaDiscordBlockReason(idea);
+    if (blocked) {
+      logger.info(`[DISCORD] ⛔ Skipped ${idea.symbol} - ${blocked}`);
+      return { sent: false, reason: blocked };
     }
   }
-  
-  // DEDUPLICATION: Prevent same symbol/direction/assetType/strike from being sent multiple times (skip if force bypass)
+
   const direction = idea.direction || 'long';
   const assetType = idea.assetType || 'stock';
   const optionType = (idea as any).optionType;
   const strikePrice = (idea as any).strikePrice || (idea as any).strike;
-  if (!forceBypass && !shouldSendTradeIdea(idea.symbol, direction, assetType, optionType, strikePrice)) {
-    logger.debug(`[DISCORD] Skipped duplicate ${idea.symbol} ${direction} ${assetType} ${optionType || ''} $${strikePrice || ''} - sent within last 4 hours`);
-    return;
-  }
   
   // Route to appropriate Discord channel based on asset type
   let webhookUrl: string | undefined;
@@ -634,7 +651,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   }
   if (!webhookUrl) {
     logger.warn(`[DISCORD] No webhook URL configured for ${idea.symbol} (${idea.assetType})`);
-    return;
+    return { sent: false, reason: 'No Discord webhook configured for this asset type' };
   }
   try {
     const isLong = idea.direction === 'long';
@@ -668,7 +685,11 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     // Mark as sent to prevent duplicate alerts (including option type and strike)
     markTradeIdeaSent(idea.symbol, direction, assetType, optionType, strikePrice);
     logger.info(`[DISCORD] Sent trade idea: ${idea.symbol} ${direction} ${assetType} ${optionType || ''} $${strikePrice || ''}`);
-  } catch (e) { logger.error(e); }
+    return { sent: true };
+  } catch (e) {
+    logger.error(e);
+    return { sent: false, reason: (e as Error)?.message || 'Discord post failed' };
+  }
 }
 
 /**

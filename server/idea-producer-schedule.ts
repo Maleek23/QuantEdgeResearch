@@ -45,7 +45,7 @@ type LogFn = (msg: string) => void;
  * (server/lib/heavy-job-gate.ts): one heavy job at a time on the 1 vCPU box,
  * minute-sensitive ones ('high') ahead of the queue.
  */
-function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriority = 'normal'): () => Promise<void> {
+function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriority = 'normal', lane: HeavyOptions['lane'] = 'main'): () => Promise<void> {
   let running = false;
   return async () => {
     if (running) {
@@ -55,7 +55,7 @@ function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriori
     running = true;
     const t0 = Date.now();
     try {
-      const out = await runHeavy(`producer:${name}`, fn, { priority });
+      const out = await runHeavy(`producer:${name}`, fn, { priority, lane });
       const n = typeof out === 'number' ? out : (out as any)?.persisted ?? (out as any)?.published;
       logger.info(`[IDEA-PRODUCERS] ${name}: done in ${((Date.now() - t0) / 1000).toFixed(1)}s${n != null ? ` — ${n} published` : ''}`);
     } catch (err) {
@@ -170,13 +170,41 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   // 2 min in power hour; the scanner itself no-ops outside 09:45–15:45 ET,
   // shares one in-flight pass, and reuses a pass younger than 60 s. Chains come
   // from the 5-minute GEX snapshot cache; bars from a 60-second cache.
-  // Publish only: Discord stays off unless INDEX_0DTE_DISCORD=1. ──
+  // Publish only: Discord stays off unless INDEX_0DTE_DISCORD=1.
+  // 2026-10-01 fix: the index engine runs in its OWN heavy-gate lane ('index')
+  // — it never waits behind a main-lane job again (that day: "done in 71.9s").
   const index0dte = guarded('index-0dte', async () => {
     const { runIndexScalpScanner } = await import('./index-scalp-engine');
     return runIndexScalpScanner({ discord: process.env.INDEX_0DTE_DISCORD === '1' });
-  }, 'high');
+  }, 'high', 'index');
   cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
+
+  // ── Index pre-open warm (server/index-prewarm.ts): SPY/QQQ/IWM chains + GEX
+  // snapshots and the SPX desk chain, warmed 09:20–09:28 ET and refreshed every
+  // 2 min 09:30–10:00 in the index lane + Alpaca priority lane, so the open is
+  // never read from a cold chain. On the ≡0 mod 2 minutes (the index pass shares
+  // its lane on :30/:40/:50 and simply runs after it). INDEX_PREWARM=off disables.
+  // Watchdog (server/index-engine-health.ts): the 09:33 ET open check. ──
+  if (process.env.INDEX_PREWARM !== 'off') {
+    const prewarm = guarded('index-prewarm', async () => {
+      const { runIndexPrewarm } = await import('./index-prewarm');
+      const r = await runIndexPrewarm();
+      return r.ok.length;
+    }, 'high', 'index');
+    cron.schedule('20-28/2 9 * * 1-5', prewarm, ET);
+    cron.schedule('30-58/2 9 * * 1-5', prewarm, ET);
+    cron.schedule('0 10 * * 1-5', prewarm, ET);
+  }
+  cron.schedule('33 9 * * 1-5', async () => {
+    try {
+      const [{ peekGexSnapshot }, { runOpenCheck }] = await Promise.all([import('./gex-snapshot-service'), import('./index-engine-health')]);
+      const v = runOpenCheck(peekGexSnapshot('SPY')?.snap ?? null);
+      logger.info(`[INDEX-HEALTH] 09:33 open check: ${v.status}${v.banner ? ` — ${v.banner}` : ''}`);
+    } catch (err) {
+      logger.error('[INDEX-HEALTH] open check failed:', err);
+    }
+  }, ET);
 
   // ── 0DTE desk (server/zero-dte-desk.ts): the watched single names
   // (every ZERO_DTE_WATCH name, default SPX/MSTR/META/BE/TSLA; SPX logged by the index engine) through the
@@ -399,6 +427,20 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('15 16 * * 1-5', board, ET);
     cron.schedule('45 17 * * 1-5', board, ET);
     (await import('./sector-board')).scheduleSectorBoardBootstrap();
+    // Live quotes-only pass (no daily-bar refetch): today / since open / last 30m,
+    // intraday + live composite rank, breadth, the in-day sparkline ring. On ≡1 mod 5
+    // so the :07/:22/:37/:52 board run one minute later reuses the 60 s quote cache.
+    // SECTOR_BOARD_LIVE=false turns it off.
+    if (process.env.SECTOR_BOARD_LIVE !== 'false') {
+      const live = guarded('sector-board-live', async () => {
+        const { runSectorBoardLive } = await import('./sector-board');
+        return runSectorBoardLive();
+      }, 'normal');
+      cron.schedule('1-51/10 8 * * 1-5', live, ET);
+      cron.schedule('1-56/5 9-15 * * 1-5', live, ET);
+      cron.schedule('1,6,11,31 16 * * 1-5', live, ET);
+      cron.schedule('1,31 17-19 * * 1-5', live, ET);
+    }
   }
 
   // ── Sector rotation ideas (server/sector-rotation-ideas.ts) — OFF unless

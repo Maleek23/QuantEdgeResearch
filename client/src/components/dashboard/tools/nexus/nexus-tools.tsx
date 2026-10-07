@@ -493,7 +493,7 @@ export function NexusContextTool() {
           risk level are all in the body right below (they printed twice). The
           per-feed ages sit behind one tap; the section stamp shows the newest. */}
       <div className="nxp-context nxd-context-inline">
-        <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div></div>
+        <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regimeUnavailable ? 'Unavailable' : market?.regime ?? 'Unavailable'}</h2></div></div>
         <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} hideFreshness />
       </div>
       <details className="fd-foot nxd-ages">

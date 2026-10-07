@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { getLetterGrade as sharedLetterGrade } from "@shared/grading";
 import {
   ArrowLeft,
   Target,
@@ -101,10 +103,12 @@ function getEventLabel(eventType: string): string {
 
 function PlanCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "long";
-  const safeEntry = safeNumber(idea.entryPrice, 1);
-  const potentialGain = safeEntry > 0
-    ? safeToFixed((safeNumber(idea.targetPrice) - safeEntry) / safeEntry * 100, 1)
-    : '0.0';
+  const safeEntry = safeNumber(idea.entryPrice, 0);
+  const tgt = safeNumber(idea.targetPrice, 0);
+  // No invented % when a level is missing.
+  const potentialGain = safeEntry > 0 && tgt > 0
+    ? safeToFixed((tgt - safeEntry) / safeEntry * 100, 1)
+    : null;
   
   return (
     <Card className="glass-card">
@@ -146,7 +150,7 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Target Price</p>
             <p className="font-mono text-lg font-bold tabular-nums text-[var(--trade-bullish)]">
               ${safeToFixed(Number(idea.targetPrice), 2)}
-              <span className="text-xs ml-1 opacity-70">+{potentialGain}%</span>
+              {potentialGain != null && <span className="text-xs ml-1 opacity-70">{Number(potentialGain) >= 0 ? '+' : ''}{potentialGain}%</span>}
             </p>
           </div>
           <div className="stat-glass rounded-lg p-3">
@@ -181,7 +185,7 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
             <Badge variant="outline">{idea.holdingPeriod === 'day' ? 'Day Trade' : idea.holdingPeriod === 'swing' ? 'Swing' : 'Position'}</Badge>
           )}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
-            <Badge variant="secondary">{idea.qualitySignals.length}/5 signals</Badge>
+            <Badge variant="secondary">{idea.qualitySignals.length} signals</Badge>
           )}
         </div>
       </CardContent>
@@ -189,24 +193,8 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
   );
 }
 
-function getSignalInfo(signal: string): { points: number; description: string; color: string } {
-  const signalMap: Record<string, { points: number; description: string; color: string }> = {
-    'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-[var(--trade-bullish)]' },
-    'Good R:R (1.5:1+)': { points: 15, description: 'Risk/reward ratio of 1.5:1 or better', color: 'bg-[var(--trade-bullish)]' },
-    'Acceptable R:R (1.2:1+)': { points: 8, description: 'Risk/reward ratio of 1.2:1 or better', color: 'bg-sky-400' },
-    'Confirmed Volume': { points: 18, description: 'Volume 1.5x+ average, institutional interest', color: 'bg-sky-500' },
-    'Strong Volume': { points: 12, description: 'Volume above average, adequate liquidity', color: 'bg-sky-400' },
-    'Strong Signal': { points: 25, description: 'Multiple technical indicators aligned', color: 'bg-purple-500' },
-    'Clear Signal': { points: 18, description: 'At least one strong technical indicator', color: 'bg-purple-400' },
-    'Reversal Setup': { points: 20, description: 'RSI extreme - mean reversion likely', color: 'bg-amber-500' },
-    'Trend Setup': { points: 15, description: 'Price aligned with prevailing trend', color: 'bg-amber-400' },
-    'Breakout Setup': { points: 18, description: 'Breaking key resistance/support', color: 'bg-indigo-500' },
-    'High Liquidity': { points: 5, description: 'High trading volume, easy entry/exit', color: 'bg-sky-500' },
-    'Catalyst Present': { points: 10, description: 'News catalyst provides fundamental support', color: 'bg-pink-500' }
-  };
-  return signalMap[signal] || { points: 5, description: 'Quality signal detected', color: 'bg-white/10' };
-}
-
+// Audit 2026-10-01 P0 #16: no per-signal points are invented client-side — the
+// engine does not store a points breakdown, so only the stored signal names are listed.
 function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
   // The ONE grade as published (shared/nexus-grade.ts): the logged stamp when the
   // board recorded it, else rebuilt from the generation-time evidence.
@@ -260,21 +248,15 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {signals.length > 0 && (
           <div className="pt-3 border-t border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-              Supporting signals ({signals.length}/5) · supplementary, not included in the grade
+              Quality signals recorded at publish ({signals.length})
             </p>
             <div className="space-y-2">
-              {signals.map((signal, idx) => {
-                const info = getSignalInfo(signal);
-                return (
-                  <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
-                    <div className={cn("w-1 h-8 rounded-full", info.color)} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{signal}</p>
-                      <p className="text-xs text-muted-foreground">{info.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
+              {signals.map((signal, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                  <div className="w-1 h-8 rounded-full bg-[var(--brand-cyan)]" />
+                  <p className="text-sm font-medium truncate">{signal}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -602,14 +584,19 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
   const isResolved = idea.outcomeStatus && idea.outcomeStatus !== "open";
   if (!isResolved) return null;
   
-  const entryPrice = safeNumber(idea.entryPrice, 1);
-  const targetPrice = safeNumber(idea.targetPrice, entryPrice * 1.05);
-  const stopLoss = safeNumber(idea.stopLoss, entryPrice * 0.95);
-  const exitPrice = safeNumber(idea.exitPrice, 0);
+  // Audit 2026-10-01 P0 #15: only the published levels — a missing target/stop is
+  // "—", never entry×1.05 / ×0.95 presented as the plan.
+  const pos = (v: unknown): number | null => { const n = Number(v); return v != null && Number.isFinite(n) && n > 0 ? n : null; };
+  const entryPrice = pos(idea.entryPrice);
+  const targetPrice = pos(idea.targetPrice);
+  const stopLoss = pos(idea.stopLoss);
+  const exitPrice = pos(idea.exitPrice);
 
-  const targetPct = entryPrice > 0 ? ((targetPrice - entryPrice) / entryPrice) * 100 : 0;
-  const stopPct = entryPrice > 0 ? ((stopLoss - entryPrice) / entryPrice) * 100 : 0;
-  const actualPct = Number(idea.percentGain || 0);
+  const targetPct = entryPrice != null && targetPrice != null ? ((targetPrice - entryPrice) / entryPrice) * 100 : null;
+  const stopPct = entryPrice != null && stopLoss != null ? ((stopLoss - entryPrice) / entryPrice) * 100 : null;
+  const actualPct = idea.percentGain != null && Number.isFinite(Number(idea.percentGain)) ? Number(idea.percentGain) : null;
+  const money = (v: number | null) => (v == null ? '—' : `$${safeToFixed(v, 2)}`);
+  const pct = (v: number | null, signed = false) => (v == null ? '—' : `${signed && v >= 0 ? '+' : ''}${safeToFixed(v, 1)}%`);
   
   return (
     <Card className="glass-card">
@@ -638,45 +625,45 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
             <tbody>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Target Price</td>
-                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">${safeToFixed(targetPrice, 2)}</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">{money(targetPrice)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Stop Loss</td>
-                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">${safeToFixed(stopLoss, 2)}</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">{money(stopLoss)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Exit Price</td>
                 <td className="text-right font-mono tabular-nums">—</td>
-                <td className="text-right font-mono tabular-nums">${safeToFixed(exitPrice, 2)}</td>
+                <td className="text-right font-mono tabular-nums">{money(exitPrice)}</td>
                 <td className="text-right font-mono tabular-nums">
-                  {(exitPrice - entryPrice >= 0 ? "+" : "") + safeToFixed(exitPrice - entryPrice, 2)}
+                  {exitPrice != null && entryPrice != null ? (exitPrice - entryPrice >= 0 ? "+" : "") + safeToFixed(exitPrice - entryPrice, 2) : '—'}
                 </td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Max Upside</td>
-                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">+{safeToFixed(targetPct, 1)}%</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">{pct(targetPct, true)}</td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
-                  actualPct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                  actualPct == null ? "" : actualPct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
-                  {actualPct >= 0 ? "+" : ""}{safeToFixed(actualPct, 1)}%
+                  {pct(actualPct, true)}
                 </td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
-                  actualPct >= targetPct ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
+                  actualPct != null && targetPct != null && actualPct >= targetPct ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
                 )}>
-                  {safeToFixed(actualPct - targetPct, 1)}%
+                  {actualPct != null && targetPct != null ? pct(actualPct - targetPct) : '—'}
                 </td>
               </tr>
               <tr className="hover-elevate">
                 <td className="py-3">Max Risk</td>
-                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">{safeToFixed(stopPct, 1)}%</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">{pct(stopPct)}</td>
                 <td className="text-right font-mono tabular-nums">
-                  {idea.outcomeStatus === "hit_stop" ? `${safeToFixed(actualPct, 1)}%` : "—"}
+                  {idea.outcomeStatus === "hit_stop" ? pct(actualPct) : "—"}
                 </td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
@@ -692,6 +679,9 @@ export default function TradeAudit() {
   const params = useParams<{ id: string }>();
   const tradeId = params.id;
   const { toast } = useToast();
+  // Share to Discord is operator-only on the server (route-guards.ts); hide it for everyone else.
+  const { user } = useAuth();
+  const isOperator = !!((user as any)?.isAdmin || (user as any)?.subscriptionTier === 'admin');
   
   // Main audit data with polling for open trades
   const { data, isLoading, error, refetch } = useQuery<AuditTrailData>({
@@ -718,10 +708,12 @@ export default function TradeAudit() {
         description: `${data?.tradeIdea?.symbol ?? "The"} idea was posted to the Discord channel.`,
       });
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      // The server refuses ideas that fail the grade / relevance / 4-hour dedup filters.
+      const msg = err instanceof Error ? err.message.replace(/^\d+:\s*/, '') : '';
       toast({
         title: "Couldn’t share to Discord",
-        description: "Try again in a minute.",
+        description: msg || "Try again in a minute.",
         variant: "destructive",
       });
     },
@@ -809,10 +801,13 @@ export default function TradeAudit() {
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
+          {isOperator && (
           <Button 
             variant="default" 
             size="sm"
-            onClick={() => shareToDiscord.mutate()}
+            onClick={() => {
+              if (window.confirm(`Post ${tradeIdea?.symbol ?? 'this idea'} to the public Discord channel? It must pass the grade and dedup filters.`)) shareToDiscord.mutate();
+            }}
             disabled={shareToDiscord.isPending}
             className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
             data-testid="button-share-discord"
@@ -820,6 +815,7 @@ export default function TradeAudit() {
             <SiDiscord className="h-4 w-4 mr-1" />
             {shareToDiscord.isPending ? 'Sharing...' : 'Share to Discord'}
           </Button>
+          )}
         </div>
       </div>
       

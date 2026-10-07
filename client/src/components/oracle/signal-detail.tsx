@@ -11,6 +11,7 @@
  *   ProfitPlan     — the scale-out rungs (40% at T1 + trail to entry, 60% at T2).
  *   ContextPanel   — the interpreting sentence + the setup status.
  */
+import { boardLivePrice } from '@shared/live-mark';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -57,7 +58,8 @@ export function geometryFor(pick: ConvictionPick, live: number): SignalGeometry 
     entryPrice: pick.entryPrice,
     targetPrice: pick.targetPrice,
     stopLoss: pick.stopLoss,
-    live: live || pick.currentPrice || pick.entryPrice,
+    // Geometry needs a price; a carried board price is never it (shared/live-mark.ts).
+    live: live || boardLivePrice(pick) || pick.entryPrice,
     riskRewardRatio: pick.riskRewardRatio,
     holdingPeriod: pick.holdingPeriod,
     optionDte: pick.optionDte,
@@ -188,13 +190,13 @@ export function PriceLadder({ pick, live, className, liveStamp }: { pick: Convic
           <div className="mt-0.5 text-label font-mono text-muted-foreground">
             {awaitingTrigger
               ? trigger.text.replace('no position', 'not entered')
-              : !live ? 'Live quote unavailable — showing entry, not the market'
+              : !live ? `Quote unavailable${liveStamp ? ` · ${liveStamp}` : ''}`
               : atEntry ? 'At recorded entry' : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% versus entry`}
             {live && liveStamp ? <span> · {liveStamp}</span> : null}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-value font-mono font-bold tabular-nums" style={{ color: liveColor }}><LiveValue value={live || pick.entryPrice} format={(n) => `$${money(n)}`} /></div>
+          <div className="text-value font-mono font-bold tabular-nums" style={{ color: live ? liveColor : undefined }}>{live ? <LiveValue value={live} format={(n) => `$${money(n)}`} /> : '—'}</div>
           <div className="text-label font-mono tabular-nums text-muted-foreground">{awaitingTrigger ? 'TRIGGER' : 'ENTRY'} ${money(pick.entryPrice)} · fixed</div>
         </div>
       </div>

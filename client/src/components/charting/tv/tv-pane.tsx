@@ -28,7 +28,7 @@ import {
   DEFAULT_TOOL_COLOR, TOOL_POINTS, logicalToTime, medianBarMs, moveAnchor, newDrawingId, snapToOhlc,
   timeToLogical, tolFor, type Anchor, type ColorRole, type Drawing, type ToolId,
 } from './drawing-geometry';
-import { alignToTimes, calcEMA, calcSessionVWAP } from './indicators';
+import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indicators';
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
 
@@ -98,8 +98,9 @@ class LegendStore {
   }
 }
 
-const Legend = memo(function Legend({ store, symbol, tfLabel, showVolume, extras, fmt }: {
+const Legend = memo(function Legend({ store, symbol, tfLabel, showVolume, extras, fmt, volumeLabel, proxyLabel }: {
   store: LegendStore; symbol: string; tfLabel: string; showVolume: boolean; extras: ReactNode; fmt: (n: number) => string;
+  volumeLabel?: string; proxyLabel?: string;
 }) {
   const { bar, prevClose } = useSyncExternalStore(store.sub, store.get, store.get);
   const chg = bar && prevClose ? bar.close - prevClose : null;
@@ -116,11 +117,12 @@ const Legend = memo(function Legend({ store, symbol, tfLabel, showVolume, extras
             <span><i>L</i>{fmt(bar.low)}</span>
             <span><i>C</i>{fmt(bar.close)}</span>
             {chg != null && prevClose ? <span>{chg >= 0 ? '+' : '−'}{fmt(Math.abs(chg))} ({chg >= 0 ? '+' : '−'}{Math.abs((chg / prevClose) * 100).toFixed(2)}%)</span> : null}
+            {bar.proxy ? <span className="tv-dim" title="Not the index's own print — the future, scaled to the index">{proxyLabel ?? 'proxy'}</span> : null}
           </span>
         )}
       </div>
       {showVolume && bar && (
-        <div className="tv-leg-row"><span className="tv-leg-name">Volume</span><span style={{ color: col }}>{fmtVol(bar.volume)}</span></div>
+        <div className="tv-leg-row"><span className="tv-leg-name">{volumeLabel ?? 'Volume'}</span><span style={{ color: col }}>{bar.proxy ? '—' : fmtVol(bar.volume)}</span></div>
       )}
       {extras}
     </div>
@@ -150,6 +152,12 @@ export interface TvPaneProps {
   history: Candle[] | undefined;
   /** RTH filter (intraday) — applied to history + live bars. */
   extended: boolean;
+  /** Cash index: out-of-RTH proxy bars merged in when `extended` (drawn muted). */
+  extBars?: Candle[];
+  /** Legend name for the volume row ("Vol · SPY proxy"). */
+  volumeLabel?: string;
+  /** Legend tag on a hovered proxy bar ("ES=F proxy"). */
+  proxyLabel?: string;
   cutoff: number | null;
   liveOn: boolean;
   range: RangeKey;
@@ -191,7 +199,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const {
     symbol, tf, tfLabel, intraday, history, extended, cutoff, liveOn, range, fitKey, chartType, scale, magnet,
     showVolume, showMA, showEMA, showVWAP, compare, levels, zones, layers, drawings, selectedId, allHidden, allLocked, tool,
-    onSelect, onCommit, onToolDone, legendExtras, describeLayer,
+    onSelect, onCommit, onToolDone, legendExtras, describeLayer, extBars, volumeLabel, proxyLabel,
   } = props;
   const [mode] = useVisualMode();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -229,10 +237,11 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const { bars: liveBars } = useLiveCandles(symbol, tf, history, liveOn);
   const bars = useMemo(() => {
     let b = liveBars ?? [];
+    if (intraday && extended && extBars?.length) b = mergeProxyBars(b, extBars);
     if (intraday && !extended) b = b.filter(RTH);
     if (cutoff != null) b = b.filter((x) => x.time <= cutoff);
     return b;
-  }, [liveBars, intraday, extended, cutoff]);
+  }, [liveBars, intraday, extended, cutoff, extBars]);
   const times = useMemo(() => bars.map((b) => b.time), [bars]);
   const barMs = useMemo(() => medianBarMs(times), [times]);
   const barsRef = useRef(bars); barsRef.current = bars;
@@ -367,6 +376,12 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       // Quarantined bad-tick sides render at the body (chart-engine's rule).
       const high = b.clampedHigh ? Math.max(b.open, b.close) : b.high;
       const low = b.clampedLow ? Math.min(b.open, b.close) : b.low;
+      if (b.proxy) {
+        // Out-of-RTH index bar from the future: same direction colours, muted,
+        // so it never reads as the index's own print.
+        const pc = withAlpha(b.close >= b.open ? c.up : c.down, 0.38);
+        return { time, open: b.open, high, low, close: b.close, color: pc, borderColor: pc, wickColor: pc };
+      }
       return { time, open: b.open, high, low, close: b.close };
     };
     // A feed without volume (some indices, the harness) leaves whitespace, not NaN bars.
@@ -775,7 +790,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
         <span className="tv-wm-tf">{tfLabel}</span>
         <img className="tv-gamma-wm" src="/gamma-mark.svg" alt="" draggable={false} />
       </div>
-      <Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} />
+      <Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} volumeLabel={volumeLabel} proxyLabel={proxyLabel} />
       <div className="tv-tip" ref={tipRef} role="tooltip" />
     </div>
   );

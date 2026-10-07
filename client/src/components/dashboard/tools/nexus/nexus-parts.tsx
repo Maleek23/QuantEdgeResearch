@@ -26,6 +26,8 @@ import { QuoteFreshChip } from '@/components/ui/qe-phone';
 import type { RotationTag } from '@/components/sector-ignition/sector-ignition';
 import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { compareBoardRows } from '@shared/board-sort';
+import { boardLivePrice, liveMark } from '@shared/live-mark';
 import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
 import { stripConflictingTargetClaims } from '@shared/plan-narrative';
@@ -415,25 +417,30 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
   // currentPrice, which is only refreshed when the board rebuilds. When neither
   // exists the ladder says the quote is unavailable instead of showing entry as live.
   const lq = quotesQ.data?.[selected.symbol.toUpperCase()];
-  // The board's currentPrice is only a live read when it differs from the entry —
-  // a copy of the entry (stale board) is never shown as the market.
-  const boardPx = selected.currentPrice && selected.currentPrice > 0 && Math.abs(selected.currentPrice - selected.entryPrice) > 1e-9 ? selected.currentPrice : 0;
-  const liveQuote = lq?.price && lq.price > 0 ? lq.price : boardPx;
-  const live = liveQuote || selected.entryPrice;
-  const liveStamp = lq?.price ? [lq.source, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ') : boardPx ? 'board price' : quotesQ.isLoading ? 'reading live quote…' : null;
-  // Flash on the price actually shown (was selected.currentPrice, which only moves on a board rebuild).
+  // shared/live-mark.ts: a fresh quote, else the board price only when the server
+  // flags it live — never the publish-time entry (audit 2026-10-01 P0 #7).
+  const boardPx = boardLivePrice(selected);
+  const live = liveMark(selected, lq?.price);
+  const checkedAt = quotesQ.dataUpdatedAt || quotesQ.errorUpdatedAt;
+  const checkedStamp = checkedAt ? `checked ${new Date(checkedAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null;
+  const liveStamp = lq?.price ? [lq.session, lq.source, lq.delayed ? 'delayed' : null, lq.stale ? 'stale' : null, lq.asOf ? ageOf(lq.asOf) : null].filter(Boolean).join(' · ')
+    : boardPx ? 'board price'
+    : quotesQ.isLoading ? 'reading live quote…'
+    : ['quote unavailable', checkedStamp].filter(Boolean).join(' · ');
+  // Flash on the price actually shown.
   const liveFlash = useTickFlash(live, { resetKey: selected.ideaId });
-  const progress = selected.targetPrice !== selected.entryPrice
+  const progress = live != null && selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
-    : 0;
+    : null;
   const support = selected.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points);
   const challenge = selected.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points);
   const pendingEntry = selected.lifecycleState === 'pending_trigger' || selected.lifecycleState === 'coverage' || selected.lifecycleState === 'thesis';
   const spx = selected.symbol === 'SPY' ? spxExpression : undefined;
-  // The same actionability grade shown on every NEXUS row; sorting is configured separately.
+  // The same actionability grade shown on every NEXUS row, on the live mark
+  // (never the entry as live — shared/live-mark.ts); sorting is configured separately.
   const gradeNow = now ?? Date.now();
   const grade = !selected.isBotHeld
-    ? life ? gradeFromLife(life.life, selected, gradeNow) : gradePick(selected, gradeNow)
+    ? life ? gradeFromLife(life.life, selected, gradeNow) : gradePick({ ...selected, currentPrice: live ?? selected.currentPrice ?? null }, gradeNow)
     : null;
   return (
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
@@ -472,7 +479,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
       </div>
 
       <div className="nxp-levels">
-        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Last known'}</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1{liveStamp ? ` · ${liveStamp}` : ''}</small></div>
+        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Live'}</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small></div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
@@ -480,7 +487,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
 
-      <LevelsList symbol={selected.symbol} live={live} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
+      <LevelsList symbol={selected.symbol} live={live ?? 0} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}
@@ -505,8 +512,8 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
         </div>}
         {tab === 'overview' && <TraderCallEvidence symbol={selected.symbol} />}
         {tab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
-        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={liveQuote} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live} /></div>}
-        {tab === 'risk' && <RiskPanel pick={selected} live={live} />}
+        {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live ?? 0} liveStamp={liveStamp} /><ProfitPlan pick={selected} live={live ?? 0} /></div>}
+        {tab === 'risk' && <RiskPanel pick={selected} live={live ?? 0} />}
         {tab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
       </div>
       <p className="nxp-disclaimer text-muted-foreground" style={{ margin: '10px 2px 0', fontSize: 11, lineHeight: 1.45 }}>
@@ -524,8 +531,8 @@ type Bonds = ExtendedHoursRead['assetClasses'][number] | undefined;
 export function MarketSummary({ market, pulse, bonds, macro, onOpenContext }: { market: MarketContext; pulse?: MarketPulseRead; bonds: Bonds; macro: MacroRisk; onOpenContext?: () => void }) {
   return (
     <div className="nxp-market-summary">
-      <span>{market?.regime ?? 'Loading regime'}</span>
-      <strong>{market?.preferredDirection ?? '—'}</strong>
+      <span>{market?.regimeUnavailable ? 'regime unavailable' : market?.regime ?? 'Loading regime'}</span>
+      <strong>{market?.regimeUnavailable ? '—' : market?.preferredDirection ?? '—'}</strong>
       <span className={pulse?.macro.yieldDirection === 'RISING' ? 'risk' : 'reward'}>10Y {pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}%` : '—'} {pulse?.macro.yieldDirection === 'RISING' ? '↑' : '↓'}</span>
       <span className={(bonds?.changePct ?? 0) < 0 ? 'risk' : 'reward'}>TLT {bonds?.changePct == null ? '—' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}%`}</span>
       <span className={`nxp-risk-state ${macro.level.toLowerCase()}`}>RISK {macro.level}</span>
@@ -537,9 +544,9 @@ export function MarketSummary({ market, pulse, bonds, macro, onOpenContext }: { 
 /** The context drawer's body: regime score, Macro Risk Oracle, rates / VIX / TLT, reasons. */
 export function ContextBody({ market, macro, pulse, bonds, extended, hideFreshness }: { market: MarketContext; macro: MacroRisk; pulse?: MarketPulseRead; bonds: Bonds; extended?: ExtendedHoursRead; /** the caller prints feed ages itself */ hideFreshness?: boolean }) {
   return <>
-    <div className="nxp-context-score"><strong>{market?.score ?? '—'}</strong><span>regime score</span></div>
+    <div className="nxp-context-score"><strong>{market?.regimeUnavailable ? '—' : market?.score ?? '—'}</strong><span>{market?.regimeUnavailable ? 'regime unavailable — no SPY read' : 'regime score'}</span></div>
     <div className={`nxp-macro-oracle ${macro.level.toLowerCase()}`}><div><span>Macro risk gauge</span><strong>{macro.level}</strong><b>{macro.score}/100</b></div><p>{macro.posture}</p><ul>{macro.drivers.map((driver) => <li key={driver}>{driver}</li>)}</ul><small>Rates stress is measured from 10Y, its direction, TLT and VIX. Inflation is not inferred from yields.</small></div>
-    <dl><div><dt>Risk sentiment</dt><dd>{market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}% · ${pulse.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div>{!hideFreshness && <div><dt>Macro freshness</dt><dd>{extended?.isStale ? 'stale' : extended?.session ?? 'loading'}</dd></div>}</dl>
+    <dl><div><dt>Risk sentiment</dt><dd>{market?.regimeUnavailable ? '—' : market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.regimeUnavailable ? '—' : market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse?.macro.yield10Y ? `${pulse.macro.yield10Y.toFixed(2)}% · ${pulse.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div>{!hideFreshness && <div><dt>Macro freshness</dt><dd>{extended?.isStale ? 'stale' : extended?.session ?? 'loading'}</dd></div>}</dl>
     <h3>Why it matters now</h3>
     <ul>{(market?.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
   </>;

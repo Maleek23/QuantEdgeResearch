@@ -188,7 +188,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       p.targetPrice != null || p.stopLoss != null ? `Plan: target ${p.targetPrice ?? '—'} · stop ${p.stopLoss ?? '—'}` : null,
       closed ? `Exit: ${p.exitReason ?? 'reason not recorded'}` : p.currentPrice != null
         ? `Open — last mark ${p.currentPrice} (${ago(p.lastPriceUpdate, now)}, not live)` : 'Open — no mark recorded yet',
-      option && closed ? `Measurement: ${measurement.status} — ${measurement.reason}` : null,
+      option && closed ? `Fill: ${measurement.status === 'verified' ? 'verified fill' : 'unverified fill'} — ${measurement.reason}` : null,
     ].filter(Boolean).join('\n');
     rows.push({
       id: `bot:${p.id}`,
@@ -261,6 +261,8 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
     exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-time:([a-z_]+)\\]')`,
     highestPriceReached: tradeIdeas.highestPriceReached, lowestPriceReached: tradeIdeas.lowestPriceReached,
+    // Only the lifecycle state, not the whole analysis blob.
+    executionState: sql<string | null>`${tradeIdeas.convergenceSignalsJson}->'executionAudit'->>'state'`,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),
@@ -277,7 +279,7 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
   return {
     rows,
     meta: {
-      basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry`,
+      basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry once its trigger was hit (untriggered ideas are listed as awaiting entry, with no P&L)`,
       sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
       excluded: [...excluded.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
     },

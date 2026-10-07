@@ -14,6 +14,20 @@
 import { gradePick, formatNexusGrade, NEXUS_GRADE_CAVEAT, type NexusGrade } from '@shared/nexus-grade';
 import type { ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalStatus } from '@/lib/oracle/signal-geometry';
+import { liveMark } from '@shared/live-mark';
+import { convictionDisplayPercent } from '@shared/conviction-display';
+
+/**
+ * The one scale alerts read and print: the 0–100 display index every board shows
+ * (shared/conviction-display.ts) — never the raw ~0–35 confluence points. Audit
+ * 2026-10-01 P0 #8: "High conviction (90+)" compared the raw score to 90 and so
+ * could never fire.
+ */
+export const HIGH_CONVICTION_DISPLAY = 90;
+export const RATING_JUMP_DISPLAY = 5;
+export function alertScore(p: Pick<ConvictionPick, 'convictionScore'>): number {
+  return convictionDisplayPercent(p.convictionScore);
+}
 
 export type AlertType =
   | 'new_signal'
@@ -71,12 +85,13 @@ export const DEFAULT_ALERT_PREFS: AlertPrefs = {
 };
 
 const PREFS_KEY = 'qe-alert-prefs-v1';
-const STATE_KEY = 'qe-alert-state-v1';
+// v2: scores are stored on the display scale (v1 held raw points — a v1 read would fire false rating moves).
+const STATE_KEY = 'qe-alert-state-v2';
 const FEED_KEY  = 'qe-alert-feed-v1';
 const MAX_FEED  = 60;
 
-/** score = NEXUS grade score; letter = its letter (older stored state lacks it). */
-interface Seen { status: SignalStatus; score: number; letter?: string; at: number }
+/** status is null when the idea has never been seen with a live quote. score = NEXUS grade score; letter = its letter (older stored state lacks it). */
+interface Seen { status: SignalStatus | null; score: number; letter?: string; at: number }
 
 function read<T>(key: string, fallback: T): T {
   try { const r = localStorage.getItem(key); return r ? { ...fallback, ...JSON.parse(r) } : fallback; }
@@ -122,12 +137,18 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
   };
 
   for (const p of picks) {
-    const live = p.currentPrice ?? p.entryPrice;
-    const g = computeGeometry({
+    // Live, not carried (audit 2026-10-01 P0 #7): trigger/target/stop geometry runs
+    // only on a live quote. With none, status checks are skipped and the last
+    // live-observed status is kept, so the transition still fires once a quote returns.
+    const live = liveMark(p);
+    const g = live == null ? null : computeGeometry({
       direction: p.direction, entryPrice: p.entryPrice, targetPrice: p.targetPrice,
       stopLoss: p.stopLoss, live, riskRewardRatio: p.riskRewardRatio,
       holdingPeriod: p.holdingPeriod, optionDte: p.optionDte, expiryDate: p.expiryDate,
       generatedAt: p.generatedAt, convictionScore: p.convictionScore,
+      // Without the lifecycle, geometry reads every idea as pending_trigger and the
+      // trigger/target/danger alerts could never fire.
+      lifecycleState: p.lifecycleState,
     });
     const prev = seen[p.ideaId];
     // The ONE grade (shared/nexus-grade.ts) on the live price.
@@ -139,15 +160,16 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
       // otherwise a first page load would alert on the entire existing board.
       const ageMs = p.generatedAt ? now - Date.parse(p.generatedAt) : Infinity;
       if (ageMs < 2 * 3600_000) {
+        const rr = p.riskRewardRatio ?? g?.rr;
         push('new_signal', p, `${p.symbol} — new ${p.direction === 'long' ? 'long' : 'short'}`,
-          `NEXUS grade ${formatNexusGrade(grade)} · R:R 1:${(p.riskRewardRatio ?? g.rr).toFixed(1)}`, 'info');
+          `NEXUS grade ${formatNexusGrade(grade)}${rr != null ? ` · R:R 1:${rr.toFixed(1)}` : ''}`, 'info');
       }
       if (grade.letter === 'A') {
         push('high_conviction', p, `${p.symbol} — NEXUS grade A`, `${formatNexusGrade(grade)} · ${NEXUS_GRADE_CAVEAT}`, 'good');
       }
     } else {
-      // status transitions — the events worth interrupting for
-      if (prev.status !== g.status) {
+      // status transitions — the events worth interrupting for (live quote only)
+      if (g && prev.status !== null && prev.status !== g.status) {
         if (g.status === 'in_play' && prev.status === 'pending_trigger') {
           push('trigger_confirmed', p, `${p.symbol} — trigger confirmed`,
             `Entry ${p.entryPrice} taken · T1 ${p.targetPrice}`, 'good');
@@ -175,7 +197,7 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
       }
     }
 
-    seen[p.ideaId] = { status: g.status, score: grade.score, letter: grade.letter, at: now };
+    seen[p.ideaId] = { status: g ? g.status : (prev?.status ?? null), score: grade.score, letter: grade.letter, at: now };
   }
 
   // prune ideas we no longer track

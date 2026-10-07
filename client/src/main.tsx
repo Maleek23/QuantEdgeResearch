@@ -58,6 +58,9 @@ const mount = () => createRoot(document.getElementById("root")!).render(
 // whole branch (and its chunk) is dropped from production builds.
 if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
   import("./dev/gex-phone-mocks").then((m) => { m.installGexPhoneMocks(); mount(); });
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/zerodte")) {
+  // DEV-only 0DTE desk harness: fixture API + pinned clock (dev/zerodte-mocks.ts).
+  import("./dev/zerodte-mocks").then((m) => { m.installZeroDteMocks(); mount(); });
 } else {
   mount();
 }
