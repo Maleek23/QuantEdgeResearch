@@ -22,6 +22,7 @@ import {
   type Candle, type Level, type Zone, type DrawOpts,
 } from '@/components/charting/chart-engine';
 import type { LiveTick } from '@/lib/live-price-bus';
+import { barTimeLabel, chartSessionStamp } from '@shared/bar-time';
 import '@/styles/nexus.css';
 
 const MIN_SPAN = 15;
@@ -163,7 +164,6 @@ export function NexusPriceChart({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const tipRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: -1, y: -1 });
   const pan = useRef<{
     mode: 'plot' | 'price-axis' | 'time-axis';
@@ -208,35 +208,36 @@ export function NexusPriceChart({
       mouseX: mouse.current.x,
       mouseY: mouse.current.y,
       syncTime: syncTime.current,
-      onHover: (c: Candle | null, x: number, y: number) => {
+      onHover: (c: Candle | null) => {
         const shown = c ? { ...c, ...renderedCandleRange(c) } : null;
-        const latest = candles?.length
-          ? { ...candles[candles.length - 1], ...renderedCandleRange(candles[candles.length - 1]) }
-          : null;
+        const latestBar = candles?.length ? candles[candles.length - 1] : null;
+        const latest = latestBar ? { ...latestBar, ...renderedCandleRange(latestBar) } : null;
         onHoverCandle?.(shown ?? latest);
         publishSync(c?.time ?? null);
-        const tip = tipRef.current; const wrap = wrapRef.current;
-        if (!tip || !wrap) return;
-        if (!c || pan.current?.moved || !crosshairTip) { tip.classList.remove('show'); return; }
-        const d = new Date(c.time);
-        tip.querySelector('[data-tip=time]')!.textContent = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-        tip.querySelector('[data-tip=o]')!.textContent = c.open.toFixed(2);
-        const rendered = renderedCandleRange(c);
-        tip.querySelector('[data-tip=h]')!.textContent = `${rendered.high.toFixed(2)}${c.clampedHigh ? '*' : ''}`;
-        tip.querySelector('[data-tip=l]')!.textContent = `${rendered.low.toFixed(2)}${c.clampedLow ? '*' : ''}`;
-        const tc = tip.querySelector('[data-tip=c]') as HTMLElement;
-        tc.textContent = c.close.toFixed(2);
-        tc.className = 'v ' + (c.close >= c.open ? 'up' : 'down');
-        tip.querySelector('[data-tip=v]')!.textContent = c.volume > 0 ? (c.volume / 1e6).toFixed(2) + 'M' : '—';
-        const rect = wrap.getBoundingClientRect();
-        let tx = x + 16; let ty = y - 60;
-        if (tx + 180 > rect.width) tx = x - 180;
-        if (ty < 10) ty = y + 16;
-        tip.style.left = tx + 'px';
-        tip.style.top = ty + 'px';
-        tip.classList.add('show');
+        // The legend reads the bar under the crosshair, else the LAST bar —
+        // never a stale first/oldest bar (operator 2026-10-06).
+        if (crosshairTip) paintLegend(c ?? latestBar, !c);
       },
     });
+  };
+
+  /** OHLCV legend: the hovered bar, or the latest bar when nothing is hovered. */
+  const legendRef = useRef<HTMLDivElement>(null);
+  const paintLegend = (c: Candle | null, isLatest: boolean) => {
+    const el = legendRef.current;
+    if (!el) return;
+    if (!c) { el.style.visibility = 'hidden'; return; }
+    el.style.visibility = 'visible';
+    const r = renderedCandleRange(c);
+    const set = (k: string, v: string) => { const n = el.querySelector(`[data-lg=${k}]`); if (n) n.textContent = v; };
+    set('time', `${barTimeLabel(c.time, tf)}${isLatest ? ' · latest' : ''}`);
+    set('o', c.open.toFixed(2));
+    set('h', `${r.high.toFixed(2)}${c.clampedHigh ? '*' : ''}`);
+    set('l', `${r.low.toFixed(2)}${c.clampedLow ? '*' : ''}`);
+    set('c', c.close.toFixed(2));
+    set('v', c.volume > 0 ? (c.volume >= 1e6 ? `${(c.volume / 1e6).toFixed(2)}M` : `${Math.round(c.volume / 1e3)}K`) : '—');
+    const cEl = el.querySelector('[data-lg=c]') as HTMLElement | null;
+    if (cEl) cEl.style.color = c.close >= c.open ? 'var(--trade-bullish, #3b8cff)' : 'var(--trade-bearish, #e0674f)';
   };
 
   // `mode`: the canvas resolves the active visual mode's tokens (chart-engine
@@ -320,7 +321,7 @@ export function NexusPriceChart({
       <thead><tr><th scope="col">Time</th><th scope="col">Open</th><th scope="col">High</th><th scope="col">Low</th><th scope="col">Close</th><th scope="col">Volume</th></tr></thead>
       <tbody>
         {candles.slice(-20).reverse().map((c) => (
-          <tr key={c.time}><td>{new Date(c.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td>{c.open.toFixed(2)}</td><td>{renderedCandleRange(c).high.toFixed(2)}</td><td>{renderedCandleRange(c).low.toFixed(2)}</td><td>{c.close.toFixed(2)}</td><td>{c.volume}</td></tr>
+          <tr key={c.time}><td>{barTimeLabel(c.time, tf)}</td><td>{c.open.toFixed(2)}</td><td>{renderedCandleRange(c).high.toFixed(2)}</td><td>{renderedCandleRange(c).low.toFixed(2)}</td><td>{c.close.toFixed(2)}</td><td>{c.volume}</td></tr>
         ))}
         {levels.filter((l) => Number.isFinite(l.price)).map((l) => (
           <tr key={`lv-${l.label}-${l.price}`}><th scope="row">{l.label}</th><td colSpan={5}>{l.price.toFixed(2)}</td></tr>
@@ -496,21 +497,24 @@ export function NexusPriceChart({
         {!minimalInfo && <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>}
         {live && !active && all?.length ? <span style={{ color: 'var(--text-mute)' }}>❚❚ paused off-screen</span> : null}
         {live && active && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
-        {live && active && !lastTick && all?.length ? <span style={{ color: 'var(--amber, #facc15)' }} title="No live print or quote has arrived yet — the last bar is the history feed's.">○ HISTORY · waiting for tape</span> : null}
+        {live && active && !lastTick && all?.length ? <NoTapeStamp /> : null}
         {!live && all?.length ? <span style={{ color: 'var(--text-mute)' }} title="This chart shows a fixed window of history; live ticks are off.">HISTORY · not live</span> : null}
         {visibleQuarantined > 0 && (
           <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}
       </div>
 
-      <div className="crosshair-tip" ref={tipRef}>
-        <div className="row"><span className="k">Time</span><span className="v" data-tip="time">—</span></div>
-        <div className="row"><span className="k">Open</span><span className="v" data-tip="o">—</span></div>
-        <div className="row"><span className="k">High</span><span className="v" data-tip="h">—</span></div>
-        <div className="row"><span className="k">Low</span><span className="v" data-tip="l">—</span></div>
-        <div className="row"><span className="k">Close</span><span className="v" data-tip="c">—</span></div>
-        <div className="row"><span className="k">Volume</span><span className="v" data-tip="v">—</span></div>
-      </div>
+      {crosshairTip && candles?.length ? (
+        <div ref={legendRef} className="nx-ohlc-legend" aria-live="off"
+          style={{ position: 'absolute', top: hideControls ? 6 : 36, left: 8, zIndex: 3, pointerEvents: 'none', display: 'flex', flexWrap: 'wrap', gap: '0 8px', maxWidth: 'calc(100% - 90px)', padding: '2px 6px', borderRadius: 4, background: 'color-mix(in srgb, var(--panel-solid, #0b0f17) 78%, transparent)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, lineHeight: 1.5, color: 'var(--text-dim)' }}>
+          <span data-lg="time" style={{ color: 'var(--text)' }}>—</span>
+          <span>O <b data-lg="o">—</b></span>
+          <span>H <b data-lg="h">—</b></span>
+          <span>L <b data-lg="l">—</b></span>
+          <span>C <b data-lg="c">—</b></span>
+          <span>V <b data-lg="v">—</b></span>
+        </div>
+      ) : null}
     </>
   );
 
@@ -579,6 +583,19 @@ function LiveBadge({ tick, tf, lastBarTime }: { tick: LiveTick; tf: string; last
     >
       {fresh ? '● LIVE' : '○ DELAYED'} {src} · {age < 60 ? `${age}s` : `${Math.round(age / 60)}m`}
       {left != null && left <= Math.round(barMs / 1000) ? ` · next bar ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : ''}
+    </span>
+  );
+}
+
+/** No live print yet: "waiting for tape" only in the regular session; otherwise the
+ *  session state with the last regular close ("Closed · last 16:00 ET"). */
+function NoTapeStamp() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  const st = chartSessionStamp(now);
+  return (
+    <span style={{ color: st.expectTape ? 'var(--amber, #facc15)' : 'var(--text-mute)' }} title={st.title}>
+      ○ {st.label}
     </span>
   );
 }

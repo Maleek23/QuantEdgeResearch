@@ -137,6 +137,10 @@ export interface ConvictionPick {
    */
   publishedConvictionScore: number | null;
   publishedConvictionBand: "S" | "A" | "B" | "C" | null;
+  /** The layers frozen at the idea's first board score (genScoringLayers); null before the first build stamped them. */
+  publishedLayers?: Array<{ kind: string; points: number; why: string }> | null;
+  /** When `layers` were scored — this board build (they are re-read live each build, not at publish). */
+  layersScoredAt?: string;
 
   /** Top-line thesis the user reads first. */
   thesis: string;
@@ -240,10 +244,10 @@ function scoreTechnicalLayer(idea: any, direction: "long" | "short"): Conviction
   if (macdHist !== null) {
     if (direction === "long" && macdHist > 0) {
       points += 3;
-      reasons.push("MACD bullish cross");
+      reasons.push(`MACD hist +${macdHist.toFixed(2)}`);
     } else if (direction === "short" && macdHist < 0) {
       points += 3;
-      reasons.push("MACD bearish cross");
+      reasons.push(`MACD hist ${macdHist.toFixed(2)}`);
     }
   }
 
@@ -268,37 +272,37 @@ function scoreTechnicalLayer(idea: any, direction: "long" | "short"): Conviction
       const v = parseFloat(volMatch[1]);
       if (v >= 1.5) {
         points += 4;
-        reasons.push(`Vol ${v.toFixed(1)}× avg`);
+        reasons.push(`Vol ${v.toFixed(1)}× avg (per catalyst text)`);
       }
     } else if (volRatio === null && /heavy volume|unusual volume/.test(catText)) {
       points += 3;
-      reasons.push("Heavy volume");
+      reasons.push("catalyst text: heavy volume (not re-measured)");
     }
     // Trend / breakout / squeeze keywords
     if (/breakout|breaking out|broke out/.test(catText)) {
       points += 3;
-      reasons.push("Breakout");
+      reasons.push("catalyst text: breakout (not re-measured)");
     }
     if (/squeeze|coil|tight range/.test(catText)) {
       points += 3;
-      reasons.push("Squeeze");
+      reasons.push("catalyst text: squeeze (not re-measured)");
     }
     if (/trend|uptrend|momentum/.test(catText) && direction === "long") {
       points += 2;
-      reasons.push("Trend up");
+      reasons.push("catalyst text: trend (not re-measured)");
     }
     if (/downtrend|bearish trend/.test(catText) && direction === "short") {
       points += 2;
-      reasons.push("Trend down");
+      reasons.push("catalyst text: downtrend (not re-measured)");
     }
     // RSI / MACD textual mentions
     if (rsi === null && /rsi/.test(catText)) {
       points += 2;
-      reasons.push("RSI flagged");
+      reasons.push("catalyst text mentions RSI (no RSI value stored)");
     }
     if (macdHist === null && /macd/.test(catText)) {
       points += 2;
-      reasons.push("MACD flagged");
+      reasons.push("catalyst text mentions MACD (no MACD value stored)");
     }
   }
 
@@ -781,10 +785,10 @@ function scoreRegimeLayer(direction: "long" | "short", ctx: MarketContext): Conv
 
   if (direction === "long" && ctx.riskSentiment === "risk_on") {
     points += 3;
-    reasons.push("Risk-on tape");
+    reasons.push(`Risk sentiment ${ctx.riskSentiment}`);
   } else if (direction === "short" && ctx.riskSentiment === "risk_off") {
     points += 3;
-    reasons.push("Risk-off tape");
+    reasons.push(`Risk sentiment ${ctx.riskSentiment}`);
   }
 
   if (ctx.vixLevel !== null) {
@@ -2858,6 +2862,11 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         idea.genConvictionBand === "B" || idea.genConvictionBand === "C"
           ? idea.genConvictionBand
           : null,
+      publishedLayers: Array.isArray(idea.genScoringLayers)
+        ? (idea.genScoringLayers as any[])
+          .filter((l) => l && typeof l.why === "string" && Number.isFinite(Number(l.points)))
+          .map((l) => ({ kind: String(l.kind), points: Number(l.points), why: String(l.why) }))
+        : null,
       thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
@@ -3061,8 +3070,10 @@ bandFor(p.convictionScore);
     }
   })();
 
+  const builtAt = new Date().toISOString();
+  for (const p of filtered) p.layersScoredAt = builtAt;
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: builtAt,
     marketContext: {
       regime: marketCtx.regime,
       riskSentiment: marketCtx.riskSentiment,

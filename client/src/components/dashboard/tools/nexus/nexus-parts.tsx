@@ -16,6 +16,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight, PanelRightOpen, Target } from 'lucide-react';
 import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
 import { QEChart } from '@/components/charting/qe-chart';
+import { useCandles } from '@/components/charting/chart-engine';
+import { barTimeLabel, calledOutsideRegularSession, levelsAsOfLabel } from '@shared/bar-time';
 import { PriceLadder, ProfitPlan, RiskPanel } from '@/components/oracle/signal-detail';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
@@ -360,10 +362,10 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
     .filter((c) => (c.score >= 2 && c.price >= lo - pad && c.price <= hi + pad) || uses(c))
     .sort((a, b) => b.price - a.price)
     .slice(0, 12);
-  const at = new Date(m.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  const at = levelsAsOfLabel(m);
   return (
     <div className="nxp-levels-map" style={{ margin: '10px 2px 0', fontSize: 12 }}>
-      <div className="nxp-section-title"><span>Levels</span><small>≥2 independent kinds · as of {at} ET · measuring</small></div>
+      <div className="nxp-section-title"><span>Levels</span><small>≥2 independent kinds{at ? ` · as of ${at}` : ''} · measuring</small></div>
       {rows.length === 0
         ? <p style={{ color: 'var(--nx-muted, #8a93a6)', margin: '4px 0' }}>No confluent level between the stop and T1 — the plan's numbers are formula levels, not structure.</p>
         : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -418,6 +420,17 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
     : boardPx ? 'board price'
     : quotesQ.isLoading ? 'reading live quote…'
     : ['quote unavailable', checkedStamp].filter(Boolean).join(' · ');
+  // Two prices, both labelled: outside the regular session the live tile is an
+  // extended-hours / overnight quote, so the regular-session close (the last
+  // daily candle — same query the chart uses) is printed beside it.
+  const dailyQ = useCandles(selected.symbol, '1D', true);
+  const lastDaily = dailyQ.data?.bars?.length ? dailyQ.data.bars[dailyQ.data.bars.length - 1] : null;
+  const extSession = lq?.price != null && lq.session != null && lq.session !== 'regular';
+  const regularCloseLine = extSession && lastDaily ? `Regular close ${money(lastDaily.close)} · ${barTimeLabel(lastDaily.time, '1D')} 16:00 ET` : null;
+  // An option contract on an idea called outside the regular session was not
+  // priced at the call (after-close options are gated) — say so.
+  const calledMs = Date.parse(selected.calledAt ?? selected.generatedAt ?? '');
+  const offHoursContract = selected.optionType != null && calledOutsideRegularSession(calledMs);
   // Flash on the price actually shown.
   const liveFlash = useTickFlash(live, { resetKey: selected.ideaId });
   const progress = live != null && selected.targetPrice !== selected.entryPrice
@@ -463,7 +476,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-levels">
-        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Live'}</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small></div>
+        <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Live'}</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small>{regularCloseLine && <small className="nxp-regular-close" style={{ display: 'block' }} title="Last regular-session (09:30–16:00 ET) daily close, from the chart's daily bars">{regularCloseLine}</small>}</div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span><i className="nxp-sw loss" />Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span><i className="nxp-sw gain" />First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
@@ -479,16 +492,24 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       <div className="nxp-tab-panel">
         {tab === 'overview' && <div className="nxp-bottom-grid">
           <article className="nxp-thesis">
-            <div className="nxp-section-title"><span>Decision brief</span><small>{selected.layerCount} measured layers</small></div>
+            <div className="nxp-section-title"><span>Decision brief</span><small>{selected.layerCount} measured layers · {layersStamp(selected.layersScoredAt)}</small></div>
             <h3>{selected.thesis || 'The scanner returned evidence without a written thesis.'}</h3>
             <div className="nxp-evidence">
               {support.slice(0, 4).map((layer) => <div key={`${layer.kind}-${layer.label}`}><span>+{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
               {challenge.slice(0, 1).map((layer) => <div className="against" key={`${layer.kind}-${layer.label}`}><span>{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
             </div>
+            {selected.publishedLayers?.length ? (
+              <details className="nxp-published-layers" style={{ marginTop: 8, fontSize: 12 }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--nx-muted, #8a93a6)' }}>As first scored (frozen at the first board read after publish)</summary>
+                <div className="nxp-evidence">
+                  {[...selected.publishedLayers].sort((a, b) => b.points - a.points).slice(0, 6).map((layer) => <div className={layer.points < 0 ? 'against' : undefined} key={`pub-${layer.kind}-${layer.why}`}><span>{layer.points > 0 ? `+${layer.points}` : layer.points}</span><p><strong>{layer.kind}</strong>{layer.why}</p></div>)}
+                </div>
+              </details>
+            ) : null}
           </article>
           <aside className="nxp-execution">
-            <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
-            <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
+            <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? (offHoursContract ? 'Underlying plan · suggested contract' : 'Option-backed') : selected.assetType}</small></div>
+            <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span>{offHoursContract && <span title="Called outside the regular session: option ideas are not published after the close, so the plan is on the underlying and this contract is a suggestion whose premium is read at the next open, not at the call.">Suggested contract — priced at next open</span>}</div></div>
             {selected.spxMirror && <SpxMirrorBlock mirror={selected.spxMirror} />}
             {selected.symbol === 'SPY' && !selected.spxMirror && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
             <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
@@ -541,6 +562,7 @@ type VolumeReadWire = {
   asOf: string | null; sessionRvol: number | null; recentRvol: number | null; sessionVolume: number | null;
   trigger: { at: string; barVolume: number; rvol: number | null } | null;
   label: 'heavy' | 'above normal' | 'normal' | 'light' | 'unknown'; baselineSessions: number; note: string | null;
+  source?: string; sessionDate?: string | null; sessionClosed?: boolean;
 };
 const fmtX = (x: number | null) => (x == null ? '—' : `${x.toFixed(1)}×`);
 const fmtVol = (v: number | null) => (v == null ? '—' : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : String(v));
@@ -549,7 +571,10 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
     queryKey: ['/api/volume-read', symbol, triggeredAt],
     queryFn: async () => {
       const r = await fetch(`/api/volume-read/${encodeURIComponent(symbol)}${triggeredAt ? `?at=${encodeURIComponent(triggeredAt)}` : ''}`, { credentials: 'include' });
-      if (!r.ok) throw new Error(`volume read ${r.status}`);
+      if (!r.ok) {
+        const body = await r.json().catch(() => null);
+        throw new Error(`volume read HTTP ${r.status}${body?.error ? ` — ${body.error}` : ''}`);
+      }
       return r.json();
     },
     refetchInterval: 60_000,
@@ -557,16 +582,20 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
     staleTime: 55_000,
   });
   const v = q.data;
-  if (!v || v.label === 'unknown') return <p className="nxp-times"><span>Volume <strong>—</strong>{q.isLoading ? ' reading…' : ' unavailable'}</span></p>;
+  if (!v || v.label === 'unknown') {
+    // Say WHY (the server's note names each source that failed) — not a bare "unavailable".
+    const why = q.isLoading ? null : v?.note ?? (q.error ? (q.error as Error).message : null);
+    return <p className="nxp-times" title={why ?? undefined}><span>Volume <strong>—</strong>{q.isLoading ? ' reading…' : ` unavailable${why ? ` — ${why}` : ''}`}</span></p>;
+  }
   const tone = v.label === 'heavy' || v.label === 'above normal' ? 'bull' : v.label === 'light' ? 'bear' : undefined;
-  const age = v.asOf ? new Date(v.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
+  const age = v.asOf ? new Date(v.asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
   return (
-    <p className="nxp-times" title={`Time-of-day matched vs the prior ${v.baselineSessions} sessions · Yahoo 5-min bars${v.note ? ` · ${v.note}` : ''}`}>
-      <span>Volume <strong className={tone}>{v.label}</strong></span>
-      <span> · last 15m <strong>{fmtX(v.recentRvol)}</strong> normal</span>
-      <span> · day so far <strong>{fmtX(v.sessionRvol)}</strong> ({fmtVol(v.sessionVolume)} sh)</span>
+    <p className="nxp-times" title={`Time-of-day matched vs the prior ${v.baselineSessions} sessions · ${v.source ?? 'yahoo 5m'} bars, regular session only${v.note ? ` · ${v.note}` : ''}`}>
+      <span>Volume <strong className={tone}>{v.label}</strong>{v.sessionClosed ? ' (completed session)' : ''}</span>
+      <span> · {v.sessionClosed ? 'closing 15m' : 'last 15m'} <strong>{fmtX(v.recentRvol)}</strong> normal</span>
+      <span> · {v.sessionClosed ? 'full day' : 'day so far'} <strong>{fmtX(v.sessionRvol)}</strong> ({fmtVol(v.sessionVolume)} sh)</span>
       {v.trigger && <span> · trigger bar <strong>{fmtX(v.trigger.rvol)}</strong></span>}
-      {age && <span> · as of {age} ET</span>}
+      {age && <span> · {v.sessionClosed ? 'last bar' : 'as of'} {age} ET</span>}
     </p>
   );
 }
@@ -611,6 +640,13 @@ function EvidenceRing({ score, band, support, against }: { score: number; band: 
       <span className="nxp-ring-split"><b className="bull">{support}</b> for · <b className="bear">{against}</b> against</span>
     </div>
   );
+}
+
+/** "scored Oct 6, 7:41 PM ET (live board, not publish time)" — or say it is unstamped. */
+export function layersStamp(iso: string | undefined | null): string {
+  const ms = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(ms)) return 'live board re-score (time not stamped)';
+  return `scored ${new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET (live board, not publish time)`;
 }
 
 function ageOf(iso: string): string {

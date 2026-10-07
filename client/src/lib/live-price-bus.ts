@@ -37,6 +37,8 @@ export function liveKey(symbol: string): string {
   return s;
 }
 const isEquity = (key: string) => !CRYPTO.has(key) && !FUTURES.has(key);
+/** True for a US-equity/ETF/index tick — one that keeps exchange session hours. */
+export const tickKeepsEquityHours = (t: LiveTick) => isEquity(liveKey(t.symbol));
 
 const listeners = new Map<string, Set<Listener>>();
 const statusListeners = new Set<StatusListener>();
