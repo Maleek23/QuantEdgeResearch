@@ -128,8 +128,10 @@ export function atrBefore(daily: { day: string; o: number; h: number; l: number;
 
 // ─── rule candidates ───────────────────────────────────────────────────────
 
-export type RuleId = 'plan' | 'atr1' | 'atr1_5' | 'atr2' | 'wide1' | 'wide1_5' | 'wide2' | 'close_stop' | 'time_only' | 'reentry';
-export const RULES: RuleId[] = ['plan', 'atr1', 'atr1_5', 'atr2', 'wide1', 'wide1_5', 'wide2', 'close_stop', 'time_only', 'reentry'];
+export type RuleId = 'plan' | 'atr1' | 'atr1_5' | 'atr2' | 'wide1' | 'wide1_5' | 'wide2' | 'hyb_n3' | 'hyb_n6' | 'hyb_trail6' | 'close_stop' | 'time_only' | 'reentry';
+export const RULES: RuleId[] = ['plan', 'atr1', 'atr1_5', 'atr2', 'wide1', 'wide1_5', 'wide2', 'hyb_n3', 'hyb_n6', 'hyb_trail6', 'close_stop', 'time_only', 'reentry'];
+/** Hybrid: the plan stop for the first N bars after the trigger, then the wide stop (further of plan and k×ATR). */
+export const HYBRID_K = 1.5;
 export const RULE_LABEL: Record<RuleId, string> = {
   plan: 'Published plan: stop / T1 / horizon close (baseline)',
   atr1: 'Stop at 1.0× daily ATR(14) from entry (T1 unchanged)',
@@ -139,6 +141,9 @@ export const RULE_LABEL: Record<RuleId, string> = {
   wide1_5: 'Wider of the plan (structural) stop and 1.5× daily ATR(14) (T1 unchanged)',
   wide2: 'Wider of the plan (structural) stop and 2.0× daily ATR(14) (T1 unchanged)',
   close_stop: 'Plan stop on a 5-min CLOSE beyond it (fill at that close), 3×ATR hard stop',
+  hyb_n3: 'Hybrid: plan stop for the first 3 bars (15 min), then wider of plan and 1.5× ATR',
+  hyb_n6: 'Hybrid: plan stop for the first 6 bars (30 min), then wider of plan and 1.5× ATR',
+  hyb_trail6: 'Hybrid: plan stop for 6 bars, then a 1.5× ATR trail from the best price (never looser than wider-of plan/1.5× ATR)',
   time_only: 'No price stop except a 3×ATR catastrophe stop; exit at T1 or the horizon close',
   reentry: 'Plan; after a stop-out, re-enter once if price trades back at entry within 60 min (same stop/T1)',
 };
@@ -162,6 +167,35 @@ const atrStop = (t: RuleTrade, k: number) => (t.dir === 'long' ? t.entry - k * t
 const wideStop = (t: RuleTrade, k: number) => { const a = atrStop(t, k); return t.dir === 'long' ? Math.min(t.stop, a) : Math.max(t.stop, a); };
 
 /** Close-based stop: a bar that CLOSES beyond the stop exits at that close (before any target in it); 3×ATR touch = hard stop. */
+/**
+ * Hybrid stop: plan stop on bars [0, n) after the trigger, then the wide stop (further of plan and
+ * HYBRID_K×ATR); with `trail`, after bar n the stop also trails HYBRID_K×ATR behind the best
+ * high (long) / low (short) seen so far, but never looser than that wide stop. Same conventions as
+ * simulateExit: stop before target inside a bar, stop fills at min(open, stop) (gap-through costs),
+ * horizon close otherwise.
+ */
+function hybridStop(t: RuleTrade, n: number, trail: boolean, rule: RuleId): RuleResult {
+  const L = t.dir === 'long';
+  const wide = wideStop(t, HYBRID_K);
+  const path = t.bars.filter((b) => b.t >= t.triggerMs && b.t < t.holdEndMs).sort((a, b) => a.t - b.t);
+  const pc = (px: number) => r2(pctFrom(t.dir, t.entry, px));
+  let best = t.entry;
+  for (let k = 0; k < path.length; k++) {
+    const b = path[k];
+    let stop = k < n ? t.stop : wide;
+    if (trail && k >= n) {
+      const tr = L ? best - HYBRID_K * t.atrD! : best + HYBRID_K * t.atrD!;
+      stop = L ? Math.max(stop, tr) : Math.min(stop, tr);
+    }
+    if (stopTouched(t.dir, stop, b)) return { rule, reason: 'stop', pct: pc(L ? Math.min(b.o, stop) : Math.max(b.o, stop)), exitMs: b.t };
+    if (touches(t.dir, t.target, b)) return { rule, reason: 'target', pct: pc(t.target), exitMs: b.t };
+    best = L ? Math.max(best, b.h) : Math.min(best, b.l);
+  }
+  if (!t.holdComplete || !path.length) return { rule, reason: path.length ? 'open' : 'nodata', pct: null, exitMs: null };
+  const last = path[path.length - 1];
+  return { rule, reason: 'horizon', pct: pc(last.c), exitMs: last.t };
+}
+
 function closeStop(t: RuleTrade): RuleResult {
   const L = t.dir === 'long';
   const hard = fin(t.atrD) ? atrStop(t, 3) : null;
@@ -184,7 +218,7 @@ const barWidth = (bars: Bar[]) => {
 };
 
 export function replayRule(rule: RuleId, t: RuleTrade): RuleResult {
-  const needAtr = rule === 'atr1' || rule === 'atr1_5' || rule === 'atr2' || rule === 'time_only' || rule === 'wide1' || rule === 'wide1_5' || rule === 'wide2';
+  const needAtr = rule === 'atr1' || rule === 'atr1_5' || rule === 'atr2' || rule === 'time_only' || rule === 'wide1' || rule === 'wide1_5' || rule === 'wide2' || rule === 'hyb_n3' || rule === 'hyb_n6' || rule === 'hyb_trail6';
   if (needAtr && !(fin(t.atrD) && t.atrD > 0)) return { rule, reason: 'no_atr', pct: null, exitMs: null };
   switch (rule) {
     case 'plan': return plan(t, t.stop);
@@ -194,6 +228,9 @@ export function replayRule(rule: RuleId, t: RuleTrade): RuleResult {
     case 'wide1': return { ...plan(t, wideStop(t, 1)), rule };
     case 'wide1_5': return { ...plan(t, wideStop(t, 1.5)), rule };
     case 'wide2': return { ...plan(t, wideStop(t, 2)), rule };
+    case 'hyb_n3': return hybridStop(t, 3, false, rule);
+    case 'hyb_n6': return hybridStop(t, 6, false, rule);
+    case 'hyb_trail6': return hybridStop(t, 6, true, rule);
     case 'time_only': return { ...plan(t, atrStop(t, 3)), rule };
     case 'close_stop': return closeStop(t);
     case 'reentry': {
@@ -432,5 +469,154 @@ export function renderWalkForward(w: WalkForward, meta: { generatedAt: string; s
   }
   out.push('', `**Chosen: ${w.chosen.mult}× daily ATR(14)** (stop = wider of the structural level and ${w.chosen.mult}×ATR) — ${w.chosen.basis}.`, '');
   out.push(`Set \`BOT_STOP_ATR_MULT=${w.chosen.mult}\` for the bot. NEXUS keeps the current 1.25× floor until \`NEXUS_STOP_ATR_MULT\` is set after the bot proves it.`, '');
+  return out.join('\n');
+}
+
+// ─── walk-forward in R (equal-risk sizing) ─────────────────────────────────
+//
+// The % table above compares UNSIZED moves: a wider stop loses more % per loser,
+// but the bot sizes every trade to the same $ risk, so a wider stop means a smaller
+// position. Here each variant's result is divided by ITS OWN stop distance:
+// 1R = what that variant risks per trade, so ΣR is $ P&L at equal risk.
+
+/** Stop distance (% of entry) a variant sizes against. null = not R-comparable. */
+export function riskPctFor(rule: RuleId, planRiskPct: number, atrPct: number | null): number | null {
+  if (!(planRiskPct > 0)) return null;
+  const a = atrPct != null && atrPct > 0 ? atrPct : null;
+  switch (rule) {
+    case 'plan': return planRiskPct;
+    case 'atr1': return a && a * 1;
+    case 'atr1_5': return a && a * 1.5;
+    case 'atr2': return a && a * 2;
+    case 'wide1': return a && Math.max(planRiskPct, a * 1);
+    case 'wide1_5': return a && Math.max(planRiskPct, a * 1.5);
+    case 'wide2': return a && Math.max(planRiskPct, a * 2);
+    // hybrids can end on the wide stop → sized to it
+    case 'hyb_n3': case 'hyb_n6': case 'hyb_trail6': return a && Math.max(planRiskPct, a * HYBRID_K);
+    // time-only: the 3×ATR disaster stop is the risk
+    case 'time_only': return a && a * 3;
+    default: return null; // close_stop / reentry: no single stop distance
+  }
+}
+
+export const WFR_CANDIDATES: { rule: RuleId; mult: number | null; adoptable: boolean }[] = [
+  { rule: 'wide1', mult: 1.0, adoptable: true },
+  { rule: 'wide1_5', mult: 1.5, adoptable: true },
+  { rule: 'wide2', mult: 2.0, adoptable: true },
+  { rule: 'atr1', mult: 1.0, adoptable: false },
+  { rule: 'atr1_5', mult: 1.5, adoptable: false },
+  { rule: 'atr2', mult: 2.0, adoptable: false },
+  { rule: 'hyb_n3', mult: HYBRID_K, adoptable: false },
+  { rule: 'hyb_n6', mult: HYBRID_K, adoptable: false },
+  { rule: 'hyb_trail6', mult: HYBRID_K, adoptable: false },
+  { rule: 'time_only', mult: null, adoptable: false },
+];
+
+export interface WfRIdea { id: string; triggerMs: number; planRiskPct: number; atrPct: number | null; pcts: Partial<Record<RuleId, number | null>> }
+export interface RStats {
+  n: number; winRate: number | null;
+  /** mean R per trade */
+  expR: number | null;
+  /** mean R with this variant's own k best trades removed */
+  expRExTop: number | null;
+  sumR: number | null; sumRExTop: number | null;
+  /** Σ winning R ÷ |Σ losing R|; null with no losers */
+  profitFactor: number | null;
+  /** worst peak-to-trough of cumulative R, trades in trigger order (≥ 0) */
+  maxDdR: number | null;
+}
+
+/** `rs` in chronological order. */
+export function rStats(rs: number[], k: number): RStats {
+  const n = rs.length;
+  if (!n) return { n, winRate: null, expR: null, expRExTop: null, sumR: null, sumRExTop: null, profitFactor: null, maxDdR: null };
+  const r3 = (x: number) => Math.round(x * 1000) / 1000;
+  const sum = rs.reduce((s, x) => s + x, 0);
+  const ex = [...rs].sort((a, b) => b - a).slice(k);
+  const exSum = ex.reduce((s, x) => s + x, 0);
+  const pos = rs.filter((x) => x > 0).reduce((s, x) => s + x, 0);
+  const neg = -rs.filter((x) => x < 0).reduce((s, x) => s + x, 0);
+  let cum = 0, peak = 0, dd = 0;
+  for (const x of rs) { cum += x; peak = Math.max(peak, cum); dd = Math.max(dd, peak - cum); }
+  return {
+    n, winRate: r1((rs.filter((x) => x > 0).length / n) * 100),
+    expR: r3(sum / n), expRExTop: ex.length ? r3(exSum / ex.length) : null,
+    sumR: r2(sum), sumRExTop: r2(exSum),
+    profitFactor: neg > 0 ? r2(pos / neg) : null, maxDdR: r2(dd),
+  };
+}
+
+export interface WfRCell { variant: RStats; plan: RStats; deltaExpRExTop: number | null; holds: boolean }
+export interface WfRRow { rule: RuleId; mult: number | null; adoptable: boolean; label: string; halves: [WfRCell, WfRCell]; holdsBoth: boolean; score: number | null; missing: boolean }
+export interface WalkForwardR {
+  n: number; minPerHalf: number; topRemoved: number;
+  halves: [{ from: number | null; to: number | null; n: number }, { from: number | null; to: number | null; n: number }];
+  rows: WfRRow[];
+  chosen: { rule: RuleId | null; mult: number | null; basis: string };
+}
+
+function wfRCell(ideas: WfRIdea[], rule: RuleId, k: number, minN: number): WfRCell {
+  const vr: number[] = [], pr: number[] = [];
+  for (const i of ideas) {
+    const v = i.pcts[rule], p = i.pcts.plan;
+    const rv = riskPctFor(rule, i.planRiskPct, i.atrPct);
+    if (!fin(v) || !fin(p) || !(rv && rv > 0)) continue;
+    vr.push(v / rv); pr.push(p / i.planRiskPct);
+  }
+  const variant = rStats(vr, k), plan = rStats(pr, k);
+  const d = variant.expRExTop != null && plan.expRExTop != null ? Math.round((variant.expRExTop - plan.expRExTop) * 1000) / 1000 : null;
+  return { variant, plan, deltaExpRExTop: d, holds: variant.n >= minN && d != null && d > 0 };
+}
+
+/**
+ * Same chronological halves as walkForward(). A variant HOLDS when, in each half, its
+ * R-expectancy with its own top k trades removed beats the plan's (same ideas, plan's own
+ * top k removed). Among adoptable holders the best worst-half Δ is chosen; none → no
+ * multiple is chosen (chosen.mult null) and the caller keeps the fallback.
+ */
+export function walkForwardR(ideas: WfRIdea[], opts: { topRemoved?: number; minPerHalf?: number } = {}): WalkForwardR {
+  const k = opts.topRemoved ?? 3, minN = opts.minPerHalf ?? 30;
+  const sorted = ideas.filter((i) => fin(i.triggerMs) && fin(i.pcts.plan) && i.planRiskPct > 0).sort((a, b) => a.triggerMs - b.triggerMs);
+  const mid = Math.floor(sorted.length / 2);
+  const H = [sorted.slice(0, mid), sorted.slice(mid)] as const;
+  const span = (xs: WfRIdea[]) => ({ from: xs[0]?.triggerMs ?? null, to: xs[xs.length - 1]?.triggerMs ?? null, n: xs.length });
+  const rows: WfRRow[] = WFR_CANDIDATES.map((c) => {
+    const halves = [wfRCell(H[0], c.rule, k, minN), wfRCell(H[1], c.rule, k, minN)] as [WfRCell, WfRCell];
+    const ds = halves.map((h) => h.deltaExpRExTop);
+    return {
+      rule: c.rule, mult: c.mult, adoptable: c.adoptable, label: RULE_LABEL[c.rule], halves,
+      holdsBoth: halves[0].holds && halves[1].holds,
+      score: ds[0] != null && ds[1] != null ? Math.min(ds[0], ds[1]) : null,
+      missing: !sorted.some((i) => fin(i.pcts[c.rule])),
+    };
+  });
+  const holders = rows.filter((r) => r.adoptable && r.holdsBoth && r.score != null).sort((a, b) => b.score! - a.score! || (a.mult! - b.mult!));
+  const best = holders[0];
+  const chosen = best
+    ? { rule: best.rule, mult: best.mult, basis: `${best.rule}: R-expectancy (top ${k} removed) beats the plan in both halves (worst-half Δ +${best.score}R/trade)` }
+    : { rule: null, mult: null, basis: sorted.length < 2 * minN
+      ? `not enough paired ideas (${sorted.length} < ${2 * minN})`
+      : 'no adoptable stop width beats the plan on R-expectancy (top removed) in both halves' };
+  return { n: sorted.length, minPerHalf: minN, topRemoved: k, halves: [span(H[0]), span(H[1])], rows, chosen };
+}
+
+export function renderWalkForwardR(w: WalkForwardR, fallbackMult: number): string {
+  const d = (ms: number | null) => (ms == null ? '—' : new Date(ms).toISOString().slice(0, 10));
+  const pf = (x: number | null) => (x == null ? '∞/—' : String(x));
+  const out: string[] = [];
+  out.push('## In R — equal-risk sizing (1R = each variant\'s own stop distance)', '');
+  out.push(`Same halves: A ${d(w.halves[0].from)} → ${d(w.halves[0].to)} (n=${w.halves[0].n}) · B ${d(w.halves[1].from)} → ${d(w.halves[1].to)} (n=${w.halves[1].n}). Each variant is compared with the plan on the SAME ideas; "ex-top" removes each side's own ${w.topRemoved} best trades. A variant **holds** when its ex-top R-expectancy beats the plan's in BOTH halves (n ≥ ${w.minPerHalf}).`, '');
+  out.push('| rule | half | n | win | E[R] | E[R] ex-top | plan E[R] ex-top | Δ ex-top | ΣR | PF | max DD (R) | plan PF | plan DD |', '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
+  for (const r of w.rows) {
+    if (r.missing) { out.push(`| ${r.label} | — | not in this input (re-run research/losers-later.ts) | | | | | | | | | | |`); continue; }
+    r.halves.forEach((h, i) => {
+      const v = h.variant, p = h.plan;
+      out.push(`| ${i === 0 ? `${r.label}${r.adoptable ? '' : ' *(report only)*'}` : ''} | ${i === 0 ? 'A' : 'B'} | ${v.n} | ${f(v.winRate, '%')} | ${f(v.expR)} | ${f(v.expRExTop)} | ${f(p.expRExTop)} | ${f(h.deltaExpRExTop)} | ${f(v.sumR)} | ${pf(v.profitFactor)} | ${f(v.maxDdR)} | ${pf(p.profitFactor)} | ${f(p.maxDdR)} |`);
+    });
+    out.push(`| | **holds both** | ${r.holdsBoth ? 'YES' : 'no'} | | | | | | | | | | |`);
+  }
+  out.push('', w.chosen.mult != null
+    ? `**R-chosen: ${w.chosen.mult}× ATR** — ${w.chosen.basis}. Set \`BOT_STOP_ATR_MULT=${w.chosen.mult}\`.`
+    : `**R-chosen: none** — ${w.chosen.basis}. Keep the ${fallbackMult}× fallback only as a MEASURING default, or set \`BOT_WIDE_STOPS=false\` until a width holds.`, '');
   return out.join('\n');
 }
