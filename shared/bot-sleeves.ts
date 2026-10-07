@@ -234,9 +234,10 @@ export function isLiveGrade(g: NexusGrade): boolean {
 
 /** Exit reasons that count as a stop-out (premium, underlying, breakeven, trailing). */
 export function isStopExit(exitReason: string | null | undefined): boolean {
-  // 'stop_hit' (checkStopsAndTargets), sleeve 'premium_stop' / 'breakeven_stop', trailing stops.
+  // 'stop_hit' (checkStopsAndTargets), sleeve 'premium_stop' / 'breakeven_stop', trailing stops,
+  // and the wide-stop exits: 'underlying_stop' (2d) / 'premium_stop_wide_…' (shared/wide-stops.ts).
   // A 'time_stop' is a clock exit, not a stop-out.
-  return /(^|[^a-z])(stop_hit|premium_stop|breakeven_stop|trailing_stop|stop_loss|hit_stop)/i.test(String(exitReason ?? ''));
+  return /(^|[^a-z])(stop_hit|premium_stop|breakeven_stop|trailing_stop|stop_loss|hit_stop|underlying_stop)/i.test(String(exitReason ?? ''));
 }
 
 /** Symbols stopped out on the ET day of `nowMs` (any run). */

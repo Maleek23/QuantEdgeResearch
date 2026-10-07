@@ -134,6 +134,7 @@ function TradeBody({ rowId }: { rowId: string }) {
     ['Fees', fmtPrice(row.fees ?? 0)],
     ['Opened', when(row.entryTime)],
     ['Closed', row.exitTimeNote ?? when(row.exitTime)],
+    ...(row.afterStop ? [['After the stop', `${row.afterStop} (hindsight — still a loss)`] as [string, React.ReactNode]] : []),
     ['Held', fmtDuration(t.durationMs)],
     ['Source', row.broker || 'manual'],
     ['Setup', row.setupType || '—'],
