@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
 import { installStaleBundleGuard } from "./lib/stale-bundle";
 import { armBoot } from "./lib/boot";
+import { isDisposedChartError } from "./components/charting/tv/chart-guard";
 
 // Initialize observability immediately (before any other code can throw)
 void initClientObservability();
@@ -23,7 +24,14 @@ installStaleBundleGuard();
 (window as any).__QE_LOADED = true;
 
 // Global error handler to catch ALL errors including those not caught by React
+let chartDisposedWarned = false;
 window.onerror = function(message, source, lineno, colno, error) {
+  // A chart drawing after teardown (lightweight-charts "Object is disposed") is
+  // a chart bug, not a page failure: note it once, keep the page.
+  if (isDisposedChartError(error ?? message)) {
+    if (!chartDisposedWarned) { chartDisposedWarned = true; console.warn('[chart] draw after dispose (suppressed)', error ?? message); }
+    return true;
+  }
   console.error('=== GLOBAL ERROR ===');
   console.error('Message:', message);
   console.error('Source:', source);

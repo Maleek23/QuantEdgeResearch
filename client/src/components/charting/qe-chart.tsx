@@ -60,6 +60,8 @@ import { marketSessionAt, etHHMM } from '@shared/quote-freshness';
 
 /* The full variant is the TradingView-style chart (tv/tv-chart.tsx) on
    lightweight-charts; loaded on demand so compact embeds never pay for it. */
+import { ChartErrorBoundary } from '@/components/charting/chart-error-boundary';
+
 const LazyTvChart = lazy(() => import('@/components/charting/tv/tv-chart').then((m) => ({ default: m.TvChart })));
 
 const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
@@ -745,12 +747,18 @@ function QEChartCompact({
 export function QEChart(props: QEChartProps & { variant?: 'compact' | 'full' }) {
   if (props.variant === 'full') {
     return (
-      <Suspense fallback={<div className="fc-root fc-fill" style={{ display: 'grid', placeItems: 'center', color: 'var(--text-mute)', fontSize: 11 }}>loading chart…</div>}>
-        <LazyTvChart {...props} />
-      </Suspense>
+      <ChartErrorBoundary label={`chart ${props.symbol}`}>
+        <Suspense fallback={<div className="fc-root fc-fill" style={{ display: 'grid', placeItems: 'center', color: 'var(--text-mute)', fontSize: 11 }}>loading chart…</div>}>
+          <LazyTvChart {...props} />
+        </Suspense>
+      </ChartErrorBoundary>
     );
   }
-  return <QEChartCompact {...props} />;
+  return (
+    <ChartErrorBoundary label={`chart ${props.symbol}`}>
+      <QEChartCompact {...props} />
+    </ChartErrorBoundary>
+  );
 }
 
 const FC_CSS = `

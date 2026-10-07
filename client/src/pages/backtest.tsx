@@ -12,6 +12,7 @@ import {
   Target, AlertTriangle, Loader2, RefreshCw
 } from "lucide-react";
 import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time, CandlestickSeries, LineSeries } from "lightweight-charts";
+import { guardChart } from "@/components/charting/tv/chart-guard";
 
 interface PatternData {
   name: string;
@@ -112,11 +113,6 @@ export default function BacktestPage() {
   useEffect(() => {
     if (!chartContainerRef.current || !patternData?.candles?.length) return;
     
-    if (chartRef.current) {
-      chartRef.current.remove();
-      chartRef.current = null;
-    }
-    
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { color: "transparent" },
@@ -197,26 +193,24 @@ export default function BacktestPage() {
     
     chart.timeScale().fitContent();
     
+    // Teardown order matters: listener off, then remove() exactly once —
+    // a resize after remove() throws "Object is disposed" (chart-guard.ts).
+    const guard = guardChart(chart);
     const handleResize = () => {
-      if (chartContainerRef.current && chart) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
+      const el = chartContainerRef.current;
+      if (el) guard.run((c) => c.applyOptions({ width: el.clientWidth }));
     };
-    
     window.addEventListener("resize", handleResize);
+    guard.onDispose(() => window.removeEventListener("resize", handleResize));
     
     return () => {
-      window.removeEventListener("resize", handleResize);
+      if (chartRef.current === chart) chartRef.current = null;
+      guard.dispose();
     };
   }, [patternData]);
   
   useEffect(() => {
     if (!rsiChartContainerRef.current || !patternData?.rsiSeries?.length) return;
-    
-    if (rsiChartRef.current) {
-      rsiChartRef.current.remove();
-      rsiChartRef.current = null;
-    }
     
     const chart = createChart(rsiChartContainerRef.current, {
       layout: {
@@ -282,16 +276,19 @@ export default function BacktestPage() {
     
     chart.timeScale().fitContent();
     
+    // Teardown order matters: listener off, then remove() exactly once —
+    // a resize after remove() throws "Object is disposed" (chart-guard.ts).
+    const guard = guardChart(chart);
     const handleResize = () => {
-      if (rsiChartContainerRef.current && chart) {
-        chart.applyOptions({ width: rsiChartContainerRef.current.clientWidth });
-      }
+      const el = rsiChartContainerRef.current;
+      if (el) guard.run((c) => c.applyOptions({ width: el.clientWidth }));
     };
-    
     window.addEventListener("resize", handleResize);
+    guard.onDispose(() => window.removeEventListener("resize", handleResize));
     
     return () => {
-      window.removeEventListener("resize", handleResize);
+      if (rsiChartRef.current === chart) rsiChartRef.current = null;
+      guard.dispose();
     };
   }, [patternData]);
   

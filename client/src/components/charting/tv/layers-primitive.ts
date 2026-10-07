@@ -395,6 +395,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   attached(p: SeriesAttachedParameter<Time>) {
     this.series = p.series as ISeriesApi<SeriesType>;
     this.request = p.requestUpdate;
+    if (this.timer) clearInterval(this.timer); // re-attach without a detach must not stack timers
     this.timer = setInterval(() => { if (this.enabled && this.last) this.request?.(); }, 1000);
   }
   detached() { if (this.timer) clearInterval(this.timer); this.timer = null; this.series = null; this.request = null; }

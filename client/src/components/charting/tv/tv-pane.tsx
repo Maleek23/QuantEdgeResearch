@@ -31,6 +31,7 @@ import {
 import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indicators';
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
+import { guardChart, type ChartGuard } from './chart-guard';
 
 /* ───────────────────────── time: ET on the axis ───────────────────────── */
 
@@ -205,6 +206,8 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  /** Owns teardown order: primitives detached BEFORE chart.remove(), once (chart-guard.ts). */
+  const guardRef = useRef<ChartGuard | null>(null);
   const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const ma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
@@ -274,6 +277,8 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       kineticScroll: { touch: true, mouse: false },
       handleScale: { axisPressedMouseMove: { time: true, price: true }, mouseWheel: true, pinch: true },
     });
+    const guard = guardChart(chart);
+    guardRef.current = guard;
     chartRef.current = chart;
     const vol = chart.addSeries(HistogramSeries, { priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
@@ -298,9 +303,11 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       legend.set({ bar: bs[i], prevClose: i > 0 ? bs[i - 1].close : null, hovering: true });
     };
     chart.subscribeCrosshairMove(onMove);
+    guard.onDispose(() => chart.unsubscribeCrosshairMove(onMove));
     return () => {
-      chart.unsubscribeCrosshairMove(onMove);
-      chart.remove();
+      // Refs first, so nothing that runs during/after teardown can reach the chart.
+      if (guardRef.current === guard) guardRef.current = null;
+      guard.dispose();
       chartRef.current = null; mainRef.current = null; volRef.current = null; ma20Ref.current = null; ma50Ref.current = null;
       ema9Ref.current = null; ema21Ref.current = null; vwapRef.current = null; cmpRef.current = null;
       linesRef.current = [];
@@ -314,24 +321,25 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const dataRef = useRef<{ first: number | null; len: number }>({ first: null, len: 0 });
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
+    const guard = guardRef.current;
+    if (!chart || !guard || guard.disposed) return;
     const c = colors();
     const s: ISeriesApi<SeriesType> =
       chartType === 'bars' ? chart.addSeries(BarSeries, { upColor: c.up, downColor: c.down, thinBars: false })
         : chartType === 'line' ? chart.addSeries(LineSeries, { color: c.accent, lineWidth: 2 })
           : chartType === 'area' ? chart.addSeries(AreaSeries, { lineColor: c.accent, topColor: withAlpha(c.accent, 0.28), bottomColor: withAlpha(c.accent, 0.02), lineWidth: 2 })
             : chart.addSeries(CandlestickSeries, { upColor: c.up, downColor: c.down, borderVisible: false, wickUpColor: c.up, wickDownColor: c.down });
-    s.attachPrimitive(layerPrim);
-    s.attachPrimitive(drawPrim);
-    s.attachPrimitive(countPrim);
+    guard.attach(s, layerPrim);
+    guard.attach(s, drawPrim);
+    guard.attach(s, countPrim);
     mainRef.current = s;
     dataRef.current = { first: null, len: 0 };
     linesRef.current = [];
     setDataTick((n) => n + 1);
     return () => {
-      s.detachPrimitive(layerPrim); s.detachPrimitive(drawPrim); s.detachPrimitive(countPrim);
-      if (chartRef.current) chart.removeSeries(s);
       if (mainRef.current === s) mainRef.current = null;
+      // No-ops when the chart's own cleanup already ran (unmount, StrictMode).
+      guard.removeSeries(s);
     };
   }, [chartType, colors, layerPrim, drawPrim, countPrim]);
 
