@@ -122,6 +122,8 @@ export interface ConvictionPick {
   entryPremium: number | null;
   optionDte: number | null;
   expiryDate: string | null;
+  /** Liquidity-gate snapshot recorded at publish (shared/option-liquidity.ts) — NEXUS "contract liquidity". */
+  contractLiquidity?: import('../shared/option-liquidity').ContractLiquiditySnapshot | null;
 
   /** Total conviction score 0-100 (sum of layer points, capped). */
   convictionScore: number;
@@ -2858,6 +2860,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       entryPremium: idea.entryPremium != null ? Number(idea.entryPremium) : null,
       optionDte: idea.optionDte != null ? Number(idea.optionDte) : null,
       expiryDate: idea.expiryDate ?? null,
+      contractLiquidity: (idea.convergenceSignalsJson as any)?.contractLiquidity ?? null,
       convictionScore: 0, // filled below
       convictionBand: "C",
       layerCount: layers.length,

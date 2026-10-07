@@ -753,6 +753,8 @@ interface AttachedContract {
   isLottoPlay: boolean;
   tradeType: 'lotto' | 'swing' | 'mover' | 'scalp';
   summary: string;
+  /** Liquidity-gate snapshot from the picker (shared/option-liquidity.ts). */
+  liquidity?: import('../shared/option-liquidity').ContractLiquiditySnapshot;
 }
 
 /**
@@ -834,6 +836,7 @@ async function attachOptionContract(args: {
       isLottoPlay: isLotto,
       tradeType,
       summary,
+      liquidity: pick.liquidity,
     };
   } catch {
     return null;
@@ -1512,6 +1515,9 @@ export async function backfillContractlessIdeas(nowMs = Date.now()): Promise<{ s
           isLottoPlay: attached.isLottoPlay,
           tradeType: attached.tradeType,
           analysis: `${idea.analysis} ${attached.summary}`,
+          // In-place upgrade never passes createTradeIdea's liquidity gate — the
+          // picker already enforced it; record its snapshot for NEXUS.
+          ...(attached.liquidity ? { convergenceSignalsJson: { ...((idea.convergenceSignalsJson as any) ?? {}), contractLiquidity: attached.liquidity } as any } : {}),
         });
         upgraded++;
         logger.info(`[BACKFILL] ✅ ${idea.symbol}: upgraded to ${attached.optionType} $${attached.strikePrice} ${attached.expiryDate} @ $${attached.entryPremium}`);

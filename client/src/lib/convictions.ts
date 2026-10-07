@@ -64,6 +64,8 @@ export interface ConvictionPick {
   entryPremium: number | null;
   optionDte: number | null;
   expiryDate: string | null;
+  /** Liquidity-gate snapshot recorded at publish (shared/option-liquidity.ts). */
+  contractLiquidity?: import('@shared/option-liquidity').ContractLiquiditySnapshot | null;
 
   convictionScore: number;
   convictionBand: 'S' | 'A' | 'B' | 'C';

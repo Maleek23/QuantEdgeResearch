@@ -179,7 +179,8 @@ t('intraday window: 0–7 DTE only with allowZeroDte; bypasses the conviction fl
   const exp = (days: number) => new Date(Date.now() + days * 86_400_000 + 3_600_000).toISOString().slice(0, 10);
   const row = (days: number, strike: number, delta: number): RawChainOption => ({
     symbol: `T${days}C${strike}`, option_type: 'call', strike, expiration_date: exp(days), bid: 1.0, ask: 1.05,
-    open_interest: 500, volume: 50, greeks: { delta, gamma: 0.05, theta: -0.08, vega: 0.05, mid_iv: 0.35 },
+    open_interest: 500, volume: 150, // liquid under shared/option-liquidity.ts (OI ≥ 500, vol ≥ 100)
+    greeks: { delta, gamma: 0.05, theta: -0.08, vega: 0.05, mid_iv: 0.35 },
   });
   const chain = [2, 5, 10, 20].flatMap((d) => [row(d, 100, 0.52), row(d, 102, 0.35), row(d, 98, 0.68)]);
   const th = { symbol: 'TST', direction: 'bullish' as const, setup: 'scalp' as const, expiryTier: 'DAILY' as const, entry: 100, stop: 99, t1: 102, holdingDays: 0, conviction: 60 };

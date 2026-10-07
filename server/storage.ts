@@ -2774,7 +2774,7 @@ export class DatabaseStorage implements IStorage {
         `[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`,
       );
     }
-    const idea: InsertTradeIdea = guarded.idea as InsertTradeIdea;
+    let idea: InsertTradeIdea = guarded.idea as InsertTradeIdea;
 
     // 🛡️ Shared validation gate — blocks malformed scanner output BEFORE
     // it reaches the DB. Catches the entire class of bugs we kept fixing
@@ -2829,6 +2829,30 @@ export class DatabaseStorage implements IStorage {
           logger.info(`[SESSION-DEDUP] ${src} ${(idea as any).symbol} ${idea.direction} option: already published this session (${sameSession.id}) — returning existing`);
           return markDedupedResult(sameSession);
         }
+      }
+    }
+
+    // 💧 Liquidity gate (server/lib/liquidity-gate.ts, shared/option-liquidity.ts):
+    // 239 of 617 closed NEXUS option trades could not be verified because the
+    // contract never traded near the recorded fill. Every automated option idea
+    // is re-checked on the chain here: kept (snapshot recorded), stepped to the
+    // nearest liquid strike in the delta band, or published underlying-only
+    // with "no liquid contract". Never an illiquid contract.
+    if (
+      !ALWAYS_INSERT.has(src) &&
+      (idea as any).sessionContext !== "backfill" &&
+      (idea as any).status !== "draft" &&
+      String((idea as any).assetType) === "option"
+    ) {
+      const { applyLiquidityGate } = await import("./lib/liquidity-gate");
+      const liq = await applyLiquidityGate(idea as any);
+      if (liq.action === "stepped" || liq.action === "underlying_only") {
+        logger.info(`[LIQ-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${liq.note}`);
+      }
+      idea = liq.idea as InsertTradeIdea;
+      if (liq.action === "stepped") {
+        const v3 = validateTradeIdeaForCreate(idea);
+        if (!v3.ok) throw new Error(`Invalid trade idea after liquidity step: ${v3.reason}`);
       }
     }
 

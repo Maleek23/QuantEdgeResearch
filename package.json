@@ -72,6 +72,7 @@
     "test:nexus-grade": "tsx scripts/test-nexus-grade.ts",
     "test:grade-v3": "tsx scripts/test-grade-v3.ts",
     "test:bot-sleeves": "tsx scripts/test-bot-sleeves.ts",
+    "test:liquidity-gate": "tsx scripts/test-liquidity-gate.ts",
     "research:bot-diagnose": "tsx research/bot-diagnose.ts",
     "research:grade-audit": "tsx research/grade-audit.ts",
     "test:audit-p0": "tsx scripts/test-audit-p0-security.ts && tsx scripts/test-audit-p0-data.ts"

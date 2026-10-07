@@ -60,6 +60,7 @@ import {
   getTradierOptionsChain,
 } from './tradier-api';
 import { dteFitWindow, holdDaysForSetup, readLossRulesConfig } from '../shared/loss-rules';
+import { checkContractLiquidity, readLiquidityConfig, contractLabel, type ContractLiquiditySnapshot } from '../shared/option-liquidity';
 
 // ─── Public types ──────────────────────────────────────────────────
 
@@ -209,6 +210,8 @@ export interface ContractCandidate {
   partialGrade?: boolean;
   rationale: string;
   flags: string[];
+  /** Liquidity-gate snapshot at selection (shared/option-liquidity.ts) — publishers store it on the idea. */
+  liquidity?: ContractLiquiditySnapshot;
 }
 
 export interface ContractSelection {
@@ -437,6 +440,8 @@ export interface RawChainOption {
   bid: number;
   ask: number;
   volume?: number;
+  /** Prior session's volume when the feed reports it (Alpaca prevDailyBar) — the liquidity gate's basis before 10:00 ET. */
+  prev_day_volume?: number;
   open_interest?: number;
   greeks?: {
     delta: number;
@@ -468,6 +473,7 @@ interface NormOption {
   vega: number;
   iv: number;
   ivEstimated: boolean;
+  liquidity?: ContractLiquiditySnapshot;
 }
 
 function dteFrom(expiry: string): number {
@@ -551,8 +557,11 @@ function normalizeAndFilter(
   raw: RawChainOption[],
   optionType: 'call' | 'put',
   symbol: string,
+  sourceKind?: string,
 ): NormOption[] {
   const out: NormOption[] = [];
+  const liq = readLiquidityConfig();
+  const nowMs = Date.now();
   for (const o of raw) {
     if (o.option_type !== optionType) continue;
     const bid = o.bid ?? 0;
@@ -561,11 +570,23 @@ function normalizeAndFilter(
     const mid = (bid + ask) / 2;
     if (mid <= 0) continue;
     const spreadPct = (ask - bid) / mid;
-    if (spreadPct > LIQUIDITY.maxSpreadPct) continue;
     const oi = o.open_interest ?? 0;
-    if (oi < LIQUIDITY.minOpenInterest) continue;
     const vol = o.volume ?? 0;
-    if (vol < LIQUIDITY.minVolume) continue;
+    const dte = Math.max(0, dteFrom(o.expiration_date));
+    let liquidity: ContractLiquiditySnapshot | undefined;
+    if (liq.enabled) {
+      // shared/option-liquidity.ts — the one gate every picker, publisher and the bot share.
+      const v = checkContractLiquidity(
+        { symbol, openInterest: o.open_interest ?? null, volume: o.volume ?? null, prevVolume: o.prev_day_volume ?? null, bid, ask, dte },
+        { nowMs, cfg: liq },
+      );
+      if (!v.ok) continue;
+      liquidity = { ...v.snapshot, source: sourceKind ?? 'picker', contract: contractLabel(symbol, o.expiration_date, o.strike, optionType), action: 'kept' };
+    } else {
+      if (spreadPct > LIQUIDITY.maxSpreadPct) continue;
+      if (oi < LIQUIDITY.minOpenInterest) continue;
+      if (vol < LIQUIDITY.minVolume) continue;
+    }
 
     const g = o.greeks;
     if (!g || typeof g.delta !== 'number') continue; // need greeks to select intelligently
@@ -581,7 +602,7 @@ function normalizeAndFilter(
       optionType,
       strike: o.strike,
       expiry: o.expiration_date,
-      dte: Math.max(0, dteFrom(o.expiration_date)),
+      dte,
       bid,
       ask,
       mid,
@@ -594,6 +615,7 @@ function normalizeAndFilter(
       vega: g.vega ?? 0,
       iv,
       ivEstimated,
+      liquidity,
     });
   }
   return out;
@@ -747,6 +769,7 @@ function buildCandidate(
     spreadPct: o.spreadPct,
     openInterest: o.openInterest,
     volume: o.volume,
+    liquidity: o.liquidity,
     delta: o.delta,
     gamma: o.gamma,
     theta: o.theta,
@@ -860,14 +883,14 @@ export function selectFromChain(
       : undefined,
   };
 
-  const fullPool = normalizeAndFilter(rawOptions, optionType, thesis.symbol);
+  const fullPool = normalizeAndFilter(rawOptions, optionType, thesis.symbol, meta?.sourceKind);
   if (fullPool.length === 0) {
     return {
       ...base,
       picks: [],
       recommendedTier: null,
       status: 'no_candidates',
-      note: `No liquid ${optionType}s for ${thesis.symbol} (spread/OI gates).`,
+      note: `No liquid ${optionType}s for ${thesis.symbol} — no liquid contract (liquidity gate: OI/volume/two-sided/spread/mid, shared/option-liquidity.ts).`,
     };
   }
 
