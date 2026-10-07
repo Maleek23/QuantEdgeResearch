@@ -181,6 +181,7 @@ let discordAlerts = true;
 export function setBotDiscordAlerts(on: boolean): void { discordAlerts = on; }
 
 async function announceExit(pos: any, exitPrice: number, reason: string): Promise<void> {
+  void import('./bot-discord-notifier').then((n) => n.postBotExit(pos, exitPrice, reason)).catch(() => {});
   if (!discordAlerts) return;
   try {
     const { sendBotTradeExitToDiscord } = await import('./discord-service');
@@ -869,6 +870,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             symbol: pick.symbol,
             reason: `${pick.convictionBand}-band ${pick.convictionScore} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)}`,
           });
+          void import('./bot-discord-notifier').then((n) => n.postBotEntry(res.position, tradeable, pick)).catch(() => {});
 
           // Alert the entry. sendBotTradeEntryToDiscord has existed the whole time
           // and nothing ever called it from here, so the bot has been trading
