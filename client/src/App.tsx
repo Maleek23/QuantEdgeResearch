@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, hasAuthHint } from "@/hooks/useAuth";
 import { takeStashedReturnTo } from "@/lib/return-to";
 import { usePageTracking } from "@/hooks/use-analytics";
 import { RouteFallback } from "@/components/ui/qe-loading";
@@ -36,7 +36,9 @@ const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),            
 const HarnessIndex   = import.meta.env.DEV ? lazy(() => import("@/dev/harness-index")) : null;
 
 // The tenth reference mock: the wired marketing page. Prior landing stays at @/pages/landing.
-const Landing = lazyWithRetry(() => import("@/pages/landing-nexus"), "landing");
+const Landing = lazyWithRetry(() => import("@/pages/landing-v2"), "landing");
+// `/` for a visitor: start fetching the landing chunk now, in parallel with the auth check.
+if (typeof window !== "undefined" && window.location.pathname === "/") void import("@/pages/landing-v2").catch(() => undefined);
 const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
@@ -155,8 +157,11 @@ const DeskPortal = withBetaProtection(DeskPortalPage);
 function SmartLanding() {
   const { user, isLoading } = useAuth();
 
+  // Visitors (no "signed in last time" hint) see the landing at once while the auth
+  // check runs — no boot splash on `/` (index.html skips it too). A member's browser
+  // keeps the splash until auth answers, so it never flashes the marketing page.
   if (isLoading) {
-    return <PageLoader />;
+    return hasAuthHint() ? <PageLoader /> : <Landing />;
   }
 
   // If logged in, land on TODAY (/today) — the signed-in home (2026-09-24).

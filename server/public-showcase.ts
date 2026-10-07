@@ -257,7 +257,10 @@ function refreshRecord(): Promise<void> {
     const { loadNexusBookForPublicRecord } = await import('./journal-sources');
     const { rows, verification } = await loadNexusBookForPublicRecord();
     recordCache = {
-      data: summarizeVerifiedBook(rows, { unverified: verification?.unverified.count ?? 0, ledgerAsOf: verification?.ledger?.asOf ?? null, minSample: MIN_SAMPLE }),
+      data: summarizeVerifiedBook(rows, {
+        unverified: verification?.unverified.count ?? 0, ledgerAsOf: verification?.ledger?.asOf ?? null, minSample: MIN_SAMPLE,
+        unverifiedSymbols: verification?.unverified.rows.map((r) => r.symbol),
+      }),
       at: Date.now(),
     };
   })().catch((err) => { logger.warn('[showcase] record refresh failed', { err: err instanceof Error ? err.message : String(err) }); })

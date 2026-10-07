@@ -213,7 +213,7 @@ function mockShowcase() {
     ] },
     bot: { asOf: iso(0), data: { closed: 18, open: 4, wins: 9, winRate: null, minSample: 30, netRealizedPnL: 412, avgWinPct: null, avgLossPct: null, profitFactor: null, since: '2026-09-24', runLabel: 'Run 3 · 100K · Sep 24–', startingCapital: 100000 } },
     // Fixture: bar-verified NEXUS record strip (shared/landing-record.ts shape) — invented numbers.
-    record: { asOf: iso(5 * 3_600_000), data: { verifiedClosed: 41, wins: 17, winRate: 17 / 41, minSample: 30, checkedOnly: 22, unverified: 9, from: '2026-08-27T15:00:00Z', to: '2026-10-06T19:30:00Z', ledgerAsOf: iso(5 * 3_600_000) } },
+    record: { asOf: iso(5 * 3_600_000), data: { published: 486, symbols: 212, verifiedClosed: 41, wins: 17, winRate: 17 / 41, minSample: 30, checkedOnly: 22, unverified: 9, from: '2026-08-27T15:00:00Z', to: '2026-10-06T19:30:00Z', ledgerAsOf: iso(5 * 3_600_000) } },
   };
 }
 

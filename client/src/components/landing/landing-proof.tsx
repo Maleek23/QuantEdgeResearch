@@ -2,23 +2,18 @@
  * LANDING PROOF BLOCKS — the operator-approved patterns from
  * docs/TERRA_TRADE_STUDY_2026-10-07.md, in QuantEdge's own system:
  *
- *   RecordStrip   #4  four mono cells under the hero — BAR-VERIFIED NEXUS record only
- *                     (server/public-showcase.ts `record`, shared/landing-record.ts),
- *                     each cell with its source + age; win rate withheld below n = 30;
- *                     the strip hides itself when the record isn't available (no sample).
+ *   StatStrip     #4  four big mono numbers under the hero — verified, sourced, age-stamped
+ *                     counts from the bar-verified NEXUS book; standing facts until it is read.
  *   Findings      #5  three numbered findings from our own research, each with a mini
  *                     bar pair, n and the study date — losses included.
  *   DataSources   #7  where every number comes from, one feed per row, with an honest
  *                     LIVE / DELAYED / EOD / MEASURING chip (only feeds that are wired).
- *   Toolbox       #8  the secondary desks as a /01–/06 hairline index.
  *   AmbientGrid   #10 a faint animated gamma-surface wireframe behind the hero (one
  *                     canvas, paused off-screen, a single still frame under reduced motion).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'wouter';
 import { useShowcase } from './live-showcase';
 
-const ARROW = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" /></svg>;
 
 function ago(iso: string | null | undefined, now: number) {
   if (!iso) return null;
@@ -27,37 +22,46 @@ function ago(iso: string | null | undefined, now: number) {
   const h = Math.floor(s / 3600);
   return h < 48 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) : '');
 
-// ── #4 record strip ──────────────────────────────────────────────────────
-export function RecordStrip({ onMore }: { onMore: (e: React.MouseEvent) => void }) {
-  const { data, failed } = useShowcase(true);
+// ── #4 stat strip ────────────────────────────────────────────────────────
+/**
+ * Four big mono numbers under the hero. Only counts that are verified, sourced and
+ * age-stamped — never P&L or a win rate. Live cells come from the bar-verified NEXUS
+ * book (server/public-showcase.ts `record`); until it is read (or if it is not
+ * available) the strip shows four standing facts of how the record is kept, which
+ * are true by construction — so it is never empty and never "—".
+ */
+export function StatStrip() {
+  const { data } = useShowcase(true);
   const rec = data?.record?.data ?? null;
   const asOf = data?.record?.asOf ?? null;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id); }, []);
-  // First read pending: hold the strip's space (no layout shift). Nothing verified to show
-  // (unavailable, or no bar-verification ledger): show nothing — never a sample, never "—".
-  if (!data && !failed) return <div className="lp-strip-ph" aria-hidden="true" />;
-  if (!rec || rec.verifiedClosed === 0) return null;
   const age = ago(asOf, now);
-  const src = `NEXUS ideas book · bar-verified${rec.ledgerAsOf ? ` · ledger ${rec.ledgerAsOf.slice(0, 10)}` : ''}`;
-  const left = rec.checkedOnly + rec.unverified;
+  const src = rec ? `NEXUS ideas book since the 26 Aug 2026 baseline${rec.ledgerAsOf ? ` · bar-verification ledger ${rec.ledgerAsOf.slice(0, 10)}` : ''}` : '';
+  const cells: Array<{ v: string; k: string; s: string; t: string }> = rec && rec.published > 0
+    ? [
+        { v: rec.published.toLocaleString('en-US'), k: 'Ideas timestamped', s: 'entry · stop · target, ET', t: `${src} — every idea, open or closed` },
+        { v: rec.symbols.toLocaleString('en-US'), k: 'Symbols covered', s: 'stocks · options · crypto', t: `${src} — distinct symbols published` },
+        { v: rec.verifiedClosed.toLocaleString('en-US'), k: 'Checked against bars', s: age ? `closed ideas · ledger ${age}` : 'closed ideas', t: `${src} — closed ideas whose P&L was re-computed from market bars and matched` },
+        { v: '7', k: 'Desks', s: 'one terminal', t: 'NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot · Journal' },
+      ]
+    : [
+        { v: '7', k: 'Desks', s: 'one terminal', t: 'NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot · Journal' },
+        { v: '24h', k: 'Public idea delay', s: 'then shown whatever the outcome', t: 'Ideas appear on this page at least 24h after publishing' },
+        { v: 'n ≥ 30', k: 'Before a public win rate', s: 'closed trades, always with n', t: 'Public win rates are withheld below 30 closed trades' },
+        { v: '15m', k: 'Free-plan quote delay', s: 'age shown on every tile', t: 'Free plan quotes are delayed 15 minutes' },
+      ];
   return (
-    <div className="lp-strip" role="group" aria-label="Verified record">
-      <dl>
-        <div title={src}><dt>Bar-verified ideas</dt><dd>{rec.verifiedClosed}</dd><span>closed · {day(rec.from)}–{day(rec.to)}</span></div>
-        <div title={`${src} · win = re-computed P&L above zero · shown at n ≥ ${rec.minSample}`}>
-          <dt>Win rate</dt>
-          {rec.winRate != null
-            ? <><dd>{Math.round(rec.winRate * 100)}%</dd><span>n = {rec.verifiedClosed} · before fees</span></>
-            : <><dd className="dim">n&lt;{rec.minSample}</dd><span>shown at n ≥ {rec.minSample}</span></>}
+    <dl className="lv2-stats" aria-label={rec ? 'The NEXUS record, verified counts' : 'How the record is kept'}>
+      {cells.map((c) => (
+        <div key={c.k} title={c.t}>
+          <dd>{c.v}</dd>
+          <dt>{c.k}</dt>
+          <span>{c.s}</span>
         </div>
-        <div title="Closed ideas whose P&L is not bar-verified are left out of these numbers, never added in"><dt>Left out</dt><dd>{left}</dd><span>not verified · not counted</span></div>
-        <div title={src}><dt>Verified</dt><dd>{age ?? '—'}</dd><span>against market bars</span></div>
-      </dl>
-      <a href="#sec-record" className="lp-strip-more" onClick={onMore}>How the record is kept {ARROW}</a>
-    </div>
+      ))}
+    </dl>
   );
 }
 
@@ -136,33 +140,8 @@ export function DataSources() {
   );
 }
 
-// ── #8 toolbox ───────────────────────────────────────────────────────────
-const TOOLS: Array<[string, string, string]> = [
-  ['Chart', 'Price with the dealer levels drawn on it, plus drawing tools.', '/t?tab=chart'],
-  ['Quantinum read', 'Every engine’s read on one ticker, layer by layer.', '/r/SPY'],
-  ['Catalysts', 'Earnings and scheduled events for the names you watch.', '/t?tab=catalyst'],
-  ['Crypto', '24/7 movers and crypto ideas, on a live feed.', '/t?tab=crypto'],
-  ['LEAPS', 'Longer-dated option candidates, with the scan’s age.', '/t?tab=leaps'],
-  ['Alerts', 'Price and level alerts on your watchlist.', '/alerts'],
-];
-
-export function Toolbox() {
-  return (
-    <ol className="lp-tools">
-      {TOOLS.map(([t, d, href], i) => (
-        <li key={t}>
-          <Link href={href}>
-            <span className="n" aria-hidden="true">/{String(i + 1).padStart(2, '0')}</span>
-            <b>{t}</b><span className="d">{d}</span><span className="a" aria-hidden="true">→</span>
-          </Link>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 // ── scroll-in reveals (from a visible resting state) ────────────────────
-const REVEAL = '.lp-sec .lp-head, .dk, .lp-tools li, .lp-findings > li, .lp-index li, .lp-record-card, .lp-sources li, .lp-plan, .faq-item, .cta-box';
+const REVEAL = '.lv2-head, .lv2-feat-copy, .lv2-feat-vis, .lp-findings > li, .lv2-ledgers article, .lp-sources li, .lv2-plan, .lv2-faq-item, .lv2-close-card, .lv2-from ul';
 /**
  * Everything is fully visible by default (no JS, no IO, reduced motion, print: nothing
  * is ever hidden). Elements that START below the fold get a one-time settle animation

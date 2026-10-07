@@ -15,6 +15,10 @@
 export const RECORD_MIN_SAMPLE = 30;
 
 export interface PublicRecord {
+  /** Every NEXUS idea in the book since the clean-era baseline (open + closed, counted + unverified) — each publish-timestamped. */
+  published: number;
+  /** Distinct symbols those ideas cover. */
+  symbols: number;
   /** Closed NEXUS ideas whose P&L is bar-verified. */
   verifiedClosed: number;
   /** Of those, how many closed green (recomputed P&L > 0). */
@@ -34,6 +38,7 @@ export interface PublicRecord {
 }
 
 export interface RecordInputRow {
+  symbol?: string | null;
   status: string | null;
   realizedPnL: number | null;
   exitTime: string | null;
@@ -42,8 +47,10 @@ export interface RecordInputRow {
 
 export function summarizeVerifiedBook(
   rows: RecordInputRow[],
-  opts: { unverified: number; ledgerAsOf: string | null; minSample?: number },
+  opts: { unverified: number; ledgerAsOf: string | null; minSample?: number; unverifiedSymbols?: (string | null | undefined)[] },
 ): PublicRecord {
+  const syms = new Set<string>();
+  for (const s of [...rows.map((r) => r.symbol), ...(opts.unverifiedSymbols ?? [])]) if (s) syms.add(s.toUpperCase());
   const minSample = opts.minSample ?? RECORD_MIN_SAMPLE;
   const closed = rows.filter((r) => r.status === 'closed');
   const verified = opts.ledgerAsOf ? closed.filter((r) => r.verification?.status === 'verified') : [];
@@ -51,6 +58,8 @@ export function summarizeVerifiedBook(
   const wins = verified.filter((r) => pnl(r) > 0).length;
   const exits = verified.map((r) => r.exitTime).filter((t): t is string => !!t && !Number.isNaN(Date.parse(t))).sort();
   return {
+    published: rows.length + opts.unverified,
+    symbols: syms.size,
     verifiedClosed: verified.length,
     wins,
     winRate: verified.length >= minSample ? wins / verified.length : null,

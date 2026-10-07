@@ -431,20 +431,25 @@ function hasData(s: Section<unknown> | undefined): boolean {
   return !Array.isArray(s.data) || s.data.length > 0;
 }
 
-export default function LiveShowcase() {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+/** True while `ref` is within 200px of the viewport (always true without IntersectionObserver). */
+function useNearScreen(ref: React.RefObject<HTMLElement>) {
   const [visible, setVisible] = useState(false);
-  const [active, setActive] = useState(0);
-
   useEffect(() => {
-    const el = rootRef.current;
+    const el = ref.current;
     if (!el || typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
     const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: '200px' });
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [ref]);
+  return visible;
+}
 
+/**
+ * The showcase as the panels render it: live where a live section has data, the
+ * labelled sample everywhere else (never "—"). Shared by the tabbed showcase and
+ * the single-panel windows the landing's feature sections use.
+ */
+export function useShowcaseView(visible: boolean) {
   const { data, failed } = useShowcase(visible);
   const ticks = useLiveTicks(visible);
   const now = useNow(visible);
@@ -484,6 +489,44 @@ export default function LiveShowcase() {
   const anySample = Object.values(sample).some(Boolean) || LIVE_SYMBOLS.some((s) => quotes[s]?.sample);
   const allSample = !data;
   const sampleNote = failed ? 'Sample data · live feed unavailable' : 'Sample data · live read loading';
+  const status = allSample
+    ? (failed ? 'Sample data · live feed unavailable' : 'Sample data · loading live…')
+    : failed ? 'Refresh failed · showing the last read'
+      : anySample ? 'Live · some panels sample' : 'Live data';
+  const isLive = !allSample && !failed;
+  return { data, failed, view, sample, quotes, now, anySample, allSample, sampleNote, status, isLive };
+}
+
+export type ShowcasePanelId = 'today' | 'nexus' | 'gex' | 'crypto' | 'catalysts' | 'bot' | 'journal';
+
+/** One showcase panel in a browser frame — for a feature section's visual. Sample-first, live when it lands. */
+export function ShowcaseWindow({ id, className = '' }: { id: ShowcasePanelId; className?: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const visible = useNearScreen(ref);
+  const v = useShowcaseView(visible);
+  const p = PANELS.find((x) => x.id === id) ?? PANELS[0];
+  const C = p.C;
+  return (
+    <figure className={`lp-frame sc-frame sc-window ${className}`} ref={ref}>
+      <div className="lp-frame-bar">
+        <span className="lp-dots" aria-hidden="true"><i /><i /><i /></span>
+        <span className="lp-url">{p.url}</span>
+        <span className="sc-status" aria-live="polite">{v.isLive && <span className="sc-live-dot" />}{v.status}</span>
+      </div>
+      <section className="sc-panel" aria-label={p.title}>
+        <h3 className="sc-title">{p.title}</h3>
+        <C d={v.view} now={v.now} quotes={v.quotes} sample={v.sample} sampleNote={v.sampleNote} />
+      </section>
+    </figure>
+  );
+}
+
+export default function LiveShowcase() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const visible = useNearScreen(rootRef);
+  const { data, failed, view, sample, quotes, now, anySample, allSample, sampleNote } = useShowcaseView(visible);
 
   const goTo = (i: number) => {
     const track = trackRef.current;

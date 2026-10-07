@@ -125,6 +125,11 @@
       <div class="qe-boot-track" aria-hidden="true"><i></i></div>
       <p></p>
     </div>
+    <script>
+      // `/` for a visitor (no "signed in last time" hint — hooks/useAuth.ts): no boot splash;
+      // the landing paints as soon as its chunk runs (App.tsx SmartLanding).
+      try { if (location.pathname === '/' && localStorage.getItem('qe-auth-hint') !== '1') { var bl = document.getElementById('app-loader'); if (bl) bl.remove(); } } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>

@@ -22,7 +22,7 @@
  *
  * Nothing here is market data; every mock is labelled.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 
 type DeskId = 'nexus' | 'zerodte' | 'flow' | 'gex' | 'sectors' | 'bot' | 'journal';
@@ -31,42 +31,49 @@ type DeskId = 'nexus' | 'zerodte' | 'flow' | 'gex' | 'sectors' | 'bot' | 'journa
 const VIDEO_FILE: Record<DeskId, string> = {
   nexus: 'nexus', zerodte: '0dte', flow: 'flow', gex: 'gex', sectors: 'sectors', bot: 'bot', journal: 'journal',
 };
-type Clip = { mp4: string; webm: string; poster: string };
+type Clip = { mp4: string; webm: string | null; poster: string | null };
 /** Per-desk probe result, shared across mounts: a Clip, null (no video), or a pending promise. */
 const probed = new Map<DeskId, Clip | null | Promise<Clip | null>>();
+/** HEAD a public file and accept it only if the server says it is that kind of file (the SPA fallback answers HTML). */
+const isA = (url: string, kind: 'video/' | 'image/') => fetch(url, { method: 'HEAD', credentials: 'omit' })
+  .then((r) => r.ok && (r.headers.get('content-type') ?? '').startsWith(kind)).catch(() => false);
 function probeClip(id: DeskId): Promise<Clip | null> {
   const hit = probed.get(id);
   if (hit !== undefined) return Promise.resolve(hit);
   const f = VIDEO_FILE[id];
-  const clip: Clip = { mp4: `/videos/${f}.mp4`, webm: `/videos/${f}.webm`, poster: `/videos/${f}.png` };
-  const p = fetch(clip.mp4, { method: 'HEAD', credentials: 'omit' })
-    .then((r) => (r.ok && (r.headers.get('content-type') ?? '').startsWith('video/') ? clip : null))
-    .catch(() => null)
-    .then((c) => { probed.set(id, c); return c; });
+  const mp4 = `/videos/${f}.mp4`;
+  // Posters may arrive as videos/posters/<f>.jpg, posters/<f>.jpg or videos/<f>.png — first one that exists wins.
+  const posters = [`/videos/posters/${f}.jpg`, `/posters/${f}.jpg`, `/videos/${f}.jpg`, `/videos/${f}.png`];
+  const p = isA(mp4, 'video/').then(async (ok) => {
+    if (!ok) return null;
+    const [webmOk, ...posterOk] = await Promise.all([isA(`/videos/${f}.webm`, 'video/'), ...posters.map((u) => isA(u, 'image/'))]);
+    return { mp4, webm: webmOk ? `/videos/${f}.webm` : null, poster: posters[posterOk.findIndex(Boolean)] ?? null } as Clip;
+  }).then((c) => { probed.set(id, c); return c; });
   probed.set(id, p);
   return p;
 }
 
-const DESKS: Array<{ id: DeskId; tab: string; title: string; line: string; specs: [string, string, string]; href: string; url: string }> = [
-  { id: 'nexus', tab: 'NEXUS', title: 'Setups ranked by their evidence', href: '/t', url: 'quantedgelabs.net/t',
+type Desk = { id: DeskId; tab: string; caption: string; title: string; line: string; specs: [string, string, string]; href: string; url: string };
+export const DESKS: Desk[] = [
+  { id: 'nexus', tab: 'NEXUS', caption: 'NEXUS · ranked setups', title: 'Setups ranked by their evidence', href: '/t', url: 'quantedgelabs.net/t',
     line: 'Every idea arrives with entry, stop and target printed, and is graded automatically after it plays out.',
     specs: ['Entry, stop, target stamped ET', 'Graded after it prints', 'Evidence layers shown, not hidden'] },
-  { id: 'zerodte', tab: '0DTE', title: 'The index session desk', href: '/t?nx=0dte', url: 'quantedgelabs.net/t?nx=0dte',
+  { id: 'zerodte', tab: '0DTE', caption: '0DTE · index session', title: 'The index session desk', href: '/t?nx=0dte', url: 'quantedgelabs.net/t?nx=0dte',
     line: 'SPX and SPY levels, the dealer map and same-day flow in one view through the session.',
     specs: ['Walls, zero γ and VWAP on one ladder', 'Data age on every number', 'Context, not an exchange-speed feed'] },
-  { id: 'flow', tab: 'Flow', title: 'Options flow, filtered', href: '/t?tab=flow', url: 'quantedgelabs.net/t?tab=flow',
+  { id: 'flow', tab: 'Flow', caption: 'Flow · options tape', title: 'Options flow, filtered', href: '/t?tab=flow', url: 'quantedgelabs.net/t?tab=flow',
     line: 'Prints, sweeps and blocks by ticker, strike and expiry, with the premium tide for the day.',
     specs: ['Sweep and block filters', 'Flow by strike and expiry', 'Source and age on every tile'] },
-  { id: 'gex', tab: 'GEX', title: 'Where dealers are positioned', href: '/t?tab=gex', url: 'quantedgelabs.net/t?tab=gex',
+  { id: 'gex', tab: 'GEX', caption: 'GEX · dealer positioning', title: 'Where dealers are positioned', href: '/t?tab=gex', url: 'quantedgelabs.net/t?tab=gex',
     line: 'Gamma and vanna by strike and expiry, with the call wall, put wall and zero-γ marked.',
     specs: ['Raw vs Δ-adjusted gamma', 'Regime: long or short gamma', 'Wall basis labelled (≤7d / all)'] },
-  { id: 'sectors', tab: 'Sectors', title: 'Rotation at a glance', href: '/t?tab=sectors', url: 'quantedgelabs.net/t?tab=sectors',
+  { id: 'sectors', tab: 'Sectors', caption: 'Sectors · rotation', title: 'Rotation at a glance', href: '/t?tab=sectors', url: 'quantedgelabs.net/t?tab=sectors',
     line: 'Which sectors are igniting and which are fading, relative to SPY, on one board.',
     specs: ['Relative strength vs SPY', 'Ignition flags with their age', 'Blue leads · vermilion lags'] },
-  { id: 'bot', tab: 'Quantinum Bot', title: 'A paper bot with a public ledger', href: '/t?tab=bot', url: 'quantedgelabs.net/t?tab=bot',
+  { id: 'bot', tab: 'Quantinum Bot', caption: 'Quantinum Bot · paper ledger', title: 'A paper bot with a public ledger', href: '/t?tab=bot', url: 'quantedgelabs.net/t?tab=bot',
     line: 'Trades NEXUS’s published ideas on paper with real contract marks. No real money.',
     specs: ['Every simulated fill logged', 'Win rate only at n ≥ 30', 'Rule-set version on each fill'] },
-  { id: 'journal', tab: 'Journal', title: 'Your book, measured honestly', href: '/t?tab=journal', url: 'quantedgelabs.net/t?tab=journal',
+  { id: 'journal', tab: 'Journal', caption: 'Journal · your book', title: 'Your book, measured honestly', href: '/t?tab=journal', url: 'quantedgelabs.net/t?tab=journal',
     line: 'Import a broker CSV or log by hand, then see which setups work for you and which don’t.',
     specs: ['Four numbers, one curve', 'Edge by setup and time of day', 'Scored like Quantinum Bot'] },
 ];
@@ -77,6 +84,8 @@ const CHECK = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke
 function MockNexus() {
   const rows: Array<[string, 'L' | 'S', string, number]> = [['NVDA', 'L', 'A', 88], ['MSFT', 'L', 'A', 81], ['TSLA', 'S', 'B', 74], ['AMD', 'L', 'B', 69], ['COIN', 'S', 'C', 58]];
   return (
+    <>
+    <div className="dk-mh"><b>NEXUS · 12 setups today</b><span><i>All</i><i>Long</i><i>Short</i><i>Band A+</i></span></div>
     <div className="dk-nexus">
       <ul className="dk-rank">
         {rows.map(([s, side, band, score], i) => (
@@ -93,6 +102,7 @@ function MockNexus() {
         <p className="stamp">Published 10:42 ET · graded after it prints</p>
       </div>
     </div>
+    </>
   );
 }
 
@@ -140,6 +150,8 @@ function MockGex() {
 function MockSectors() {
   const s: Array<[string, number]> = [['XLK', 1.4], ['XLC', 0.9], ['XLY', 0.6], ['XLI', 0.3], ['XLF', 0.1], ['XLB', -0.2], ['XLV', -0.4], ['XLP', -0.6], ['XLRE', -0.8], ['XLU', -1.0], ['XLE', -1.3], ['SMH', 1.8]];
   return (
+    <>
+    <div className="dk-mh"><b>Sectors · vs SPY · today</b><span><i>1D</i><i>5D</i><i>20D</i></span></div>
     <div className="dk-sectors">
       {s.map(([n, v], i) => (
         <div key={n} className={v >= 0 ? 'up' : 'down'} style={{ ['--i' as string]: i, ['--a' as string]: Math.min(1, Math.abs(v) / 1.8) }}>
@@ -147,27 +159,34 @@ function MockSectors() {
         </div>
       ))}
     </div>
+    </>
   );
 }
 
 function MockBot() {
   const rows: Array<[string, string, string, string]> = [['10:31', 'BUY', 'NVDA 130C', 'fill 2.14'], ['10:58', 'BUY', 'MSFT 425C', 'fill 3.05'], ['11:20', 'SELL', 'TSLA 240P', 'stop −38%'], ['13:45', 'SELL', 'NVDA 130C', 'target +18%'], ['14:02', 'BUY', 'AMD 160C', 'fill 1.88']];
   return (
+    <>
+    <div className="dk-mh"><b>Quantinum Bot · paper ledger</b><span><i>Run 3</i><i>Paper</i></span></div>
     <div className="dk-bot">
       <dl className="k4"><div><dt>Closed</dt><dd>14</dd></div><div><dt>Open</dt><dd>3</dd></div><div><dt>Win rate</dt><dd>n&lt;30</dd></div><div><dt>Mode</dt><dd>Paper</dd></div></dl>
       <ul className="ledger">{rows.map(([t, a, c, f], i) => <li key={i} style={{ ['--i' as string]: i }}><time>{t}</time><b className={a === 'BUY' ? 'up' : 'down'}>{a}</b><span>{c}</span><span>{f}</span></li>)}</ul>
     </div>
+    </>
   );
 }
 
 function MockJournal() {
   return (
+    <>
+    <div className="dk-mh"><b>Journal · last 30 days</b><span><i>All setups</i><i>Options</i></span></div>
     <div className="dk-journal">
       <dl className="k4"><div><dt>Net P&amp;L</dt><dd className="down">−$215</dd></div><div><dt>Trades</dt><dd>38</dd></div><div><dt>Win rate</dt><dd>45% · n=38</dd></div><div><dt>Profit factor</dt><dd>0.91</dd></div></dl>
       <svg viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
         <path className="curve" d="M0 60 L30 52 L60 58 L90 46 L120 54 L150 70 L180 66 L210 84 L240 78 L270 90 L300 82 L330 74 L360 80 L400 72" />
       </svg>
     </div>
+    </>
   );
 }
 
@@ -189,10 +208,23 @@ function useReducedMotion() {
 }
 
 
-/** The stage for one desk: its video when /videos/<file>.mp4 exists, else the mockup. */
-function DeskStage({ id, tab, line, onScreen, reduce, onKind }: { id: DeskId; tab: string; line: string; onScreen: boolean; reduce: boolean; onKind: (video: boolean) => void }) {
+
+const fmtRuntime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const PLAY = <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>;
+const PAUSE = <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>;
+
+/**
+ * The stage for one desk: its screen capture when /videos/<file>.mp4 exists
+ * (muted, looped, inline, poster, play/pause button), else the animated mockup.
+ */
+function DeskStage({ desk, onScreen, reduce, onMeta }: {
+  desk: Desk; onScreen: boolean; reduce: boolean; onMeta: (m: { video: boolean; runtime: string | null }) => void;
+}) {
+  const id = desk.id;
   const [clip, setClip] = useState<Clip | null>(() => { const c = probed.get(id); return c && !(c instanceof Promise) ? c : null; });
   const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const Mock = MOCKS[id];
 
@@ -204,45 +236,77 @@ function DeskStage({ id, tab, line, onScreen, reduce, onKind }: { id: DeskId; ta
     return () => { live = false; };
   }, [id, onScreen]);
 
-  // Autoplay muted only while on screen, never under reduced motion.
+  const video = !!clip && !failed;
+  useEffect(() => { if (!video) onMeta({ video: false, runtime: null }); }, [video, onMeta]);
+
+  // Autoplay muted only while on screen, never under reduced motion, never after the visitor paused it.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (onScreen && !reduce) v.play().catch(() => { /* autoplay refused — the poster stays */ });
+    if (onScreen && !reduce && !userPaused) v.play().catch(() => { /* autoplay refused — the poster + play button stay */ });
     else v.pause();
-  }, [onScreen, reduce, clip]);
+  }, [onScreen, reduce, clip, userPaused]);
 
-  const video = !!clip && !failed;
-  useEffect(() => { onKind(video); }, [video, onKind]);
   if (video && clip) {
+    const toggle = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) { setUserPaused(false); v.play().catch(() => undefined); } else { setUserPaused(true); v.pause(); }
+    };
     return (
-      <video ref={videoRef} muted loop playsInline preload="none" poster={clip.poster} controls={reduce}
-        onError={() => setFailed(true)} aria-label={`${tab} screen recording on sample data`}>
-        <source src={clip.webm} type="video/webm" />
-        <source src={clip.mp4} type="video/mp4" onError={() => setFailed(true)} />
-      </video>
+      <>
+        <video ref={videoRef} muted loop playsInline preload="metadata" poster={clip.poster ?? undefined}
+          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => setFailed(true)}
+          onLoadedMetadata={(e) => onMeta({ video: true, runtime: Number.isFinite(e.currentTarget.duration) ? fmtRuntime(e.currentTarget.duration) : null })}
+          aria-label={`${desk.tab} screen recording on sample data`}>
+          {clip.webm && <source src={clip.webm} type="video/webm" />}
+          <source src={clip.mp4} type="video/mp4" onError={() => setFailed(true)} />
+        </video>
+        <button type="button" className={`dk-play${playing ? ' is-playing' : ''}`} onClick={toggle}
+          aria-label={playing ? `Pause the ${desk.tab} video` : `Play the ${desk.tab} video`}>
+          {playing ? PAUSE : PLAY}
+        </button>
+      </>
     );
   }
-  return <div className="dk-mock" role="img" aria-label={`${tab} mockup on sample data: ${line}`}><Mock /></div>;
+  return <div className="dk-mock" role="img" aria-label={`${desk.tab} mockup on sample data: ${desk.line}`}><Mock /></div>;
+}
+
+/** Select a desk from elsewhere on the page (nav Product menu, ⌘K palette). */
+export function showDesk(id: string) {
+  window.dispatchEvent(new CustomEvent('qe:desk', { detail: id }));
 }
 
 export default function DeskTour() {
   const [active, setActive] = useState(0);
   const [onScreen, setOnScreen] = useState(false);
-  const [isVideo, setIsVideo] = useState(false);
+  const [meta, setMeta] = useState<{ video: boolean; runtime: string | null }>({ video: false, runtime: null });
   const frameRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const desk = DESKS[active];
+  const onMeta = useCallback((m: { video: boolean; runtime: string | null }) => setMeta(m), []);
 
   useEffect(() => {
     const el = frameRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') { setOnScreen(true); return; }
-    const io = new IntersectionObserver(([e]) => setOnScreen(e.intersectionRatio >= 0.5), { threshold: [0, 0.5, 1] });
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.intersectionRatio >= 0.4), { threshold: [0, 0.4, 1] });
     io.observe(el);
     return () => io.disconnect();
   }, []);
 
-  // Subtle parallax: the frame drifts ≤ 10 px against the scroll while it is in view.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const i = DESKS.findIndex((d) => d.id === (e as CustomEvent<string>).detail);
+      if (i < 0) return;
+      setActive(i);
+      rootRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    };
+    window.addEventListener('qe:desk', on);
+    return () => window.removeEventListener('qe:desk', on);
+  }, [reduce]);
+
+  // Subtle parallax: the frame drifts ≤ 12 px against the scroll while it is in view.
   useEffect(() => {
     const el = frameRef.current;
     if (!el || reduce) { el?.style.removeProperty('--dk-par'); return; }
@@ -252,8 +316,8 @@ export default function DeskTour() {
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight || 1;
       if (r.bottom < 0 || r.top > vh) return;
-      const t = (r.top + r.height / 2 - vh / 2) / vh; // −1…1 across the viewport
-      el.style.setProperty('--dk-par', `${(Math.max(-1, Math.min(1, t)) * -10).toFixed(1)}px`);
+      const t = (r.top + r.height / 2 - vh / 2) / vh;
+      el.style.setProperty('--dk-par', `${(Math.max(-1, Math.min(1, t)) * -12).toFixed(1)}px`);
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(tick); };
     tick();
@@ -276,35 +340,36 @@ export default function DeskTour() {
   };
 
   return (
-    <div className="dk">
+    <div className="dk" ref={rootRef}>
       <div className="dk-tabs" role="tablist" aria-label="Desks" onKeyDown={onKey}>
         {DESKS.map((d, i) => (
           <button key={d.id} id={`dk-tab-${d.id}`} type="button" role="tab" aria-selected={active === i} aria-controls="dk-panel"
             tabIndex={active === i ? 0 : -1} className={`dk-tab${active === i ? ' on' : ''}`} onClick={() => setActive(i)}>{d.tab}</button>
         ))}
       </div>
-      <div className="dk-body" id="dk-panel" role="tabpanel" aria-labelledby={`dk-tab-${desk.id}`}>
-        {/* key → the copy and the stage re-mount on a tab change, which runs their CSS cross-fade */}
-        <div className="dk-copy dk-swap" key={`copy-${desk.id}`}>
-          <h3>{desk.title}</h3>
-          <p>{desk.line}</p>
-          <ul>{desk.specs.map((s) => <li key={s}>{CHECK}<span>{s}</span></li>)}</ul>
-          <Link href={desk.href} className="lp-link">Open {desk.tab} <span aria-hidden="true">→</span></Link>
+      <div className="dk-panel" id="dk-panel" role="tabpanel" aria-labelledby={`dk-tab-${desk.id}`}>
+        {/* key → re-mount on a tab change, which runs the ~250 ms CSS cross-fade */}
+        <div className="dk-head dk-swap" key={`head-${desk.id}`}>
+          <div className="dk-head-l">
+            <p className="dk-eyebrow">{desk.tab}</p>
+            <h3>{desk.title}</h3>
+            <p>{desk.line}</p>
+          </div>
+          <div className="dk-head-r">
+            <ul>{desk.specs.map((s) => <li key={s}>{CHECK}<span>{s}</span></li>)}</ul>
+            <Link href={desk.href} className="dk-explore">Explore {desk.tab} <span aria-hidden="true">→</span></Link>
+          </div>
         </div>
-        <figure className={`lp-frame dk-frame${onScreen && !reduce ? ' playing' : ''}`} ref={frameRef}>
-          <div className="lp-frame-bar" aria-hidden="true">
-            <span className="lp-dots"><i /><i /><i /></span>
-            <span className="lp-url">{desk.url}</span>
-          </div>
+        <figure className={`dk-frame${onScreen && !reduce ? ' playing' : ''}`} ref={frameRef}>
           <div className="dk-stage dk-swap" key={desk.id}>
-            <DeskStage id={desk.id} tab={desk.tab} line={desk.line} onScreen={onScreen} reduce={reduce} onKind={setIsVideo} />
+            <DeskStage desk={desk} onScreen={onScreen} reduce={reduce} onMeta={onMeta} />
           </div>
-          <figcaption className="dk-cap">
-            <span>{desk.tab}</span>
-            <span className="dk-sample">Sample data</span>
-            <span>{isVideo ? 'Screen capture' : 'Mockup'}</span>
-          </figcaption>
+          <span className="dk-badge">Sample data</span>
         </figure>
+        <p className="dk-cap">
+          <span>{desk.caption}</span>
+          <span>{meta.video ? (meta.runtime ?? 'Screen capture') : 'Animated mockup'}</span>
+        </p>
       </div>
     </div>
   );
