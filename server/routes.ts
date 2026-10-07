@@ -10135,6 +10135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isNewsCatalyst: true,
           expiryDate: aiIdea.expiryDate || null,
           strikePrice: (aiIdea as any).strikePrice || null,
+          entryPremium: (aiIdea as any).entryPremium ?? null,
           optionType: (aiIdea as any).optionType || null,
           isLottoPlay: (aiIdea as any).isLottoPlay || false,
         });
@@ -10203,6 +10204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isNewsCatalyst: true,
               expiryDate: aiIdea.expiryDate || null,
               strikePrice: (aiIdea as any).strikePrice || null,
+              entryPremium: (aiIdea as any).entryPremium ?? null,
               optionType: (aiIdea as any).optionType || null,
               isLottoPlay: (aiIdea as any).isLottoPlay || false,
             });

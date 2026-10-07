@@ -224,6 +224,7 @@ import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrent
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
+import { checkIdeaPriceScale, usesEquityQuote } from "@shared/idea-price-scale";
 import { logger } from "./logger";
 
 // ========================================
@@ -248,6 +249,31 @@ import { logger } from "./logger";
  */
 const BEARISH_KEYWORDS = /\b(bearish|breakdown|sell[- ]off|crash|plunge|tumble|collaps|rejected|reversal down|put wall|gamma flip down)\b/i;
 const BULLISH_KEYWORDS = /\b(bullish|breakout|squeeze|surge|rally|ramp|pop|moonshot|call wall break|gamma squeeze)\b/i;
+
+/**
+ * The underlying's live price for the price-scale gate, or null (no quote /
+ * provider slow / not an equity-quoted idea) — a missing quote never rejects.
+ * Cached + de-duplicated by realtime-pricing-service; capped at 3 s.
+ */
+async function liveUnderlyingQuote(idea: { symbol?: string; assetType?: string; sessionContext?: string | null; timestamp?: string | null }): Promise<number | null> {
+  if (!idea?.symbol || !usesEquityQuote(idea.assetType, idea.symbol)) return null;
+  // Backfills / replays carry historical entries — a live quote is not their yardstick.
+  if (idea.sessionContext === "backfill") return null;
+  const ts = idea.timestamp ? Date.parse(idea.timestamp) : NaN;
+  if (Number.isFinite(ts) && Date.now() - ts > 6 * 3_600_000) return null;
+  if (process.env.PRICE_SCALE_QUOTE_CHECK === "off") return null;
+  try {
+    const { getRealtimeQuote } = await import("./realtime-pricing-service");
+    const q = await Promise.race([
+      getRealtimeQuote(idea.symbol, "stock"),
+      new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+    ]);
+    const px = Number((q as any)?.price);
+    return Number.isFinite(px) && px > 0 ? px : null;
+  } catch {
+    return null;
+  }
+}
 
 export function validateTradeIdeaForCreate(
   idea: InsertTradeIdea,
@@ -1620,6 +1646,8 @@ export class MemStorage implements IStorage {
   }
 
   async createTradeIdea(rawIdea: InsertTradeIdea, _opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
+    const scale = checkIdeaPriceScale(rawIdea as any, null);
+    if (!scale.ok) throw new Error(`Invalid trade idea: ${scale.code}: ${scale.reason}`);
     const idea = ensureScorableOptionIdea(rawIdea as any).idea as InsertTradeIdea;
     const id = randomUUID();
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
@@ -2724,6 +2752,18 @@ export class DatabaseStorage implements IStorage {
     const sourced: InsertTradeIdea = (rawIdea as any).source
       ? ({ ...rawIdea, source: normalizeIdeaSource((rawIdea as any).source) } as InsertTradeIdea)
       : rawIdea;
+
+    // 📏 Price-scale gate (shared/idea-price-scale.ts) — BEFORE the premium
+    // guard below, which would otherwise republish an option carrying PREMIUM
+    // levels as a STOCK idea with a $2.40 "share" entry (17 quant ideas,
+    // +$273k phantom P&L, verifier 2026-10-06). Operator-authored rows are left alone.
+    if (!["manual", "user"].includes(String((sourced as any).source ?? "").toLowerCase()) && (sourced as any).status !== "draft") {
+      const scale = checkIdeaPriceScale(sourced as any, await liveUnderlyingQuote(sourced as any));
+      if (!scale.ok) {
+        logger.warn(`[PRICE-SCALE] rejected ${(sourced as any).source ?? "unknown"} ${sourced.symbol} ${(sourced as any).assetType}: ${scale.reason}`);
+        throw new Error(`Invalid trade idea: ${scale.code}: ${scale.reason}`);
+      }
+    }
 
     // 💵 An option idea without an entry premium can never be scored — the
     // journal drops it (SR 11-7 v6 F-4: all 142 spx_session ideas). Publish it
