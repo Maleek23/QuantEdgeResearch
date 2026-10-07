@@ -21,6 +21,7 @@ import {
 } from '@shared/schema';
 import { OUTCOME_BASELINE_DATE } from '@shared/constants';
 import { auditBotOptionFill } from '@shared/bot-fill-verification';
+import { peakLine, readPeakSignal } from '@shared/option-peak';
 import {
   DESK_STOCK_NOTIONAL, assetOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
   type DeskIdea, type JournalWireRow,
@@ -219,6 +220,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       outcome: outcomeOf(pnl),
       measurementStatus: measurement.status,
       measurementNote: measurement.reason,
+      ...(option ? (() => { const pk = peakLine(readPeakSignal((p as any).entrySignals), closed ? p.exitPrice ?? null : null); return pk ? { peakLine: pk } : {}; })() : {}),
       notes,
       emotion: null,
       setupType: (p.tradeIdeaId && sourceOf.get(p.tradeIdeaId)) || null,

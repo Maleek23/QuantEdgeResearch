@@ -21,6 +21,9 @@ import {
   type BotSleeve, type BotSleeveConfig, type SkipSummary,
 } from '@shared/bot-sleeves';
 import { gradePick, gradeIdeaRow, gradeComponentsTag, formatNexusGrade, gradeAtLeast, type NexusGrade } from '@shared/nexus-grade';
+import { readRunnerPolicy, botRunnerManage, sessionVwap } from '@shared/runner-policy';
+import { readPeakSignal, withPeakSignal, peakLine } from '@shared/option-peak';
+import { etParts as etPartsOf } from '@shared/loss-rules';
 import { botContractLiquidity } from './lib/liquidity-gate';
 import {
   readBotStopConfig, widenStop, optionPremiumStop, sizeForRisk, underlyingStopCrossed, ustopTag, parseUstopTag,
@@ -263,6 +266,10 @@ let discordAlerts = true;
 export function setBotDiscordAlerts(on: boolean): void { discordAlerts = on; }
 
 async function announceExit(pos: any, exitPrice: number, reason: string): Promise<void> {
+  // Peak (MFE) beside the exit: "peak $5.45 at 10:12 · exit $4.22" (shared/option-peak.ts).
+  const fresh = pos?.id ? await storage.getPaperPositionById(pos.id).catch(() => null) : null;
+  const pk = peakLine(readPeakSignal(fresh?.entrySignals ?? pos?.entrySignals), exitPrice);
+  if (pk) reason = `${reason} · ${pk}`;
   void import('./bot-discord-notifier').then((n) => n.postBotExit(pos, exitPrice, reason)).catch(() => {});
   if (!discordAlerts) return;
   try {
@@ -483,6 +490,8 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
   //      breakeven stop, +100% target, hard flatten 15:45 ET. Triggers read the
   //      mid; exits fill at the bid. No live quote → nothing is decided.
   const zeroDteManaged = new Set<string>();
+  const runnerCfg = readRunnerPolicy(process.env);
+  const vwapMemo = new Map<string, { price: number; vwap: number } | null>();
   try {
     const etMin = easternMinutes();
     for (const pos of (await getOpenPositions(portfolio.id)) as any[]) {
@@ -491,6 +500,46 @@ async function runBotCycleInner(cfg: BotConfig, owner: BotOwner = PRIMARY_BOT_OW
       const live = await liveContractQuote(pos, 0.6);
       if (!live) { logger.warn(`[QUANT-BOT] 0DTE ${pos.symbol}: no live quote — bracket not evaluated (never on a stale mark)`); continue; }
       const entry = Number(pos.entryPrice);
+      // 🏔️ Peak (quote basis) on every 0DTE position, policy on or off (shared/option-peak.ts).
+      const peakNow = await recordBotQuotePeak(pos, live.mid);
+      if (runnerCfg.on) {
+        const armed = pos.stopLoss != null && Number(pos.stopLoss) >= entry - 1e-9;
+        const u = armed && runnerCfg.vwapExit ? await underlyingVwap(pos.symbol, vwapMemo) : null;
+        const rv = botRunnerManage({
+          entry, mark: live.mid, qty: Number(pos.quantity), armed, peak: peakNow, etMin,
+          dir: underlyingSide(pos), underlying: u?.price ?? null, vwap: u?.vwap ?? null,
+        }, sleeves, runnerCfg);
+        if (rv.action === 'hold') continue;
+        if (rv.action === 'stop') {
+          const g = await zeroDteGraceVerdict(pos, entry, live.mid, stopCfg);
+          if (g?.hold) { logger.info(`[QUANT-BOT] 0DTE ${pos.symbol}: ${rv.reason} held — grace: ${g.reason}`); continue; }
+        }
+        if (rv.action === 'arm_runner') {
+          await storage.updatePaperPosition(pos.id, { stopLoss: entry } as any);
+          logger.info(`[QUANT-BOT] 0DTE ${pos.symbol}: ${rv.reason}`);
+          continue;
+        }
+        if (rv.action === 'partial') {
+          // Two clips: the T1 half is split into its own row and sold at the bid;
+          // the runner keeps the original row with its stop at breakeven.
+          const clip = await storage.splitPaperPosition(pos.id, rv.qtyClose!);
+          if (!clip) { logger.warn(`[QUANT-BOT] 0DTE ${pos.symbol}: T1 partial split failed — holding`); continue; }
+          await closePosition(clip.id, live.bid, `runner_t1_partial ${exitAuditTag(live.q, new Date())}`);
+          await storage.updatePaperPosition(pos.id, { stopLoss: entry } as any);
+          const why = `${rv.reason} · ${live.stamp}`;
+          await announce(clip, live.bid, why);
+          closed.push({ symbol: pos.symbol, reason: why });
+          continue;
+        }
+        const rcode = rv.action === 'flatten' ? '0dte_flatten_1545' : rv.action === 'target' ? 'premium_target'
+          : rv.action === 'breakeven_stop' ? 'breakeven_stop' : rv.action === 'trail' ? 'runner_trailing_stop'
+          : rv.action === 'vwap_exit' ? 'runner_vwap_exit' : 'premium_stop';
+        await closePosition(pos.id, live.bid, `${rcode} ${exitAuditTag(live.q, new Date())}`);
+        const rwhy = `${rv.reason} · ${live.stamp}`;
+        await announce(pos, live.bid, rwhy);
+        closed.push({ symbol: pos.symbol, reason: rwhy });
+        continue;
+      }
       const v = premiumManage({ entry, mark: live.mid, stop: pos.stopLoss != null ? Number(pos.stopLoss) : null, etMin }, sleeves);
       if (v.action === 'hold') continue;
       // Opening grace (shared/wide-stops.ts): the −40% stop waits out the first
@@ -898,6 +947,43 @@ async function zeroDteGraceVerdict(pos: any, entryPremium: number, mark: number,
 }
 
 /** A LIVE two-sided quote for a held contract, or null (never a stale mark). */
+/**
+ * Quote-basis peak for a bot option position: stored in entry_signals when the live
+ * mid beats it (the after-close job replaces it with the contract's bar high).
+ * Returns the best premium known (stored peak, high-water mark, this mark).
+ */
+async function recordBotQuotePeak(pos: any, mark: number): Promise<number> {
+  const prev = readPeakSignal(pos.entrySignals);
+  const best = Math.max(prev?.premium ?? 0, Number(pos.highWaterMark) || 0, Number(pos.entryPrice) || 0, mark);
+  if (mark > (prev?.premium ?? Number(pos.entryPrice)) + 1e-9) {
+    const sig = withPeakSignal(pos.entrySignals, { premium: Math.round(mark * 100) / 100, atMs: Date.now(), basis: 'quote', source: 'quote:bot-mid', window: 'to_exit' });
+    if (sig && sig !== pos.entrySignals) {
+      try { await storage.updatePaperPosition(pos.id, { entrySignals: sig } as any); pos.entrySignals = sig; }
+      catch (err: any) { logger.warn(`[QUANT-BOT] ${pos.symbol}: peak write failed — ${err?.message ?? err}`); }
+    }
+  }
+  return best;
+}
+
+/** Underlying last price + session VWAP from today's 1-minute bars (Yahoo); null when unavailable. */
+async function underlyingVwap(symbol: string, memo: Map<string, { price: number; vwap: number } | null>): Promise<{ price: number; vwap: number } | null> {
+  const k = symbol.toUpperCase();
+  if (memo.has(k)) return memo.get(k)!;
+  let out: { price: number; vwap: number } | null = null;
+  try {
+    const { fetchCandles } = await import('./historical-candles');
+    const today = easternDateKey();
+    const bars = (await fetchCandles(k, '1d', '1m'))
+      .map((c) => ({ t: c.time * 1000, h: c.high, l: c.low, c: c.close, v: c.volume }))
+      .filter((b) => { const p = etPartsOf(b.t); return p.dateKey === today && p.minutes >= 570 && p.minutes < 960 && b.h > 0; });
+    const vw = sessionVwap(bars);
+    const last = bars.length - 1;
+    if (last >= 0 && Number.isFinite(vw[last])) out = { price: bars[last].c, vwap: vw[last] };
+  } catch { out = null; }
+  memo.set(k, out);
+  return out;
+}
+
 async function liveContractQuote(pos: any, maxSpreadPct: number): Promise<{ bid: number; ask: number; mid: number; stamp: string; q: import('./tradier-api').OptionMark } | null> {
   if (!pos?.optionType || !pos?.strikePrice || !pos?.expiryDate) return null;
   try {

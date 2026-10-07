@@ -25,8 +25,10 @@
  * labelled "replay-detected" and never replace a recorded event.
  */
 import { readOracleExecutionAudit } from './oracle-lifecycle';
+import { parsePeak, peakCapture } from './option-peak';
+import { parseRunner } from './runner-policy';
 
-export type TimelineEventKind = 'published' | 'trigger' | 'execution' | 't1' | 't2' | 'stop' | 'exit';
+export type TimelineEventKind = 'published' | 'trigger' | 'execution' | 't1' | 't2' | 'stop' | 'exit' | 'runner' | 'peak';
 export type TimelineStatus = 'recorded' | 'pending' | 'not_reached' | 'not_recorded' | 'not_applicable';
 export type TimelineTimeBasis =
   | 'stored'          // a timestamp column written when it happened (publish, paper fill)
@@ -34,7 +36,9 @@ export type TimelineTimeBasis =
   | 'bar_hit'         // exit time located on the first bar that crossed the level
   | 'deadline'        // exit at the idea's deadline / expiry
   | 'tracker_cycle'   // barrier exit stamped with the tracker's cycle time — hit time unknown
-  | 'untagged';       // exit_date with no [exit-time:*] tag (pre-tag rows)
+  | 'untagged'        // exit_date with no [exit-time:*] tag (pre-tag rows)
+  | 'contract_bar'    // the contract's own trade bar (peak / runner exit)
+  | 'quote_pass';     // a live mid the tracker saw on a pass (peak while open)
 
 export interface TimelineEvent {
   kind: TimelineEventKind;
@@ -143,7 +147,7 @@ function ev(kind: TimelineEventKind, label: string, status: TimelineStatus, p: P
   };
 }
 
-const KIND_ORDER: Record<TimelineEventKind, number> = { published: 0, trigger: 1, execution: 2, t1: 3, t2: 4, stop: 5, exit: 6 };
+const KIND_ORDER: Record<TimelineEventKind, number> = { published: 0, trigger: 1, execution: 2, t1: 3, t2: 4, stop: 5, runner: 6, exit: 7, peak: 8 };
 
 export function buildIdeaTimeline(i: TimelineIdea, nowMs: number = Date.now()): IdeaTimeline {
   const option = isOptionIdea(i);
@@ -243,6 +247,37 @@ export function buildIdeaTimeline(i: TimelineIdea, nowMs: number = Date.now()): 
     }));
   } else {
     events.push(ev('exit', `Exit · ${status.replace('_', ' ')}`, 'not_recorded', { source: 'trade_ideas.exit_date', note: 'closed, but exit_date is missing or unparseable' }));
+  }
+
+  // ── runner (0DTE runner policy: ½ at T1, the rest trailed) ──
+  const run = option ? parseRunner(i.outcomeNotes) : null;
+  if (run) {
+    events.push(run.state === 'closed' && run.runnerAtMs != null
+      ? ev('runner', 'Runner exit (½)', 'recorded', {
+        at: new Date(run.runnerAtMs).toISOString(), timeBasis: 'contract_bar', premium: run.runnerExitPremium,
+        source: 'outcome_notes [runner:…] (server/option-peak-job.ts, contract 1m bars)',
+        note: `½ at T1 $${run.t1ExitPremium.toFixed(2)} · runner $${(run.runnerExitPremium ?? 0).toFixed(2)}${run.runnerWhy ? ` (${run.runnerWhy})` : ''} · blended $${(run.blendedPremium ?? 0).toFixed(2)} = exit_premium`,
+      })
+      : ev('runner', 'Runner (½)', 'pending', {
+        source: 'outcome_notes [runner:open]', level: null,
+        note: `½ sold at T1 $${run.t1ExitPremium.toFixed(2)} · runner open${run.stop != null ? `, stop at breakeven $${run.stop.toFixed(2)}` : ''} — trail / VWAP / +100% / 15:45`,
+      }));
+  }
+
+  // ── peak (hindsight: the contract's best price after entry) ──
+  const pk = option ? parsePeak(i.outcomeNotes) : null;
+  if (pk) {
+    const cap = !open ? peakCapture(num(i.entryPremium), num(i.exitPremium), pk.premium) : null;
+    events.push(ev('peak', `Peak premium${pk.window === 'to_eod' ? ' (through 16:00)' : ''}`, 'recorded', {
+      at: new Date(pk.atMs).toISOString(), timeBasis: pk.basis === 'quote' ? 'quote_pass' : pk.basis === 'bar' ? 'contract_bar' : 'untagged',
+      price: pk.underlying ?? null, premium: pk.premium,
+      source: `outcome_notes [peak:…] · ${pk.basis}${pk.basis === 'intrinsic' ? ' (no contract print — intrinsic at the underlying\'s best print)' : ''} · ${pk.source}`,
+      note: [
+        !open && num(i.exitPremium) != null ? `exit $${num(i.exitPremium)!.toFixed(2)}` : null,
+        cap != null ? `exit kept ${Math.round(cap * 100)}% of the move to the peak` : null,
+        'hindsight beside the outcome — not the P&L',
+      ].filter(Boolean).join(' · '),
+    }));
   }
 
   if (option) notes.push('Prices are the UNDERLYING (exit_price is the stock price); premiums are the contract mid recorded by the validator.');

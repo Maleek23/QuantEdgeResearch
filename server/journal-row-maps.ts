@@ -3,6 +3,8 @@
  * journal tests can exercise them): one published trade idea → one journal row.
  */
 import { afterStopLabel, parseAfterStop, isStoppedOut } from '@shared/after-stop';
+import { parsePeak, peakLine } from '@shared/option-peak';
+import { parseRunner, runnerLine } from '@shared/runner-policy';
 import type { JournalTrade } from '@shared/schema';
 import type { DeskUnverifiedItem, DeskVerificationMeta } from '@shared/journal-sources';
 import { isUnmeasuredExpiry } from '@shared/constants';
@@ -46,6 +48,15 @@ export type JournalWireRow = Pick<JournalTrade,
    * Hindsight beside the outcome; the row stays a loss.
    */
   afterStop?: string | null;
+  /**
+   * Option rows: the contract's best price after entry beside the exit —
+   * "peak $5.45 at 10:12 · exit $4.22" (shared/option-peak.ts; hindsight, the P&L is the exit's).
+   */
+  peakLine?: string | null;
+  /** Option rows: the recorded peak premium (number) — LiveMark.peak starts from it (server/journal-marks.ts). */
+  peakPremium?: number | null;
+  /** 0DTE desk rows under the runner policy: "½ at T1 $4.22 · runner $5.10 (trail …) · blended $4.66". */
+  runner?: string | null;
   /** Desk rows: whether the recorded P&L is verified, only integrity-checked, or unverified (and why). */
   verification?: DeskVerification;
   /** Bot book only: whether option P&L reconciles to its saved execution/settlement evidence. */
@@ -244,6 +255,9 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const afterStop = resolved && isStoppedOut(status)
     ? afterStopLabel(parseAfterStop(i.outcomeNotes), exitTime ? Date.parse(exitTime) : null)
     : null;
+  const runnerTxt = option && resolved ? runnerLine(parseRunner(i.outcomeNotes)) : null;
+  const pkRec = option ? parsePeak(i.outcomeNotes) : null;
+  const peakTxt = pkRec ? peakLine(pkRec, resolved ? exit : null) : null;
   return {
     row: {
       id: `desk:${i.id}`,
@@ -281,6 +295,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
         assetType: i.assetType, direction: planDirection, entry: planEntry, stop: planStop, entryPremium: option ? entry : null,
         expiryDate: planExpiry, publishedAt: i.timestamp, unitQty: qty,
       }),
+      ...(peakTxt ? { peakLine: peakTxt, peakPremium: pkRec!.premium } : {}),
+      ...(runnerTxt ? { runner: runnerTxt } : {}),
     },
   };
 }

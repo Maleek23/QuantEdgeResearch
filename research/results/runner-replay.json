@@ -1,0 +1,1723 @@
+{
+ "generatedAt": "2026-10-07T15:55:35.005Z",
+ "label": "MEASURING — not a validated edge",
+ "sessionsRequested": 20,
+ "sessionsWithIdeas": [
+  "2026-09-28",
+  "2026-09-30",
+  "2026-10-01",
+  "2026-10-02",
+  "2026-10-05",
+  "2026-10-06"
+ ],
+ "halfCut": "2026-10-02",
+ "trailPct": 25,
+ "rUnit": "40% of entry premium",
+ "halves": {
+  "first": {
+   "allOut": {
+    "n": 16,
+    "ER": -0.5806249999999998,
+    "avgPremiumPct": -23.221249999999998,
+    "winRate": 0.25,
+    "captureOfPeak": -0.4949646170038912,
+    "captureN": 14
+   },
+   "runner": {
+    "n": 16,
+    "ER": -0.2155625,
+    "avgPremiumPct": -8.620625,
+    "winRate": 0.4375,
+    "captureOfPeak": -0.24985029912274861,
+    "captureN": 14
+   },
+   "runnerT1": {
+    "n": 16,
+    "ER": -0.5806249999999998,
+    "avgPremiumPct": -23.221249999999998,
+    "winRate": 0.25,
+    "captureOfPeak": -0.4949646170038912,
+    "captureN": 14
+   },
+   "t1ReachedN": 4
+  },
+  "second": {
+   "allOut": {
+    "n": 26,
+    "ER": -0.08384615384615388,
+    "avgPremiumPct": -3.355384615384616,
+    "winRate": 0.4230769230769231,
+    "captureOfPeak": -0.8802841182922885,
+    "captureN": 23
+   },
+   "runner": {
+    "n": 26,
+    "ER": -0.21334615384615388,
+    "avgPremiumPct": -8.532692307692308,
+    "winRate": 0.46153846153846156,
+    "captureOfPeak": -0.8541776484728334,
+    "captureN": 23
+   },
+   "runnerT1": {
+    "n": 26,
+    "ER": -0.059115384615384604,
+    "avgPremiumPct": -2.365000000000001,
+    "winRate": 0.4230769230769231,
+    "captureOfPeak": -0.8713421863249783,
+    "captureN": 23
+   },
+   "t1ReachedN": 10
+  },
+  "all": {
+   "allOut": {
+    "n": 42,
+    "ER": -0.273095238095238,
+    "avgPremiumPct": -10.92333333333333,
+    "winRate": 0.35714285714285715,
+    "captureOfPeak": -0.7344875502372193,
+    "captureN": 37
+   },
+   "runner": {
+    "n": 42,
+    "ER": -0.21419047619047613,
+    "avgPremiumPct": -8.566190476190478,
+    "winRate": 0.4523809523809524,
+    "captureOfPeak": -0.6255132460160446,
+    "captureN": 37
+   },
+   "runnerT1": {
+    "n": 42,
+    "ER": -0.2577857142857142,
+    "avgPremiumPct": -10.310238095238091,
+    "winRate": 0.35714285714285715,
+    "captureOfPeak": -0.7289290519872698,
+    "captureN": 37
+   },
+   "t1ReachedN": 14
+  }
+ },
+ "skipped": {
+  "entry_after_flatten": 14,
+  "session_not_complete": 5
+ },
+ "network": {
+  "calls": 62,
+  "cacheHits": 2
+ },
+ "massive": {
+  "state": {
+   "optionAggs": "ok",
+   "optionTrades": "unknown",
+   "stockDaily": "unknown"
+  },
+  "refusal": {},
+  "calls": 42,
+  "rateLimited": 0,
+  "errors": 0,
+  "needs": []
+ },
+ "rows": [
+  {
+   "id": "d95cd89e-2423-4474-a1c7-34657fd03662",
+   "day": "2026-09-28",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260929C00282000",
+   "entryPremium": 0.71,
+   "entryAt": "2026-09-28T19:00:28.782Z",
+   "recorded": "expired",
+   "barSource": "massive:O:IWM260929C00282000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.67,
+   "peakAt": "2026-09-28T19:05:00.000Z",
+   "allOut": {
+    "exit": 0.51,
+    "why": "15:45 flatten",
+    "pct": -28.17,
+    "R": -0.704,
+    "capture": null
+   },
+   "runner": {
+    "exit": 0.51,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": -28.17,
+    "R": -0.704,
+    "capture": null
+   },
+   "runnerT1": {
+    "exit": 0.51,
+    "why": "15:45 flatten",
+    "pct": -28.17,
+    "R": -0.704,
+    "capture": null
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "f6b557fb-7e3d-4da6-b1cb-f24380f1b1be",
+   "day": "2026-09-28",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260929C00280000",
+   "entryPremium": 1.25,
+   "entryAt": "2026-09-28T19:30:58.808Z",
+   "recorded": "expired",
+   "barSource": "massive:O:IWM260929C00280000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.5,
+   "peakAt": "2026-09-28T19:32:00.000Z",
+   "allOut": {
+    "exit": 1.29,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.16000000000000014
+   },
+   "runner": {
+    "exit": 1.29,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.16000000000000014
+   },
+   "runnerT1": {
+    "exit": 1.29,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.16000000000000014
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "75a233e7-751e-4e0e-b21b-9f6135ef750d",
+   "day": "2026-09-30",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY261001C00770000",
+   "entryPremium": 1.6,
+   "entryAt": "2026-09-30T15:35:35.404Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:SPY261001C00770000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.03,
+   "peakAt": "2026-09-30T15:50:00.000Z",
+   "allOut": {
+    "exit": 1.18,
+    "why": "stop",
+    "pct": -26.25,
+    "R": -0.656,
+    "capture": -0.9767441860465126
+   },
+   "runner": {
+    "exit": 1.18,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -26.25,
+    "R": -0.656,
+    "capture": -0.9767441860465126
+   },
+   "runnerT1": {
+    "exit": 1.18,
+    "why": "stop",
+    "pct": -26.25,
+    "R": -0.656,
+    "capture": -0.9767441860465126
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "b6168f50-4b04-4bc1-b955-d7ce1d6f5a99",
+   "day": "2026-09-30",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY260930C00768000",
+   "entryPremium": 1.04,
+   "entryAt": "2026-09-30T17:04:06.504Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:SPY260930C00768000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.17,
+   "peakAt": "2026-09-30T17:08:00.000Z",
+   "allOut": {
+    "exit": 0.62,
+    "why": "stop",
+    "pct": -40.38,
+    "R": -1.01,
+    "capture": -3.230769230769234
+   },
+   "runner": {
+    "exit": 0.62,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -40.38,
+    "R": -1.01,
+    "capture": -3.230769230769234
+   },
+   "runnerT1": {
+    "exit": 0.62,
+    "why": "stop",
+    "pct": -40.38,
+    "R": -1.01,
+    "capture": -3.230769230769234
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "9589a1ce-da86-4a03-aa37-b420866436f9",
+   "day": "2026-09-30",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260930P00279000",
+   "entryPremium": 0.51,
+   "entryAt": "2026-09-30T17:26:08.771Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM260930P00279000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.12,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -58.82,
+    "R": -1.471,
+    "capture": -0.4918032786885246
+   },
+   "runner": {
+    "exit": 0.21,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": -58.82,
+    "R": -1.471,
+    "capture": -0.4918032786885246
+   },
+   "runnerT1": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -58.82,
+    "R": -1.471,
+    "capture": -0.4918032786885246
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "14d8e41a-637a-4e1b-9074-ed282b83350b",
+   "day": "2026-09-30",
+   "symbol": "TSLA",
+   "kind": "zero_dte_desk",
+   "contract": "TSLA260930C00355000",
+   "entryPremium": 0.46,
+   "entryAt": "2026-09-30T17:44:07.289Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:TSLA260930C00355000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.95,
+   "peakAt": "2026-09-30T17:48:00.000Z",
+   "allOut": {
+    "exit": 0.12,
+    "why": "stop",
+    "pct": -73.91,
+    "R": -1.848,
+    "capture": -0.6938775510204083
+   },
+   "runner": {
+    "exit": 0.81,
+    "t1": 0.69,
+    "runner": 0.92,
+    "why": "+50% half → +100%",
+    "pct": 75,
+    "R": 1.875,
+    "capture": 0.7040816326530613
+   },
+   "runnerT1": {
+    "exit": 0.12,
+    "why": "stop",
+    "pct": -73.91,
+    "R": -1.848,
+    "capture": -0.6938775510204083
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "cc46d4b0-a876-42fc-a1db-1a6181222017",
+   "day": "2026-09-30",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260930P00279000",
+   "entryPremium": 0.32,
+   "entryAt": "2026-09-30T18:16:08.736Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM260930P00279000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.12,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -34.37,
+    "R": -0.859,
+    "capture": -0.1375
+   },
+   "runner": {
+    "exit": 0.21,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": -34.37,
+    "R": -0.859,
+    "capture": -0.1375
+   },
+   "runnerT1": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -34.37,
+    "R": -0.859,
+    "capture": -0.1375
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "cad6eacb-2574-4427-9ab4-6f55723eee58",
+   "day": "2026-09-30",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260930P00279000",
+   "entryPremium": 0.35,
+   "entryAt": "2026-09-30T18:52:07.654Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM260930P00279000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.12,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -40,
+    "R": -1,
+    "capture": -0.18181818181818177
+   },
+   "runner": {
+    "exit": 0.21,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": -40,
+    "R": -1,
+    "capture": -0.18181818181818177
+   },
+   "runnerT1": {
+    "exit": 0.21,
+    "why": "15:45 flatten",
+    "pct": -40,
+    "R": -1,
+    "capture": -0.18181818181818177
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "2baf593f-209f-4900-a64b-448b485f8e18",
+   "day": "2026-09-30",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261001P00280000",
+   "entryPremium": 1.65,
+   "entryAt": "2026-09-30T19:06:11.961Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM261001P00280000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.52,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 1.65,
+    "why": "15:45 flatten",
+    "pct": 0,
+    "R": 0,
+    "capture": 0
+   },
+   "runner": {
+    "exit": 1.65,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 0,
+    "R": 0,
+    "capture": 0
+   },
+   "runnerT1": {
+    "exit": 1.65,
+    "why": "15:45 flatten",
+    "pct": 0,
+    "R": 0,
+    "capture": 0
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "0a1d825d-2792-4513-9c51-3b9635ad3705",
+   "day": "2026-09-30",
+   "symbol": "TSLA",
+   "kind": "zero_dte_desk",
+   "contract": "TSLA260930C00352500",
+   "entryPremium": 1.07,
+   "entryAt": "2026-09-30T19:13:01.141Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:TSLA260930C00352500:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.81,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 0.53,
+    "why": "stop",
+    "pct": -50.47,
+    "R": -1.262,
+    "capture": -0.3103448275862069
+   },
+   "runner": {
+    "exit": 0.53,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -50.47,
+    "R": -1.262,
+    "capture": -0.3103448275862069
+   },
+   "runnerT1": {
+    "exit": 0.53,
+    "why": "stop",
+    "pct": -50.47,
+    "R": -1.262,
+    "capture": -0.3103448275862069
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "1a3dc627-a30e-4363-8425-6123c277fcf8",
+   "day": "2026-09-30",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM260930P00280000",
+   "entryPremium": 1.05,
+   "entryAt": "2026-09-30T19:18:27.746Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM260930P00280000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.08,
+   "peakAt": "2026-09-30T19:59:00.000Z",
+   "allOut": {
+    "exit": 1.09,
+    "why": "15:45 flatten",
+    "pct": 3.81,
+    "R": 0.095,
+    "capture": 0.03883495145631071
+   },
+   "runner": {
+    "exit": 1.09,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 3.81,
+    "R": 0.095,
+    "capture": 0.03883495145631071
+   },
+   "runnerT1": {
+    "exit": 1.09,
+    "why": "15:45 flatten",
+    "pct": 3.81,
+    "R": 0.095,
+    "capture": 0.03883495145631071
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "5b3a2e5e-dd29-4978-a0fa-47aa76f23a87",
+   "day": "2026-09-30",
+   "symbol": "META",
+   "kind": "zero_dte_desk",
+   "contract": "META260930P00732500",
+   "entryPremium": 1.94,
+   "entryAt": "2026-09-30T19:14:05.135Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:META260930P00732500:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 7.7,
+   "peakAt": "2026-09-30T19:58:00.000Z",
+   "allOut": {
+    "exit": 2.43,
+    "why": "15:45 flatten",
+    "pct": 25.26,
+    "R": 0.631,
+    "capture": 0.08506944444444449
+   },
+   "runner": {
+    "exit": 2.43,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 25.26,
+    "R": 0.631,
+    "capture": 0.08506944444444449
+   },
+   "runnerT1": {
+    "exit": 2.43,
+    "why": "15:45 flatten",
+    "pct": 25.26,
+    "R": 0.631,
+    "capture": 0.08506944444444449
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "b6ac5552-249c-4986-b1c6-1355c47dbde2",
+   "day": "2026-10-01",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY261001P00761000",
+   "entryPremium": 1.89,
+   "entryAt": "2026-10-01T14:22:11.517Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:SPY261001P00761000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.88,
+   "peakAt": "2026-10-01T15:11:00.000Z",
+   "allOut": {
+    "exit": 0.43,
+    "why": "stop",
+    "pct": -77.25,
+    "R": -1.931,
+    "capture": -1.4747474747474747
+   },
+   "runner": {
+    "exit": 2.5,
+    "t1": 2.835,
+    "runner": 2.16,
+    "why": "+50% half → trail 25% from peak",
+    "pct": 32.14,
+    "R": 0.804,
+    "capture": 0.6136363636363638
+   },
+   "runnerT1": {
+    "exit": 0.43,
+    "why": "stop",
+    "pct": -77.25,
+    "R": -1.931,
+    "capture": -1.4747474747474747
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "e205c8b5-9cf4-4820-a992-00a6018a96a1",
+   "day": "2026-10-01",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261001C00279000",
+   "entryPremium": 0.38,
+   "entryAt": "2026-10-01T16:34:07.432Z",
+   "recorded": "hit_target (auto_target_hit)",
+   "barSource": "massive:O:IWM261001C00279000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.66,
+   "peakAt": "2026-10-01T17:31:00.000Z",
+   "allOut": {
+    "exit": 1.09,
+    "why": "T1",
+    "pct": 186.84,
+    "R": 4.671,
+    "capture": 0.5546875000000001
+   },
+   "runner": {
+    "exit": 0.51,
+    "t1": 0.57,
+    "runner": 0.4575,
+    "why": "+50% half → trail 25% from peak",
+    "pct": 35.18,
+    "R": 0.88,
+    "capture": 0.10445312500000005
+   },
+   "runnerT1": {
+    "exit": 1.09,
+    "why": "T1 half → +100%",
+    "pct": 186.84,
+    "R": 4.671,
+    "capture": 0.5546875000000001
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "6fabe082-5f5f-4dba-882c-d272feb6821e",
+   "day": "2026-10-01",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY261001P00760000",
+   "entryPremium": 0.93,
+   "entryAt": "2026-10-01T16:59:08.303Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:SPY261001P00760000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.81,
+   "peakAt": "2026-10-01T17:00:00.000Z",
+   "allOut": {
+    "exit": 0.24,
+    "why": "stop",
+    "pct": -74.19,
+    "R": -1.855,
+    "capture": null
+   },
+   "runner": {
+    "exit": 0.24,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -74.19,
+    "R": -1.855,
+    "capture": null
+   },
+   "runnerT1": {
+    "exit": 0.24,
+    "why": "stop",
+    "pct": -74.19,
+    "R": -1.855,
+    "capture": null
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "0dec274f-9e24-420d-802b-7baa9348c6c8",
+   "day": "2026-10-01",
+   "symbol": "QQQ",
+   "kind": "index_scalp",
+   "contract": "QQQ261001P00741000",
+   "entryPremium": 0.38,
+   "entryAt": "2026-10-01T17:54:06.935Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:QQQ261001P00741000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.6,
+   "peakAt": "2026-10-01T18:07:00.000Z",
+   "allOut": {
+    "exit": 0.05,
+    "why": "15:45 flatten",
+    "pct": -86.84,
+    "R": -2.171,
+    "capture": -0.2704918032786885
+   },
+   "runner": {
+    "exit": 0.53,
+    "t1": 0.57,
+    "runner": 0.495,
+    "why": "+50% half → trail 25% from peak",
+    "pct": 40.13,
+    "R": 1.003,
+    "capture": 0.12499999999999996
+   },
+   "runnerT1": {
+    "exit": 0.05,
+    "why": "15:45 flatten",
+    "pct": -86.84,
+    "R": -2.171,
+    "capture": -0.2704918032786885
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "1a7507ce-bd50-48ec-9414-379cd2ee0d21",
+   "day": "2026-10-02",
+   "symbol": "MSFT",
+   "kind": "zero_dte_flow",
+   "contract": "MSFT261002P00515000",
+   "entryPremium": 1.48,
+   "entryAt": "2026-10-02T13:46:03.880Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:MSFT261002P00515000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.11,
+   "peakAt": "2026-10-02T15:57:00.000Z",
+   "allOut": {
+    "exit": 1.43,
+    "why": "T1",
+    "pct": -3.38,
+    "R": -0.084,
+    "capture": -0.07936507936507944
+   },
+   "runner": {
+    "exit": 1.42,
+    "t1": 1.43,
+    "runner": 1.4,
+    "why": "T1 half → breakeven",
+    "pct": -4.39,
+    "R": -0.11,
+    "capture": -0.10317460317460311
+   },
+   "runnerT1": {
+    "exit": 1.42,
+    "why": "T1 half → breakeven",
+    "pct": -4.39,
+    "R": -0.11,
+    "capture": -0.10317460317460311
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "2f700a98-c5f4-4561-9d91-44790b55df82",
+   "day": "2026-10-02",
+   "symbol": "TSLA",
+   "kind": "zero_dte_flow",
+   "contract": "TSLA261002C00370000",
+   "entryPremium": 2.17,
+   "entryAt": "2026-10-02T14:02:08.898Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:TSLA261002C00370000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 5,
+   "peakAt": "2026-10-02T14:28:00.000Z",
+   "allOut": {
+    "exit": 3.2,
+    "why": "T1",
+    "pct": 47.47,
+    "R": 1.187,
+    "capture": 0.36395759717314496
+   },
+   "runner": {
+    "exit": 3.9,
+    "t1": 3.45,
+    "runner": 4.34,
+    "why": "T1 half → +100%",
+    "pct": 79.49,
+    "R": 1.987,
+    "capture": 0.6095406360424028
+   },
+   "runnerT1": {
+    "exit": 3.77,
+    "why": "T1 half → +100%",
+    "pct": 73.73,
+    "R": 1.843,
+    "capture": 0.5653710247349824
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "df930f5b-cb0a-4734-8698-082abca75762",
+   "day": "2026-10-02",
+   "symbol": "AMD",
+   "kind": "zero_dte_flow",
+   "contract": "AMD261002C00640000",
+   "entryPremium": 2.57,
+   "entryAt": "2026-10-02T14:10:51.691Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:AMD261002C00640000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 7.3,
+   "peakAt": "2026-10-02T14:28:00.000Z",
+   "allOut": {
+    "exit": 4.11,
+    "why": "T1",
+    "pct": 59.92,
+    "R": 1.498,
+    "capture": 0.3255813953488373
+   },
+   "runner": {
+    "exit": 4.5,
+    "t1": 3.855,
+    "runner": 5.14,
+    "why": "T1 half → +100%",
+    "pct": 75,
+    "R": 1.875,
+    "capture": 0.40750528541226205
+   },
+   "runnerT1": {
+    "exit": 4.63,
+    "why": "T1 half → +100%",
+    "pct": 79.96,
+    "R": 1.999,
+    "capture": 0.43446088794926
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "8d344c2e-3f11-428e-a2f7-798325b42661",
+   "day": "2026-10-02",
+   "symbol": "AAPL",
+   "kind": "zero_dte_flow",
+   "contract": "AAPL261002C00332500",
+   "entryPremium": 1.9,
+   "entryAt": "2026-10-02T14:20:08.196Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:AAPL261002C00332500:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.45,
+   "peakAt": "2026-10-02T14:21:00.000Z",
+   "allOut": {
+    "exit": 0.93,
+    "why": "stop",
+    "pct": -51.05,
+    "R": -1.276,
+    "capture": -1.7636363636363626
+   },
+   "runner": {
+    "exit": 0.93,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -51.05,
+    "R": -1.276,
+    "capture": -1.7636363636363626
+   },
+   "runnerT1": {
+    "exit": 0.93,
+    "why": "stop",
+    "pct": -51.05,
+    "R": -1.276,
+    "capture": -1.7636363636363626
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "c5e64d98-70fd-448f-9331-300d13bf15db",
+   "day": "2026-10-05",
+   "symbol": "TSLA",
+   "kind": "zero_dte_flow",
+   "contract": "TSLA261005C00370000",
+   "entryPremium": 3.12,
+   "entryAt": "2026-10-05T13:46:09.948Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:TSLA261005C00370000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 11.35,
+   "peakAt": "2026-10-05T19:05:00.000Z",
+   "allOut": {
+    "exit": 5,
+    "why": "T1",
+    "pct": 60.26,
+    "R": 1.506,
+    "capture": 0.22843256379100849
+   },
+   "runner": {
+    "exit": 5.46,
+    "t1": 4.68,
+    "runner": 6.24,
+    "why": "+50% half → +100%",
+    "pct": 75,
+    "R": 1.875,
+    "capture": 0.284325637910085
+   },
+   "runnerT1": {
+    "exit": 5.62,
+    "why": "T1 half → +100%",
+    "pct": 80.13,
+    "R": 2.003,
+    "capture": 0.30376670716889426
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "d4aa58a1-13ae-4f96-92cb-54f350bdb8ad",
+   "day": "2026-10-05",
+   "symbol": "IWM",
+   "kind": "zero_dte_flow",
+   "contract": "IWM261005P00281000",
+   "entryPremium": 0.95,
+   "entryAt": "2026-10-05T13:46:09.948Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:IWM261005P00281000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.25,
+   "peakAt": "2026-10-05T13:55:00.000Z",
+   "allOut": {
+    "exit": 0.48,
+    "why": "stop",
+    "pct": -49.47,
+    "R": -1.237,
+    "capture": -1.5666666666666664
+   },
+   "runner": {
+    "exit": 0.48,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -49.47,
+    "R": -1.237,
+    "capture": -1.5666666666666664
+   },
+   "runnerT1": {
+    "exit": 0.48,
+    "why": "stop",
+    "pct": -49.47,
+    "R": -1.237,
+    "capture": -1.5666666666666664
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "e6f5ba97-e93e-4815-8c19-81856355efe6",
+   "day": "2026-10-05",
+   "symbol": "MSFT",
+   "kind": "zero_dte_flow",
+   "contract": "MSFT261005C00535000",
+   "entryPremium": 0.98,
+   "entryAt": "2026-10-05T13:46:00.361Z",
+   "recorded": "expired",
+   "barSource": "massive:O:MSFT261005C00535000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.79,
+   "peakAt": "2026-10-05T13:47:00.000Z",
+   "allOut": {
+    "exit": 0.41,
+    "why": "stop",
+    "pct": -58.16,
+    "R": -1.454,
+    "capture": null
+   },
+   "runner": {
+    "exit": 0.41,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -58.16,
+    "R": -1.454,
+    "capture": null
+   },
+   "runnerT1": {
+    "exit": 0.41,
+    "why": "stop",
+    "pct": -58.16,
+    "R": -1.454,
+    "capture": null
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "29ef126f-ea74-4a60-8a39-54ae004bda39",
+   "day": "2026-10-05",
+   "symbol": "GOOGL",
+   "kind": "zero_dte_flow",
+   "contract": "GOOGL261005C00345000",
+   "entryPremium": 1.04,
+   "entryAt": "2026-10-05T14:14:22.944Z",
+   "recorded": "hit_target (auto_target_hit)",
+   "barSource": "massive:O:GOOGL261005C00345000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 3,
+   "peakAt": "2026-10-05T19:21:00.000Z",
+   "allOut": {
+    "exit": 1.38,
+    "why": "T1",
+    "pct": 32.69,
+    "R": 0.817,
+    "capture": 0.17346938775510198
+   },
+   "runner": {
+    "exit": 1.25,
+    "t1": 1.38,
+    "runner": 1.11,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 19.71,
+    "R": 0.493,
+    "capture": 0.10459183673469391
+   },
+   "runnerT1": {
+    "exit": 1.25,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 19.71,
+    "R": 0.493,
+    "capture": 0.10459183673469391
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "5ea5e31f-181c-4e83-a6a7-2b8007893f19",
+   "day": "2026-10-05",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261006C00283000",
+   "entryPremium": 0.98,
+   "entryAt": "2026-10-05T14:22:08.291Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:IWM261006C00283000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.82,
+   "peakAt": "2026-10-05T19:14:00.000Z",
+   "allOut": {
+    "exit": 0.66,
+    "why": "stop",
+    "pct": -32.65,
+    "R": -0.816,
+    "capture": -0.3809523809523809
+   },
+   "runner": {
+    "exit": 0.66,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -32.65,
+    "R": -0.816,
+    "capture": -0.3809523809523809
+   },
+   "runnerT1": {
+    "exit": 0.66,
+    "why": "stop",
+    "pct": -32.65,
+    "R": -0.816,
+    "capture": -0.3809523809523809
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "0f7c8e71-47f7-46aa-a728-d247cc441ad7",
+   "day": "2026-10-05",
+   "symbol": "TSLA",
+   "kind": "zero_dte_desk",
+   "contract": "TSLA261005P00375000",
+   "entryPremium": 1.19,
+   "entryAt": "2026-10-05T14:26:10.630Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:TSLA261005P00375000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.64,
+   "peakAt": "2026-10-05T14:32:00.000Z",
+   "allOut": {
+    "exit": 0.11,
+    "why": "stop",
+    "pct": -90.76,
+    "R": -2.269,
+    "capture": -2.4
+   },
+   "runner": {
+    "exit": 0.11,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -90.76,
+    "R": -2.269,
+    "capture": -2.4
+   },
+   "runnerT1": {
+    "exit": 0.11,
+    "why": "stop",
+    "pct": -90.76,
+    "R": -2.269,
+    "capture": -2.4
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "4b029c06-be3d-4f18-ad32-57ffa8bcd867",
+   "day": "2026-10-05",
+   "symbol": "META",
+   "kind": "zero_dte_desk",
+   "contract": "META261005P00740000",
+   "entryPremium": 1.83,
+   "entryAt": "2026-10-05T14:34:08.795Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:META261005P00740000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.59,
+   "peakAt": "2026-10-05T14:35:00.000Z",
+   "allOut": {
+    "exit": 0.85,
+    "why": "stop",
+    "pct": -53.55,
+    "R": -1.339,
+    "capture": -1.2894736842105268
+   },
+   "runner": {
+    "exit": 0.85,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -53.55,
+    "R": -1.339,
+    "capture": -1.2894736842105268
+   },
+   "runnerT1": {
+    "exit": 0.85,
+    "why": "stop",
+    "pct": -53.55,
+    "R": -1.339,
+    "capture": -1.2894736842105268
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "5a8cf481-1522-4eeb-bddf-afbfa406cbed",
+   "day": "2026-10-05",
+   "symbol": "META",
+   "kind": "zero_dte_flow",
+   "contract": "META261005C00745000",
+   "entryPremium": 2.02,
+   "entryAt": "2026-10-05T14:48:16.384Z",
+   "recorded": "hit_target (auto_target_hit)",
+   "barSource": "massive:O:META261005C00745000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 3.95,
+   "peakAt": "2026-10-05T15:09:00.000Z",
+   "allOut": {
+    "exit": 3.19,
+    "why": "T1",
+    "pct": 57.92,
+    "R": 1.448,
+    "capture": 0.6062176165803108
+   },
+   "runner": {
+    "exit": 3,
+    "t1": 3.03,
+    "runner": 2.9625,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 48.33,
+    "R": 1.208,
+    "capture": 0.5058549222797928
+   },
+   "runnerT1": {
+    "exit": 3.08,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 52.29,
+    "R": 1.307,
+    "capture": 0.5473056994818651
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "fccd63a4-b959-4f0f-8a37-c8051fd9d1c8",
+   "day": "2026-10-05",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261005C00283000",
+   "entryPremium": 0.26,
+   "entryAt": "2026-10-05T15:50:08.973Z",
+   "recorded": "hit_target (auto_target_hit)",
+   "barSource": "massive:O:IWM261005C00283000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.25,
+   "peakAt": "2026-10-05T19:14:00.000Z",
+   "allOut": {
+    "exit": 0.64,
+    "why": "T1",
+    "pct": 146.15,
+    "R": 3.654,
+    "capture": 0.38383838383838387
+   },
+   "runner": {
+    "exit": 0.35,
+    "t1": 0.39,
+    "runner": 0.315,
+    "why": "+50% half → trail 25% from peak",
+    "pct": 35.58,
+    "R": 0.889,
+    "capture": 0.09343434343434341
+   },
+   "runnerT1": {
+    "exit": 0.64,
+    "why": "T1 half → +100%",
+    "pct": 146.15,
+    "R": 3.654,
+    "capture": 0.38383838383838387
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "c34eb309-bd0e-4eaf-a210-8f5f815f2269",
+   "day": "2026-10-05",
+   "symbol": "TSLA",
+   "kind": "zero_dte_desk",
+   "contract": "TSLA261005P00377500",
+   "entryPremium": 1.38,
+   "entryAt": "2026-10-05T15:56:13.020Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:TSLA261005P00377500:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.63,
+   "peakAt": "2026-10-05T16:19:00.000Z",
+   "allOut": {
+    "exit": 0.86,
+    "why": "stop",
+    "pct": -37.68,
+    "R": -0.942,
+    "capture": -2.0799999999999996
+   },
+   "runner": {
+    "exit": 0.86,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -37.68,
+    "R": -0.942,
+    "capture": -2.0799999999999996
+   },
+   "runnerT1": {
+    "exit": 0.86,
+    "why": "stop",
+    "pct": -37.68,
+    "R": -0.942,
+    "capture": -2.0799999999999996
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "61d65dae-1a33-4aa8-9c8e-c2b47142f060",
+   "day": "2026-10-05",
+   "symbol": "META",
+   "kind": "zero_dte_desk",
+   "contract": "META261005P00745000",
+   "entryPremium": 2.5,
+   "entryAt": "2026-10-05T16:00:08.428Z",
+   "recorded": "expired (auto_time_stop)",
+   "barSource": "massive:O:META261005P00745000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 4,
+   "peakAt": "2026-10-05T16:17:00.000Z",
+   "allOut": {
+    "exit": 2.1,
+    "why": "15:45 flatten",
+    "pct": -16,
+    "R": -0.4,
+    "capture": -0.2666666666666666
+   },
+   "runner": {
+    "exit": 3.6,
+    "t1": 3.75,
+    "runner": 3.44,
+    "why": "+50% half → back through VWAP",
+    "pct": 43.8,
+    "R": 1.095,
+    "capture": 0.7300000000000001
+   },
+   "runnerT1": {
+    "exit": 2.1,
+    "why": "15:45 flatten",
+    "pct": -16,
+    "R": -0.4,
+    "capture": -0.2666666666666666
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "f31f731d-358d-4664-aeb4-10d7385ebdf8",
+   "day": "2026-10-05",
+   "symbol": "TSLA",
+   "kind": "zero_dte_desk",
+   "contract": "TSLA261005P00380000",
+   "entryPremium": 1.27,
+   "entryAt": "2026-10-05T17:50:08.321Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:TSLA261005P00380000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2,
+   "peakAt": "2026-10-05T19:55:00.000Z",
+   "allOut": {
+    "exit": 0.37,
+    "why": "stop",
+    "pct": -70.87,
+    "R": -1.772,
+    "capture": -1.2328767123287672
+   },
+   "runner": {
+    "exit": 0.37,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -70.87,
+    "R": -1.772,
+    "capture": -1.2328767123287672
+   },
+   "runnerT1": {
+    "exit": 0.37,
+    "why": "stop",
+    "pct": -70.87,
+    "R": -1.772,
+    "capture": -1.2328767123287672
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "8291b4d7-11cd-49b7-9348-0a302005d37a",
+   "day": "2026-10-05",
+   "symbol": "QQQ",
+   "kind": "index_scalp",
+   "contract": "QQQ261005P00756000",
+   "entryPremium": 1.61,
+   "entryAt": "2026-10-05T17:44:08.150Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:QQQ261005P00756000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.5,
+   "peakAt": "2026-10-05T18:05:00.000Z",
+   "allOut": {
+    "exit": 0.72,
+    "why": "stop",
+    "pct": -55.28,
+    "R": -1.382,
+    "capture": null
+   },
+   "runner": {
+    "exit": 0.72,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -55.28,
+    "R": -1.382,
+    "capture": null
+   },
+   "runnerT1": {
+    "exit": 0.72,
+    "why": "stop",
+    "pct": -55.28,
+    "R": -1.382,
+    "capture": null
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "8afe607b-de40-47e4-935b-86f1f9ea4fa8",
+   "day": "2026-10-05",
+   "symbol": "SPX",
+   "kind": "index_scalp",
+   "contract": "SPXW261005P07760000",
+   "entryPremium": 1.73,
+   "entryAt": "2026-10-05T17:57:01.668Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:SPXW261005P07760000:1m",
+   "underlyingSource": "yahoo:^GSPC:1m",
+   "peak": 1.3,
+   "peakAt": "2026-10-05T18:05:00.000Z",
+   "allOut": {
+    "exit": 0.25,
+    "why": "stop",
+    "pct": -85.55,
+    "R": -2.139,
+    "capture": null
+   },
+   "runner": {
+    "exit": 0.25,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -85.55,
+    "R": -2.139,
+    "capture": null
+   },
+   "runnerT1": {
+    "exit": 0.25,
+    "why": "stop",
+    "pct": -85.55,
+    "R": -2.139,
+    "capture": null
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "bfeb75fe-2ed1-4e0a-9e18-cf4ebdc02b2c",
+   "day": "2026-10-05",
+   "symbol": "SPX",
+   "kind": "index_scalp",
+   "contract": "SPXW261005P07775000",
+   "entryPremium": 1.13,
+   "entryAt": "2026-10-05T19:30:52.141Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:SPXW261005P07775000:1m",
+   "underlyingSource": "yahoo:^GSPC:1m",
+   "peak": 7,
+   "peakAt": "2026-10-05T19:55:00.000Z",
+   "allOut": {
+    "exit": 0.72,
+    "why": "15:45 flatten",
+    "pct": -36.28,
+    "R": -0.907,
+    "capture": -0.06984667802385007
+   },
+   "runner": {
+    "exit": 0.72,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": -36.28,
+    "R": -0.907,
+    "capture": -0.06984667802385007
+   },
+   "runnerT1": {
+    "exit": 0.72,
+    "why": "15:45 flatten",
+    "pct": -36.28,
+    "R": -0.907,
+    "capture": -0.06984667802385007
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "6e908271-779d-4525-b651-b9f93cdf82da",
+   "day": "2026-10-05",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261006C00285000",
+   "entryPremium": 0.57,
+   "entryAt": "2026-10-05T19:23:25.086Z",
+   "recorded": "expired",
+   "barSource": "massive:O:IWM261006C00285000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.58,
+   "peakAt": "2026-10-05T19:25:00.000Z",
+   "allOut": {
+    "exit": 0.46,
+    "why": "stop",
+    "pct": -19.3,
+    "R": -0.482,
+    "capture": -10.999999999999984
+   },
+   "runner": {
+    "exit": 0.46,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -19.3,
+    "R": -0.482,
+    "capture": -10.999999999999984
+   },
+   "runnerT1": {
+    "exit": 0.46,
+    "why": "stop",
+    "pct": -19.3,
+    "R": -0.482,
+    "capture": -10.999999999999984
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "5ca2579b-c557-4bba-8bf6-bb69e481a654",
+   "day": "2026-10-05",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY261005P00777000",
+   "entryPremium": 1.31,
+   "entryAt": "2026-10-05T19:42:08.986Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:SPY261005P00777000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.91,
+   "peakAt": "2026-10-05T19:55:00.000Z",
+   "allOut": {
+    "exit": 1.74,
+    "why": "15:45 flatten",
+    "pct": 32.82,
+    "R": 0.821,
+    "capture": 0.26874999999999993
+   },
+   "runner": {
+    "exit": 1.74,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 32.82,
+    "R": 0.821,
+    "capture": 0.26874999999999993
+   },
+   "runnerT1": {
+    "exit": 1.74,
+    "why": "15:45 flatten",
+    "pct": 32.82,
+    "R": 0.821,
+    "capture": 0.26874999999999993
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "4b2f3ea2-2b6a-4c83-8e18-c85eef175f75",
+   "day": "2026-10-06",
+   "symbol": "IWM",
+   "kind": "zero_dte_flow",
+   "contract": "IWM261006P00282000",
+   "entryPremium": 0.15,
+   "entryAt": "2026-10-06T13:44:09.333Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:IWM261006P00282000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.25,
+   "peakAt": "2026-10-06T19:34:00.000Z",
+   "allOut": {
+    "exit": 0.25,
+    "why": "T1",
+    "pct": 66.67,
+    "R": 1.667,
+    "capture": 0.09090909090909091
+   },
+   "runner": {
+    "exit": 0.21,
+    "t1": 0.225,
+    "runner": 0.1875,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 37.53,
+    "R": 0.938,
+    "capture": 0.05118181818181819
+   },
+   "runnerT1": {
+    "exit": 0.22,
+    "why": "T1 half → trail 25% from peak",
+    "pct": 45.87,
+    "R": 1.147,
+    "capture": 0.06254545454545454
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "9a50b6e0-3dd2-481a-a617-676ed3824e0d",
+   "day": "2026-10-06",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261006P00281000",
+   "entryPremium": 0.21,
+   "entryAt": "2026-10-06T14:26:08.267Z",
+   "recorded": "hit_stop (auto_stop_hit)",
+   "barSource": "massive:O:IWM261006P00281000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 0.31,
+   "peakAt": "2026-10-06T14:45:00.000Z",
+   "allOut": {
+    "exit": 0.04,
+    "why": "stop",
+    "pct": -80.95,
+    "R": -2.024,
+    "capture": -1.6999999999999997
+   },
+   "runner": {
+    "exit": 0.04,
+    "t1": null,
+    "runner": null,
+    "why": "stop",
+    "pct": -80.95,
+    "R": -2.024,
+    "capture": -1.6999999999999997
+   },
+   "runnerT1": {
+    "exit": 0.04,
+    "why": "stop",
+    "pct": -80.95,
+    "R": -2.024,
+    "capture": -1.6999999999999997
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "759417b0-9f0e-458b-ba17-960e8367a057",
+   "day": "2026-10-06",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261006P00283000",
+   "entryPremium": 0.48,
+   "entryAt": "2026-10-06T15:56:10.150Z",
+   "recorded": "hit_target (auto_target_hit)",
+   "barSource": "massive:O:IWM261006P00283000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 2.22,
+   "peakAt": "2026-10-06T19:34:00.000Z",
+   "allOut": {
+    "exit": 1.14,
+    "why": "T1",
+    "pct": 137.5,
+    "R": 3.438,
+    "capture": 0.37931034482758613
+   },
+   "runner": {
+    "exit": 0.69,
+    "t1": 0.72,
+    "runner": 0.6675,
+    "why": "+50% half → trail 25% from peak",
+    "pct": 44.54,
+    "R": 1.114,
+    "capture": 0.12287356321839078
+   },
+   "runnerT1": {
+    "exit": 1.14,
+    "why": "T1 half → +100%",
+    "pct": 137.5,
+    "R": 3.438,
+    "capture": 0.37931034482758613
+   },
+   "t1Reached": true
+  },
+  {
+   "id": "cd1de111-6006-45bd-b16f-26b3a0262849",
+   "day": "2026-10-06",
+   "symbol": "SPY",
+   "kind": "index_scalp",
+   "contract": "SPY261007P00779000",
+   "entryPremium": 1.25,
+   "entryAt": "2026-10-06T16:42:05.663Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:SPY261007P00779000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.82,
+   "peakAt": "2026-10-06T17:23:00.000Z",
+   "allOut": {
+    "exit": 1.29,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.07017543859649128
+   },
+   "runner": {
+    "exit": 1.29,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.07017543859649128
+   },
+   "runnerT1": {
+    "exit": 1.29,
+    "why": "15:45 flatten",
+    "pct": 3.2,
+    "R": 0.08,
+    "capture": 0.07017543859649128
+   },
+   "t1Reached": false
+  },
+  {
+   "id": "75292875-c158-485a-975d-510916ffe5e9",
+   "day": "2026-10-06",
+   "symbol": "IWM",
+   "kind": "index_scalp",
+   "contract": "IWM261007P00281000",
+   "entryPremium": 0.99,
+   "entryAt": "2026-10-06T19:22:06.313Z",
+   "recorded": "expired (auto_expired)",
+   "barSource": "massive:O:IWM261007P00281000:1m",
+   "underlyingSource": "alpaca:1Min(iex)",
+   "peak": 1.12,
+   "peakAt": "2026-10-06T19:34:00.000Z",
+   "allOut": {
+    "exit": 1.08,
+    "why": "15:45 flatten",
+    "pct": 9.09,
+    "R": 0.227,
+    "capture": 0.6923076923076923
+   },
+   "runner": {
+    "exit": 1.08,
+    "t1": null,
+    "runner": null,
+    "why": "15:45 flatten",
+    "pct": 9.09,
+    "R": 0.227,
+    "capture": 0.6923076923076923
+   },
+   "runnerT1": {
+    "exit": 1.08,
+    "why": "15:45 flatten",
+    "pct": 9.09,
+    "R": 0.227,
+    "capture": 0.6923076923076923
+   },
+   "t1Reached": false
+  }
+ ],
+ "decision": {
+  "defaultOn": false,
+  "runnerBeatsBothHalves": false,
+  "runnerT1BeatsBothHalves": false,
+  "rule": "runner (T1/+50%) AND runner (T1 only) E[R] > all_out E[R] in BOTH halves"
+ }
+}

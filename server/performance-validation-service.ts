@@ -3,6 +3,10 @@ import { PerformanceValidator, computeRealisedPnl } from "./performance-validato
 import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
 import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pricing";
+import { parsePeak, peakLine, withPeakTag } from "@shared/option-peak";
+import { parseRunner, readRunnerPolicy, runnerAppliesTo, runnerLine, withRunnerTag } from "@shared/runner-policy";
+import { zeroDteKindOf } from "@shared/bot-sleeves";
+import { readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { exceedsOptionValue, fillOnStrikeScale, safeIntrinsic } from "@shared/option-value-bounds";
 import { expiryDay, optionExpiryCloseMs } from "@shared/option-expiry";
 import { intrinsicValue, settlementUnderlying } from "@shared/journal-expiry";
@@ -301,6 +305,11 @@ class PerformanceValidationService {
       console.warn('  ⚠️ Bar-extreme enrichment failed (continuing with poll extremes):', err?.message);
     }
 
+    // 🏔️ PEAK (MFE) while open: the best contract mid this tracker has SEEN after
+    // entry, as a quote-basis `[peak:…]` tag (shared/option-peak.ts). Bars replace it
+    // after the close (server/option-peak-job.ts). Written only when it improves.
+    await this.recordQuotePeaks(openIdeas, priceMap).catch((err) => console.warn('  ⚠️ quote-peak update failed:', err?.message ?? err));
+
     // Validate each idea with contract metadata
     const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap, contractsMap);
 
@@ -468,6 +477,22 @@ class PerformanceValidationService {
             console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
           }
         }
+        // 🏃 RUNNER (shared/runner-policy.ts, RUNNER_POLICY): a 0DTE idea that resolves
+        // at T1 books HALF at the T1-touch premium; the other half's stop moves to
+        // breakeven and server/option-peak-job.ts walks it on the contract's bars. The
+        // outcome stays hit_target; exit_premium becomes the blended premium only when
+        // the runner closes (the T1-touch premium is kept in its own field).
+        if (
+          ideaForResult?.assetType === 'option' && result.outcomeStatus === 'hit_target' && exitPremium != null &&
+          optionPremiumBasis !== 'withheld' && runnerAppliesTo(zeroDteKindOf(ideaForResult as any), readRunnerPolicy(process.env))
+        ) {
+          const touchMs = Number((result as any).exitTouchMs);
+          const t1AtMs = Number.isFinite(touchMs) ? touchMs : Date.parse(result.exitDate ?? '') || Date.now();
+          outcomeNotes = withRunnerTag(outcomeNotes ?? ideaForResult.outcomeNotes, {
+            state: 'open', t1ExitPremium: exitPremium, t1AtMs, stop: ideaForResult.entryPremium ?? null,
+            runnerExitPremium: null, runnerAtMs: null, runnerWhy: null, blendedPremium: null,
+          });
+        }
         // Underlying stop that books a gain: only a stop placed on the
         // profitable side of entry does that — log every one for review.
         if (result.outcomeStatus === 'hit_stop' && ideaForResult?.assetType !== 'option' && Number(result.percentGain) > 0) {
@@ -507,6 +532,8 @@ class PerformanceValidationService {
             percentGain: result.percentGain ?? null,
             optionPercentGain: ideaForResult?.assetType === 'option' ? optionPercentGain : null,
             optionPremiumBasis: ideaForResult?.assetType === 'option' ? optionPremiumBasis : null,
+            peakLine: ideaForResult?.assetType === 'option' ? peakLine(parsePeak(outcomeNotes ?? ideaForResult.outcomeNotes), exitPremium) : null,
+            runnerLine: ideaForResult?.assetType === 'option' ? runnerLine(parseRunner(outcomeNotes ?? null)) : null,
           })).catch(() => {});
         }
 
@@ -635,6 +662,25 @@ class PerformanceValidationService {
     }
     if (plan.source !== 'live') console.log(`  ⏱️  ${idea.symbol}: ${plan.note}`);
     return appendNote(idea.outcomeNotes, plan.note);
+  }
+
+  /** Quote-basis peak for open, entered option ideas (only improvements are written). */
+  private async recordQuotePeaks(ideas: TradeIdea[], priceMap: Map<string, number>): Promise<void> {
+    const now = Date.now();
+    for (const idea of ideas) {
+      if (idea.assetType !== 'option' || idea.outcomeStatus !== 'open') continue;
+      const mark = priceMap.get(`option_${idea.id}`);
+      const entry = idea.entryPremium;
+      if (typeof mark !== 'number' || !(mark > 0) || !(typeof entry === 'number' && entry > 0) || !(mark > entry)) continue;
+      const audit = readOracleExecutionAudit(idea.convergenceSignalsJson);
+      if (audit && !['triggered', 'executed', 'closed'].includes(audit.state)) continue; // not entered yet
+      const prev = parsePeak(idea.outcomeNotes);
+      if (prev && prev.premium >= mark) continue;
+      const notes = withPeakTag(idea.outcomeNotes, { premium: Math.round(mark * 100) / 100, atMs: now, basis: 'quote', source: 'quote:tracker-mid', window: 'to_exit' });
+      if (notes === String(idea.outcomeNotes ?? '')) continue;
+      await storage.updateTradeIdeaPerformance(idea.id, { outcomeNotes: notes });
+      idea.outcomeNotes = notes; // a resolution later in this pass appends to it
+    }
   }
 
   /**
