@@ -1,0 +1,108 @@
+/* Ask Quantinum — FAB, side sheet chat, source chips, analyze action.
+   Tokens only (--lx-*), so every visual mode (Dark/Midnight/Dim/Light/High
+   contrast) re-grounds it. docs/DESIGN_SYSTEM.md: radius ≤ 12px, no drop
+   shadows on content (pop shadow only on floating chrome), mono for data,
+   touch targets ≥ 44px on phones. */
+
+.aq-fab {
+  position: fixed;
+  right: 16px;
+  /* desktop: clear the terminal's 26px bottom bar */
+  bottom: calc(40px + env(safe-area-inset-bottom));
+  z-index: 49;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  border: 1px solid var(--lx-line-hi);
+  border-radius: var(--lx-radius-xl);
+  background: color-mix(in srgb, var(--lx-surface) 94%, transparent);
+  color: var(--lx-text);
+  font: 600 12.5px/1 var(--lx-font-ui);
+  box-shadow: var(--lx-shadow-pop);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+.aq-fab:hover { border-color: var(--lx-accent); }
+.aq-fab:focus-visible { outline: 2px solid var(--qe-focus, var(--lx-accent)); outline-offset: 2px; }
+.aq-fab svg { width: 16px; height: 16px; color: var(--lx-accent-text); }
+/* phones + tablets below lg: sit above the floating dock (≈72px + 8px gap) */
+@media (max-width: 1023px) {
+  .aq-fab { bottom: calc(88px + env(safe-area-inset-bottom)); right: 12px; height: 44px; min-width: 44px; padding: 0 12px; }
+}
+@media (max-width: 479px) {
+  .aq-fab .aq-fab-label { display: none; }
+}
+@media print { .aq-fab { display: none; } }
+
+/* sheet body */
+.aq-sheet .lx-sheet-body { display: flex; flex-direction: column; padding: 0; min-height: 0; flex: 1; overflow: hidden; }
+.aq-sheet[data-side='bottom'] { height: 88dvh; }
+.aq-target {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 14px; border-bottom: 1px solid var(--lx-line);
+  font: 500 11.5px/1.4 var(--lx-font-ui); color: var(--lx-dim);
+}
+.aq-target strong { font-family: var(--lx-font-data); color: var(--lx-text); font-weight: 600; }
+.aq-target button { margin-left: auto; }
+.aq-log { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 14px; overscroll-behavior: contain; }
+.aq-empty { color: var(--lx-dim); font: 400 12.5px/1.55 var(--lx-font-ui); }
+.aq-empty ul { margin: 8px 0 0; padding-left: 16px; }
+.aq-msg { font: 400 13px/1.55 var(--lx-font-ui); color: var(--lx-text); word-wrap: break-word; }
+.aq-msg[data-role='user'] {
+  align-self: flex-end; max-width: 88%;
+  padding: 8px 10px; border: 1px solid var(--lx-line-hi); border-radius: var(--lx-radius);
+  background: var(--lx-active-bg);
+}
+.aq-msg[data-role='assistant'] { border-left: 2px solid var(--lx-accent); padding-left: 10px; }
+.aq-msg p { margin: 0 0 8px; }
+.aq-msg p:last-child { margin-bottom: 0; }
+.aq-msg ul, .aq-msg ol { margin: 4px 0 8px; padding-left: 18px; }
+.aq-msg li { margin: 2px 0; }
+.aq-msg strong { font-weight: 650; }
+.aq-msg code { font-family: var(--lx-font-data); font-size: 12px; padding: 0 3px; border-radius: 4px; background: var(--lx-surface-hi); }
+.aq-msg blockquote { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--lx-caution); color: var(--lx-dim); }
+.aq-msg table { border-collapse: collapse; font-family: var(--lx-font-data); font-size: 11.5px; margin: 6px 0; }
+.aq-msg th, .aq-msg td { border-bottom: 1px solid var(--lx-line); padding: 3px 6px; text-align: left; }
+.aq-msg a { color: var(--lx-accent-text); }
+.aq-meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.aq-src {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  padding: 2px 6px; border: 1px solid var(--lx-line-hi); border-radius: var(--lx-radius-sm);
+  font: 600 10.5px/1.4 var(--lx-font-data); color: var(--lx-dim); background: var(--lx-surface);
+}
+.aq-src b { color: var(--lx-accent-text); font-weight: 600; }
+.aq-foot { font: 500 10.5px/1.4 var(--lx-font-data); color: var(--lx-mute); }
+.aq-note { font: 500 11px/1.45 var(--lx-font-ui); color: var(--lx-caution); }
+.aq-error { padding: 8px 10px; border: 1px solid var(--lx-caution); border-radius: var(--lx-radius); color: var(--lx-text); font: 500 12.5px/1.45 var(--lx-font-ui); }
+.aq-typing { color: var(--lx-dim); font: 500 11px var(--lx-font-data); }
+.aq-compose { border-top: 1px solid var(--lx-line); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+.aq-compose textarea {
+  width: 100%; min-height: 64px; max-height: 160px; resize: vertical;
+  padding: 8px 10px; border: 1px solid var(--lx-line-hi); border-radius: var(--lx-radius);
+  background: var(--lx-surface); color: var(--lx-text); font: 400 13px/1.45 var(--lx-font-ui);
+}
+.aq-compose textarea:focus-visible { outline: 2px solid var(--qe-focus, var(--lx-accent)); outline-offset: 1px; }
+.aq-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.aq-row .aq-spacer { flex: 1; }
+.aq-disclaimer { font: 500 10.5px/1.4 var(--lx-font-ui); color: var(--lx-mute); }
+@media (max-width: 767px) {
+  .aq-compose textarea { font-size: 16px; } /* no iOS focus zoom */
+  .aq-compose .lx-btn { min-height: 44px; }
+  .aq-msg { font-size: 13.5px; }
+}
+
+/* the per-object action */
+.aq-analyze {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 8px;
+  border: 1px solid var(--lx-line-hi); border-radius: var(--lx-radius-sm);
+  background: transparent; color: var(--lx-accent-text);
+  font: 600 11px/1 var(--lx-font-ui); cursor: pointer; white-space: nowrap;
+}
+.aq-analyze:hover { background: var(--lx-active-bg); }
+.aq-analyze:focus-visible { outline: 2px solid var(--qe-focus, var(--lx-accent)); outline-offset: 2px; }
+.aq-analyze svg { width: 12px; height: 12px; }
+.aq-analyze[data-compact='true'] { width: 24px; padding: 0; justify-content: center; }
+@media (pointer: coarse) { .aq-analyze { min-height: 44px; min-width: 44px; } }

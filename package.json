@@ -70,6 +70,7 @@
     "test:spx-mirror": "tsx scripts/test-spx-mirror.ts",
     "test:track-record": "tsx scripts/test-track-record.ts",
     "test:nexus-grade": "tsx scripts/test-nexus-grade.ts",
+    "test:quantinum-ai": "tsx scripts/test-quantinum-ai.ts",
     "test:grade-v3": "tsx scripts/test-grade-v3.ts",
     "test:bot-sleeves": "tsx scripts/test-bot-sleeves.ts",
     "test:liquidity-gate": "tsx scripts/test-liquidity-gate.ts",

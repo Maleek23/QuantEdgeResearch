@@ -15607,6 +15607,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── ASK QUANTINUM — embedded AI analyst (docs/ASK_QUANTINUM.md) ───────────
+  // Registered before /api/quantinum/:symbol so "ai" is never read as a ticker.
+  // Flag QUANTINUM_AI=admin (default) | all | off; quota + spend cap inside.
+  { const { registerQuantinumAiRoutes } = await import('./quantinum-ai-routes'); registerQuantinumAiRoutes(app, requireBetaAccess, requireAdminJWT); }
+
   // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
   // The universal search's brain: layer-by-layer evidence with signed points,
   // the same disclosure standards as the cockpit, for a name nobody listed.

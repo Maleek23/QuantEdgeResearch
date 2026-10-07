@@ -35,6 +35,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   // Desk admins (docs/DESK_ADMINS.md) — actor is the desk admin's user (or the hub), detail.role says which.
   'desk.assign', 'desk.unassign', 'desk.bot_config', 'desk.bot_enable', 'desk.bot_disable', 'desk.bot_run',
   'desk.passcode_set', 'desk.passcode_clear', 'desk.privacy',
+  // Ask Quantinum (docs/ASK_QUANTINUM.md) — provider order / models changed or reset.
+  'quantinum_ai.config', 'quantinum_ai.config_reset',
 ] as const;
 
 export function adminAuditFile(): string {

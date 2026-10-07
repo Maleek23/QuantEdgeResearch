@@ -39,6 +39,8 @@ app.use(compression({
   threshold: 1024,
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
+    // SSE (Ask Quantinum) streams token by token — gzip would buffer it.
+    if (String(res.getHeader('Content-Type') ?? '').includes('text/event-stream')) return false;
     return compression.filter(req, res);
   }}));
 

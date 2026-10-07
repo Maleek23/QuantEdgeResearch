@@ -16,6 +16,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import { openWorkup } from '@/lib/workup-bus';
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
+import type { AskTarget } from '@shared/quantinum-ai';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
 import { QEDrawer } from '@/components/ui/qe-drawer';
@@ -367,7 +369,7 @@ export function OptionsFlowTool() {
                       title="Click / Enter: focus chart · double-click: workup">
                       <td className="mono dim">{etTime(r.at)}{days > 1 && r.at ? <span className="of-d"> {r.at.slice(5, 10)}</span> : null}</td>
                       <td className="r val">{money(r.premium)}</td>
-                      <td><span className="of-tk">{r.symbol}</span></td>
+                      <td><span className="of-tk">{r.symbol}</span> <AnalyzeWithQuantinum compact target={flowTarget(r)} /></td>
                       <td className="r">{r.spot != null ? r.spot.toFixed(2) : <span className="dim">—</span>}</td>
                       <td className="r">{r.strike}</td>
                       <td style={{ color: r.optionType === 'call' ? CALL : PUT }}>{r.optionType === 'call' ? 'Call' : 'Put'}</td>
@@ -446,6 +448,14 @@ function FilterSheet({ phone, chips, toggle, clear }: { phone: boolean; chips: S
 }
 
 /** Phone row sheet: every column the phone table leaves out, plus the row's actions. */
+/** Ask Quantinum target for one print: identifiers + the numbers the row shows (server rebuilds the rest). */
+function flowTarget(r: Scored['r']): AskTarget {
+  return {
+    kind: 'flow', symbol: r.symbol, label: `${r.symbol} ${r.strike}${r.optionType === 'call' ? 'C' : 'P'} ${r.expiry.slice(5)} print`,
+    row: { strike: r.strike, expiry: r.expiry, optionType: r.optionType, premium: Math.round(r.premium), size: r.size, price: r.price, spot: r.spot, kind: r.kind },
+  };
+}
+
 function PrintSheet({ row, now, onClose, onFocus }: { row: Scored; now: number; onClose: () => void; onFocus: () => void }) {
   const { r, sig, n } = row;
   const kv: Array<[string, string]> = [
@@ -466,6 +476,7 @@ function PrintSheet({ row, now, onClose, onFocus }: { row: Scored; now: number; 
       <div className="qp-sheet-actions">
         <button type="button" className="fd-btn primary" onClick={onFocus}>Focus {r.symbol}</button>
         <button type="button" className="fd-btn" onClick={() => { onClose(); openWorkup(r.symbol); }}>Open workup</button>
+        <AnalyzeWithQuantinum target={flowTarget(r)} onOpen={onClose} />
       </div>
       <p className="qp-sheet-mute">Side (bid/ask) is not measured by either feed — premium traded, not bull/bear.</p>
     </QEDrawer>

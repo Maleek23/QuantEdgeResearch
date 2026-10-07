@@ -8,6 +8,7 @@
  *   AI keys          /api/admin/ai-provider-status (configured or not — no live calls)
  *   Database         /api/health postgres latency + /api/admin/database-health (size, top tables)
  *   Admin security   /api/admin/security-stats + /api/admin/audit-logs (in-memory, since boot)
+ *   Ask Quantinum    /api/admin/quantinum-ai (flag, spend vs cap, provider order, usage counts)
  *
  * Replaces the old System page (hardcoded "operational" AI/services rows and a
  * "Optimize database" button whose endpoint did not exist) and the separate
@@ -16,6 +17,7 @@
 import { AdminLayout } from '@/components/admin/admin-layout';
 import { LuxKpi, LuxKpiGrid, LuxPanel, LuxTag } from '@/components/lux';
 import { QEError } from '@/components/ui/qe-states';
+import { QuantinumAiPanel } from '@/components/admin/quantinum-ai-panel';
 import { fmtAgo, fmtUptime, useAdminJson, STATE_LABEL, STATE_TONE, type HealthResponse } from '@/components/admin/hub-data';
 
 interface HubStatus {
@@ -117,6 +119,8 @@ export default function AdminSystem() {
             ) : <p className="ah-note">{db.isError ? 'Database health query failed.' : 'Loading…'}</p>}
           </LuxPanel>
         </div>
+
+        <QuantinumAiPanel />
 
         <LuxPanel title="Admin access & audit" sub="In-memory since the last restart: admin API requests, failed admin logins and blocked IPs.">
           {sec.data && (

@@ -43,6 +43,7 @@ import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
 import { SetupTimeline } from './setup-timeline';
 import { SetupReplay } from './setup-replay';
 import { TestSetupButton } from './test-setup-button';
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { SpxMirrorBlock, spxMirrorChipTitle } from '@/components/ideas/spx-mirror-block';
 import '@/styles/nexus-prototype.css';
 
@@ -485,7 +486,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
         <div>
-          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span>{!selected.isBotHeld && <TookItButton ideaId={selected.ideaId} symbol={selected.symbol} />}</div>
+          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span>{!selected.isBotHeld && <TookItButton ideaId={selected.ideaId} symbol={selected.symbol} />}<AnalyzeWithQuantinum target={selected.ideaId.startsWith('spx-linked-')
+            ? { kind: 'ticker', symbol: selected.symbol, label: `${selected.symbol} · SPX expression` }
+            : { kind: 'setup', id: selected.ideaId, symbol: selected.symbol, label: `${selected.symbol} ${positive ? 'long' : 'short'} setup` }} /></div>
           <p className="nxp-times">
             <span>Called <strong>{fmtExactET(selected.calledAt ?? selected.generatedAt) ?? '—'}</strong></span>
             {selected.triggeredAt ? <span> · Triggered <strong>{fmtExactET(selected.triggeredAt)}</strong></span> : selected.lifecycleState === 'pending_trigger' ? <span> · not triggered yet</span> : null}

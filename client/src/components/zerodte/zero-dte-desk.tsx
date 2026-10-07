@@ -19,6 +19,7 @@
  * never a placeholder number. Plans are model output, labelled unvalidated.
  * Method paragraphs live in "How it works" disclosures, not above the data.
  */
+import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { reasonOf } from '@/lib/optimistic';
 import { useEffect, useMemo, useState } from 'react';
 import { WatchStar } from '@/components/watch/watch-star';
@@ -231,7 +232,7 @@ function NameCard({ r, now }: { r: Row; now: number }) {
     <article className="zd-card" aria-label={`${r.symbol} 0DTE`}>
       <header className="zd-card-head">
         <div>
-          <h3><Link href={tickerHref(r.symbol)} className="zd-sym-link" title={`Open the ${r.symbol} ticker page`}>{r.symbol}</Link>{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}<WatchStar sym={r.symbol} size={13} /></h3>
+          <h3><Link href={tickerHref(r.symbol)} className="zd-sym-link" title={`Open the ${r.symbol} ticker page`}>{r.symbol}</Link>{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}<WatchStar sym={r.symbol} size={13} /> <AnalyzeWithQuantinum compact target={{ kind: 'zerodte', symbol: r.symbol, label: `${r.symbol} 0DTE card`, row: { spot: r.spot ?? null, status: String(r.engine.state).slice(0, 24) } }} /></h3>
           <span className="zd-sub">{px(r.spot)} · {r.chainSource ?? 'no chain'} · {age(r.chainAgeSec)}</span>
         </div>
         <span className={`zd-exp ${r.expiry.sameDay ? 'same' : ''}`} title={r.expiry.upcoming.length ? `listed: ${r.expiry.upcoming.join(', ')}` : undefined}>{r.expiry.label}</span>
@@ -387,7 +388,7 @@ function SniperSection({ q, phase, now, filter, hideDone }: { q: UseQueryResult<
                     <tr key={sniperKey(r)} id={`zs-${domId(sniperKey(r))}`} className={`zd-a-${a.state} ${a.actionable ? 'zd-is-act' : 'zd-is-dim'}`}>
                       <td data-label="State"><ActBadge a={a} /><div><small>{a.reason}</small></div></td>
                       <td data-label="Trigger" className="zd-mono" title={r.triggerAt}>{r.triggerEt}</td>
-                      <td data-label="Name"><Link href={tickerHref(r.symbol)} className="zd-sym-link"><b>{r.symbol}</b></Link></td>
+                      <td data-label="Name"><Link href={tickerHref(r.symbol)} className="zd-sym-link"><b>{r.symbol}</b></Link> <AnalyzeWithQuantinum compact target={{ kind: 'zerodte', symbol: r.symbol, label: `${r.symbol} 0DTE ${r.side === 'long' ? 'calls' : 'puts'} trigger`, row: { direction: r.side, price: r.triggerPrice ?? null, level: r.level ?? null, levelType: r.levelName ?? null, kind: r.setupLabel ?? null } }} /></td>
                       <td data-label="Setup" title={r.note}>{r.setupLabel}</td>
                       <td data-label="Side" className={sideCls(r.side)}>{r.side === 'long' ? 'calls' : 'puts'}</td>
                       <td data-label="Price · level">
@@ -476,6 +477,7 @@ function FlowIgnitionSection({ q, phase, now, filter, hideDone }: { q: UseQueryR
                     <ActBadge a={a} />
                     <Link href={tickerHref(r.symbol)} className="zd-sym-link zi-sym">{r.symbol}</Link>
                     <span className={`zi-side ${sideCls(r.side)}`}>{r.side === 'long' ? 'CALLS' : 'PUTS'}</span>
+                    <AnalyzeWithQuantinum compact target={{ kind: 'zerodte', symbol: r.symbol, label: `${r.symbol} 0DTE flow ignition`, row: { direction: r.side, strike: r.flow?.strike ?? null, optionType: r.flow?.type ?? null, premium: r.flow?.aggressive ?? null, kind: r.kind } }} />
                     <span className="zi-contract">{flowContract(r)}</span>
                     {r.kind === 'unwind' && <span className="zi-kind">unwind fade</span>}
                     <span className="zi-age" title={r.at}>{r.atEt} ET{r.score != null ? ` · score ${r.score}` : ''}</span>
