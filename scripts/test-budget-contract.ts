@@ -78,7 +78,7 @@ const base = { symbol: 'MU', direction: 'long' as const, spot: S, t1: 1060, t2: 
   });
 
   let dayPick: ReturnType<typeof pickBudgetContract> | null = null;
-  await t('MU day idea, $500: whole, liquid, ≥1 DTE, Δ 0.15–0.45, debit ≤ $500', () => {
+  await t('MU day idea, $500: whole, liquid, ≥1 DTE, Δ 0.08–0.45, debit ≤ $500', () => {
     const r = pickBudgetContract({ ...base, budget: 500, holding: 'day' });
     dayPick = r;
     assert.ok(r.ok, !r.ok ? r.reason : '');
@@ -88,7 +88,7 @@ const base = { symbol: 'MU', direction: 'long' as const, spot: S, t1: 1060, t2: 
     assert.ok(p.qty >= 1 && Number.isInteger(p.qty));
     assert.ok(p.debit <= 500);
     assert.ok(p.dte >= 1);
-    assert.ok(Math.abs(p.delta) >= 0.15 && Math.abs(p.delta) <= 0.45);
+    assert.ok(Math.abs(p.delta) >= 0.08 && Math.abs(p.delta) <= 0.45);
     assert.equal(p.optionType, 'call');
     assert.ok(p.premiumT1 > p.entryPremium && p.premiumStop < p.entryPremium);
     assert.ok(p.liquidity.ok);
@@ -131,11 +131,10 @@ const base = { symbol: 'MU', direction: 'long' as const, spot: S, t1: 1060, t2: 
 
   await t('tracking: the real 10/09 1090C path ($1.93 → $17.30 @ 12:51 ET) hits T1 and records the peak', () => {
     assert.ok(dayPick && dayPick.ok);
-    // At its implied Δ≈0.09 the 1090C is OUTSIDE the 0.15–0.45 band, so the picker does not choose it
-    // (asserted below); the tracker is exercised on it directly with the same plan mapping.
+    // With the 0.08 delta floor the 1090C (Δ≈0.09) is eligible and is the day pick.
     const only = base.rows.filter((x) => x.expiry === '2026-10-09' && x.strike === 1090 && x.type === 'call');
     const r0 = pickBudgetContract({ ...base, budget: 500, holding: 'day', rows: only });
-    assert.equal(r0.ok, false); assert.ok(!r0.ok && /band/.test(r0.reason));
+    assert.ok(r0.ok && r0.pick.strike === 1090);
     const row = only[0];
     const t1p = premiumAtLevel(row, 1.93, S, 1060, 0.25).premium;
     const bc = { ...dayPick.pick, label: 'MU 2026-10-09 1090C', strike: 1090, expiry: '2026-10-09', entryPremium: 1.93, qty: 2, debit: 386, delta: Math.round(row.delta! * 100) / 100,
@@ -199,7 +198,7 @@ const base = { symbol: 'MU', direction: 'long' as const, spot: S, t1: 1060, t2: 
       primary: primaryLine({ expiry: '2026-11-20', strike: 1100, optionType: 'call', entryPremium: 39.65 }, 500), budget: budgetLine(dayPick.pick),
     };
     const f = (buildCardPayload(card) as any).embeds[0].fields.find((x: any) => x.name === 'Budget contract');
-    assert.ok(f); assert.match(f.value, /Primary: 11\/20 1100C \$39\.65 \(over budget\)/); assert.match(f.value, /Budget: 10\/09 1070C ×1 @ \$4\.48/);
+    assert.ok(f); assert.match(f.value, /Primary: 11\/20 1100C \$39\.65 \(over budget\)/); assert.match(f.value, /Budget: 10\/09 1090C ×2 @ \$1\.93/);
   });
 
   console.log(`test-budget-contract: ${n} passed`);

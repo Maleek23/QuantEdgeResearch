@@ -32,7 +32,7 @@ import { checkContractLiquidity, contractLabel, readLiquidityConfig, type Contra
 import { DEFAULT_PREMIUM_STOP_PCT, DEFAULT_RISK_DOLLARS, MAX_RISK_DOLLARS, MIN_RISK_DOLLARS } from './position-sizing';
 
 export const BUDGET_CONTRACT_VERSION = 'budget-v1';
-export const BUDGET_DELTA_MIN = 0.15;
+export const BUDGET_DELTA_MIN = 0.08;
 export const BUDGET_DELTA_MAX = 0.45;
 
 type Env = Record<string, string | undefined>;
