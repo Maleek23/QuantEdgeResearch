@@ -84,9 +84,9 @@ export default function AdminSystem() {
               <div className="ah-li"><b>Idea producers</b>
                 <LuxTag tone="mute">{hub.data?.ideaProducersInWeb == null ? '—' : hub.data.ideaProducersInWeb ? 'IN WEB PROCESS' : 'OFF IN WEB'}</LuxTag>
                 <small>Whether the scanners that publish ideas run inside this web process (server/idea-producer-schedule.ts).</small></div>
-              {Object.entries(ai.data ?? {}).map(([k, v]) => (
+              {Object.entries(ai.data ?? {}).filter(([, v]) => v && typeof v === 'object').map(([k, v]) => (
                 <div key={k} className="ah-li"><b>AI · {k}</b>
-                  <LuxTag tone={v.status === 'configured' ? 'accent' : 'mute'}>{v.status.replace(/_/g, ' ').toUpperCase()}</LuxTag>
+                  <LuxTag tone={v.status === 'configured' ? 'accent' : 'mute'}>{String(v.status ?? 'unknown').replace(/_/g, ' ').toUpperCase()}</LuxTag>
                   <small>{v.model ? `${v.model} · ` : ''}key present or not — no live call is made</small></div>
               ))}
             </div>

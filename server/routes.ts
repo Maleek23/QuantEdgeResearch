@@ -3333,11 +3333,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tableStats = await db.execute(sql`
         SELECT 
           schemaname,
-          tablename,
-          pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
+          relname AS tablename,
+          pg_size_pretty(pg_total_relation_size(relid)) AS size,
           n_live_tup as row_count
         FROM pg_stat_user_tables
-        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+        ORDER BY pg_total_relation_size(relid) DESC
         LIMIT 10
       `);
 
