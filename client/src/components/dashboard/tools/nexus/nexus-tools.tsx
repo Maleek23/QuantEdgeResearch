@@ -136,6 +136,15 @@ function bookGate(c: ReturnType<typeof useNexusConvictions>, what: string): Reac
   return null;
 }
 
+/** SPX chip: SPY/SPX ideas on a 0–2 DTE contract (or carrying an SPX mirror). */
+function isIndexZeroDte(p: ConvictionPick): boolean {
+  const sym = p.symbol.toUpperCase();
+  if (sym !== 'SPY' && sym !== 'SPX') return false;
+  if (p.spxMirror) return true;
+  const dte = p.horizon?.dte ?? p.optionDte;
+  return p.horizon?.horizon === '0dte' || (dte != null && dte >= 0 && dte <= 2);
+}
+
 /* ── filter bar (Bullflow-style segmented controls) ── */
 function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, count, children }: {
   side: Side; onSide: (s: Side) => void;
@@ -159,9 +168,9 @@ function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, co
   );
 }
 const RANK_HELP: Record<Rank, string> = {
-  all: 'Every published setup, highest conviction first',
+  all: 'Every published setup, in the board order (BOARD_SORT)',
   new: 'Published in the last 24 hours',
-  best: 'Top 10 by conviction',
+  best: 'Top 10 in the board order',
   conviction: 'S and A evidence bands only',
 };
 
@@ -197,14 +206,17 @@ export function NexusBoardTool() {
   // Day filter (ET publish day): today | yesterday | week | all | YYYY-MM-DD — persisted per tool.
   const [day, setDay] = useToolSetting<DayFilter>('day', 'all');
   const [showStale, setShowStale] = useToolSetting<boolean>('showStale', false);
+  // SPX chip: SPY/SPX index 0DTE ideas (the index engines publish SPX plays on SPY; SPY rows carry an SPXW mirror).
+  const [spxOnly, setSpxOnly] = useToolSetting<boolean>('spxOnly', false);
   const rotMap = useRotationMap();
   const { map: life } = useSetupLifecycles(all, convictions.data?.generatedAt, now);
   // Every filter except the day, in board order (stale + resolved sink below fresh/carried).
   const pre = useMemo(() => {
     const ranked = rankRows(all, { scope: 'setups', side, query, rank }, life);
     const c = cryptoOnly ? ranked.filter((p) => String(p.assetType).toLowerCase() === 'crypto') : ranked;
-    return withRotation ? c.filter((p) => rotationTagFor(rotMap, p.symbol, p.direction, p.source)?.tag === 'with') : c;
-  }, [all, side, query, rank, cryptoOnly, withRotation, rotMap, life]);
+    const x = spxOnly ? c.filter(isIndexZeroDte) : c;
+    return withRotation ? x.filter((p) => rotationTagFor(rotMap, p.symbol, p.direction, p.source)?.tag === 'with') : x;
+  }, [all, side, query, rank, cryptoOnly, spxOnly, withRotation, rotMap, life]);
   const byDay = useMemo(() => filterBoardByDay(pre, {
     dayOf: (p) => life.get(p.ideaId)?.life.publishedDay ?? null,
     stateOf: (p) => life.get(p.ideaId)?.life.state,
@@ -229,7 +241,7 @@ export function NexusBoardTool() {
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   const row = (pick: ConvictionPick) => <SetupRow key={pick.ideaId} pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />;
   const dayLabel = isDateKey(day) ? `on ${dayHeading(day, now)}` : day === 'week' ? 'this week' : day;
-  const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); };
+  const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); setSpxOnly(false); };
   return (
     <div className="fd-fill nxd nxd-board">
       <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); setDay('all'); }} />
@@ -237,6 +249,7 @@ export function NexusBoardTool() {
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
         <div className="of-seg" role="group" aria-label="Asset">
           <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>
+          <button type="button" className={spxOnly ? 'on' : ''} aria-pressed={spxOnly} onClick={() => setSpxOnly(!spxOnly)} title="SPY / SPX index 0DTE ideas — SPX plays are published on SPY and carry an SPXW mirror (tracked as the SPY idea)">SPX</button>
           <button type="button" className={withRotation ? 'on' : ''} aria-pressed={withRotation} onClick={() => setWithRotation(!withRotation)} title="Only ideas riding the current sector rotation (sector ignition read, plus ideas fired by the sector-rotation engine — measuring)">ROTATION</button>
         </div>
         <div className="of-seg" role="group" aria-label="View">
@@ -258,7 +271,7 @@ export function NexusBoardTool() {
       </div>
       <DetailHint />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={cryptoOnly ? 'No open crypto idea on the board right now — the crypto engine scans every 30 minutes, 24/7.' : pre.length > 0 && day !== 'all' ? `No live setups published ${dayLabel}${byDay.staleHidden ? ` (${byDay.staleHidden} stale hidden)` : ''} — ${pre.length} open on other days.` : all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
+        ? <QEEmpty className="fd-m" message={cryptoOnly ? 'No open crypto idea on the board right now — the crypto engine scans every 30 minutes, 24/7.' : spxOnly ? 'No open SPY/SPX 0DTE idea on the board right now.' : pre.length > 0 && day !== 'all' ? `No live setups published ${dayLabel}${byDay.staleHidden ? ` (${byDay.staleHidden} stale hidden)` : ''} — ${pre.length} open on other days.` : all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
             action={all.some((p) => !p.isBotHeld)
               ? <button type="button" className="fd-btn" onClick={resetAll}>Show every setup</button>
               : <Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />
@@ -480,7 +493,7 @@ export function NexusContextTool() {
           risk level are all in the body right below (they printed twice). The
           per-feed ages sit behind one tap; the section stamp shows the newest. */}
       <div className="nxp-context nxd-context-inline">
-        <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div></div>
+        <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regimeUnavailable ? 'Unavailable' : market?.regime ?? 'Unavailable'}</h2></div></div>
         <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} hideFreshness />
       </div>
       <details className="fd-foot nxd-ages">

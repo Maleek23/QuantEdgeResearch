@@ -180,14 +180,14 @@ ok('SPX/SPY ratio: live when prints are simultaneous, else regular closes', () =
 });
 
 /* ── 3. walls basis ── */
-ok('walls: 0–7d book first, all-expiry dashed and labelled', () => {
+ok('walls: shared ≤7d basis (gex-wall-basis) first, all-expiry dashed and labelled', () => {
   const w = dealerWallLines({ callWall: 8000, putWall: 7000, gammaFlipPrice: 7600, byDte: { next7: { callWall: 7700, putWall: 7600, gammaFlipPrice: 7640, expirationsCount: 5 } } });
-  assert.deepEqual(w.rows.map((r) => r.label), ['CALL WALL 0–7d', 'PUT WALL 0–7d', 'ZERO-γ 0–7d', 'CALL WALL all', 'PUT WALL all']);
+  assert.deepEqual(w.rows.map((r) => r.label), ['CALL WALL ≤7d', 'PUT WALL ≤7d', 'ZERO-γ ≤7d', 'CALL WALL all', 'PUT WALL all']);
   assert.ok(w.rows.filter((r) => r.label.endsWith('all')).every((r) => r.dashed));
-  assert.match(w.basis, /0–7d book \(5 expiries\)/);
+  assert.match(w.basis, /next-7-day book \(expiries ≤7d, 5\)/);
   const noNear = dealerWallLines({ callWall: 8000, putWall: 7000 });
-  assert.deepEqual(noNear.rows.map((r) => r.label), ['CALL WALL all', 'PUT WALL all']);
-  assert.match(noNear.basis, /no 0–7d book/);
+  assert.deepEqual(noNear.rows.map((r) => r.label), ['CALL WALL all exp.', 'PUT WALL all exp.']);
+  assert.match(noNear.basis, /fallback/);
 });
 
 /* ── 6. key levels ── */

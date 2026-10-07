@@ -18,6 +18,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { componentStyles } from '@/lib/design-tokens';
+import { MIN_REPORTABLE_SAMPLE } from '@shared/constants';
 
 interface SimulatedTrade {
   symbol: string;
@@ -57,16 +58,18 @@ interface BacktestResponse {
   };
 }
 
+// Audit 2026-10-01 P0 #79: the "Khawatmi Wins" / "Recent Setups" presets were
+// hand-picked past winners — a survivor-biased backtest shown as a result. Only
+// rule-defined baskets remain, and the results carry a selection-bias note.
 const PRESET_BASKETS = {
-  'Khawatmi Wins': 'AEHR,SYNA,GNRC,TXN,INTC,QCOM,ARM',
-  'Recent Setups': 'NOK,BB,MP,QRVO,CSCO,SOUN',
+  'Index ETFs': 'SPY,QQQ,IWM,DIA',
+  'Sector ETFs': 'XLK,XLF,XLE,XLV,XLI,XLY,XLP,XLU,XLB,XLRE,XLC',
   'Mega Cap': 'NVDA,AMD,AVGO,MSFT,META,GOOGL,AAPL,AMZN',
-  'Recovery Plays': 'SMCI,PLTR,COIN,RIVN,SNAP,HIMS',
   'Custom': ''
 };
 
 export default function StrategySimulatorPage() {
-  const [symbolsInput, setSymbolsInput] = useState('NOK,BB,MP,QCOM,ARM,AEHR,SOUN,RGTI,HUT,BE');
+  const [symbolsInput, setSymbolsInput] = useState(PRESET_BASKETS['Index ETFs']);
   const [scoreThreshold, setScoreThreshold] = useState(70);
   const [targetPct, setTargetPct] = useState(10);
   const [stopPct, setStopPct] = useState(-8);
@@ -197,14 +200,16 @@ export default function StrategySimulatorPage() {
         {data && (
           <>
             <div className={`${componentStyles.card.default} p-4 mb-6`}>
-              <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-3">Aggregate Results</h2>
+              <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-1">Aggregate Results</h2>
+              <p className="text-xs text-muted-foreground mb-3">Simulated on the basket you chose. Picking names that already ran overstates every number here (selection bias) — this is not the platform's record.</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <KPI label="Symbols" value={data.aggregate.totalSymbols.toString()} accent="cyan" />
                 <KPI label="Total Trades" value={data.aggregate.totalTrades.toString()} accent="cyan" />
                 <KPI
                   label="Win Rate"
-                  value={`${data.aggregate.overallWinRate}%`}
-                  accent={data.aggregate.overallWinRate >= 55 ? 'emerald' : data.aggregate.overallWinRate >= 45 ? 'amber' : 'red'}
+                  value={data.aggregate.totalTrades >= MIN_REPORTABLE_SAMPLE ? `${data.aggregate.overallWinRate}%` : '—'}
+                  sub={data.aggregate.totalTrades >= MIN_REPORTABLE_SAMPLE ? undefined : `withheld · n<${MIN_REPORTABLE_SAMPLE}`}
+                  accent={data.aggregate.totalTrades < MIN_REPORTABLE_SAMPLE ? 'amber' : data.aggregate.overallWinRate >= 55 ? 'emerald' : data.aggregate.overallWinRate >= 45 ? 'amber' : 'red'}
                 />
                 <KPI
                   label="Expectancy"

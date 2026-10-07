@@ -78,7 +78,17 @@ export interface DeskIdea {
   /** Tracker's peak / trough of the UNDERLYING while the idea was open. */
   highestPriceReached?: number | null;
   lowestPriceReached?: number | null;
+  /**
+   * convergence_signals_json.executionAudit.state (shared/oracle-lifecycle.ts).
+   * When the loader supplies it, an OPEN idea counts as an open trade only once
+   * it is triggered/executed — a pending trigger is "awaiting entry", no P&L.
+   */
+  executionState?: string | null;
 }
+
+/** States in which a published plan has actually been entered. */
+export const ENTERED_STATES = new Set(['triggered', 'executed', 'closed']);
+export const AWAITING_ENTRY_REASON = 'awaiting entry — trigger not hit yet (not an open trade, no P&L)';
 
 export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
 
@@ -92,6 +102,11 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const status = (i.outcomeStatus ?? 'open').trim().toLowerCase();
   if ((i.resolutionReason ?? '').startsWith('missed_entry')) return { excluded: 'entry never triggered (missed entry window)' };
   const resolved = status !== 'open' && status !== '';
+  // Audit 2026-10-01 P0 #14: untriggered ideas were counted as open trades at
+  // entry and then live-marked. No recorded trigger → awaiting entry.
+  if (!resolved && 'executionState' in i && !ENTERED_STATES.has(String(i.executionState ?? ''))) {
+    return { excluded: AWAITING_ENTRY_REASON };
+  }
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   const option = i.assetType === 'option';
   const short = i.direction === 'short';

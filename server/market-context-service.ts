@@ -13,6 +13,12 @@ export interface MarketContext {
   vixLevel: number | null;
   /** Which feed the SPY/QQQ/VIX inputs came from (audit 2026-09-29: Tradier-only v1 was always empty). */
   dataSource?: string;
+  /**
+   * True when no SPY data was read: regime/score/sentiment are neutral defaults
+   * for the engines, NOT a measured "ranging" market. Display surfaces must print
+   * "unavailable" (audit 2026-10-01 P0 #24).
+   */
+  regimeUnavailable?: boolean;
   timestamp: Date;
 }
 
@@ -82,12 +88,13 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
       reasons: marketStatus.isOpen ? ['Market data unavailable - using neutral defaults'] : [`⛔ Market closed: ${marketStatus.reason}`],
       spyData: null,
       vixLevel: null,
+      regimeUnavailable: true,
       timestamp: new Date(),
     };
   }
 }
 
-function analyzeMarketConditions(
+export function analyzeMarketConditions(
   spy: QuoteData | null,
   qqq: QuoteData | null,
   vix: QuoteData | null
@@ -108,6 +115,7 @@ function analyzeMarketConditions(
       reasons: marketStatus.isOpen ? ['SPY data unavailable'] : [`⛔ Market closed: ${marketStatus.reason}`],
       spyData: null,
       vixLevel: null,
+      regimeUnavailable: true,
       timestamp: new Date(),
     };
   }

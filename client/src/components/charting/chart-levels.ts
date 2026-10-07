@@ -3,6 +3,7 @@
  * full chart draws from /api/levels and the dealer map. Unit-tested in
  * scripts/test-spx-chart.ts.
  */
+import { pickWalls } from '../../../../shared/gex-wall-basis';
 
 export interface LevelMember { price: number; kind: string; label: string; source: string; asOf: string }
 export interface LevelMapPayload {
@@ -38,37 +39,33 @@ export function pickKeyLevels(map: LevelMapPayload | undefined | null): Array<{ 
 }
 
 /**
- * Dealer walls for the chart: the near-dated book (expiries ≤ 7 days,
- * byDte.next7) first, because the all-expiry walls on SPX sit on far round
- * strikes that say nothing about this week; all-expiry walls are added, dashed
- * and labelled "all", only where they differ. Without a near book the
- * all-expiry walls are drawn and labelled as such.
+ * Dealer walls for the chart, on the platform's one wall basis
+ * (shared/gex-wall-basis.ts pickWalls): the next-7-day book when it has a wall,
+ * else the all-expiry walls labelled as the fallback. When the near book is
+ * used, the all-expiry walls are added dashed and labelled "all" where they
+ * differ — SPX's all-expiry walls sit on far round strikes (8,000 / 7,000).
  */
 export function dealerWallLines(snap: {
   callWall?: number | null; putWall?: number | null; zeroGammaLevel?: number | null; gammaFlipPrice?: number | null;
-  byDte?: Record<string, { callWall: number | null; putWall: number | null; gammaFlipPrice: number | null; expirationsCount?: number } | undefined>;
+  byDte?: unknown;
 } | null | undefined): { rows: Array<{ price: number; color: string; label: string; kind: 'gex-anchor'; dashed?: boolean }>; basis: string } {
   if (!snap) return { rows: [], basis: '' };
-  const near = snap.byDte?.next7;
-  const allZero = snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null;
+  const allFlip = snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null;
+  const w = pickWalls({ callWall: snap.callWall, putWall: snap.putWall, flip: allFlip, byDte: snap.byDte });
   const rows: Array<{ price: number; color: string; label: string; kind: 'gex-anchor'; dashed?: boolean }> = [];
   const push = (price: number | null | undefined, color: string, label: string, dashed?: boolean) => {
     if (price == null || !Number.isFinite(price)) return;
     if (rows.some((r) => Math.abs(r.price - price) < 1e-6)) return;
     rows.push({ price, color, label, kind: 'gex-anchor', ...(dashed ? { dashed } : {}) });
   };
-  if (near) {
-    push(near.callWall, 'call', 'CALL WALL 0–7d');
-    push(near.putWall, 'put', 'PUT WALL 0–7d');
-    push(near.gammaFlipPrice, 'caution', 'ZERO-γ 0–7d');
+  push(w.callWall, 'call', `CALL WALL ${w.basisShort}`);
+  push(w.putWall, 'put', `PUT WALL ${w.basisShort}`);
+  push(w.flip, 'caution', `ZERO-γ ${w.basisShort}`);
+  if (w.basis === 'next7') {
     push(snap.callWall, 'call', 'CALL WALL all', true);
     push(snap.putWall, 'put', 'PUT WALL all', true);
-    push(allZero, 'caution', 'ZERO-γ all', true);
-    return { rows, basis: `0–7d book (${near.expirationsCount ?? '?'} expiries) · all-expiry dashed` };
+    push(allFlip, 'caution', 'ZERO-γ all', true);
+    return { rows, basis: `${w.basisLabel} · all-expiry dashed` };
   }
-  push(snap.callWall, 'call', 'CALL WALL all');
-  push(snap.putWall, 'put', 'PUT WALL all');
-  push(allZero, 'caution', 'ZERO-γ all');
-  return { rows, basis: 'all expiries (no 0–7d book in this read)' };
+  return { rows, basis: w.basisLabel };
 }
-

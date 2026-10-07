@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn, safeToFixed, safeNumber } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
+import { completeCandles, finitePoints } from "@/lib/chart-sanitize";
 import { 
   Search, TrendingUp, TrendingDown, Activity, BarChart3, 
   Target, AlertTriangle, Loader2, RefreshCw
@@ -152,15 +153,8 @@ export default function BacktestPage() {
     });
     candleSeriesRef.current = candleSeries;
     
-    const candleData: CandlestickData[] = patternData.candles
-      .filter((c) => c && c.time != null)
-      .map((c) => ({
-        time: c.time as Time,
-        open: safeNumber(c.open, 100),
-        high: safeNumber(c.high, 100),
-        low: safeNumber(c.low, 100),
-        close: safeNumber(c.close, 100),
-      }));
+    // Bars with a missing price are dropped — never drawn as a $100 candle (lib/chart-sanitize.ts).
+    const candleData = completeCandles(patternData.candles) as CandlestickData[];
     if (candleData.length > 0) candleSeries.setData(candleData);
     
     if (patternData.bbSeries?.length) {
@@ -191,19 +185,9 @@ export default function BacktestPage() {
       });
       bbLowerRef.current = bbLower;
       
-      const validBBData = patternData.bbSeries.filter((b) => b && b.time != null);
-      const upperData: LineData[] = validBBData.map((b) => ({
-        time: b.time as Time,
-        value: safeNumber(b.upper, 100),
-      }));
-      const middleData: LineData[] = validBBData.map((b) => ({
-        time: b.time as Time,
-        value: safeNumber(b.middle, 100),
-      }));
-      const lowerData: LineData[] = validBBData.map((b) => ({
-        time: b.time as Time,
-        value: safeNumber(b.lower, 100),
-      }));
+      const upperData = finitePoints(patternData.bbSeries, 'upper') as LineData[];
+      const middleData = finitePoints(patternData.bbSeries, 'middle') as LineData[];
+      const lowerData = finitePoints(patternData.bbSeries, 'lower') as LineData[];
 
       if (upperData.length > 0) bbUpper.setData(upperData);
       if (middleData.length > 0) bbMiddle.setData(middleData);
@@ -280,12 +264,7 @@ export default function BacktestPage() {
       lastValueVisible: false,
     });
     
-    const rsiData: LineData[] = patternData.rsiSeries
-      .filter((r) => r && r.time != null && r.value != null)
-      .map((r) => ({
-        time: r.time as Time,
-        value: safeNumber(r.value, 50),
-      }));
+    const rsiData = finitePoints(patternData.rsiSeries, 'value') as LineData[];
     if (rsiData.length > 0) rsiSeries.setData(rsiData);
     
     const firstTime = patternData.rsiSeries[0]?.time;

@@ -20,7 +20,9 @@
  *   bot        Quantinum Bot record, model-record style: n closed, win rate only
  *              when n ≥ 30, since date. Journal = the bot's book stats.
  */
-import { and, desc, eq, lte, isNotNull } from 'drizzle-orm';
+import { pickWalls } from '../shared/gex-wall-basis';
+import { and, desc, eq, gte, lte, isNotNull } from 'drizzle-orm';
+import { OUTCOME_BASELINE_DATE } from '../shared/constants';
 import { logger } from './logger';
 
 const TTL_MS = 15_000;
@@ -33,6 +35,8 @@ type Section<T> = { data: T | null; asOf: string | null; error?: string };
 export interface ShowcaseQuote { symbol: string; price: number; changePct: number | null; source: string; asOf: string; delayed?: boolean }
 export interface ShowcaseGex {
   symbol: string; spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null;
+  /** Which book the walls/zero-γ are from — shared/gex-wall-basis.ts (≤7d, else all-expiry fallback). */
+  wallBasis: 'next7' | 'all'; wallBasisLabel: string;
   maxGammaStrike: number | null; regime: string | null; netGexB: number | null; source: string | null;
   chainAgeMs: number | null; delayedFeed: boolean;
   profile: Array<{ strike: number; netGex: number }>;
@@ -116,8 +120,10 @@ function refreshGex(): Promise<void> {
         at: Date.now(),
         data: {
           symbol: 'SPY', spot,
-          callWall: r.callWall ?? null, putWall: r.putWall ?? null,
-          zeroGamma: r.zeroGammaLevel ?? r.flipPoint ?? null,
+          // The platform's one wall basis (same numbers as Today / ticker / NEXUS).
+          ...((w) => ({ callWall: w.callWall, putWall: w.putWall, zeroGamma: w.flip, wallBasis: w.basis, wallBasisLabel: w.basisShort }))(
+            pickWalls({ callWall: r.callWall, putWall: r.putWall, flip: r.zeroGammaLevel ?? r.flipPoint ?? null, byDte: r.byDte }),
+          ),
           maxGammaStrike: r.maxGammaStrike ?? null,
           regime: (r.regime as string) ?? null,
           netGexB: Number.isFinite(r.totalNetGEX) ? r.totalNetGEX : null,
@@ -145,6 +151,25 @@ async function buildGex(): Promise<Section<ShowcaseGex>> {
   return { data: gexCache.data, asOf: new Date(gexCache.at).toISOString() };
 }
 
+/**
+ * The landing's sample ideas (audit 2026-10-01 item 8): the most recent ≥24h-old
+ * ideas from the clean-era (post-baseline) set, one per symbol, in publish
+ * order — NO preference for closed (or winning) ideas, so the window carries
+ * no selection bias. Rows must already be sorted newest first.
+ */
+export function pickShowcaseIdeas<T extends { symbol: string; timestamp: string }>(rows: T[], n = 3): T[] {
+  const seen = new Set<string>();
+  const picked: T[] = [];
+  for (const r of rows) {
+    if (String(r.timestamp).slice(0, 10) < OUTCOME_BASELINE_DATE) continue;
+    if (seen.has(r.symbol)) continue;
+    seen.add(r.symbol);
+    picked.push(r);
+    if (picked.length === n) break;
+  }
+  return picked;
+}
+
 async function buildIdeas(): Promise<ShowcaseIdea[]> {
   const { db } = await import('./db');
   const { tradeIdeas } = await import('@shared/schema');
@@ -154,20 +179,10 @@ async function buildIdeas(): Promise<ShowcaseIdea[]> {
     timestamp: tradeIdeas.timestamp, outcome: tradeIdeas.outcomeStatus, percentGain: tradeIdeas.percentGain,
     assetType: tradeIdeas.assetType,
   }).from(tradeIdeas)
-    .where(and(eq(tradeIdeas.status, 'published'), lte(tradeIdeas.timestamp, cutoff), isNotNull(tradeIdeas.genConvictionScore)))
+    .where(and(eq(tradeIdeas.status, 'published'), lte(tradeIdeas.timestamp, cutoff), gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE), isNotNull(tradeIdeas.genConvictionScore)))
     .orderBy(desc(tradeIdeas.timestamp))
     .limit(40);
-  // Prefer graded (closed) ideas so the panel shows outcomes; fill with ≥24h-old open ones.
-  const closed = rows.filter((r) => r.outcome && r.outcome !== 'open');
-  const open = rows.filter((r) => !r.outcome || r.outcome === 'open');
-  const seen = new Set<string>();
-  const picked: typeof rows = [];
-  for (const r of [...closed, ...open]) {
-    if (seen.has(r.symbol)) continue;
-    seen.add(r.symbol);
-    picked.push(r);
-    if (picked.length === 3) break;
-  }
+  const picked = pickShowcaseIdeas(rows);
   return picked.map((r) => ({
     symbol: r.symbol, side: r.direction, band: r.band ?? null, publishedAt: r.timestamp,
     outcome: r.outcome && r.outcome !== 'open' ? r.outcome : null,

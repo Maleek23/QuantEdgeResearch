@@ -28,6 +28,12 @@ export interface TerminalData {
   snapshot: GEXSnapshot;
   strikeExpiryMatrix: StrikeExpiryCell[];
   generatedAt?: string;
+  /** When the options chain itself was read (the data's own time) — audit 2026-10-01 #12. */
+  chainFetchedAt?: string | null;
+  /** Open-interest date of the chain (OI is a prior-day figure). */
+  openInterestDate?: string | null;
+  /** Why strikeExpiryMatrix is empty, when it is. */
+  strikeExpiryMatrixNote?: string;
   cached?: boolean;
   cachedAt?: string;
   optionsSource?: string;
@@ -345,4 +351,6 @@ export const sessionLabelOf = (eh?: EHPayload) =>
   eh?.session === 'pre' ? 'Pre-market' : eh?.session === 'post' ? 'After hours' : eh?.session === 'regular' ? 'Live' : 'Last close';
 
 /** Newest datum time of a terminal payload (for the tool frame's age stamp). */
-export const terminalAsOf = (t?: TerminalData) => (t ? (t.cached ? t.cachedAt : t.generatedAt) ?? null : undefined);
+// The chain's own read time when the server reports it — never the response time
+// (a ~15-min-delayed CBOE chain used to read "0s"). Falls back to the old stamps.
+export const terminalAsOf = (t?: TerminalData) => (t ? t.chainFetchedAt ?? (t.cached ? t.cachedAt : t.generatedAt) ?? null : undefined);

@@ -72,7 +72,8 @@ export interface RegimeClassification {
   indicators: {
     adx: number;              // Trend strength (>25 = trending)
     trendDirection: 'up' | 'down' | 'neutral';
-    vix: number;              // Volatility index
+    /** Volatility index; null when the read failed — never a default 20 (audit 2026-10-01 #25). */
+    vix: number | null;
     atrPercentile: number;    // Where ATR sits historically
     correlationToSpy: number; // Market correlation
   };
@@ -331,9 +332,9 @@ export async function classifyMarketRegime(): Promise<RegimeClassification> {
       trendDirection = 'neutral';
     }
 
-    // VIX from the same candle feed (last daily close). A default of 20 on
-    // failure is disclosed by the regime carrying no VIX-derived certainty.
-    let vix = 20;
+    // VIX from the same candle feed (last daily close). No read → null: the
+    // footer prints "—" instead of a fabricated "VIX 20.0".
+    let vix: number | null = null;
     try {
       const vixBars = await fetchCandles('^VIX', '5d', '1d');
       const lastVix = vixBars[vixBars.length - 1]?.close;
@@ -350,13 +351,13 @@ export async function classifyMarketRegime(): Promise<RegimeClassification> {
     let regime: MarketRegime;
     let confidence: number;
 
-    if (vix > 35) {
+    if (vix != null && vix > 35) {
       regime = 'CRISIS';
       confidence = 90;
-    } else if (vix > 25) {
+    } else if (vix != null && vix > 25) {
       regime = 'HIGH_VOLATILITY';
       confidence = 80;
-    } else if (vix < 13) {
+    } else if (vix != null && vix < 13) {
       regime = 'LOW_VOLATILITY';
       confidence = 75;
     } else if (adx > 30 && trendDirection === 'up') {
@@ -404,7 +405,7 @@ function getDefaultRegimeClassification(): RegimeClassification {
     indicators: {
       adx: 20,
       trendDirection: 'neutral',
-      vix: 20,
+      vix: null,
       atrPercentile: 50,
       correlationToSpy: 1.0,
     },
