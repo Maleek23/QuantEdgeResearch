@@ -8,9 +8,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
+import { subscribeLivePrice, tickKeepsEquityHours, type LiveTick } from '@/lib/live-price-bus';
 import { modeVersion } from '@/lib/visual-mode';
 import { canonicalChartSymbol } from '@shared/index-symbols';
+import { barTimeLabel, barSessionDate } from '@shared/bar-time';
+import { marketSessionAt } from '@shared/quote-freshness';
 
 /* ────────────────────────────────────────────────────────────────
    DATA
@@ -201,9 +203,16 @@ export function applyTick(bars: Candle[], tick: LiveTick, tf: string): Candle[] 
   const last = bars[bars.length - 1];
   const barMs = TF_BAR_MS[tf] ?? 60_000;
   if (tick.ts < last.time) return null;
+  // Daily candles are regular-session OHLC: an extended-hours print must not
+  // rewrite the session's close (it is shown separately, labelled with its session).
+  const sessionBars = tf === '1D' && tickKeepsEquityHours(tick);
+  if (sessionBars && marketSessionAt(tick.ts) !== 'regular') return null;
   const daily = tf === '1D' || tf === '1W';
+  // A daily bar is a SESSION: compare session dates (barSessionDate reads a
+  // 00:00 UTC stamp as its UTC date, which etDate would push to the prior day
+  // and so open a phantom bar on the first tick).
   const inside = daily
-    ? (tf === '1D' ? etDate(tick.ts) === etDate(last.time) : tick.ts < last.time + barMs)
+    ? (tf === '1D' ? etDate(tick.ts) === barSessionDate(last.time) : tick.ts < last.time + barMs)
     : tick.ts < last.time + barMs;
   if (inside) {
     if (last.close === tick.price && tick.price <= last.high && tick.price >= last.low) return null;
@@ -211,6 +220,14 @@ export function applyTick(bars: Candle[], tick: LiveTick, tf: string): Candle[] 
     return [...bars.slice(0, -1), next];
   }
   if (!tick.live) return null;
+  if (sessionBars) {
+    // A new session's bar opens only on a regular-session print, stamped on the
+    // feed's own convention (same time of day as the prior bar), not at the
+    // print's clock time — an after-hours print is not a new daily candle.
+    const dayMs = Date.parse(`${etDate(tick.ts)}T00:00:00Z`) - Date.parse(`${barSessionDate(last.time)}T00:00:00Z`);
+    if (!(dayMs > 0)) return null;
+    return [...bars, { time: last.time + dayMs, open: tick.price, high: tick.price, low: tick.price, close: tick.price, volume: 0 }];
+  }
   const time = daily ? tick.ts : last.time + Math.floor((tick.ts - last.time) / barMs) * barMs;
   return [...bars, { time, open: tick.price, high: tick.price, low: tick.price, close: tick.price, volume: 0 }];
 }
@@ -533,10 +550,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   const timeStep = Math.max(1, Math.floor(candles.length / 6));
   for (let i = 0; i < candles.length; i += timeStep) {
     const x = padding.left + (i / (candles.length - 1)) * chartW;
-    const d = new Date(candles[i].time);
-    const label = opts.tf === '1D' || opts.tf === '1W'
-      ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // Daily: session date (no time). Intraday: ET clock — never the browser's zone.
+    const label = barTimeLabel(candles[i].time, opts.tf, { compact: true });
     ctx.fillText(label, x, h - padding.bottom + 16);
   }
 

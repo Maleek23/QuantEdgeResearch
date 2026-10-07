@@ -1181,7 +1181,16 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     let resolvedAssetType = input.assetType;
 
     const callerSpecifiedContract = !!(input.optionType && input.strikePrice && input.expiryDate);
-    if (!callerSpecifiedContract && input.assetType !== 'crypto' && input.direction !== 'neutral') {
+    // After the close / overnight / weekends an idea publishes UNDERLYING-ONLY:
+    // no contract is attached (its premium would be a stale after-hours mark and
+    // the createTradeIdea publish gate would refuse the whole idea). The
+    // in-session contract backfill attaches one at the next open.
+    const { optionAttachGate } = await import('./lib/publish-gates');
+    const attachRefused = optionAttachGate(Date.now());
+    if (attachRefused && !callerSpecifiedContract) {
+      logger.info(`[UNIVERSAL] ${input.symbol}: no contract attached — ${attachRefused}`);
+    }
+    if (!attachRefused && !callerSpecifiedContract && input.assetType !== 'crypto' && input.direction !== 'neutral') {
       const attached = await attachOptionContract({
         symbol: input.symbol,
         direction: input.direction,
@@ -1442,9 +1451,17 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
  *
  * Runs sequentially; the fetchCboeChain TTL cache absorbs duplicate symbols.
  */
-export async function backfillContractlessIdeas(): Promise<{ scanned: number; upgraded: number }> {
+export async function backfillContractlessIdeas(nowMs = Date.now()): Promise<{ scanned: number; upgraded: number }> {
   let scanned = 0;
   let upgraded = 0;
+  // Same after-close gate as createTradeIdea: this pass rewrites assetType to
+  // 'option' IN PLACE, so it must not run outside the options window either.
+  const { optionAttachGate } = await import('./lib/publish-gates');
+  const refused = optionAttachGate(nowMs);
+  if (refused) {
+    logger.debug(`[BACKFILL] skipped — ${refused}`);
+    return { scanned: 0, upgraded: 0 };
+  }
   try {
     const ideas = await storage.getAllTradeIdeas();
     const candidates = ideas.filter(i =>

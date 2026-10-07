@@ -55,6 +55,8 @@ import {
 import { canonicalChartSymbol } from '@shared/index-symbols';
 import '@/styles/nexus.css';
 import { terminalAsOf } from '@/components/gex/gex-model';
+import { barTimeLabel } from '@shared/bar-time';
+import { marketSessionAt, etHHMM } from '@shared/quote-freshness';
 
 /* The full variant is the TradingView-style chart (tv/tv-chart.tsx) on
    lightweight-charts; loaded on demand so compact embeds never pay for it. */
@@ -574,6 +576,20 @@ function QEChartCompact({
   }, [ranged, series]);
   const lastPx = liveTick?.price ?? (ranged.length ? ranged[ranged.length - 1].close : null);
   const chg = lastPx != null && prevClose ? (lastPx / prevClose - 1) * 100 : null;
+  // Say WHICH price the header shows: a session-tagged print/quote, or the last
+  // candle's close — never an unlabelled number beside a differently-sourced one.
+  const pxBasis = useMemo(() => {
+    if (liveTick) {
+      const ses = marketSessionAt(liveTick.ts);
+      const word = ses === 'regular' ? (liveTick.live ? 'Live' : 'Quote') : ses === 'pre' ? 'Pre-mkt' : ses === 'post' ? 'After-hrs' : ses === 'overnight' ? 'Overnight' : 'Last';
+      return { label: `${word} ${etHHMM(liveTick.ts)} ET`, title: `${liveTick.live ? 'Trade print' : 'Polled quote'} from ${liveTick.source} at ${etHHMM(liveTick.ts)} ET (${ses} session). Candles are ${intraday ? 'intraday bars' : 'regular-session daily bars'}.` };
+    }
+    const last = ranged.length ? ranged[ranged.length - 1] : null;
+    if (!last) return null;
+    return intraday
+      ? { label: `Bar ${barTimeLabel(last.time, tf)}`, title: 'Close of the latest candle from the history feed — no live print yet.' }
+      : { label: `Close ${barTimeLabel(last.time, tf)}`, title: 'Regular-session close of the latest daily candle — no live print yet.' };
+  }, [liveTick, ranged, intraday, tf]);
   const tk0 = readTokens(hostRef.current);
 
   const chartHandlers = {
@@ -684,6 +700,7 @@ function QEChartCompact({
         <div className="fc-mini-head">
           <b>{title ?? symbol}</b>
           <span className="fc-mini-px">{lastPx != null ? `$${lastPx.toFixed(lastPx < 10 ? 4 : 2)}` : '—'}</span>
+          {pxBasis && <span className="fc-mini-basis" title={pxBasis.title}>{pxBasis.label}</span>}
           {chg != null && <span style={{ color: chg >= 0 ? 'var(--green)' : 'var(--red)' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
           {layersOk && (
             <span className="fc-mini-layers">
@@ -794,6 +811,7 @@ const FC_CSS = `
 .fc-readout .dim{color:var(--text-mute)}
 .fc-tip{position:absolute;display:none;z-index:6;pointer-events:none;max-width:260px;padding:6px 8px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--panel-solid);font-size:11px;line-height:1.5;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.45)}
 .fc-status{display:flex;flex-wrap:wrap;gap:4px 14px;padding:5px 10px;border-top:1px solid var(--nx-border);font-size:11px;color:var(--text-mute)}
+.fc-mini-basis{font-size:11px;color:var(--text-mute);white-space:nowrap}
 .fc-legend{display:inline-flex;align-items:center;gap:4px;color:var(--text-dim)}
 .fc-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:4px}
 .fc-legend i.dash{width:12px;height:0;border-radius:0;border-top:1.5px dotted}

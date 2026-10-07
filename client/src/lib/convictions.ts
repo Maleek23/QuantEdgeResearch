@@ -72,6 +72,10 @@ export interface ConvictionPick {
   /** Frozen evidence grade at first publication. */
   publishedConvictionScore: number | null;
   publishedConvictionBand: 'S' | 'A' | 'B' | 'C' | null;
+  /** Layers frozen at the idea's first board score (null when never stamped). */
+  publishedLayers?: Array<{ kind: string; points: number; why: string }> | null;
+  /** When `layers` were scored: the board build that served them (re-read live, not at publish). */
+  layersScoredAt?: string;
 
   thesis: string;
   catalyst: string;

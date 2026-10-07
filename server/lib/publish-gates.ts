@@ -30,6 +30,24 @@ export function calendarDte(expiry: string | null | undefined, nowMs: number): n
   return Math.round((Date.parse(e + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 86_400_000);
 }
 
+/**
+ * Gate #1 alone: may an option CONTRACT be attached / published at `nowMs`?
+ * Null when yes, else the refusal reason. Used by every path that puts a
+ * contract on an idea — including in-place upgrades (backfillContractlessIdeas)
+ * that never pass through createTradeIdea. 2026-10-06: an AMD idea called
+ * 19:22 ET rendered "Option-backed $165 CALL" because a stock idea was upgraded
+ * to an option after the close without this check.
+ */
+export function optionAttachGate(nowMs: number, env: Record<string, string | undefined> = process.env): string | null {
+  if (env.OPTIONS_AFTER_CLOSE === 'allow') return null;
+  const { weekday, minutes } = etClock(nowMs);
+  const weekend = weekday === 'Sat' || weekday === 'Sun';
+  if (weekend || minutes >= 16 * 60 || minutes < 4 * 60) {
+    return 'option ideas are not published after the close / overnight / weekends (after-close options −$4,516 n=72 vs in-session +$1,758) — re-evaluate in session';
+  }
+  return null;
+}
+
 export function publishGateFor(
   idea: { source?: string | null; assetType?: string | null; expiryDate?: string | null },
   nowMs: number,
@@ -37,11 +55,8 @@ export function publishGateFor(
 ): string | null {
   const source = String(idea.source ?? '').toLowerCase();
   if (String(idea.assetType ?? '') !== 'option') return null;
-  const { weekday, minutes } = etClock(nowMs);
-  const weekend = weekday === 'Sat' || weekday === 'Sun';
-  if (env.OPTIONS_AFTER_CLOSE !== 'allow' && (weekend || minutes >= 16 * 60 || minutes < 4 * 60)) {
-    return 'option ideas are not published after the close / overnight / weekends (after-close options −$4,516 n=72 vs in-session +$1,758) — re-evaluate in session';
-  }
+  const afterClose = optionAttachGate(nowMs, env);
+  if (afterClose) return afterClose;
   if (source === 'market_scanner' && env.MARKET_SCANNER_SWING_OPTIONS !== 'on') {
     const dte = calendarDte(idea.expiryDate, nowMs);
     if (dte != null && dte >= 8 && dte <= 21) {

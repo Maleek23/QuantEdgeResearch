@@ -32666,6 +32666,12 @@ Use this checklist before entering any trade:
    * journal every 30 s while visible. Small payload on purpose: the rows query
    * stays unpolled. Quotes are cached per instrument for 30 s (journal-marks.ts).
    */
+  /** NEXUS setup detail: idea timeline + "test this setup" (server/idea-timeline.ts). */
+  {
+    const { registerIdeaTimelineRoutes } = await import('./idea-timeline');
+    registerIdeaTimelineRoutes(app, requireBetaAccess);
+  }
+
   /** Time-of-day relative volume for a setup (server/volume-read.ts). ?at= trigger ISO time. */
   app.get("/api/volume-read/:symbol", requireBetaAccess, async (req, res) => {
     try {
