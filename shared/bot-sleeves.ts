@@ -32,7 +32,7 @@
 import { manageSignal, exitPolicyPlan, type ExitPolicyId } from './exit-policy';
 import { windowFor, publishMsOf, etDay, type LifecycleInput } from './setup-lifecycle';
 import { marketSessionAt, etClock, etHHMM } from './quote-freshness';
-import { NEXUS_GRADE_POINTS, type NexusGrade } from './nexus-grade';
+import { gradeSortValue, isGradeLive, type NexusGrade } from './nexus-grade';
 
 export type BotSleeve = '0dte' | 'swing';
 
@@ -219,15 +219,14 @@ export interface GradedCandidate { ideaId: string; grade: NexusGrade; publishMs:
 /** NEXUS grade desc → newest publish → idea id. The evidence score never enters. */
 export function swingOrder<T extends GradedCandidate>(rows: T[]): T[] {
   return [...rows].sort((a, b) =>
-    b.grade.score - a.grade.score
+    gradeSortValue(b.grade) - gradeSortValue(a.grade)
     || (b.publishMs ?? 0) - (a.publishMs ?? 0)
     || String(a.ideaId).localeCompare(String(b.ideaId)));
 }
 
-/** Live & valid (fresh or carried) — the grade's lifecycle factor at full points. */
+/** Live & valid (fresh or carried) — g2: the lifecycle factor at full points; v3: actionable now. */
 export function isLiveGrade(g: NexusGrade): boolean {
-  const life = g.factors.find((f) => f.key === 'lifecycle');
-  return !!life && life.points >= NEXUS_GRADE_POINTS.valid;
+  return isGradeLive(g);
 }
 
 // ── no same-day re-entry after a stop ───────────────────────────────────────

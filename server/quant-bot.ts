@@ -1283,7 +1283,7 @@ async function announceEntry(symbol: string, tradeable: any, res: any, pick: any
       quantity: Number(res.position?.quantity ?? 1),
       targetPrice: pick?.targetPrice ?? tradeable.targetPrice ?? null,
       stopLoss: pick?.stopLoss ?? tradeable.stopLoss ?? null,
-      nexusGrade: grade ? { letter: grade.letter, score: grade.score } : null,
+      nexusGrade: grade ? { letter: grade.letter, score: grade.score, version: grade.version } : null,
       riskRewardRatio: pick?.riskRewardRatio ?? null,
       analysis,
       signals: pick ? (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean) : [],

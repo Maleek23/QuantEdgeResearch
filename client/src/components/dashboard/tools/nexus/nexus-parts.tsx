@@ -34,7 +34,7 @@ import { boardLivePrice, liveMark } from '@shared/live-mark';
 import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
 import { stripConflictingTargetClaims } from '@shared/plan-narrative';
-import { gradeFromLife, gradePick, whyRankedHere, type NexusGrade } from '@shared/nexus-grade';
+import { gradeFromLife, gradePick, whyRankedHere, whyThisGrade, nexusGradeCaveat, formatNexusGrade, type NexusGrade } from '@shared/nexus-grade';
 import { nexusGradeTitle, LegacyScoreDiagnostics, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
@@ -272,7 +272,7 @@ export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pi
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
       <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && <small className="nxp-why">why here: {whyRankedHere(grade)}</small>}</span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`${NEXUS_GRADE_LABEL} ${grade.letter}, ${grade.score} of 100, ${NEXUS_GRADE_CAVEAT}`}>{grade.letter} <b>{grade.score}</b></span> : '—'}</strong><small>{grade ? 'NEXUS grade' : ''}{grade && (pick.calledAt ?? pick.generatedAt) ? ' · ' : ''}{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(grade)} of 100, ${nexusGradeCaveat(grade)}`}>{grade.letter} <b>{grade.score}</b>{grade.action?.state === 'not_actionable' && <small className="nxp-grade-state"> · not now</small>}</span> : '—'}</strong><small>{grade ? 'NEXUS grade' : ''}{grade && (pick.calledAt ?? pick.generatedAt) ? ' · ' : ''}{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -632,13 +632,19 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
  * and ranks plan quality/actionability; it does not predict which setup wins.
  */
 function GradeBox({ grade }: { grade: NexusGrade }) {
+  const rows = whyThisGrade(grade);
   return (
-    <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} out of 100, unvalidated. Why ranked here: ${whyRankedHere(grade)}`}>
+    <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${formatNexusGrade(grade)} out of 100, unvalidated. Why this grade: ${whyRankedHere(grade)}`}>
       <strong className="nxp-grade-letter">{grade.letter}</strong>
-      <span>{NEXUS_GRADE_LABEL} · {grade.score}/100</span>
-      <small className="nxp-grade-caveat">{NEXUS_GRADE_CAVEAT}</small>
-      <ul className="nxp-grade-why" aria-label="Why ranked here">
-        {grade.factors.map((f) => <li key={f.key}>{f.label} <b>{f.points}/{f.max}</b></li>)}
+      <span>{NEXUS_GRADE_LABEL} · {grade.score}/100{grade.action ? ` · ${grade.action.label}` : ''}</span>
+      <small className="nxp-grade-caveat">{grade.action ? nexusGradeCaveat(grade) : NEXUS_GRADE_CAVEAT}</small>
+      <ul className="nxp-grade-why" aria-label="Why this grade">
+        {rows.map((r) => (
+          <li key={r.key} title={r.note}>
+            <span>{r.label}{r.status !== 'unvalidated' && <em className={`nxp-grade-status nxp-grade-status-${r.status}`}> {r.status === 'state' ? 'gate' : r.status}</em>}</span>
+            <b>{r.status === 'state' ? '—' : `${r.points}/${r.max}`}</b>
+          </li>
+        ))}
       </ul>
     </div>
   );

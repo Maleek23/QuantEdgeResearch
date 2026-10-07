@@ -9,7 +9,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import {
-  formatNexusGrade, gradeBreakdown, gradePick, gradeIdeaRow, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL,
+  formatNexusGrade, gradeBreakdown, gradePick, gradeIdeaRow, nexusGradeCaveat, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL,
   type IdeaRowLike, type NexusGrade, type NexusGradeLetter, type GradeInput,
 } from '@shared/nexus-grade';
 import type { LifecycleInput } from '@shared/setup-lifecycle';
@@ -21,9 +21,9 @@ export function nexusGradeColor(letter: NexusGradeLetter): string {
   return letter === 'A' ? 'var(--grade-a)' : letter === 'B' ? 'var(--grade-b)' : letter === 'C' ? 'var(--grade-c)' : letter === 'D' ? 'var(--grade-d)' : 'var(--grade-f)';
 }
 
-/** Tooltip: label, score, caveat, every factor. */
+/** Tooltip: label, score, caveat, every factor (v3: with validation status + the actionability state). */
 export function nexusGradeTitle(g: NexusGrade): string {
-  return `${NEXUS_GRADE_LABEL} ${formatNexusGrade(g)}/100 — ${NEXUS_GRADE_CAVEAT}. ${gradeBreakdown(g)}.`;
+  return `${NEXUS_GRADE_LABEL} ${g.letter} ${g.score}/100${g.action ? ` · ${g.action.label}` : ''} — ${nexusGradeCaveat(g)}. ${gradeBreakdown(g)}.`;
 }
 
 /** Grade a board pick (live lifecycle read from its own fields) or a stored idea row. */
@@ -47,7 +47,7 @@ export function NexusGradeChip({ grade, size = 'sm', showLabel = false, style }:
     <span
       className={`nexus-grade-chip nexus-grade-${grade.letter}`}
       title={nexusGradeTitle(grade)}
-      aria-label={`${NEXUS_GRADE_LABEL} ${grade.letter}, ${grade.score} of 100, ${NEXUS_GRADE_CAVEAT}`}
+      aria-label={`${NEXUS_GRADE_LABEL} ${grade.letter}, ${grade.score} of 100${grade.action ? `, ${grade.action.label}` : ''}, ${nexusGradeCaveat(grade)}`}
       style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: fs, fontWeight: 700, color: nexusGradeColor(grade.letter), whiteSpace: 'nowrap', ...style }}
     >
       {showLabel && <span style={{ fontWeight: 500, color: 'var(--text-mute)', fontSize: Math.max(9, fs - 3) }}>{NEXUS_GRADE_LABEL}</span>}
