@@ -90,13 +90,13 @@ export interface TrackRecord {
     total: number;
     decided: number;
     unresolved: number;
-    /** option rows with a tracker-pass mark; these remain unresolved */
+    /** decided option ideas whose contract exit was priced at the tracker pass, not the touch */
     pricedAtPass: number;
-    /** option exits marked from historical trade bars; sensitivity only, not executable fills */
+    /** option exits priced from the contract's own bar at the touch (the record's method) */
     pricedAtTouchBar: number;
     /** exact contract expiry settlements priced from intrinsic value */
     intrinsicSettlements: number;
-    /** option outcomes withheld because no trustworthy contract exit exists */
+    /** option stops whose premium was withheld (no P&L, still a loss by status) */
     withheld: number;
     note: string;
   };
@@ -244,8 +244,9 @@ export function computeTrackRecord(
       included: true, since: baseline, exitAtTouchSince: OPTION_EXIT_AT_TOUCH_SINCE,
       total: opt.length, decided: optDecided, unresolved: opt.length - optDecided, pricedAtPass, withheld,
       pricedAtTouchBar, intrinsicSettlements,
-      note: `Option ideas count as decided only with a tagged execution exit or exact expiry intrinsic settlement. `
-        + `Tracker-pass marks, historical touch-bar prints, unmeasured expiries, unit-corrupted barriers, and never-entered plans remain unresolved.`,
+      note: `Option ideas count in this record since ${baseline}: barriers on the wrong price scale and never-entered plans are left unresolved, not scored. `
+        + `Contract exits have been priced at the touch since ${OPTION_EXIT_AT_TOUCH_SINCE}; earlier exits used the tracker's next quote. `
+        + `Expiries settle at exact intrinsic value when the expiry-day print exists; otherwise they stay unmeasured.`,
     },
     triggerObserverSince: TRIGGER_OBSERVER_START,
   };

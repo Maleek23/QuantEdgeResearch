@@ -187,7 +187,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { CANONICAL_LOSS_THRESHOLD, isRealWin, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
@@ -282,10 +282,9 @@ export function getDecidedTrades(ideas: any[], options: { includeAllVersions?: b
   }
   
   // Filter to decided trades only (wins + real losses)
-  return filtered.filter(idea => {
-    if (String(idea.assetType ?? '').toLowerCase() === 'option') return isRealWin(idea) || isRealLoss(idea);
-    return idea.outcomeStatus === 'hit_target' || isRealLoss(idea);
-  });
+  return filtered.filter(idea => 
+    idea.outcomeStatus === 'hit_target' || isRealLoss(idea)
+  );
 }
 
 /**
@@ -301,10 +300,9 @@ export function getDecidedTradesByResolution(ideas: any[], options: { includeAll
   }
   
   // Filter to decided trades only (auto-resolved wins + real losses)
-  return filtered.filter(idea => {
-    if (String(idea.assetType ?? '').toLowerCase() === 'option') return isRealWin(idea) || isRealLossByResolution(idea);
-    return idea.resolutionReason === 'auto_target_hit' || isRealLossByResolution(idea);
-  });
+  return filtered.filter(idea => 
+    idea.resolutionReason === 'auto_target_hit' || isRealLossByResolution(idea)
+  );
 }
 
 /**

@@ -3,7 +3,7 @@
  * journal tests can exercise them): one published trade idea → one journal row.
  */
 import type { JournalTrade } from '@shared/schema';
-import { classifyOutcomeV2, isUnmeasuredExpiry } from '@shared/constants';
+import { isUnmeasuredExpiry } from '@shared/constants';
 import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
 import { captureRatio } from '@shared/exit-policy';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
@@ -113,18 +113,6 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const resolved = status !== 'open' && status !== '';
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   const option = i.assetType === 'option';
-  if (option && resolved && i.exitPremiumBasis === 'pass') {
-    return { excluded: 'option exit premium came from the tracker pass, not the outcome time' };
-  }
-  if (option && resolved && i.exitPremiumBasis === 'touch_bar') {
-    return { excluded: 'option exit premium is a historical trade print, not an executable bid/ask fill' };
-  }
-  if (option && resolved && !(planPremium != null && planPremium > 0)) {
-    return { excluded: 'option idea without a recorded entry premium' };
-  }
-  if (option && resolved && classifyOutcomeV2({ ...i, assetType: 'option' }) === 'unresolved') {
-    return { excluded: 'option outcome lacks a provenance-backed, premium-consistent execution or exact expiry settlement' };
-  }
   const short = planDirection === 'short';
 
   let entry: number, qty: number, exit: number | null = null, pnl: number | null = null, pct: number | null = null;

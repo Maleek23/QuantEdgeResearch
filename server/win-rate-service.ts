@@ -19,8 +19,7 @@ import { TradeIdea } from '@shared/schema';
 import { 
   isRealWin, 
   isRealLoss, 
-  classifyOutcomeV2,
-  hasMeasuredOptionOutcome,
+  classifyTrade,
   isCurrentGenEngine,
   isUnmeasuredExpiry,
   CANONICAL_WIN_THRESHOLD,
@@ -178,9 +177,9 @@ export class WinRateService {
       bySource,
       byAssetType,
       methodology: {
-        winDefinition: 'stocks: hit_target or qualifying positive P&L; options: positive contract P&L with execution provenance or exact expiry intrinsic settlement',
-        lossDefinition: 'stocks: hit_stop or qualifying negative P&L when no status exists; options: negative contract P&L with the same measurement evidence',
-        neutralDefinition: 'expired/manual/flat stock outcomes and option ideas without a tagged execution exit or exact expiry intrinsic settlement; unmeasured expiries are counted separately',
+        winDefinition: `stocks: hit_target OR P&L >= +${CANONICAL_WIN_THRESHOLD}%; options: contract P&L >= +${CANONICAL_WIN_THRESHOLD}%`,
+        lossDefinition: `stocks: hit_stop OR P&L <= -${CANONICAL_LOSS_THRESHOLD}% when no status exists; options: contract P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
+        neutralDefinition: 'expired, manual_exit, status-less |P&L| < 3%, or option without captured contract P&L; expired with no measured exit is additionally counted as `unmeasured`',
         optionsIncluded: true, // measured options (real contract P&L) always count now
         legacyIncluded: filters.includeAllVersions ?? false,
       },
@@ -199,7 +198,7 @@ export class WinRateService {
    * not the underlying stock move (percentGain).
    */
   private static isOptionMeasured(idea: TradeIdea): boolean {
-    return hasMeasuredOptionOutcome(idea);
+    return idea.assetType === 'option' && typeof idea.optionPercentGain === 'number';
   }
 
   /** The P&L figure that defines this idea's outcome (contract for options, stock otherwise). */
@@ -211,9 +210,11 @@ export class WinRateService {
 
   /** Win/loss/neutral using real contract P&L for measured options, else stock-level rules. */
   private static classifyIdea(idea: TradeIdea): 'win' | 'loss' | 'neutral' {
-    if (idea.assetType === 'option') {
-      const outcome = classifyOutcomeV2(idea);
-      return outcome === 'unresolved' ? 'neutral' : outcome;
+    if (this.isOptionMeasured(idea)) {
+      const pnl = idea.optionPercentGain!;
+      if (pnl >= CANONICAL_WIN_THRESHOLD) return 'win';
+      if (pnl <= -CANONICAL_LOSS_THRESHOLD) return 'loss';
+      return 'neutral';
     }
     if (isRealWin(idea)) return 'win';
     if (isRealLoss(idea)) return 'loss';

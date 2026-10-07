@@ -100,12 +100,6 @@ export function reportableRate(
  * - NEUTRAL: expired, manual_exit, breakeven (|P&L| < 3%) - excluded from win rate
  */
 
-/**
- * Check if a trade is a "real win"
- * A trade is a win if:
- * - outcome_status = 'hit_target', OR
- * - closed with percent_gain >= +3%
- */
 export interface OptionOutcomeEvidence {
   assetType?: string | null;
   outcomeStatus?: string | null;
@@ -116,9 +110,15 @@ export interface OptionOutcomeEvidence {
 }
 
 /**
- * Option P&L is measured only from a recorded execution exit or exact expiry
- * intrinsic settlement. A tracker-pass quote or a trade-bar print is not an
- * executable fill and cannot train grades or win-rate reports.
+ * STRICT contract-measurement predicate (Codex 2026-10-03 proposal): true only
+ * for an option row whose premium P&L carries an `[exit-premium:execution]` tag
+ * or an exact `[expiry-premium:intrinsic]` settlement and reconciles to its
+ * entry/exit premiums.
+ *
+ * NOT used by the canonical record (isRealWin / isRealLoss / classifyOutcomeV2):
+ * no producer writes `[exit-premium:execution]` yet, so gating the record on it
+ * would leave every option target/stop unresolved. Adopting it is an operator
+ * decision (docs/CODEX_AUDIT_2026-10-06.md); until then it is diagnostic only.
  */
 export function hasMeasuredOptionOutcome(idea: OptionOutcomeEvidence): boolean {
   if (String(idea.assetType ?? '').toLowerCase() !== 'option') return false;
@@ -138,14 +138,17 @@ export function hasMeasuredOptionOutcome(idea: OptionOutcomeEvidence): boolean {
     && /\[expiry-premium:intrinsic\]/i.test(notes);
 }
 
+/**
+ * Check if a trade is a "real win"
+ * A trade is a win if:
+ * - outcome_status = 'hit_target', OR
+ * - closed with percent_gain >= +3%
+ */
 export function isRealWin(idea: {
   outcomeStatus?: string | null; percentGain?: number | null; assetType?: string | null;
   entryPremium?: number | null; exitPremium?: number | null;
   optionPercentGain?: number | null; outcomeNotes?: string | null;
 }): boolean {
-  if (String(idea.assetType ?? '').toLowerCase() === 'option') {
-    return hasMeasuredOptionOutcome(idea) && Number(idea.optionPercentGain) > 0;
-  }
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
   
   // Method 1: Explicit hit_target status
@@ -177,9 +180,6 @@ export function isRealLoss(idea: {
   entryPremium?: number | null; exitPremium?: number | null;
   optionPercentGain?: number | null; outcomeNotes?: string | null;
 }): boolean {
-  if (String(idea.assetType ?? '').toLowerCase() === 'option') {
-    return hasMeasuredOptionOutcome(idea) && Number(idea.optionPercentGain) < 0;
-  }
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
   
   // Only count hit_stop as losses - expired trades are excluded
@@ -254,10 +254,11 @@ export function isUnmeasuredExpiry(idea: {
   // Underlying movement is not a measured option return. If expiry settlement
   // could not price the contract, never let the stock-level fallback turn it
   // into a win/loss.
-  if (String(idea.assetType ?? '').toLowerCase() === 'option') return !hasMeasuredOptionOutcome(idea);
-  const pnl = idea.percentGain;
+  const pnl = String(idea.assetType ?? '').toLowerCase() === 'option' ? idea.optionPercentGain : idea.percentGain;
   return pnl === null || pnl === undefined || Math.abs(pnl) <= 0.05;
 }
+
+const isOptionRow = (i: { assetType?: string | null }) => String(i.assetType ?? '').toLowerCase() === 'option';
 
 export type OutcomeV2 = 'win' | 'loss' | 'unresolved';
 
@@ -268,7 +269,7 @@ export interface OutcomeV2Input {
   optionPercentGain?: number | null;
   entryPremium?: number | null;
   exitPremium?: number | null;
-  /** Provenance tags determine whether optionPercentGain is an executable measurement. */
+  /** Provenance tags ([exit-premium:…] / [expiry-premium:…]); read by hasMeasuredOptionOutcome only. */
   outcomeNotes?: string | null;
   /** Below here: needed to tell a MEASURED outcome from an unmeasurable one. */
   assetType?: string | null;
@@ -305,12 +306,6 @@ export function classifyOutcomeV2(idea: OutcomeV2Input): OutcomeV2 {
   if (isOptionScaleIncoherent(idea)) return 'unresolved';
   if ((idea.resolutionReason || '').toLowerCase().includes('missed_entry')) return 'unresolved';
 
-  if (String(idea.assetType ?? '').toLowerCase() === 'option') {
-    if (!hasMeasuredOptionOutcome(idea) || status === 'open' || status === '') return 'unresolved';
-    const pnl = Number(idea.optionPercentGain);
-    return pnl > 0 ? 'win' : pnl < 0 ? 'loss' : 'unresolved';
-  }
-
   if (status === 'hit_target') return 'win';
   if (status === 'hit_stop') return 'loss';
 
@@ -339,14 +334,16 @@ export function classifyOutcomeV2(idea: OutcomeV2Input): OutcomeV2 {
     // reaching plan. The win/loss label cannot express that difference; realisedR()
     // can, which is why expectancy is the metric to lead with.
     if (isUnmeasuredExpiry(idea)) return 'unresolved';
-    const pnl = (idea.optionPercentGain ?? idea.percentGain) as number;
+    // An option is judged on its contract P&L only — underlying drift is not a
+    // contract return (isUnmeasuredExpiry already requires it to exist).
+    const pnl = (isOptionRow(idea) ? idea.optionPercentGain : (idea.optionPercentGain ?? idea.percentGain)) as number;
     return pnl > 0 ? 'win' : 'loss';
   }
 
   if (status === 'open' || status === '') return 'unresolved';
 
-  // Manually closed: judge on realised P&L, contract first where we have it.
-  const pnl = idea.optionPercentGain ?? idea.percentGain;
+  // Manually closed: judge on realised P&L — contract P&L for an option.
+  const pnl = isOptionRow(idea) ? idea.optionPercentGain : (idea.optionPercentGain ?? idea.percentGain);
   if (pnl === null || pnl === undefined) return 'unresolved';
   return pnl > 0 ? 'win' : 'loss';
 }
@@ -395,9 +392,6 @@ export function isRealLossByResolution(idea: {
   entryPremium?: number | null; exitPremium?: number | null;
   optionPercentGain?: number | null; outcomeStatus?: string | null; outcomeNotes?: string | null;
 }): boolean {
-  if (String(idea.assetType ?? '').toLowerCase() === 'option') {
-    return hasMeasuredOptionOutcome(idea) && Number(idea.optionPercentGain) < 0;
-  }
   const reason = idea.resolutionReason;
   
   // Only count stop hits as losses - expired trades are excluded
