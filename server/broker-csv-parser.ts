@@ -535,6 +535,7 @@ export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker, nowMs
     fidelity: parseGeneric,
     manual: parseGeneric,
     csv: parseGeneric,
+    quantedge: parseGeneric, // "I took this" rows are written directly, never CSV-imported; generic keeps the map total
   };
 
   const parser = parserMap[broker as keyof typeof parserMap] || parseGeneric;
