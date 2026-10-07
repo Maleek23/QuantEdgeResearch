@@ -63,9 +63,23 @@ const mount = () => createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+// Landing product frames (pages/landing-v2.tsx): the REAL app inside a same-origin
+// iframe with ?qe-demo=1, fed by the sample fixtures (demo/demo-embed.ts). Checked
+// cheaply here so the fixture chunk loads only inside such a frame.
+const demoFrame = (() => {
+  try { return window.top !== window.self && window.parent.location.origin === window.location.origin && new URLSearchParams(window.location.search).get("qe-demo") === "1"; } catch { return false; }
+})();
 // DEV-only phone harness (/dev/gex-phone): fixture API, no server or DB. The
 // whole branch (and its chunk) is dropped from production builds.
-if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
+if (demoFrame) {
+  import("./demo/demo-embed").then((d) => {
+    if (d.demoWanted()) {
+      d.installDemo();
+      import("./lib/visual-mode").then((v) => v.setMode(new URLSearchParams(window.location.search).get("mode") === "light" ? "light" : "dark")).catch(() => undefined);
+    }
+    mount();
+  }, mount);
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
   import("./dev/gex-phone-mocks").then((m) => { m.installGexPhoneMocks(); mount(); });
 } else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/zerodte")) {
   // DEV-only 0DTE desk harness: fixture API + pinned clock (dev/zerodte-mocks.ts).

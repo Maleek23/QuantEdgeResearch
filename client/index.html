@@ -128,7 +128,7 @@
     <script>
       // `/` for a visitor (no "signed in last time" hint — hooks/useAuth.ts): no boot splash;
       // the landing paints as soon as its chunk runs (App.tsx SmartLanding).
-      try { if (location.pathname === '/' && localStorage.getItem('qe-auth-hint') !== '1') { var bl = document.getElementById('app-loader'); if (bl) bl.remove(); } } catch (e) {}
+      try { if ((location.pathname === '/' && localStorage.getItem('qe-auth-hint') !== '1') || (/[?&]qe-demo=1/.test(location.search) && window.top !== window.self)) { var bl = document.getElementById('app-loader'); if (bl) bl.remove(); } } catch (e) {}
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

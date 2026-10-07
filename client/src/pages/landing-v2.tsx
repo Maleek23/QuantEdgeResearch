@@ -27,7 +27,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import '@/styles/nexus.css';
 import '@/styles/landing-v2.css';
-import { useShowcase, ShowcaseWindow, type ShowcasePanelId } from '@/components/landing/live-showcase';
+import { useShowcase } from '@/components/landing/live-showcase';
+import { RealFrame, DESK_ROUTE, type RealDesk } from '@/components/landing/real-frame';
 import DeskTour, { showDesk } from '@/components/landing/desk-tour';
 import { StatStrip, Findings, DataSources, AmbientGrid, useScrollReveal } from '@/components/landing/landing-proof';
 import { AnnouncementBar, LandingNav, CommandPalette, useCmdK } from '@/components/landing/landing-chrome';
@@ -49,21 +50,21 @@ const DISCORD_ICON = (
 /** Feeds that are actually wired (shared/landing-faq.ts "Where does the data come from") — plain-text wordmarks. */
 const DATA_FROM = ['Alpaca', 'CBOE', 'Tradier', 'Yahoo Finance', 'Coinbase', 'Bullflow'];
 
-const FEATURES: Array<{ id: string; eyebrow: string; title: string; body: string; checks: string[]; href: string; more: string; panel: ShowcasePanelId }> = [
+const FEATURES: Array<{ id: string; eyebrow: string; title: string; body: string; checks: string[]; href: string; more: string; panel: RealDesk }> = [
   { id: 'feat-gex', eyebrow: 'See the positioning', title: 'Know where dealers are pinned.',
     body: 'Gamma and vanna by strike and expiry from the options chain, with the call wall, put wall and zero-γ marked — and how old the chain is.',
     checks: ['Walls and zero-γ, basis labelled (≤7d or all expiries)', 'Long- or short-gamma regime in one line', 'Raw and Δ-adjusted gamma side by side'],
     href: '/t?tab=gex', more: 'Explore GEX', panel: 'gex' },
   { id: 'feat-nexus', eyebrow: 'Rank the setup', title: 'Every setup, ranked by its evidence.',
-    body: 'NEXUS publishes each idea with entry, stop and target stamped in ET before the move, then grades it on its own levels. These are a day old; members see today’s.',
+    body: 'NEXUS publishes each idea with entry, stop and target stamped in ET before the move, then grades it on its own levels — and Today puts the market read and your ranked setups on one page.',
     checks: ['Evidence layers shown, not hidden', 'Graded automatically, whatever the outcome', 'Rule-set version stamped on every idea'],
-    href: '/t', more: 'Explore NEXUS', panel: 'nexus' },
+    href: '/t', more: 'Explore NEXUS', panel: 'today' },
   { id: 'feat-age', eyebrow: 'Know the data’s age', title: 'Every number says how old it is.',
     body: 'Quotes, chains and flow carry their source and their age. Delayed data says delayed; nothing stale is shown as live — including on this page.',
     checks: ['Source and age on every tile', 'Delayed feeds labelled, never dressed as live', 'Crypto on a 24/7 live feed'],
-    href: '/today', more: 'Explore Today', panel: 'today' },
+    href: '/t?tab=flow', more: 'Explore Flow', panel: 'flow' },
   { id: 'feat-journal', eyebrow: 'Keep the record', title: 'Your book, measured honestly.',
-    body: 'Import a broker CSV or log by hand. The journal scores your trades the way Quantinum Bot’s paper book is scored — this window shows the bot’s.',
+    body: 'Import a broker CSV or log by hand. The journal scores your trades the way Quantinum Bot’s paper book is scored.',
     checks: ['Four numbers, one curve, then depth', 'Edge by setup and time of day', 'Ratios withheld until the sample can carry them'],
     href: '/t?tab=journal', more: 'Explore the Journal', panel: 'journal' },
 ];
@@ -262,6 +263,13 @@ export default function LandingV2() {
             </div>
             <p className="lv2-scope">Stocks · Options · 0DTE · Crypto · Delayed data · Educational, not advice</p>
           </div>
+          <div className="lv2-wrap">
+            <figure className="lv2-device" aria-label="NEXUS, the QuantEdge trading desk — the real app on sample data">
+              <div className="lp-frame-bar" aria-hidden="true"><span className="lp-dots"><i /><i /><i /></span><span className="lp-url">quantedgelabs.net/t</span></div>
+              <div className="lv2-device-stage"><RealFrame desk="nexus" eager /></div>
+              <span className="dk-badge">Sample data</span>
+            </figure>
+          </div>
           <div className="lv2-wrap"><StatStrip /></div>
         </section>
 
@@ -296,7 +304,12 @@ export default function LandingV2() {
                 <ul className="lv2-checks">{f.checks.map((c) => <li key={c}>{CHECK}<span>{c}</span></li>)}</ul>
                 <Link href={f.href} className="lv2-more">{f.more} {ARROW}</Link>
               </div>
-              <div className="lv2-feat-vis"><ShowcaseWindow id={f.panel} /></div>
+              <div className="lv2-feat-vis">
+                <figure className="lv2-phone" aria-label={`${DESK_ROUTE[f.panel].label} on a phone — the real app on sample data`}>
+                  <div className="lv2-phone-stage"><RealFrame desk={f.panel} viewport="phone" /></div>
+                  <span className="dk-badge">Sample data</span>
+                </figure>
+              </div>
             </div>
           </section>
         ))}
