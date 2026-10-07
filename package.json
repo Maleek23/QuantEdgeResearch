@@ -28,6 +28,7 @@
     "test:zero-dte": "tsx scripts/test-zero-dte-desk.ts",
     "test:zero-dte-sniper": "tsx scripts/test-zero-dte-sniper.ts",
     "test:zero-dte-flow": "tsx scripts/test-zero-dte-flow.ts",
+    "test:index-open": "tsx scripts/test-index-open.ts",
     "test:spx-fast-moves": "tsx scripts/test-spx-fast-moves.ts",
     "test:roles": "tsx scripts/test-roles.ts",
     "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",

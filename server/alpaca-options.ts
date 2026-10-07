@@ -260,6 +260,18 @@ const chainCache = new BoundedCache<string, { expiresAt: number; chain: AlpacaCh
 const inflight = new Map<string, { p: Promise<AlpacaChain | null>; boost: { high: boolean } }>();
 
 /**
+ * Read-only: the default (180d / ±40%) chain this process already holds for
+ * `underlying` when it was fetched within `maxAgeMs` — past its 90 s in-session
+ * cache life, but still the chain the last GEX snapshot was computed from.
+ * NEVER fetches. The index 0DTE engine reads the same-day walls off it instead
+ * of paying for a second cold SPY chain right after the snapshot (2026-10-01).
+ */
+export function peekAlpacaOptionsChain(underlying: string, maxAgeMs: number): AlpacaChain | null {
+  const hit = chainCache.peek(`${underlying.toUpperCase()}|180|0.4`);
+  return hit && Date.now() - hit.chain.fetchedAt <= maxAgeMs ? hit.chain : null;
+}
+
+/**
  * Full chain for one underlying. Defaults: expiries within 180 days, strikes
  * within ±40% of spot. Returns null when Alpaca is unconfigured, cooling down,
  * or returned nothing usable — callers fall through to CBOE.

@@ -97,6 +97,12 @@ async function getDeskChain(sym: string, priority: boolean): Promise<DeskChain |
   return c;
 }
 
+/** Pre-open warm (server/index-prewarm.ts): load the desk's chain for `sym` if its cache is cold. */
+export async function warmDeskChain(sym: string): Promise<{ ok: boolean; source: string | null; ageSec: number | null }> {
+  const c = await getDeskChain(sym.toUpperCase(), true);
+  return { ok: !!c, source: c?.source ?? null, ageSec: c ? Math.round((Date.now() - c.fetchedAt) / 1000) : null };
+}
+
 // ─── realized vol (daily bars, cached 30 min) ────────────────────────────
 const volCache = new Map<string, { at: number; v: number | null }>();
 async function sigmaDaily(sym: string): Promise<number | null> {
@@ -250,6 +256,13 @@ export interface DeskPayload {
   provenance: string;
   /** ROLE=web: age of the worker's last evaluation pass. */
   engineState?: { source: string; asOf: string | null; ageSec: number | null; stale: boolean };
+  /**
+   * Index 0DTE engine watchdog (server/index-engine-health.ts): status 'blind'
+   * + banner "Index engine blind since HH:MM ET — …" when it has had no usable
+   * SPY GEX snapshot at 09:33 ET or for 3 consecutive in-session cycles.
+   * Read live on every request (not part of the 60 s desk cache).
+   */
+  indexEngineHealth?: import('./index-engine-health').IndexEngineHealth & { source?: string; ageSec?: number | null };
   notes: string[];
 }
 
@@ -806,13 +819,15 @@ export async function runZeroDteDeskScan(): Promise<{ evaluated: number; publish
       if (!elig.ok) { waits[sym] = [elig.label]; memo.notes.push(elig.reason ?? elig.label); continue; }
       if (!snap || !st || st.lastClose == null) { waits[sym] = [!snap ? 'no GEX snapshot' : 'no intraday bars']; memo.notes.push(waits[sym][0]); if (!isIndex) lastEval.set(sym, { at: nowMs, verdict: { setup: null, wait: waits[sym] }, withheld: null }); continue; }
 
-      // Units: the name's own. SPX = SPY × the live cash ratio (Yahoo ^GSPC; the CBOE SPX spot is delayed).
+      // Units: the name's own. SPX = SPY × the SPX/SPY ratio (server/spx-ratio.ts: live Yahoo
+      // ^GSPC ÷ SPY, else the last live ratio labelled with its age — never a flat ×10).
       let k = 1;
       if (sym === 'SPX') {
         try {
-          const { fetchYahooFinancePrice } = await import('./market-api');
-          const q = await withTimeout(fetchYahooFinancePrice('%5EGSPC'), 5000);
-          k = q?.currentPrice && q.currentPrice > 1000 ? q.currentPrice / st.lastClose : (chain?.spot ?? 0) / st.lastClose;
+          const { getSpxPerSpy } = await import('./spx-ratio');
+          const r = await getSpxPerSpy({ price: snap.spot, atMs: Date.parse(snap.fetchedAt) });
+          if (r) { k = r.ratio; if (r.source !== 'live') memo.notes.push(r.label); }
+          else k = (chain?.spot ?? 0) / st.lastClose; // CBOE delayed SPX ÷ SPY bar — the desk's old fallback
         } catch { k = (chain?.spot ?? 0) / st.lastClose; }
         if (!(k > 5 && k < 15)) { waits[sym] = ['no SPX/SPY ratio']; memo.notes.push('no live SPX/SPY ratio — SPX levels not translated'); continue; }
       }
@@ -971,10 +986,22 @@ export async function runShortSwingPublish(): Promise<number> {
 // ─── routes ──────────────────────────────────────────────────────────────
 
 type Mw = (req: Request, res: Response, next: NextFunction) => unknown;
+
+/** Index engine watchdog status for the desk payload — never fails the desk. */
+export async function deskIndexHealth(): Promise<DeskPayload['indexEngineHealth']> {
+  try {
+    const { getIndexEngineHealth } = await import('./index-engine-health');
+    return getIndexEngineHealth();
+  } catch (e) {
+    logger.warn(`[0DTE-DESK] index engine health unavailable: ${(e as Error).message}`);
+    return undefined;
+  }
+}
 export function registerZeroDteDeskRoutes(app: Express, requireBetaAccess: Mw) {
   app.get('/api/zero-dte/desk', requireBetaAccess, async (_req, res) => {
     try {
-      res.json(await getZeroDteDesk({ priority: true }));
+      const desk = await getZeroDteDesk({ priority: true });
+      res.json({ ...desk, indexEngineHealth: await deskIndexHealth() });
     } catch (err) {
       logger.error('[0DTE-DESK] desk failed', { error: (err as Error)?.message });
       res.status(500).json({ error: '0DTE desk failed', message: (err as Error)?.message });
