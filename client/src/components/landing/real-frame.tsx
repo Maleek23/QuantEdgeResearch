@@ -141,9 +141,11 @@ export function RealFrame({ desk, onMeta, eager = false, viewport = 'auto' }: {
     if (!near || !pageReady) return;
     let live = true;
     setClip(undefined); setVideoFailed(false); setLoaded(false);
-    probeClip(route.file).then((c) => { if (live) setClip(c); });
+    // Phone frames only play a portrait capture (<file>-phone.mp4); a 16:9 loop never goes in a phone.
+    const clipFile = viewport === 'phone' ? `${route.file}-phone` : route.file;
+    probeClip(clipFile).then((c) => { if (live) setClip(c); });
     return () => { live = false; };
-  }, [near, pageReady, route.file]);
+  }, [near, pageReady, route.file, viewport]);
 
   const useVideo = !!clip && !videoFailed;
   const useLive = (near && pageReady && clip === null) || (!!clip && videoFailed);
