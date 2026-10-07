@@ -1,0 +1,171 @@
+/* Intake form, profile sheet, coach-mark tour, glossary chips, Start-here card,
+   updates page. Built on the lux tokens (--lx-*, components/lux/lux.css) so all
+   five visual modes re-ground it; fallbacks are the Dark mode values.
+   Mobile first: 375px is the design width, 44px touch targets, 16px inputs
+   (no iOS zoom). */
+
+.ob {
+  --ob-bg: var(--lx-surface, #0e1117);
+  --ob-bg-2: var(--lx-surface-2, #131720);
+  --ob-hi: var(--lx-surface-hi, #1a1f2a);
+  --ob-line: var(--lx-line, rgba(59,140,255,0.12));
+  --ob-line-hi: var(--lx-line-hi, rgba(59,140,255,0.28));
+  --ob-text: var(--lx-text, #e8ecf3);
+  --ob-dim: var(--lx-dim, #8b93a3);
+  --ob-mute: var(--lx-mute, #7f889a);
+  --ob-accent: var(--lx-accent, #3b8cff);
+  --ob-accent-text: var(--lx-accent-text, #7fb2ff);
+  --ob-accent-ink: var(--lx-accent-ink, #06070a);
+  --ob-caution: var(--lx-caution, #facc15);
+  --ob-loss: var(--lx-loss, #ff6b3d);
+  --ob-radius: var(--lx-radius, 10px);
+  --ob-font: var(--lx-font-ui, 'Inter', system-ui, sans-serif);
+  --ob-mono: var(--lx-font-data, 'JetBrains Mono', ui-monospace, monospace);
+  font-family: var(--ob-font);
+  color: var(--ob-text);
+}
+
+/* ── Intake form ───────────────────────────────────────────── */
+.ob-form { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ob-progress { display: flex; flex-direction: column; gap: 6px; }
+.ob-progress-meta { display: flex; justify-content: space-between; gap: 8px; font: 600 11px/1.3 var(--ob-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ob-mute); }
+.ob-progress-bar { height: 4px; border-radius: 999px; background: var(--ob-hi); overflow: hidden; }
+.ob-progress-bar > span { display: block; height: 100%; background: var(--ob-accent); border-radius: inherit; transition: width .25s var(--lx-ease, ease); }
+.ob-step-title { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3; }
+.ob-step-sub { margin: 2px 0 0; font-size: 13px; color: var(--ob-dim); line-height: 1.5; }
+.ob-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; border: 0; padding: 0; margin: 0; }
+.ob-label, .ob-field > legend { font-size: 13px; font-weight: 600; color: var(--ob-text); padding: 0; }
+.ob-label .ob-opt, .ob-field > legend .ob-opt { font-weight: 500; color: var(--ob-mute); }
+.ob-input, .ob-textarea {
+  width: 100%; min-height: 44px; padding: 10px 12px; font: 16px/1.4 var(--ob-font); color: var(--ob-text);
+  background: var(--ob-bg-2); border: 1px solid var(--ob-line-hi); border-radius: var(--ob-radius);
+}
+.ob-textarea { min-height: 88px; resize: vertical; }
+.ob-input:focus-visible, .ob-textarea:focus-visible, .ob-chip:focus-visible, .ob-btn:focus-visible, .ob-check input:focus-visible {
+  outline: 2px solid var(--ob-accent); outline-offset: 2px;
+}
+.ob-count { align-self: flex-end; font: 11px var(--ob-mono); color: var(--ob-mute); }
+.ob-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-chip {
+  min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font: 500 14px var(--ob-font); color: var(--ob-text); background: var(--ob-bg-2);
+  border: 1px solid var(--ob-line-hi); border-radius: 999px; transition: background .15s, border-color .15s, color .15s;
+}
+.ob-chip:hover { border-color: var(--ob-accent); }
+.ob-chip[aria-pressed="true"], .ob-chip[aria-checked="true"] { background: var(--ob-accent); border-color: var(--ob-accent); color: var(--ob-accent-ink); font-weight: 600; }
+.ob-chip svg { width: 14px; height: 14px; }
+.ob-err { margin: 0; font-size: 12.5px; color: var(--ob-loss); }
+.ob-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; line-height: 1.45; color: var(--ob-text); cursor: pointer; min-height: 44px; }
+.ob-check input { width: 20px; height: 20px; margin-top: 1px; flex: none; accent-color: var(--ob-accent); }
+.ob-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 4px; }
+.ob-actions .ob-spacer { flex: 1; }
+.ob-btn {
+  min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  font: 600 14px var(--ob-font); border-radius: var(--ob-radius); border: 1px solid var(--ob-line-hi);
+  background: transparent; color: var(--ob-text); transition: background .15s, border-color .15s;
+}
+.ob-btn:hover { background: var(--ob-hi); }
+.ob-btn:disabled { opacity: .55; cursor: not-allowed; }
+.ob-btn-primary { background: var(--ob-accent); border-color: var(--ob-accent); color: var(--ob-accent-ink); }
+.ob-btn-primary:hover { background: var(--ob-accent); filter: brightness(1.08); }
+.ob-btn-ghost { border-color: transparent; color: var(--ob-dim); }
+.ob-done { text-align: center; padding: 12px 0; }
+.ob-done h3 { margin: 8px 0 4px; font-size: 18px; }
+.ob-done p { margin: 0; color: var(--ob-dim); font-size: 14px; }
+.ob-grid2 { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .ob-grid2 { grid-template-columns: 1fr 1fr; } }
+
+/* ── Profile sheet (bottom sheet on phones, centred card on desktop) ── */
+.ob-sheet-backdrop { position: fixed; inset: 0; z-index: 80; background: var(--lx-overlay, rgba(3,5,8,0.66)); display: flex; align-items: flex-end; justify-content: center; }
+.ob-sheet {
+  width: 100%; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--ob-bg); border: 1px solid var(--ob-line-hi); border-bottom: 0;
+  border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  box-shadow: var(--lx-shadow-pop, 0 20px 60px rgba(0,0,0,.5));
+}
+.ob-sheet-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.ob-sheet-head h2 { margin: 0; font-size: 18px; }
+.ob-sheet-head p { margin: 2px 0 0; color: var(--ob-dim); font-size: 13px; }
+.ob-x { margin-left: auto; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: var(--ob-radius); background: transparent; border: 0; color: var(--ob-dim); cursor: pointer; }
+.ob-x:hover { background: var(--ob-hi); color: var(--ob-text); }
+@media (min-width: 768px) {
+  .ob-sheet-backdrop { align-items: center; padding: 24px; }
+  .ob-sheet { max-width: 560px; border-radius: 16px; border-bottom: 1px solid var(--ob-line-hi); padding: 22px 24px; }
+}
+
+/* ── Coach-mark tour ───────────────────────────────────────── */
+.ob-tour-hole {
+  position: fixed; z-index: 90; border-radius: 10px; pointer-events: none;
+  box-shadow: 0 0 0 9999px var(--lx-overlay, rgba(3,5,8,0.66)); outline: 2px solid var(--ob-accent); outline-offset: 2px;
+  transition: top .2s, left .2s, width .2s, height .2s;
+}
+.ob-tour-dim { position: fixed; inset: 0; z-index: 90; background: var(--lx-overlay, rgba(3,5,8,0.66)); }
+.ob-tour-card {
+  position: fixed; z-index: 91; width: min(340px, calc(100vw - 32px)); padding: 16px;
+  background: var(--ob-bg); border: 1px solid var(--ob-line-hi); border-radius: 12px; box-shadow: var(--lx-shadow-pop, 0 20px 60px rgba(0,0,0,.5));
+}
+.ob-tour-card.is-center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+@media (max-width: 767px) { .ob-tour-card { left: 16px !important; right: 16px; width: auto; top: auto !important; bottom: calc(16px + env(safe-area-inset-bottom)) !important; transform: none !important; } }
+.ob-tour-step { font: 600 11px var(--ob-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ob-accent-text); }
+.ob-tour-card h3 { margin: 6px 0 4px; font-size: 16px; line-height: 1.3; }
+.ob-tour-card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ob-dim); }
+.ob-tour-card .ob-actions { margin-top: 12px; }
+.ob-tour-dots { display: flex; gap: 4px; }
+.ob-tour-dots span { width: 6px; height: 6px; border-radius: 999px; background: var(--ob-hi); }
+.ob-tour-dots span[data-on="true"] { background: var(--ob-accent); }
+
+/* ── Glossary chip ─────────────────────────────────────────── */
+.ob-term { display: inline; position: relative; }
+.ob-term-btn {
+  display: inline-flex; align-items: center; gap: 3px; padding: 0; margin: 0; border: 0; background: none; cursor: help;
+  color: inherit; font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--ob-accent-text, #7fb2ff);
+}
+.ob-term-q {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; flex: none;
+  font: 700 10px/1 var(--lx-font-data, ui-monospace, monospace); color: var(--lx-accent-text, #7fb2ff);
+  border: 1px solid var(--lx-line-hi, rgba(59,140,255,0.28)); background: transparent;
+}
+/* touch: the "?" grows its hit area without growing its look */
+.ob-term-q { position: relative; }
+.ob-term-q::after { content: ''; position: absolute; inset: -14px; }
+.ob-term-pop {
+  max-width: min(300px, calc(100vw - 32px)); padding: 12px 14px; font: 13px/1.5 var(--lx-font-ui, system-ui, sans-serif); color: var(--lx-text, #e8ecf3);
+  background: var(--lx-surface, #0e1117); border: 1px solid var(--lx-line-hi, rgba(59,140,255,0.28)); border-radius: 10px;
+  box-shadow: var(--lx-shadow-pop, 0 20px 60px rgba(0,0,0,.5)); z-index: 95;
+}
+.ob-term-pop b { display: block; margin-bottom: 4px; font-size: 13px; }
+.ob-term-pop .ob-more { margin-top: 6px; color: var(--lx-dim, #8b93a3); }
+
+/* ── Start-here card (Today) ───────────────────────────────── */
+.ob-start { margin: 16px auto 0; padding: 16px; border: 1px solid var(--ob-line-hi); border-radius: 14px; background: var(--ob-bg); }
+.ob-start-head { display: flex; align-items: flex-start; gap: 12px; }
+.ob-start-head h2 { margin: 0; font-size: 17px; }
+.ob-start-head p { margin: 2px 0 0; font-size: 13px; color: var(--ob-dim); }
+.ob-start ol { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .ob-start ol { grid-template-columns: repeat(5, 1fr); } }
+.ob-start li a, .ob-start li button {
+  width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; cursor: pointer;
+  font: 500 14px var(--ob-font); color: var(--ob-text); background: var(--ob-bg-2); border: 1px solid var(--ob-line); border-radius: 10px; text-decoration: none;
+}
+.ob-start li a:hover, .ob-start li button:hover { border-color: var(--ob-accent); }
+.ob-tick { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 999px; border: 1.5px solid var(--ob-line-hi); color: var(--ob-accent-ink); }
+.ob-tick[data-done="true"] { background: var(--ob-accent); border-color: var(--ob-accent); }
+.ob-start li [data-done="true"] ~ span { color: var(--ob-dim); text-decoration: line-through; }
+.ob-start-terms { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ob-dim); }
+
+/* ── Tutorial video slot ───────────────────────────────────── */
+.ob-video { margin: 12px 0; border: 1px solid var(--ob-line); border-radius: 12px; overflow: hidden; background: #000; }
+.ob-video video { display: block; width: 100%; max-height: 60vh; }
+.ob-video figcaption { padding: 8px 12px; font-size: 12.5px; color: var(--ob-dim); background: var(--ob-bg); }
+
+/* ── Updates page ──────────────────────────────────────────── */
+.ob-updates { display: flex; flex-direction: column; gap: 10px; }
+.ob-upd { padding: 14px 16px; border: 1px solid var(--ob-line); border-radius: 12px; background: var(--ob-bg); }
+.ob-upd-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font: 600 11px var(--ob-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ob-mute); }
+.ob-upd h3 { margin: 6px 0 4px; font-size: 15.5px; line-height: 1.35; }
+.ob-upd p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ob-dim); }
+.ob-upd-group { margin: 14px 0 4px; font: 600 12px var(--ob-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ob-dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-progress-bar > span, .ob-tour-hole, .ob-chip, .ob-btn { transition: none; }
+}

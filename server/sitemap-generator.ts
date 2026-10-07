@@ -15,6 +15,7 @@ const STATIC_LASTMOD: Record<string, string> = {
   '/blog': '2026-09-30',
   '/academy': '2026-09-26',
   '/how-to': '2026-09-30',
+  '/updates': '2026-10-07',
   '/privacy': '2026-09-30',
   '/terms': '2026-09-30',
 };

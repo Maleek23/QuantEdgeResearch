@@ -60,6 +60,7 @@ export const ADMIN_SECTIONS = [
   { title: "Audit log", href: "/admin/audit", match: ["/admin/audit"] },
   { title: "System health", href: "/admin/system", match: ["/admin/system"] },
   { title: "Content", href: "/admin/blog", match: ["/admin/blog"] },
+  { title: "Roadmap", href: "/admin/roadmap", match: ["/admin/roadmap"] },
 ] as const;
 const ACCESS_TABS = [
   { title: "Users", href: "/admin/users" },

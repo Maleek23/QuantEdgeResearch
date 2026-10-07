@@ -26,6 +26,7 @@ import { useDismissable } from '@/hooks/use-dismissable';
 import { LuxSidebar } from '@/components/lux/lux-sidebar';
 import { MOBILE_DOCK, MOBILE_PRIMARY, MOBILE_PRIMARY_PAGES, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
 import { TAB_SHORT, navGroups, pageShort, utilityItems } from './nav-groups';
+import { useUpdatesBadge } from '@/lib/updates';
 
 export function MobileDock({ activeTab, onTab }: {
   /** The terminal tab in view, or null on a standalone page. */
@@ -83,6 +84,7 @@ export function MobileDock({ activeTab, onTab }: {
 export function MobileMenuButton({ activeTab, onTab }: { activeTab: Tab | null; onTab?: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
   const [location, setLocation] = useLocation();
+  const updatesBadge = useUpdatesBadge();
   const btnRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: btnRef, trap: true });
@@ -125,7 +127,7 @@ export function MobileMenuButton({ activeTab, onTab }: { activeTab: Tab | null; 
             <LuxSidebar
               placement="sheet"
               label="Menu destinations"
-              groups={[...navGroups(target), { id: 'more-utility', label: 'Account', items: utilityItems(target) }]}
+              groups={[...navGroups(target), { id: 'more-utility', label: 'Account', items: utilityItems(target, { '/updates': updatesBadge }) }]}
               onAnyItem={() => setOpen(false)}
             />
           </div>

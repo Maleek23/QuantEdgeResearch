@@ -19,12 +19,40 @@ import { QEError } from '@/components/ui/qe-states';
 import { useToast } from '@/hooks/use-toast';
 import { toCsv, downloadCsv } from '@/lib/journal/metrics-extra';
 import { adminWrite, copyText, fmtDate, getJson } from '@/components/admin/hub-data';
+import {
+  ACCOUNT_SIZE, EXPERIENCE, GOALS, MARKETS, SOURCES, TOOLS, TRADING_TIME, labelOf, type IntakeProfile,
+} from '@shared/intake';
+
+/** Intake profile → CSV cells (same order as PROFILE_HEAD). */
+const PROFILE_HEAD = ['name', 'experience', 'trades', 'account_size', 'goal', 'heard_via', 'heard_detail', 'occupation', 'industry', 'timezone', 'discord', 'trading_time', 'struggle', 'tools', 'email_consent', 'profile_at'];
+const profileCells = (p: IntakeProfile | null | undefined) => p ? [
+  p.name, labelOf(EXPERIENCE, p.experience), p.markets.map((m) => labelOf(MARKETS, m)).join('; '), labelOf(ACCOUNT_SIZE, p.accountSize),
+  labelOf(GOALS, p.goal), labelOf(SOURCES, p.source), p.sourceDetail ?? '', p.occupation ?? '', p.industry ?? '', p.timezone ?? '', p.discord ?? '',
+  labelOf(TRADING_TIME, p.tradingTime), p.struggle ?? '', (p.tools ?? []).map((t) => labelOf(TOOLS, t)).join('; '), p.consentEmails ? 'yes' : 'no', p.submittedAt ?? '',
+] : PROFILE_HEAD.map(() => '');
+
+function ProfileCell({ p }: { p: IntakeProfile | null | undefined }) {
+  if (!p) return <span className="ah-mute">no profile</span>;
+  return (
+    <>
+      <b>{p.name}</b>
+      <span className="ah-sub2">{labelOf(EXPERIENCE, p.experience)} · {labelOf(GOALS, p.goal)} · {labelOf(ACCOUNT_SIZE, p.accountSize)}</span>
+      <span className="ah-sub2">{p.markets.map((m) => labelOf(MARKETS, m)).join(', ')}{p.tradingTime ? ` · ${labelOf(TRADING_TIME, p.tradingTime)}` : ''}</span>
+      {(p.occupation || p.industry || p.timezone) && <span className="ah-sub2">{[p.occupation, p.industry, p.timezone].filter(Boolean).join(' · ')}</span>}
+      {p.discord && <span className="ah-sub2">Discord {p.discord}</span>}
+      {p.tools?.length ? <span className="ah-sub2">Uses {p.tools.map((t) => labelOf(TOOLS, t)).join(', ')}</span> : null}
+      {p.struggle && <span className="ah-sub2" title={p.struggle}>“{p.struggle.length > 90 ? `${p.struggle.slice(0, 90)}…` : p.struggle}”</span>}
+      {!p.consentEmails && <span className="ah-sub2">no marketing email</span>}
+    </>
+  );
+}
 
 const KEY = '/api/admin/ops/waitlist';
 interface InviteInfo { id: string; code: string; link: string; status: string; sentAt: string | null; expiresAt: string | null; emailError: string | null }
 interface Entry {
   id: string; email: string; source: string | null; referralCode: string | null; status: string | null; createdAt: string | null;
   referrer?: string | null; landingPath?: string | null; utm?: Record<string, string> | null; invite: InviteInfo | null;
+  profile?: IntakeProfile | null;
 }
 interface Sender { configured: boolean; from: string; sandbox?: boolean; problem: string | null }
 interface Approved { id: string; email: string; code: string | null; link: string | null; reused: boolean; emailed: boolean; emailedAt: string | null; emailError: string | null; skipped?: string }
@@ -53,14 +81,23 @@ export default function AdminWaitlist() {
   const [busy, setBusy] = useState(false);
   const [approved, setApproved] = useState<Approved[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
+  const [exp, setExp] = useState('all');
+  const [goal, setGoal] = useState('all');
+  const [heard, setHeard] = useState('all');
+  const members = useQuery<{ members: { email: string; profile: IntakeProfile }[] }>({ queryKey: ['/api/admin/ops/intake-profiles'], queryFn: () => getJson('/api/admin/ops/intake-profiles') });
+  const profileMatch = (p: IntakeProfile | null | undefined) => (exp === 'all' || p?.experience === exp) && (goal === 'all' || p?.goal === goal)
+    && (heard === 'all' || (heard === 'none' ? !p : p?.source === heard));
   const sender = q.data?.sender;
 
   const all = q.data?.entries ?? [];
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return all.filter((e) => (status === 'all' || (e.status ?? 'pending') === status)
-      && (!needle || `${e.email} ${e.source ?? ''} ${e.referralCode ?? ''}`.toLowerCase().includes(needle)));
-  }, [all, status, search]);
+      && profileMatch(e.profile)
+      && (!needle || `${e.email} ${e.source ?? ''} ${e.referralCode ?? ''} ${e.profile?.name ?? ''} ${e.profile?.discord ?? ''} ${e.profile?.sourceDetail ?? ''}`.toLowerCase().includes(needle)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, status, search, exp, goal, heard]);
+  const memberRows = (members.data?.members ?? []).filter((m) => profileMatch(m.profile));
   const count = (s: string) => all.filter((e) => (e.status ?? 'pending') === s).length;
   const oldestPending = useMemo(() => all.filter((e) => (e.status ?? 'pending') === 'pending')
     .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')), [all]);
@@ -134,8 +171,9 @@ export default function AdminWaitlist() {
   const copy = async (text: string, what: string) => toast({ title: (await copyText(text)) ? `${what} copied` : 'Copy failed — select it by hand' });
 
   const exportCsv = () => downloadCsv(`quantedge-waitlist-${new Date().toISOString().slice(0, 10)}.csv`, toCsv([
-    ['email', 'source', 'referral', 'referrer', 'utm_source', 'utm_campaign', 'status', 'joined_waitlist', 'emailed_at'],
-    ...rows.map((e) => [e.email, e.source ?? '', e.referralCode ?? '', e.referrer ?? '', e.utm?.utm_source ?? '', e.utm?.utm_campaign ?? '', e.status ?? 'pending', e.createdAt ?? '', e.invite?.sentAt ?? '']),
+    ['email', 'source', 'referral', 'referrer', 'utm_source', 'utm_campaign', 'status', 'joined_waitlist', 'emailed_at', ...PROFILE_HEAD],
+    ...rows.map((e) => [e.email, e.source ?? '', e.referralCode ?? '', e.referrer ?? '', e.utm?.utm_source ?? '', e.utm?.utm_campaign ?? '', e.status ?? 'pending', e.createdAt ?? '', e.invite?.sentAt ?? '', ...profileCells(e.profile)]),
+    ...memberRows.map((m) => [m.email, 'member-profile', '', '', '', '', 'member', '', '', ...profileCells(m.profile)]),
   ]));
 
   return (
@@ -210,7 +248,16 @@ export default function AdminWaitlist() {
             <select className="ah-select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
               <option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="invited">Invited</option><option value="joined">Joined</option><option value="rejected">Rejected</option>
             </select>
-            <LuxButton onClick={exportCsv} disabled={!rows.length}>Export CSV</LuxButton>
+            <select className="ah-select" value={exp} onChange={(e) => setExp(e.target.value)} aria-label="Filter by experience" data-testid="filter-experience">
+              <option value="all">Any experience</option>{EXPERIENCE.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+            <select className="ah-select" value={goal} onChange={(e) => setGoal(e.target.value)} aria-label="Filter by goal" data-testid="filter-goal">
+              <option value="all">Any goal</option>{GOALS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+            <select className="ah-select" value={heard} onChange={(e) => setHeard(e.target.value)} aria-label="Filter by how they heard" data-testid="filter-heard">
+              <option value="all">Any source</option>{SOURCES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}<option value="none">No profile</option>
+            </select>
+            <LuxButton onClick={exportCsv} disabled={!rows.length && !memberRows.length}>Export CSV</LuxButton>
           </div>
           {q.isError && <QEError title="The waitlist didn't load" message={(q.error as Error)?.message ?? ''} onRetry={() => void q.refetch()} />}
           {q.isLoading && <p className="ah-note">Loading…</p>}
@@ -220,7 +267,7 @@ export default function AdminWaitlist() {
                 <thead><tr>
                   <th><input type="checkbox" aria-label="Select all shown" checked={rows.length > 0 && rows.every((r) => picked.has(r.id))}
                     onChange={(e) => setPicked(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} /></th>
-                  <th>Email</th><th>Source</th><th>Joined waitlist</th><th>Status</th><th style={{ textAlign: 'right' }}>Actions</th>
+                  <th>Email</th><th>Profile</th><th>Source</th><th>Joined waitlist</th><th>Status</th><th style={{ textAlign: 'right' }}>Actions</th>
                 </tr></thead>
                 <tbody>
                   {rows.map((e) => {
@@ -229,7 +276,8 @@ export default function AdminWaitlist() {
                       <tr key={e.id} data-testid={`row-waitlist-${e.id}`}>
                         <td data-label="Select"><input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} aria-label={`Select ${e.email}`} /></td>
                         <td data-label="Email">{e.email}</td>
-                        <td data-label="Source">{e.source ?? '—'}{e.referralCode && <span className="ah-sub2">ref {e.referralCode}</span>}{sourceLine(e) && <span className="ah-sub2">{sourceLine(e)}</span>}</td>
+                        <td data-label="Profile"><ProfileCell p={e.profile} /></td>
+                        <td data-label="Source">{e.source ?? '—'}{e.profile && <span className="ah-sub2">heard via {labelOf(SOURCES, e.profile.source)}{e.profile.sourceDetail ? ` (${e.profile.sourceDetail})` : ''}</span>}{e.referralCode && <span className="ah-sub2">ref {e.referralCode}</span>}{sourceLine(e) && <span className="ah-sub2">{sourceLine(e)}</span>}</td>
                         <td data-label="Date">{fmtDate(e.createdAt)}</td>
                         <td data-label="Status">
                           <LuxTag tone={TONE[st] ?? 'mute'}>{st.toUpperCase()}</LuxTag>
@@ -258,6 +306,29 @@ export default function AdminWaitlist() {
             </div>
           )}
           {q.data && !rows.length && <p className="ah-note">{all.length ? 'No entries match.' : 'Nobody on the waitlist yet.'}</p>}
+        </LuxPanel>
+
+        <LuxPanel title="Member profiles" sub="Invited users who completed their profile at first sign-in (not on the waitlist). Same filters; included in the CSV."
+          meta={members.data ? <LuxTag tone="mute">{memberRows.length} shown</LuxTag> : undefined}>
+          {members.isError && <QEError title="Member profiles didn't load" message={(members.error as Error)?.message ?? ''} onRetry={() => void members.refetch()} />}
+          {!!memberRows.length && (
+            <div className="ah-scroll">
+              <table className="ah-table ah-rows">
+                <thead><tr><th>Email</th><th>Profile</th><th>Heard via</th><th>Saved</th></tr></thead>
+                <tbody>
+                  {memberRows.map((m) => (
+                    <tr key={m.email}>
+                      <td data-label="Email">{m.email}</td>
+                      <td data-label="Profile"><ProfileCell p={m.profile} /></td>
+                      <td data-label="Heard via">{labelOf(SOURCES, m.profile.source)}{m.profile.sourceDetail && <span className="ah-sub2">{m.profile.sourceDetail}</span>}</td>
+                      <td data-label="Saved">{fmtDate(m.profile.submittedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {members.data && !memberRows.length && <p className="ah-note">No member profiles match.</p>}
         </LuxPanel>
       </div>
     </AdminLayout>

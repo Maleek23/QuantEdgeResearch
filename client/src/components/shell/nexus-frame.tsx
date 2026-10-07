@@ -27,6 +27,7 @@ import { LuxTopBar } from '@/components/lux/lux-topbar';
 import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, LuxMenuTrigger } from '@/components/lux/lux-menu';
 import { usePageReveal } from '@/components/lux/lux-motion';
 import { pageShort } from './nav-groups';
+import { HelpMenuItems } from '@/components/onboarding/help-menu';
 
 /**
  * ONE search for every framed page: the global CommandPalette (App.tsx) owns
@@ -111,6 +112,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} onSelect={() => setLocation('/alerts')}>Alerts</LuxMenuItem>
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>Guide</LuxMenuItem>
+              <HelpMenuItems />
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display and layout</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
               {user && (

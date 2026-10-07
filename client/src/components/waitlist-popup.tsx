@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -8,117 +6,71 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { attributionPayload } from "@/lib/attribution";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
+import { IntakeForm } from "@/components/onboarding/intake-form";
+import type { IntakeProfile } from "@shared/intake";
 
 interface WaitlistPopupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Turn an apiRequest error ("400: {...}") into a sentence for the form. */
+export function waitlistErrorText(error: unknown): string {
+  const raw = (error as Error)?.message ?? "";
+  if (/answers are missing/i.test(raw)) return "Some answers are missing — check the earlier steps.";
+  const m = raw.match(/"error"\s*:\s*"([^"]+)"/);
+  return m?.[1] ?? (raw.replace(/^\d+:\s*/, "") || "Something went wrong — try again.");
+}
+
+/**
+ * "Join the Lab" — the multi-step waitlist intake (components/onboarding/intake-form.tsx).
+ * Everything posts once, at the end, to /api/waitlist/join with { email, profile }.
+ */
 export function WaitlistPopup({ open, onOpenChange }: WaitlistPopupProps) {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
   const { toast } = useToast();
 
-  const joinWaitlist = useMutation({
-    mutationFn: async (email: string) => {
-      const res = await apiRequest("POST", "/api/waitlist/join", { email, source: "popup", ...attributionPayload() });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setSubmitted(true);
-      toast({
-        title: data.alreadyExists ? "You're already on the list!" : "Welcome to the Lab!",
-        description: data.message,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Something went wrong",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim()) {
-      joinWaitlist.mutate(email.trim());
+  const submit = async (profile: IntakeProfile, email?: string) => {
+    try {
+      const res = await apiRequest("POST", "/api/waitlist/join", { email, source: "popup", profile, ...attributionPayload() });
+      const data = await res.json();
+      setDone(data.alreadyExists ? "You're already on the list — we'll be in touch." : "We'll email you when a spot opens.");
+      toast({ title: data.alreadyExists ? "You're already on the list!" : "Welcome to the Lab!", description: data.message });
+    } catch (error) {
+      return waitlistErrorText(error);
     }
   };
 
   useEffect(() => {
     if (!open) {
-      setTimeout(() => {
-        setEmail("");
-        setSubmitted(false);
-      }, 300);
+      const t = setTimeout(() => { setDone(null); setFormKey((k) => k + 1); }, 300);
+      return () => clearTimeout(t);
     }
   }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[92dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Join the Lab</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Learn how trades are built, not copied.
+            Learn how trades are built, not copied. About a minute.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 pt-2">
-          <ul className="space-y-2 text-sm">
-            <li className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-sky-500 mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">Trade ideas explained, not hyped</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-sky-500 mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">Beginner-first framework</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-sky-500 mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">Real-time examples, real risk</span>
-            </li>
-          </ul>
-
-          {submitted ? (
-            <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-4 text-center" data-testid="waitlist-success">
-              <Check className="h-6 w-6 text-sky-500 mx-auto mb-2" />
-              <p className="font-medium">You're on the list!</p>
-              <p className="text-sm text-muted-foreground mt-1">We'll be in touch soon.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                data-testid="input-waitlist-email"
-              />
-              <Button 
-                type="submit" 
-                className="w-full bg-sky-500 text-foreground hover:bg-sky-400 font-semibold"
-                disabled={joinWaitlist.isPending}
-                data-testid="button-join-waitlist"
-              >
-                {joinWaitlist.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Join the Waitlist"
-                )}
-              </Button>
-            </form>
-          )}
-
-        </div>
+        {done ? (
+          <div className="ob ob-done" data-testid="waitlist-success">
+            <Check className="h-6 w-6 mx-auto" style={{ color: "var(--lx-accent, #3b8cff)" }} aria-hidden />
+            <h3>You're on the list</h3>
+            <p>{done}</p>
+          </div>
+        ) : (
+          <IntakeForm key={formKey} mode="waitlist" onSubmit={submit} submitLabel="Join the waitlist" />
+        )}
       </DialogContent>
     </Dialog>
   );

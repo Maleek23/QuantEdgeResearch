@@ -25,6 +25,7 @@ import { releaseLandingSkeleton } from "@/lib/boot";
 import { CommandPaletteHost } from "@/components/command-palette-host";
 import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 import { NexusFrame } from "@/components/shell/nexus-frame";
+import { OnboardingHost } from "@/components/onboarding/onboarding-host";
 
 // All page imports use lazyWithRetry for automatic chunk-load error recovery.
 // If a deployment changes chunk hashes, stale cached HTML won't crash —
@@ -61,6 +62,8 @@ const AdminOverview = lazyWithRetry(() => import("@/pages/admin/overview"), "adm
 const AdminUsers = lazyWithRetry(() => import("@/pages/admin/users"), "admin-users");
 const AdminInvites = lazyWithRetry(() => import("@/pages/admin/invites"), "admin-invites");
 const AdminWaitlist = lazyWithRetry(() => import("@/pages/admin/waitlist"), "admin-waitlist");
+const AdminRoadmap = lazyWithRetry(() => import("@/pages/admin/roadmap"), "admin-roadmap");
+const UpdatesPage = lazyWithRetry(() => import("@/pages/updates"), "updates");
 const AdminSystem = lazyWithRetry(() => import("@/pages/admin/system"), "admin-system");
 const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog");
 const AdminTraders = lazyWithRetry(() => import("@/pages/admin/traders"), "admin-traders");
@@ -253,6 +256,8 @@ function Router() {
         <Route path="/r"          component={ProtectedResearchShell} />
 
         <Route path="/how-to"     component={HowToPage} />
+        {/* Public changelog — shipped + in-progress roadmap items (pages/updates.tsx). */}
+        <Route path="/updates"    component={UpdatesPage} />
 
         {/* ─── RESTORED ROUTES ───────────────────────────────────────────────
             These four paths had NO <Route> while 28 <Redirect>s and roughly 25
@@ -316,6 +321,7 @@ function Router() {
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/invites" component={AdminInvites} />
       <Route path="/admin/waitlist" component={AdminWaitlist} />
+      <Route path="/admin/roadmap" component={AdminRoadmap} />
       <Route path="/admin/system" component={AdminSystem} />
       <Route path="/admin/blog" component={AdminBlog} />
       <Route path="/admin/traders" component={AdminTraders} />
@@ -370,7 +376,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {
@@ -444,6 +450,7 @@ function App() {
                       <Toaster />
                       <PhoneAutoClamp />
                       <AskQuantinumHost />
+                      <OnboardingHost />
                     </DensityProvider>
                   </ContentDensityProvider>
                 </PreferencesProvider>
@@ -485,6 +492,7 @@ function App() {
                     <PhoneAutoClamp />
                     {/* Ask Quantinum (docs/ASK_QUANTINUM.md) — FAB + sheet; renders nothing unless the flag allows this account. */}
                     <AskQuantinumHost />
+                    <OnboardingHost />
                   </DensityProvider>
                 </ContentDensityProvider>
               </PreferencesProvider>

@@ -25,6 +25,7 @@
  * "This device" settings apply instantly (no Save); account settings have
  * their own Save beside them, so nothing is half-saved by a page-level button.
  */
+import { openProfileSheet, useOnboarding } from '@/lib/onboarding';
 import { reasonOf } from '@/lib/optimistic';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
@@ -56,6 +57,7 @@ const SECTIONS = [
   { id: 'accounts', label: 'Connections' },
   { id: 'journal', label: 'Journal' },
   { id: 'data', label: 'Data & privacy' },
+  { id: 'tips', label: 'Tips & tours' },
 ] as const;
 
 type AuthUser = {
@@ -140,6 +142,7 @@ export default function SettingsPage() {
       <ConnectionsSection />
       <JournalSection />
       <DataSection />
+      <TipsSection />
 
       <p className="st-foot">QuantEdge is for education and research only — nothing here is investment advice.</p>
     </LuxPage>
@@ -453,6 +456,31 @@ function JournalSection() {
       <Row label="Sizing rule" help="Show each book's sizing rule under its basis line, or tuck it away." scope="device">
         <LuxSegmented label="Sizing rule" value={jp.sizing} onChange={(v) => setJp({ sizing: v })}
           options={[{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Collapse' }]} />
+      </Row>
+    </LuxPanel>
+    </SectionScope.Provider>
+  );
+}
+
+/* ── Tips & tours (onboarding — lib/onboarding.ts) ─────────── */
+function TipsSection() {
+  const ob = useOnboarding();
+  const { toast } = useToast();
+  const tierLabel = ob.tier === 'beginner' ? 'Beginner — full tours, “?” chips on jargon, Start-here card'
+    : ob.tier === 'intermediate' ? 'Intermediate — short tours, explanations on hover'
+    : ob.tier === 'pro' ? 'Pro — no tours, no chips unless tips are on'
+    : 'Not set — complete your profile to tailor this';
+  return (
+    <SectionScope.Provider value="account">
+    <LuxPanel id="st-tips" num="08" title="Tips & tours" sub="How hands-on QuantEdge is with you. Saved to your account.">
+      <Row label="Your level" help={tierLabel}>
+        <LuxButton onClick={() => openProfileSheet()} data-testid="button-edit-profile">{ob.profile ? 'Edit trading profile' : 'Complete profile'}</LuxButton>
+      </Row>
+      <Row label="Show tips" help="Explainer chips on words like GEX and 0DTE, the Start-here card and first-run tours.">
+        <Switch on={ob.tipsOn} onChange={(v) => ob.patch({ showTips: v })} label="Show tips" />
+      </Row>
+      <Row label="Tours" help="Replay them from the account menu → Take the tour, on Today, NEXUS, 0DTE, GEX, FLOW or Journal.">
+        <LuxButton onClick={() => { ob.patch({ resetTours: true, checklistHidden: false }); toast({ title: 'Tours reset', description: 'Each page’s tour runs again on your next visit.' }); }} data-testid="button-reset-tours">Restart all tours</LuxButton>
       </Row>
     </LuxPanel>
     </SectionScope.Provider>

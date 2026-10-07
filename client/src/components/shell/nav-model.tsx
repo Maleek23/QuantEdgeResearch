@@ -9,7 +9,7 @@
  */
 import {
   Activity, Bell, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart,
-  Grid3X3, HelpCircle, Layers, LineChart, Radar, SlidersHorizontal, TrendingUp, Wallet, Home,
+  Grid3X3, HelpCircle, Layers, LineChart, Radar, SlidersHorizontal, Sparkles, TrendingUp, Wallet, Home,
 } from 'lucide-react';
 
 export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'sectors' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
@@ -56,6 +56,7 @@ export const PAGES: PageLink[] = [
 export const UTILITY_PAGES: PageLink[] = [
   { href: '/alerts',   label: 'Alerts',   short: 'ALERTS',   icon: Bell },
   { href: '/how-to',   label: 'Guide',    short: 'GUIDE',  icon: HelpCircle },
+  { href: '/updates',  label: "What's new", short: 'UPDATES', icon: Sparkles },
   { href: '/settings', label: 'Settings', short: 'SETTINGS', icon: SlidersHorizontal },
 ];
 

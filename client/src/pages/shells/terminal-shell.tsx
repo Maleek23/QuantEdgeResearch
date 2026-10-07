@@ -71,6 +71,8 @@ import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, L
 import { TAB_SHORT, TAB_TITLE } from '@/components/shell/nav-groups';
 import { RouteFallback } from '@/components/ui/qe-loading';
 import { skeletonTiles, type PageId } from '@/components/dashboard/pages';
+import { HelpMenuItems } from '@/components/onboarding/help-menu';
+import { TutorialVideoSlot } from '@/components/onboarding/start-here';
 
 /** Terminal tab → the dashboard page it renders (JOURNAL is not a dashboard). */
 const TAB_PAGE: Partial<Record<Tab, PageId>> = {
@@ -339,6 +341,7 @@ export default function TerminalShell() {
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} end={alerts.unread > 0 ? alerts.unread : undefined} onSelect={() => { setAlertsOpen(true); alerts.setUnread(0); }}>Alerts</LuxMenuItem>
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setGuideOpen(true)}>Guide</LuxMenuItem>
+              <HelpMenuItems />
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display and layout</LuxMenuItem>
               <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences and risk</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Account settings</LuxMenuItem>
@@ -395,6 +398,8 @@ export default function TerminalShell() {
         {/* popLayout: the outgoing tab is taken out of flow while it fades, so
             main's scroll height never doubles during a switch (main is the
             scroll container now that the shell is exactly one viewport tall). */}
+        {/* Tutorial video for this tab — renders nothing unless /videos/tutorials/manifest.json lists one. */}
+        <div className="px-3 lg:px-4"><TutorialVideoSlot page={tab === 'oracle' ? 'nexus' : tab} /></div>
         <AnimatePresence mode="popLayout" initial={false}>
           {/* Opacity only, 120ms (docs/DESIGN_SYSTEM.md "Loading"): a slide
               shifted the whole page 8px on every tab change. */}

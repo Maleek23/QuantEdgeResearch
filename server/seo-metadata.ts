@@ -139,6 +139,7 @@ export const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   '/blog': { ...M['/blog'], schema: [breadcrumb('Blog', '/blog')] },
   '/academy': { ...M['/academy'], schema: [breadcrumb('Academy', '/academy')] },
   '/how-to': { ...M['/how-to'], schema: [breadcrumb('How to use QuantEdge', '/how-to')] },
+  '/updates': { ...M['/updates'], schema: [breadcrumb("What's new", '/updates')] },
   '/privacy': { ...M['/privacy'] },
   '/terms': { ...M['/terms'] },
 };
@@ -151,7 +152,7 @@ const APP_ROUTE_PATTERNS: RegExp[] = [
   /^\/login$/, /^\/signup$/, /^\/forgot-password$/, /^\/reset-password$/,
   /^\/join-beta$/, /^\/invite$/, /^\/settings$/, /^\/alerts$/,
   /^\/trade-ideas\/[^/]+\/audit$/,
-  /^\/admin$/, /^\/admin\/(users|invites|waitlist|system|blog|audit|traders)$/,
+  /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders)$/,
   /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/,
 ];
 

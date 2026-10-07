@@ -63,6 +63,7 @@ const PAGE_HINT: Record<string, string> = {
   '/today': 'Morning brief — dealer map and best ideas',
   '/alerts': 'Price and idea alerts',
   '/how-to': 'How to use QuantEdge',
+  '/updates': 'Shipped and in progress',
   '/settings': 'Account and display settings',
 };
 export const pageShort = (p: PageLink) => PAGE_SHORT[p.href] ?? p.label;
@@ -128,6 +129,6 @@ export function navGroups(t: NavTarget): LuxNavGroup[] {
   })).filter((g) => g.items.length > 0);
 }
 
-export function utilityItems(t: NavTarget): LuxNavItem[] {
-  return UTILITY_PAGES.map((p) => pageItem(p, t));
+export function utilityItems(t: NavTarget, badges?: Record<string, number>): LuxNavItem[] {
+  return UTILITY_PAGES.map((p) => ({ ...pageItem(p, t), ...(badges?.[p.href] ? { badge: badges[p.href] } : {}) }));
 }

@@ -1023,10 +1023,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Dedupe by (normalised) email; referrer / landing path / utm_* stored
       // when migrations/0006 is applied (server/waitlist-capture.ts).
+      // Optional intake profile (multi-step waitlist form, shared/intake.ts) — validated
+      // before anything is written; kept on first submit only (an anonymous request
+      // can't overwrite someone's answers).
+      let intake: import('@shared/intake').IntakeProfile | null = null;
+      if (req.body?.profile) {
+        const { validateIntakeProfile } = await import('@shared/intake');
+        const v = validateIntakeProfile(req.body.profile);
+        if (!v.ok) return res.status(400).json({ error: 'Some answers are missing', errors: v.errors });
+        intake = v.value;
+      }
       const { captureWaitlistEmail, defaultCaptureDeps, parseAttribution } = await import('./waitlist-capture');
       const captured = await captureWaitlistEmail(await defaultCaptureDeps(), {
         email: emailLower, source, referralCode, attribution: parseAttribution(req.body),
       });
+      if (intake && captured.status !== 'invalid') {
+        const { saveProfile, defaultIntakeDeps } = await import('./intake-store');
+        const saved = await saveProfile(await defaultIntakeDeps(), emailLower, { ...intake, via: 'waitlist' }, false);
+        if (saved === 'error') logger.warn('[WAITLIST] intake profile not saved');
+      }
       if (captured.status === 'exists') return alreadyOnList();
       if (captured.status === 'error' && captured.savedToFallback) {
         // DB write failed but the email is kept on disk (.cache/waitlist-fallback.jsonl)
@@ -2050,6 +2065,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
   { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
+  // Intake profile, onboarding progress, roadmap + public /api/updates (server/onboarding-routes.ts).
+  { const { registerOnboardingRoutes } = await import('./onboarding-routes'); registerOnboardingRoutes(app, requireAdminJWT); }
 
   app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {

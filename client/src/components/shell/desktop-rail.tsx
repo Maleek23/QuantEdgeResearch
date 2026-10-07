@@ -5,6 +5,7 @@ import { useRailCollapsed } from './rail-state';
 import qeMark from '@assets/qe-mark.svg';
 import { navGroups, utilityItems } from './nav-groups';
 import type { Tab } from './nav-model';
+import { useUpdatesBadge } from '@/lib/updates';
 
 /**
  * Desktop navigation rail — the shared LuxSidebar in its `rail` placement:
@@ -25,6 +26,7 @@ export function DesktopRail({
   onTab?: (tab: Tab) => void;
 }) {
   const [collapsed, toggle] = useRailCollapsed();
+  const updatesBadge = useUpdatesBadge();
   const [, setLocation] = useLocation();
   const [ready, setReady] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(id); }, []);
@@ -57,7 +59,7 @@ export function DesktopRail({
       groups={navGroups(target)}
       footerItems={[
         // Visual modes live ONLY in Settings › Display (operator 2026-09-29).
-        ...utilityItems(target),
+        ...utilityItems(target, { '/updates': updatesBadge }),
       ]}
       // No disclaimer note here: the desktop bottom bar (nexus-frame / terminal-shell)
       // already carries "Educational only · not investment advice" on every page —

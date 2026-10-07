@@ -30,6 +30,10 @@ export const PUBLIC_PAGE_META = {
     title: 'How to Use QuantEdge | Trading Terminal Guide',
     description: 'A practical guide to the QuantEdge terminal: dealer positioning, options flow, ranked setups, the 0DTE desk, charts, the paper bot and your journal.',
   },
+  '/updates': {
+    title: "What's New in QuantEdge | Updates and Roadmap",
+    description: 'Every QuantEdge update with its ship date, plus what is being built now: NEXUS, 0DTE, GEX, FLOW, the journal and Discord.',
+  },
   '/privacy': {
     title: 'Privacy Policy | QuantEdge Labs',
     description: 'How QuantEdge Labs collects, uses and protects account and product data.',

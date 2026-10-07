@@ -34,9 +34,9 @@ export function NexusViews() {
   }, []);
   return (
     <>
-      <div className="nx-views" role="tablist" aria-label="NEXUS views">
+      <div className="nx-views" role="tablist" aria-label="NEXUS views" data-tour="nexus-views">
         <button type="button" role="tab" aria-selected={view === 'board'} onClick={() => setView('board')}>BOARD</button>
-        <button type="button" role="tab" aria-selected={view === '0dte'} onClick={() => setView('0dte')}>0DTE</button>
+        <button type="button" role="tab" aria-selected={view === '0dte'} onClick={() => setView('0dte')} data-tour="nexus-0dte">0DTE</button>
       </div>
       {view === 'board' ? (
         <div className="nx-board-host">

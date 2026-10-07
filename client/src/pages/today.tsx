@@ -23,6 +23,8 @@
  * Integrity: only MEASURED dealer levels are drawn; the path is a model
  * projection labelled "not a forecast".
  */
+import { StartHereCard, TutorialVideoSlot } from '@/components/onboarding/start-here';
+import { Term } from '@/components/onboarding/term';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
@@ -314,7 +316,7 @@ export default function TodayPage() {
   return (
     <div className={`landing nexus-vars today-l today-page${isLight ? ' light' : ''}`}>
       {/* HERO — the week in one sentence and one chart */}
-      <section className="hero">
+      <section className="hero" data-tour="today-hero">
         <div className="container">
           <div className="hero-grid">
             <div>
@@ -402,6 +404,10 @@ export default function TodayPage() {
         </div>
       </section>
 
+      {/* Beginner onboarding — Start here checklist + tutorial slot (hidden unless a real video exists). */}
+      <StartHereCard />
+      <div className="container"><TutorialVideoSlot page="today" /></div>
+
       {/* TAPE */}
       {tape.length > 0 && (
         <div className="ltape" onMouseEnter={() => setTapePaused(true)} onMouseLeave={() => setTapePaused(false)}>
@@ -419,10 +425,10 @@ export default function TodayPage() {
           same moves, twice on one page. The band keeps them; UI redundancy pass 2026-10-01.) */}
 
       {/* INDEX DESK — the same four instruments the intraday engine monitors. */}
-      <section className="td-index-desk" aria-label="Index desk">
+      <section className="td-index-desk" aria-label="Index desk" data-tour="today-index">
         <div className="container">
           <div className="td-index-head">
-            <div><b>Index desk</b><span>SPX · SPY · QQQ · IWM</span></div>
+            <div><b>Index desk</b><span>SPX · SPY · QQQ · IWM · <Term k="0dte">0DTE</Term> · <Term k="gex">GEX</Term></span></div>
             <Link href="/t">Open in Nexus</Link>
           </div>
           {indexDesk.isError && !indexDesk.data ? (

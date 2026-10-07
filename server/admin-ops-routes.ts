@@ -404,6 +404,9 @@ export function registerAdminOpsRoutes(app: Express, requireAdmin: RequestHandle
         const r = await db.execute(sql`SELECT id, email_error FROM beta_invites WHERE email_error IS NOT NULL`);
         for (const row of (r as unknown as { rows: { id: string; email_error: string }[] }).rows ?? []) emailErr.set(row.id, row.email_error);
       } catch { /* 0006 not applied */ }
+      // Intake profiles (multi-step waitlist form) — beta_waitlist.profile once 0007 is applied, .cache/shared until then.
+      const { readAllProfiles, defaultIntakeDeps } = await import('./intake-store');
+      const profiles = await readAllProfiles(await defaultIntakeDeps()).catch(() => new Map());
       const base = origin(req);
       const now = Date.now();
       res.set('Cache-Control', 'no-store');
@@ -415,6 +418,7 @@ export function registerAdminOpsRoutes(app: Express, requireAdmin: RequestHandle
           return {
             id: e.id, email: e.email, source: e.source, referralCode: e.referralCode, status: e.status ?? 'pending',
             createdAt: e.createdAt, ...(attr.get(e.id) ?? { referrer: null, landingPath: null, utm: null }),
+            profile: profiles.get(e.email.toLowerCase()) ?? null,
             invite: inv ? {
               id: inv.id, code: inv.token, link: inviteLink(base, inv.token), status: inviteDisplayStatus(inv, now),
               sentAt: inv.sentAt, expiresAt: inv.expiresAt, emailError: emailErr.get(inv.id) ?? null,

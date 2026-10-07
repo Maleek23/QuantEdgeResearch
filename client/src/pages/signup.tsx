@@ -17,6 +17,9 @@
  * Security logic (sessions, CSRF, rate limits, hashing) is server-side and
  * untouched here.
  */
+import { IntakeForm } from '@/components/onboarding/intake-form';
+import { waitlistErrorText } from '@/components/waitlist-popup';
+import type { IntakeProfile } from '@shared/intake';
 import { forwardRef, useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import { useMutation } from '@tanstack/react-query';
@@ -103,7 +106,6 @@ export default function Signup() {
     mode: 'onTouched',
     defaultValues: { inviteCode: initialCode, firstName: '', lastName: '', email: '', password: '', confirmPassword: '' },
   });
-  const wl = useForm<WaitlistData>({ resolver: zodResolver(waitlistSchema), mode: 'onTouched', defaultValues: { email: '' } });
 
   const signup = useMutation({
     mutationFn: async (data: SignupFormData) => {
@@ -120,8 +122,8 @@ export default function Signup() {
   });
 
   const join = useMutation({
-    mutationFn: async (data: WaitlistData) => {
-      const r = await apiRequest('POST', '/api/waitlist/join', { email: data.email.trim(), source: 'signup', ...attributionPayload() });
+    mutationFn: async (data: WaitlistData & { profile: IntakeProfile }) => {
+      const r = await apiRequest('POST', '/api/waitlist/join', { email: data.email.trim(), source: 'signup', profile: data.profile, ...attributionPayload() });
       return r.json() as Promise<{ alreadyExists?: boolean }>;
     },
     onSuccess: (res) => setWaitlisted(res?.alreadyExists
@@ -224,22 +226,15 @@ export default function Signup() {
                 <Link href="/" className="btn btn-ghost btn-lg auth-submit">Back to the home page</Link>
               </div>
             ) : (
-              <form className="auth-form" noValidate onSubmit={wl.handleSubmit((d) => join.mutate(d))}>
-                <Field id="wl-email" label="Email" error={wl.formState.errors.email?.message}
-                  help="We’ll be in touch at this address when a beta spot opens.">
-                  <input id="wl-email" className="auth-input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
-                    placeholder="you@example.com" aria-invalid={!!wl.formState.errors.email || undefined}
-                    aria-describedby={`wl-email-help${wl.formState.errors.email ? ' wl-email-err' : ''}`}
-                    data-testid="input-waitlist-email" {...wl.register('email')} />
-                </Field>
-                {join.isError && <p className="auth-alert" role="alert"><b>Couldn’t add you to the waitlist.</b> {reasonOf(join.error)}</p>}
-                <button type="submit" className="btn btn-primary btn-lg auth-submit" disabled={join.isPending} data-testid="button-join-waitlist">
-                  {join.isPending ? 'Joining…' : 'Join the waitlist'}
-                </button>
+              <div className="auth-form">
+                <IntakeForm mode="waitlist" submitLabel="Join the waitlist"
+                  onSubmit={async (profile, email) => {
+                    try { await join.mutateAsync({ email: email!, profile }); } catch (e) { return waitlistErrorText(e); }
+                  }} />
                 {DISCORD_INVITE_URL && (
                   <p className="auth-help">Want to see it first? <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">Join the community on Discord<span className="sr-only"> (opens in a new tab)</span></a>.</p>
                 )}
-              </form>
+              </div>
             )}
 
             {mode === 'code' && !waitlisted && (
