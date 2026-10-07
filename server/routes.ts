@@ -19335,7 +19335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create distinct signal types based on signal descriptions
         const signals = surge.signals.map((s, idx) => {
           // Determine signal type from description
-          let signalType = surge.surgeType;
+          let signalType: string = surge.surgeType;
           if (s.includes('VOLUME')) signalType = 'VOLUME_SURGE';
           else if (s.includes('MAJOR MOVE') || s.includes('breakout')) signalType = 'PRICE_BREAKOUT';
           else if (s.includes('momentum')) signalType = 'MOMENTUM';
@@ -24702,11 +24702,15 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       }
       
       const paper = await getPaperTradingService();
-      const result = position.assetType === 'option'
+      // Options close at the quoted bid when one exists (provenance tagged);
+      // with no quote and no recent mark the user's own exit price is honoured
+      // so a position can always be closed by hand.
+      let result = position.assetType === 'option'
         ? await paper.closeOptionPositionAtBid(positionId, 'manual')
-        : typeof exitPrice === 'number' && exitPrice > 0
-          ? await paper.closePosition(positionId, exitPrice, 'manual')
-          : null;
+        : null;
+      if ((!result || !result.success) && typeof exitPrice === 'number' && exitPrice > 0) {
+        result = await paper.closePosition(positionId, exitPrice, position.assetType === 'option' ? 'manual [fill-fallback source=user_price delayed=true]' : 'manual');
+      }
       if (!result) return res.status(400).json({ error: "Valid exitPrice is required" });
       
       if (!result.success) {

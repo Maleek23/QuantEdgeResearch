@@ -507,8 +507,19 @@ export async function closePosition(
   }
 }
 
-/** Close a long option only at a quoted sell-side price. A midpoint or cached
- * mark is useful for display, but it is not an executable exit fill. */
+/**
+ * Close a long option at the quoted BID (the side it can be sold at), with the
+ * quote's provenance appended to the exit reason so shared/bot-fill-verification
+ * can tell a verified fill from an unverified one.
+ *
+ * Preference: a fresh live two-sided quote → a delayed two-sided quote (tagged
+ * delayed=true, audit = unverified) → the position's own last mark when it is
+ * under OPTION_MARK_MAX_AGE_MS old (tagged source=last_mark, unverified). Only
+ * when none exists does the position stay open. An exit is risk management: a
+ * stop or a 0DTE flatten must not be skipped because the feed is delayed.
+ */
+export const OPTION_MARK_MAX_AGE_MS = 10 * 60_000;
+
 export async function closeOptionPositionAtBid(
   positionId: string,
   exitReason: string,
@@ -525,22 +536,31 @@ export async function closeOptionPositionAtBid(
     optionType: position.optionType as "call" | "put",
     strike: position.strikePrice,
   }).catch(() => null);
-  const quoteIssue = quote ? optionMarkExecutionIssue(quote) : 'quote unavailable';
-  if (!quote || quoteIssue) {
-    logger.warn(`[PAPER] Refusing option close without a fresh live two-sided quote (${quoteIssue}): ${position.symbol} ${position.optionType} $${position.strikePrice}`);
-    return { success: false, error: `No executable option quote (${quoteIssue}); position left open` };
+  const observedAt = new Date();
+  const usable = quote && !optionMarkExecutionIssue(quote, observedAt.getTime(), 60_000, { allowDelayed: true }) ? quote : null;
+
+  if (!usable) {
+    const lastMs = Date.parse(String(position.lastPriceUpdate ?? ''));
+    const last = Number(position.currentPrice);
+    if (Number.isFinite(lastMs) && observedAt.getTime() - lastMs <= OPTION_MARK_MAX_AGE_MS && last > 0) {
+      const audit = `[fill-fallback source=last_mark mark=${last.toFixed(4)} markTime=${new Date(lastMs).toISOString()} delayed=true observedAt=${observedAt.toISOString()}]`;
+      logger.warn(`[PAPER] No two-sided option quote for ${position.symbol} ${position.optionType} $${position.strikePrice}; closing at last mark ${last} (unverified)`);
+      return closePosition(positionId, last, `${exitReason} ${audit}`);
+    }
+    const issue = quote ? optionMarkExecutionIssue(quote, observedAt.getTime(), 60_000, { allowDelayed: true }) : 'quote unavailable';
+    logger.warn(`[PAPER] Option close deferred — no quote and no recent mark (${issue}): ${position.symbol} ${position.optionType} $${position.strikePrice}`);
+    return { success: false, error: `No option quote (${issue}) and no recent mark; position left open` };
   }
 
-  const observedAt = new Date();
-  const quoteTimeNumeric = quote.quoteTime == null ? NaN : Number(quote.quoteTime);
+  const quoteTimeNumeric = usable.quoteTime == null ? NaN : Number(usable.quoteTime);
   const quoteTimeMs = Number.isFinite(quoteTimeNumeric)
     ? quoteTimeNumeric < 1e12 ? quoteTimeNumeric * 1000 : quoteTimeNumeric
-    : Date.parse(String(quote.quoteTime ?? ''));
+    : Date.parse(String(usable.quoteTime ?? ''));
   const quoteAgeSeconds = Number.isFinite(quoteTimeMs)
     ? Math.round((observedAt.getTime() - quoteTimeMs) / 1000)
     : null;
-  const audit = `[fill bid=${quote.bid.toFixed(4)} ask=${quote.ask.toFixed(4)} source=${quote.source} feed=${quote.feed ?? 'unknown'} delayed=${quote.delayed} quoteTime=${quote.quoteTime ?? 'unknown'} quoteAgeSeconds=${quoteAgeSeconds ?? 'unknown'} observedAt=${observedAt.toISOString()}]`;
-  return closePosition(positionId, quote.bid, `${exitReason} ${audit}`);
+  const audit = `[fill bid=${usable.bid.toFixed(4)} ask=${usable.ask.toFixed(4)} source=${usable.source} feed=${usable.feed ?? 'unknown'} delayed=${usable.delayed} quoteTime=${usable.quoteTime ?? 'unknown'} quoteAgeSeconds=${quoteAgeSeconds ?? 'unknown'} observedAt=${observedAt.toISOString()}]`;
+  return closePosition(positionId, usable.bid, `${exitReason} ${audit}`);
 }
 
 /**
@@ -566,26 +586,23 @@ async function fetchCurrentPrice(
         return fallbackPrice || null;
       }
       
-      // Stop/target decisions must use the same fresh live quote standard as
-      // entries and closes. getOptionQuote strips source, delay and timestamp;
-      // accepting it here let delayed CBOE marks be stamped as fresh and
-      // trigger an exit decision even though they could not be filled.
+      // Mark at the BID — the side a long option sells at, and the side the
+      // close fills at, so open and closed P&L use one rule. Delayed two-sided
+      // quotes are accepted (they are the feeds production has) and logged as
+      // delayed; one-sided, crossed or missing quotes keep the previous mark
+      // and its original timestamp, so the stop check can see it is stale.
       const quote = await getOptionMark({
         underlying: optionDetails.underlying,
         expiryDate: optionDetails.expiryDate,
         optionType: optionDetails.optionType,
         strike: optionDetails.strike,
       });
-      const quoteIssue = quote ? optionMarkExecutionIssue(quote) : 'quote unavailable';
-      if (quote && !quoteIssue && quote.bid > 0) {
-        // Mark long options at the quoted bid, the side the bot could sell at.
-        logger.info(`📊 [PAPER] Executable option bid for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${quote.bid.toFixed(2)} (ask: $${quote.ask}, source: ${quote.source}, feed: ${quote.feed ?? 'unknown'})`);
+      const quoteIssue = quote ? optionMarkExecutionIssue(quote, Date.now(), 60_000, { allowDelayed: true }) : 'quote unavailable';
+      if (quote && !quoteIssue) {
+        logger.info(`📊 [PAPER] Option bid for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${quote.bid.toFixed(2)} (ask: $${quote.ask}, source: ${quote.source}${quote.feed ? `/${quote.feed}` : ''}${quote.delayed ? ', delayed' : ''})`);
         return quote.bid;
       }
-
-      // Keep the previous mark and its original timestamp. A delayed, stale,
-      // one-sided, or undated quote is not allowed to refresh P&L or trigger exits.
-      logger.info(`📊 [PAPER] No eligible option mark for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate}: ${quoteIssue}; retaining last mark`);
+      logger.info(`📊 [PAPER] No two-sided option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate}: ${quoteIssue}; retaining last mark`);
       return null;
     } else {
       // Only use stock prices for actual stocks
@@ -754,7 +771,7 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
       const isOption = position.assetType === 'option';
       const lastMarkAtMs = Date.parse(String(position.lastPriceUpdate ?? ''));
       const markAgeMs = Number.isFinite(lastMarkAtMs) ? Date.now() - lastMarkAtMs : Number.POSITIVE_INFINITY;
-      const optionMarkFresh = markAgeMs >= -5_000 && markAgeMs <= 60_000;
+      const optionMarkFresh = markAgeMs >= -5_000 && markAgeMs <= OPTION_MARK_MAX_AGE_MS;
       const canUsePrice = !isOption || (marketStatus.isOpen && optionMarkFresh);
       if (isOption && marketStatus.isOpen && !optionMarkFresh) {
         logger.info(`[PAPER] Skipping option stop/target check for ${position.symbol}: last eligible mark is ${Number.isFinite(markAgeMs) ? `${Math.round(markAgeMs / 1000)}s old` : 'undated'}`);

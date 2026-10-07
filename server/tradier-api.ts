@@ -358,12 +358,25 @@ export interface OptionMark {
   quoteTime: string | null;
 }
 
-/** A quote suitable for a simulated execution must be live, two-sided, and
- * timestamped. Delayed/undated marks remain useful for display, never fills. */
-export function optionMarkExecutionIssue(mark: OptionMark, nowMs = Date.now(), maxAgeMs = 60_000): string | null {
-  if (mark.delayed) return `delayed ${mark.source}${mark.feed ? ` (${mark.feed})` : ''} quote`;
+/**
+ * Is this mark usable as a simulated fill?
+ *
+ * Strict (default): live, two-sided, uncrossed and timestamped within maxAgeMs —
+ * the only kind of quote bot-fill-verification can call "verified".
+ *
+ * `allowDelayed`: the paper bot's operating standard while no live OPRA /
+ * production Tradier feed is configured. A delayed quote is still required to
+ * be two-sided and uncrossed; the fill is tagged delayed=true so the audit marks
+ * it unverified. Refusing delayed quotes outright (Codex 2026-10-03) left the
+ * bot unable to enter, re-mark, stop out or flatten anything on the delayed
+ * feeds production actually has (Alpaca indicative, CBOE, Tradier sandbox).
+ */
+export function optionMarkExecutionIssue(
+  mark: OptionMark, nowMs = Date.now(), maxAgeMs = 60_000, opts: { allowDelayed?: boolean } = {},
+): string | null {
   if (!(Number.isFinite(mark.bid) && mark.bid > 0 && Number.isFinite(mark.ask) && mark.ask > 0)) return 'missing positive bid/ask';
   if (mark.bid > mark.ask) return 'crossed bid/ask';
+  if (mark.delayed) return opts.allowDelayed ? null : `delayed ${mark.source}${mark.feed ? ` (${mark.feed})` : ''} quote`;
   const raw = mark.quoteTime == null ? NaN : Number(mark.quoteTime);
   const timestampMs = Number.isFinite(raw)
     ? raw < 1e12 ? raw * 1000 : raw
@@ -536,14 +549,13 @@ async function alpacaOptionQuote(
   try {
     const parts = resolveContractParts(occSymbol, params);
     if (!parts) return null;
-    const { getAlpacaContractQuote, withAlpacaPriority } = await import('./alpaca-options');
+    const { getAlpacaContractQuote } = await import('./alpaca-options');
     const occ = buildOptionSymbol(parts.underlying, parts.expiry, parts.optionType, parts.strike);
     // Prefer consolidated OPRA when this account has the required agreement
     // and entitlement. Fall back to indicative only as a delayed research mark.
-    const q = await withAlpacaPriority(async () =>
-      await getAlpacaContractQuote(occ, 'opra')
-        ?? await getAlpacaContractQuote(occ, 'indicative'),
-    );
+    // Lane is the caller's: a display mark must not jump the priority queue.
+    const q = await getAlpacaContractQuote(occ, 'opra')
+      ?? await getAlpacaContractQuote(occ, 'indicative');
     if (!q) return null;
     // A quote with neither side is not a mark — fall through to CBOE.
     if (!((q.bid ?? 0) > 0 || (q.ask ?? 0) > 0)) return null;

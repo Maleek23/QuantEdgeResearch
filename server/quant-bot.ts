@@ -52,7 +52,14 @@ export interface BotConfig {
   maxDebitDollars: number;
   /** Minimum modeled contract return when the underlying reaches T1. */
   minContractRoiAtT1Pct: number;
-  /** Do not simulate delayed-quote fills before this New York minute. */
+  /** Do not simulate delayed-quote fills before this New York minute (swing / non-index entries). */
+  delayedFillNotBeforeEtMinutes: number;
+  /**
+   * Index 0DTE entries on a DELAYED quote wait until this minute: a ~15-minute
+   * delayed chain at 09:50 reflects the 09:35 market; at 09:35 it is pre-open.
+   * A live quote (OPRA / production Tradier) is usable from the open.
+   */
+  zeroDteDelayedNotBeforeEtMinutes: number;
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -74,7 +81,26 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   minContractRoiAtT1Pct: 30,
   // Opening prints and delayed option chains are especially stale/wide. SNOW's
   // $420C was booked at 09:38 ET for $25.18 after being published near $15.78.
+  delayedFillNotBeforeEtMinutes: 10 * 60,
+  zeroDteDelayedNotBeforeEtMinutes: 9 * 60 + 50,
 };
+
+/**
+ * Entry-quote standard. A live quote must be fresh (60 s); a delayed quote is
+ * accepted only after the configured minute and is recorded delayed=true, so
+ * bot-fill-verification classifies the fill as unverified, never verified.
+ */
+export function entryQuoteIssue(
+  q: import('./tradier-api').OptionMark,
+  notBeforeEtMinute: number,
+  issueFn: typeof import('./tradier-api').optionMarkExecutionIssue,
+  now = new Date(),
+): string | null {
+  const allowDelayed = easternMinutes(now) >= notBeforeEtMinute;
+  const issue = issueFn(q, now.getTime(), 60_000, { allowDelayed });
+  if (issue && q.delayed && !allowDelayed) return `${issue} before ${Math.floor(notBeforeEtMinute / 60)}:${String(notBeforeEtMinute % 60).padStart(2, '0')} ET`;
+  return issue;
+}
 
 function easternMinutes(date = new Date()): number {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -667,10 +693,10 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         // fill on a real premium.
         //
         // Every option idea already carries a concrete contract (symbol / type / strike /
-        // expiry). A delayed chain is useful research data, but it is not an executable
-        // fill. New bot entries therefore require a non-delayed provider mark. Existing
-        // delayed paper positions remain visible for audit, but the ledger cannot create
-        // more false-precision entries while the realtime provider is unavailable.
+        // expiry). Entries pay the ASK of a two-sided quote: live when a live feed is
+        // configured, otherwise delayed after the opening-discovery minute
+        // (entryQuoteIssue). Every fill carries its quote provenance, and a delayed
+        // fill is classified unverified by shared/bot-fill-verification.ts.
         let tradeable: any;
 
         if (idea.assetType === 'option') {
@@ -722,10 +748,11 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
               strike: Number(idea.strikePrice),
               expiryDate: expiry,
             }).catch(() => null);
-            const quoteIssue = q ? optionMarkExecutionIssue(q) : 'quote unavailable';
+            const quoteIssue = q ? entryQuoteIssue(q, cfg.zeroDteDelayedNotBeforeEtMinutes, optionMarkExecutionIssue) : 'quote unavailable';
             if (!q || quoteIssue) {
               skipped++;
-              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: published 0DTE contract has no executable quote (${quoteIssue})`);
+              noteBotSkip(pick, 'non_executable', `0DTE contract has no usable quote (${quoteIssue})`);
+              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: published 0DTE contract has no usable quote (${quoteIssue})`);
               continue;
             }
             const spreadPct = q.mid > 0 ? (q.ask - q.bid) / q.mid : Number.POSITIVE_INFINITY;
@@ -792,11 +819,11 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             expiryDate: selected.expiry,
           }).catch(() => null);
 
-          const quoteIssue = q ? optionMarkExecutionIssue(q) : 'quote unavailable';
+          const quoteIssue = q ? entryQuoteIssue(q, cfg.delayedFillNotBeforeEtMinutes, optionMarkExecutionIssue) : 'quote unavailable';
           if (!q || quoteIssue) {
             skipped++;
-            noteBotSkip(pick, 'non_executable', `no fresh live option quote (${quoteIssue})`);
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no fresh live option quote (${quoteIssue})`);
+            noteBotSkip(pick, q?.delayed ? 'delayed_quote' : 'non_executable', `no usable option quote (${quoteIssue})`);
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no usable option quote (${quoteIssue})`);
             continue;
           }
           const quoteMid = Number(q.mid ?? 0);
