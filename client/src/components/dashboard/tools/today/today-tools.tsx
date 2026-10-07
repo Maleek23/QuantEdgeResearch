@@ -10,7 +10,7 @@
 import { regimeFromLegacy } from '@shared/gex-regime';
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { convictionDisplayPercent } from '@shared/conviction-display';
+import { gradeOfLoosePick, formatNexusGrade, nexusGradeTitle, NEXUS_GRADE_CAVEAT } from '@/components/canon/nexus-grade';
 import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { Spark, RotQuad, SigCard, CHECK } from '@/components/landing/live-widgets';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -149,7 +149,7 @@ export function TodayWeekMapTool() {
                 <Link href={nexusIdeaHref(p)} className="t-signal t-signal-link" key={p.ideaId} title={`Open ${p.symbol} selected on NEXUS`}>
                   <span className="ticker">{p.symbol}</span>
                   <span style={{ fontSize: 'var(--fs-10, 10px)', color: p.direction === 'short' ? 'var(--red)' : 'var(--green)' }}>{p.direction === 'short' ? '▼ short' : '▲ long'}</span>
-                  <span className="dir">{convictionDisplayPercent(p.convictionScore ?? 0)}</span>
+                  {(() => { const g = gradeOfLoosePick(p as any); return <span className="dir" title={g ? nexusGradeTitle(g) : undefined}>{g ? formatNexusGrade(g) : '—'}</span>; })()}
                 </Link>
               ))}
               <div className="t-row"><span className="k">Long / Short</span><span className="v"><span style={{ color: 'var(--green)' }}>{book.longs}</span> / <span style={{ color: 'var(--red)' }}>{book.ideas.length - book.longs}</span></span></div>
@@ -288,7 +288,7 @@ export function TodayIndexDeskTool() {
             <Link href={play ? `/r/${symbol}` : `/r/${symbol}?tab=chart`} className={`td-index-row${play ? ' live' : ''}`} key={symbol}>
               <div><strong>{symbol}</strong><small>{play ? `${play.setup?.replaceAll('_', ' ') ?? 'index setup'}${play.isPowerHour ? ' · power hour' : ''}` : 'monitoring levels'}</small></div>
               <span className={play?.direction === 'short' ? 'down' : play ? 'up' : ''}>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
-              <b title="The scanner's own raw confidence at publish — not the NEXUS evidence grade">{play?.confidence != null ? `scanner ${Math.round(play.confidence)}` : '—'}</b>
+              <b title="Index 0DTE desk call. Its scanner confidence is a legacy score and is not shown; the published idea carries the NEXUS grade on the board.">{play ? '0DTE call' : '—'}</b>
               <em>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'No active call'}</em>
             </Link>
           );
@@ -317,9 +317,14 @@ export function TodayBookStatsTool() {
           <div className="lstat-sub">{book.longs} long · {book.ideas.length - book.longs} short</div>
         </div>
         <div className="stat-item">
-          <div className="lstat-val">{best ? convictionDisplayPercent(best.convictionScore ?? 0) : '—'}<span className="td-of">/100</span></div>
-          <div className="lstat-label">Top evidence score</div>
-          <div className="lstat-sub">{best ? `${best.symbol} · ${best.direction}` : 'waiting for the board'}</div>
+          {(() => {
+            const top = book.ideas.map((p) => ({ p, g: gradeOfLoosePick(p as any) })).filter((x) => x.g).sort((a, b) => b.g!.score - a.g!.score)[0];
+            return <>
+              <div className="lstat-val" title={top?.g ? nexusGradeTitle(top.g) : undefined}>{top?.g ? formatNexusGrade(top.g) : '—'}<span className="td-of">/100</span></div>
+              <div className="lstat-label">Top NEXUS grade</div>
+              <div className="lstat-sub">{top ? `${top.p.symbol} · ${top.p.direction} · ${NEXUS_GRADE_CAVEAT}` : 'waiting for the board'}</div>
+            </>;
+          })()}
         </div>
       </div>
     </div>

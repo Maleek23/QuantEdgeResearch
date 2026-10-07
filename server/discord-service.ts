@@ -1,4 +1,5 @@
 // Discord webhook service for automated trade alerts
+import { gradeIdeaRowAtPublish, formatNexusGrade } from '@shared/nexus-grade';
 import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
@@ -324,6 +325,8 @@ export async function sendBotTradeEntryToDiscord(trade: {
   delta?: number | null;
   riskRewardRatio?: number | null;
   signals?: string[] | null;
+  /** The ONE grade (shared/nexus-grade.ts); when present it replaces the confidence letter. */
+  nexusGrade?: { letter: string; score: number } | null;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
@@ -342,9 +345,9 @@ export async function sendBotTradeEntryToDiscord(trade: {
     return;
   }
 
-  // STRICT GRADE FILTER: Only A/A+ bot entries go to Discord
-  const grade = trade.confidence ? getLetterGrade(trade.confidence) : 'D';
-  if (!VALID_DISCORD_GRADES.includes(grade)) {
+  // GRADE FILTER: NEXUS grade A/B when the entry carries it; legacy confidence letter otherwise.
+  const grade = trade.nexusGrade ? trade.nexusGrade.letter : trade.confidence ? getLetterGrade(trade.confidence) : 'D';
+  if (trade.nexusGrade ? !['A', 'B'].includes(grade) : !VALID_DISCORD_GRADES.includes(grade)) {
     logger.debug(`[DISCORD] Skipped bot entry ${trade.symbol} - grade ${grade} not in A/A+ tier`);
     return;
   }
@@ -388,8 +391,8 @@ export async function sendBotTradeEntryToDiscord(trade: {
     const isCall = trade.optionType === 'call';
     const color = isLotto ? COLORS.LOTTO : (isCall ? 0x22c55e : 0xef4444);
     
-    // Confidence grade
-    const grade = trade.confidence ? getLetterGrade(trade.confidence) : '';
+    // Grade: the NEXUS grade when present, never alongside a second score.
+    const grade = trade.nexusGrade ? trade.nexusGrade.letter : trade.confidence ? getLetterGrade(trade.confidence) : '';
     
     // Greeks/Delta
     let deltaDisplay = '';
@@ -409,12 +412,14 @@ export async function sendBotTradeEntryToDiscord(trade: {
       : `**${directionEmoji} ${directionLabel}** - ${meta.name} position opened.`;
 
     // Format grade with confidence
-    const gradeWithConfidence = trade.confidence 
-      ? `${grade} (${trade.confidence}%)` 
-      : grade || 'N/A';
+    const gradeWithConfidence = trade.nexusGrade
+      ? `NEXUS ${trade.nexusGrade.letter} ${trade.nexusGrade.score}/100 (actionability, unvalidated)`
+      : trade.confidence
+        ? `${grade} (${trade.confidence}%)`
+        : grade || 'N/A';
 
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 QUANTINUM BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''} [${grade}] ${trade.confidence || ''}%`,
+      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 QUANTINUM BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''} ${trade.nexusGrade ? `[NEXUS ${trade.nexusGrade.letter} ${trade.nexusGrade.score}]` : `[${grade}] ${trade.confidence || ''}%`}`,
       description: cleanAnalysis,
       color: isSmallAccount ? 0xfbbf24 : color,
       fields: [
@@ -574,7 +579,14 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   
   // STRICT GRADE FILTER: Only A/A+ trades go to Discord (skip if force bypass for manual shares)
   // SPX scanner signals use relaxed grade filter (B- and above) since scanners already pre-filter
-  if (!forceBypass) {
+  const nexusGrade = (idea as any).nexusGrade as { letter: string; score: number } | undefined;
+  if (!forceBypass && nexusGrade) {
+    // The ONE grade (shared/nexus-grade.ts): A or B only.
+    if (!['A', 'B'].includes(nexusGrade.letter)) {
+      logger.debug(`[DISCORD] Skipped ${idea.symbol} - NEXUS grade ${nexusGrade.letter} ${nexusGrade.score} below B`);
+      return;
+    }
+  } else if (!forceBypass) {
     const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
     const source = (idea as any).source || '';
     const isSPXSource = source === 'orb_scanner' || source === 'spx_session';
@@ -639,7 +651,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
         { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
         { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
         { name: '🛡️ Stop', value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)}` : 'N/A', inline: true },
-        ...(isOracleSignal ? [{ name: '🧠 Confidence', value: `${Number((idea as any).confidenceScore ?? 0)}/100`, inline: true }] : []),
+        ...(nexusGrade ? [{ name: '🧠 NEXUS grade', value: `${nexusGrade.letter} ${nexusGrade.score}/100 · actionability, unvalidated, not a win probability`, inline: true }] : []),
       ],
       footer: isTVSignal ? { text: `TradingView Strategy Signal • ${(idea as any).sessionContext || 'v15'}` } : undefined,
       timestamp: new Date().toISOString()
@@ -945,7 +957,7 @@ export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Prom
   try {
     const description = picks.slice(0, 15).map((p: any) => {
       const emoji = p.direction === 'long' ? '🟢' : '🔴';
-      const grade = p.grade ? `[${p.grade}]` : '';
+      const grade = ''; // weekly picks are not NEXUS setups; no grade is shown
       const price = p.entryPrice ? `@ $${p.entryPrice.toFixed(2)}` : '';
       return `${emoji} **${p.symbol}** ${grade} ${price}`;
     }).join('\n');
@@ -982,18 +994,21 @@ export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {
   if (!webhookUrl) return;
 
   try {
-    const topIdeas = ideas
-      .filter((i: any) => VALID_DISCORD_GRADES.includes(i.grade))
+    // The ONE grade (shared/nexus-grade.ts) as published: A/B only.
+    const graded = ideas.map((i: any) => ({ i, g: gradeIdeaRowAtPublish(i) }));
+    const topIdeas = graded
+      .filter(({ g }) => g && (g.letter === 'A' || g.letter === 'B'))
+      .sort((a, b) => (b.g!.score - a.g!.score))
       .slice(0, 10);
 
     if (topIdeas.length === 0) return;
 
-    const description = topIdeas.map((i: any) => {
+    const description = topIdeas.map(({ i, g }: any) => {
       const emoji = i.direction === 'long' ? '🟢' : '🔴';
       const optionType = i.optionType ? i.optionType.toUpperCase() : '';
       const strike = i.strikePrice ? `$${i.strikePrice}` : '';
       const price = i.entryPrice ? `@ $${i.entryPrice.toFixed(2)}` : '';
-      const grade = i.grade ? `[${i.grade}]` : '';
+      const grade = g ? `[NEXUS ${formatNexusGrade(g)}]` : '';
 
       if (i.assetType === 'option' && optionType && strike) {
         return `${emoji} **${i.symbol}** ${optionType} ${strike} ${price} ${grade}`;
@@ -1007,7 +1022,7 @@ export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {
       color: COLORS.QUANT,
       fields: [
         { name: 'Total Ideas', value: `${ideas.length}`, inline: true },
-        { name: 'B+ Grade', value: `${ideas.filter((i: any) => ['A+', 'A', 'A-', 'B+'].includes(i.grade)).length}`, inline: true },
+        { name: 'NEXUS A/B', value: `${topIdeas.length}`, inline: true },
         { name: 'Options', value: `${ideas.filter((i: any) => i.assetType === 'option').length}`, inline: true }
       ],
       footer: { text: 'QuantEdge • Daily Preview at 8:00 AM ET' },

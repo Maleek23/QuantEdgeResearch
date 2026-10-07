@@ -30,6 +30,7 @@ import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
 import { stripConflictingTargetClaims } from '@shared/plan-narrative';
 import { gradeFromLife, gradePick, whyRankedHere, type NexusGrade } from '@shared/nexus-grade';
+import { nexusGradeTitle, LegacyScoreDiagnostics, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import { HolyGrailBadge } from './holy-grail-badge';
 import { WallTouchBadge } from '@/components/walls/wall-touch-badge';
@@ -149,7 +150,13 @@ export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope
     return ranked.filter((pick) => new Date(pick.generatedAt).getTime() >= cutoff);
   }
   if (f.rank === 'best') return ranked.slice(0, 10);
-  return ranked.filter((pick) => pick.convictionBand === 'S' || pick.convictionBand === 'A');
+  // GRADE lens: NEXUS grade A or B on the live lifecycle read (the one grade).
+  const now = Date.now();
+  return ranked.filter((pick) => {
+    const l = life?.get(pick.ideaId)?.life;
+    const g = l ? gradeFromLife(l, pick, now) : gradePick(pick, now);
+    return g.letter === 'A' || g.letter === 'B';
+  });
 }
 
 /** Pattern-scan candidates not yet published as setups, within 20% of their trigger, one per symbol. */
@@ -224,15 +231,11 @@ export const useDevelopingQuote = (symbol: string | undefined, enabled: boolean)
 export function lifecycleLine(pick: ConvictionPick, sl: SetupLife, now: number): { text: string; title: string } {
   const { life, mark } = sl;
   const parts: string[] = [life.state === 'carried' && life.session != null && life.sessions != null ? `CARRIED s${life.session}/${life.sessions}` : life.label];
-  if (pick.publishedConvictionScore != null) {
-    const was = convictionPercent(pick.publishedConvictionScore), is = convictionPercent(pick.convictionScore);
-    parts.push(was === is ? `evidence ${is} (unchanged)` : `evidence ${was} → now ${is}`);
-  }
   if (mark && pick.entryPrice > 0) {
     const vs = (mark.price / pick.entryPrice - 1) * 100;
     parts.push(`$${mark.price.toFixed(2)} ${vs >= 0 ? '+' : ''}${vs.toFixed(1)}% vs entry · ${ageLabel(mark.asOf, now)}`);
   }
-  const title = `${life.label}: ${life.reason}.${pick.publishedConvictionScore != null ? ` Evidence score at publish ${convictionPercent(pick.publishedConvictionScore)}, current evidence score ${convictionPercent(pick.convictionScore)}.` : ''}${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
+  const title = `${life.label}: ${life.reason}.${mark ? ` Price: ${mark.basis}${mark.asOf ? `, ${ageLabel(mark.asOf, now)}` : ''}.` : ' No price to check it against.'}`;
   return { text: parts.join(' · '), title };
 }
 
@@ -246,7 +249,7 @@ export function publishStamp(iso: string, now: number): string {
 
 /** NEXUS actionability grade chip text; it is not an outcome probability. */
 export function gradeTitle(g: NexusGrade): string {
-  return `NEXUS grade ${g.letter} · ${g.score}/100 (unvalidated — a plan quality and actionability score, not a predicted outcome). ${g.factors.map((f) => `${f.label}: ${f.points}/${f.max}`).join(' · ')}.`;
+  return nexusGradeTitle(g);
 }
 
 export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
@@ -261,7 +264,7 @@ export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pi
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
       <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && <small className="nxp-why">why here: {whyRankedHere(grade)}</small>}</span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} of 100, unvalidated`}>{grade.letter} <b>{Math.round(grade.score)}</b></span> : convictionPercent(pick.convictionScore)}</strong><small>{grade ? 'NEXUS grade' : ''}{grade && (pick.calledAt ?? pick.generatedAt) ? ' · ' : ''}{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} aria-label={`${NEXUS_GRADE_LABEL} ${grade.letter}, ${grade.score} of 100, ${NEXUS_GRADE_CAVEAT}`}>{grade.letter} <b>{grade.score}</b></span> : '—'}</strong><small>{grade ? 'NEXUS grade' : ''}{grade && (pick.calledAt ?? pick.generatedAt) ? ' · ' : ''}{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -448,7 +451,12 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
         </div>
         {selected.isBotHeld
           ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
-          : <GradeBox grade={grade ?? gradePick(selected, gradeNow)} />}
+          : <div><GradeBox grade={grade ?? gradePick(selected, gradeNow)} />
+            <LegacyScoreDiagnostics rows={[
+              ['evidence (conviction points)', `${selected.convictionScore} pts · band ${selected.convictionBand}`],
+              ['evidence at publish', selected.publishedConvictionScore != null ? `${selected.publishedConvictionScore} pts${selected.publishedConvictionBand ? ` · band ${selected.publishedConvictionBand}` : ''}` : null],
+              ['evidence display scale', `${convictionPercent(selected.convictionScore)}/100`],
+            ]} /></div>}
       </div>
 
       <div className="nxp-chart-card">
@@ -580,7 +588,8 @@ function GradeBox({ grade }: { grade: NexusGrade }) {
   return (
     <div className={`nxp-score nxp-grade-box nxp-grade-${grade.letter}`} title={gradeTitle(grade)} aria-label={`NEXUS grade ${grade.letter}, ${grade.score} out of 100, unvalidated. Why ranked here: ${whyRankedHere(grade)}`}>
       <strong className="nxp-grade-letter">{grade.letter}</strong>
-      <span>NEXUS grade · {grade.score}/100 · unvalidated</span>
+      <span>{NEXUS_GRADE_LABEL} · {grade.score}/100</span>
+      <small className="nxp-grade-caveat">{NEXUS_GRADE_CAVEAT}</small>
       <ul className="nxp-grade-why" aria-label="Why ranked here">
         {grade.factors.map((f) => <li key={f.key}>{f.label} <b>{f.points}/{f.max}</b></li>)}
       </ul>

@@ -13,7 +13,7 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { convictionDisplayPercent } from '@shared/conviction-display';
-import { gradePick } from '@shared/nexus-grade';
+import { gradePick, gradeComponentsTag, formatNexusGrade } from '@shared/nexus-grade';
 import {
   executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closeOptionPositionAtBid,
   recordEquitySnapshot,
@@ -878,8 +878,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         const nexusGrade = gradePick(pick);
         tradeable.qualitySignals = [
           ...(Array.isArray(tradeable.qualitySignals) ? tradeable.qualitySignals : []),
-          `nexus-grade:${nexusGrade.version}:${nexusGrade.letter}:${nexusGrade.score}`,
-          ...nexusGrade.factors.map((f) => `nexus-factor:${f.key}:${f.points}/${f.max}`),
+          gradeComponentsTag(nexusGrade),
           ...(rules.botConfluence || rules.botEntryWindow || rules.dteFit ? [LOSS_RULES_TAG] : []),
           ...(fams?.length ? [`confluence:${fams.join('+')}`] : []),
         ];
@@ -895,7 +894,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         if (res.success) {
           opened.push({
             symbol: pick.symbol,
-            reason: `${pick.convictionBand}-band ${pick.convictionScore} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)}`,
+            reason: `NEXUS ${formatNexusGrade(nexusGrade)} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)}`,
           });
 
           // Alert the entry. sendBotTradeEntryToDiscord has existed the whole time
@@ -914,9 +913,8 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
               quantity: Number(res.position?.quantity ?? 1),
               targetPrice: pick.targetPrice ?? null,
               stopLoss: pick.stopLoss ?? null,
-              // Bot entry grades use the same 0–100 confidence index the
-              // terminal displays, never the raw confluence-point total.
-              confidence: convictionDisplayPercent(pick.convictionScore ?? 0),
+              // The ONE grade, as logged on the fill (qualitySignals nexus-grade:…).
+              nexusGrade: { letter: nexusGrade.letter, score: nexusGrade.score },
               riskRewardRatio: pick.riskRewardRatio ?? null,
               analysis: pick.thesis ?? null,
               signals: (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean),

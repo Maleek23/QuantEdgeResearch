@@ -31,8 +31,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
-import { CanonGrade, gradeColor } from "@/components/canon/score";
-import { displayedGrade, displayedScore } from "@/lib/conviction-display";
+import { NexusGradeChip, LegacyScoreDiagnostics, nexusGradeColor, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from "@/components/canon/nexus-grade";
+import { gradeIdeaRowAtPublish, gradeBreakdown } from "@shared/nexus-grade";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
 interface AuditTrailData {
@@ -177,9 +177,6 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
             {idea.source === 'ai' ? <Brain className="h-3 w-3" /> : idea.source === 'quant' ? <Zap className="h-3 w-3" /> : <BarChart3 className="h-3 w-3" />}
             {idea.source}
           </Badge>
-          {idea.confidenceScore && (
-            <Badge variant="secondary">{idea.confidenceScore}pts signal strength</Badge>
-          )}
           {idea.holdingPeriod && (
             <Badge variant="outline">{idea.holdingPeriod === 'day' ? 'Day Trade' : idea.holdingPeriod === 'swing' ? 'Swing' : 'Position'}</Badge>
           )}
@@ -211,9 +208,15 @@ function getSignalInfo(signal: string): { points: number; description: string; c
 }
 
 function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
-  const score = displayedScore(idea);
-  const grade = displayedGrade(idea);
-  const gradeTint = gradeColor(grade);
+  // The ONE grade as published (shared/nexus-grade.ts): the logged stamp when the
+  // board recorded it, else rebuilt from the generation-time evidence.
+  const logged = (idea.convergenceSignalsJson as any)?.nexusGradeAtPublish as { letter?: string; score?: number } | undefined;
+  const rebuilt = gradeIdeaRowAtPublish(idea as any);
+  const grade = rebuilt && logged?.letter && Number.isFinite(Number(logged.score))
+    ? { ...rebuilt, letter: logged.letter as typeof rebuilt.letter, score: Number(logged.score) }
+    : rebuilt;
+  const score = grade?.score ?? null;
+  const gradeTint = grade ? nexusGradeColor(grade.letter) : 'var(--text-mute)';
   const signals = idea.qualitySignals || [];
   
   return (
@@ -228,8 +231,8 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
             <CardTitle className="text-lg">Scoring Breakdown</CardTitle>
           </div>
           <div className="text-right">
-            <CanonGrade idea={idea} className="text-3xl" />
-            <div className="text-xs text-muted-foreground">{score}pts</div>
+            {grade ? <NexusGradeChip grade={grade} size="lg" /> : <span className="text-xs text-muted-foreground">not graded</span>}
+            <div className="text-xs text-muted-foreground">{NEXUS_GRADE_LABEL} at publish</div>
           </div>
         </div>
       </CardHeader>
@@ -237,15 +240,20 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {/* Score Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Canonical setup score</span>
-            <span className="font-semibold" style={{ color: gradeTint }}>{score}/100</span>
+            <span className="text-muted-foreground" title={grade ? gradeBreakdown(grade) : undefined}>{NEXUS_GRADE_LABEL} · {NEXUS_GRADE_CAVEAT}</span>
+            <span className="font-semibold" style={{ color: gradeTint }}>{score ?? '—'}/100</span>
           </div>
           <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
-              style={{ backgroundColor: gradeTint, width: `${score}%` }}
+              style={{ backgroundColor: gradeTint, width: `${score ?? 0}%` }}
             />
           </div>
+          <LegacyScoreDiagnostics rows={[
+            ['confidence score', idea.confidenceScore != null ? `${idea.confidenceScore}` : null],
+            ['conviction at publish', idea.genConvictionScore != null ? `${idea.genConvictionScore} pts · band ${idea.genConvictionBand ?? '—'}` : null],
+            ['probability band', idea.probabilityBand ?? null],
+          ]} />
         </div>
         
         {/* Signal Breakdown */}

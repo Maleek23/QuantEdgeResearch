@@ -24,14 +24,15 @@
  * (generation_timestamp, when gen_scoring_layers was stamped): fresh = surfaced on the
  * publish day; window left from the holding window; rotation from the sector layer.
  * Stale-at-surfacing cannot be rebuilt without bars, so every resolved idea grades as
- * live & valid — the decile table therefore measures fresh / window / rotation only.
+ * live & valid — the decile table therefore measures confluence / technical / window /
+ * session. Ideas surfaced after g2 logging carry the exact stamp (logged_grade).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { nexusGrade, rotationAligned } from '../shared/nexus-grade';
 import { etDay, windowFor } from '../shared/setup-lifecycle';
 
 export const VALID_FROM = '2026-08-26';
-export const IDEAS_SQL = `select json_agg(x) from (select id, symbol, direction, source, asset_type, option_type, strike_price, expiry_date, entry_price, entry_premium, exit_premium, stop_loss, target_price, risk_reward_ratio, timestamp as ts, generation_timestamp, exit_by, gen_conviction_score, gen_scoring_layers, holding_period, outcome_status, exit_price, exit_date from trade_ideas where timestamp >= '${VALID_FROM}' and coalesce(archived,false)=false and outcome_status is not null and outcome_status <> 'open') x`;
+export const IDEAS_SQL = `select json_agg(x) from (select id, symbol, direction, source, asset_type, option_type, strike_price, expiry_date, entry_price, entry_premium, exit_premium, stop_loss, target_price, risk_reward_ratio, timestamp as ts, generation_timestamp, exit_by, gen_conviction_score, gen_scoring_layers, holding_period, outcome_status, exit_price, exit_date, convergence_signals_json->'nexusGradeAtPublish' as logged_grade from trade_ideas where timestamp >= '${VALID_FROM}' and coalesce(archived,false)=false and outcome_status is not null and outcome_status <> 'open') x`;
 
 // ── types ─────────────────────────────────────────────────────────────────
 export interface AuditRow {
@@ -98,6 +99,7 @@ export function gradeAtSurfacing(x: any): ReturnType<typeof nexusGrade> | null {
     lifecycle: at >= w.endMs ? 'stale' : etDay(pub) === etDay(at) ? 'fresh' : 'carried',
     publishMs: pub, windowEndsMs: w.endMs, publishedDay: etDay(pub), today: etDay(at), nowMs: at,
     layers: Array.isArray(x.gen_scoring_layers) ? x.gen_scoring_layers : null,
+    convictionScore: num(x.gen_conviction_score),
   });
 }
 
@@ -111,9 +113,14 @@ export function rowFromDb(x: any): AuditRow | null {
   const rr = num(x.risk_reward_ratio) ?? (entry != null && stop != null && target != null && entry !== stop ? Math.abs(target - entry) / Math.abs(entry - stop) : null);
   const g = gradeAtSurfacing(x);
   const f: Record<string, number | null> = {
-    grade: g?.score ?? null,
-    gFresh: g ? (g.factors.find((k) => k.key === 'fresh')!.points > 0 ? 1 : 0) : null,
-    gWindow: g?.factors.find((k) => k.key === 'window')!.points ?? null,
+    // The logged stamp (convergence_signals_json.nexusGradeAtPublish) is the grade as
+    // it was shown; the rebuild is the fallback for ideas published before logging.
+    grade: num(x.logged_grade?.score) ?? g?.score ?? null,
+    gLogged: x.logged_grade?.score != null ? 1 : 0,
+    gEvidence: num(x.logged_grade?.f?.evidence) ?? g?.factors.find((k) => k.key === 'evidence')?.points ?? null,
+    gTechnical: num(x.logged_grade?.f?.technical) ?? g?.factors.find((k) => k.key === 'technical')?.points ?? null,
+    gSession: g ? ((g.factors.find((k) => k.key === 'session')?.points ?? 0) > 0 ? 1 : 0) : null,
+    gWindow: num(x.logged_grade?.f?.window) ?? g?.factors.find((k) => k.key === 'window')?.points ?? null,
     rotWith: L ? (rotationAligned(x.gen_scoring_layers) ? 1 : 0) : null,
     rotAgainst: L ? ((L.sector ?? 0) < 0 ? 1 : 0) : null,
     confFamilies: L ? CONF_FAMILIES.filter((k) => (L[k] ?? 0) > 0).length : null,
@@ -131,9 +138,15 @@ export function rowFromStudy(r: any): AuditRow {
   const scored = r.old != null;
   const conf = scored ? CONF_FAMILIES.filter((k) => (f0[`L_${k}`] ?? 0) > 0).length : null;
   const rotWith = scored ? ((f0.L_sector ?? 0) > 0 ? 1 : 0) : null;
-  // At publish every idea is fresh with its whole window ahead → grade = 95 + 5 × rotation.
+  // At publish every idea is fresh with its whole window ahead: g2 = live 25 + window 25 +
+  // session 10 + confluence + technical (the only factors that vary across ideas here).
+  const g2 = scored ? nexusGrade({
+    lifecycle: 'fresh', publishMs: 0, windowEndsMs: 1, publishedDay: 'd', today: 'd', nowMs: 0,
+    convictionScore: Number(r.old),
+    layers: ['technical', 'ta', 'structure'].map((k) => ({ kind: k, points: Number(f0[`L_${k}`] ?? 0) })),
+  }) : null;
   const f: Record<string, number | null> = {
-    grade: rotWith == null ? null : 95 + 5 * rotWith,
+    grade: g2?.score ?? null,
     rotWith,
     rotAgainst: scored ? ((f0.L_sector ?? 0) < 0 ? 1 : 0) : null,
     rotPeerAligned: f0.rotAligned ?? null,

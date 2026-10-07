@@ -7,6 +7,7 @@ import { isUnmeasuredExpiry } from '@shared/constants';
 import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
 import { captureRatio } from '@shared/exit-policy';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
+import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -80,6 +81,14 @@ export interface DeskIdea {
   source: string | null;
   catalyst: string | null;
   genConvictionBand: string | null;
+  /** Read by the NEXUS grade at publish (shared/nexus-grade.ts gradeIdeaRowAtPublish). */
+  genConvictionScore?: number | null;
+  genScoringLayers?: unknown;
+  generationTimestamp?: string | null;
+  holdingPeriod?: string | null;
+  exitBy?: string | null;
+  /** convergenceSignalsJson.nexusGradeAtPublish, when the board logged it. */
+  nexusGradeAtPublish?: { letter?: string; score?: number } | null;
   /** The [exit-time:…] tag from outcomeNotes (bar_hit | deadline | live), when present. */
   exitTimeSource?: string | null;
   /** Tracker's peak / trough of the UNDERLYING while the idea was open. */
@@ -146,7 +155,15 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const plan = [
     `Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
     `plan${snapshot ? ` (${snapshot.version} · ${snapshot.capturedAt})` : ''}: entry ${planEntry} · target ${planTarget ?? '—'} · stop ${planStop ?? '—'}${planRr ? ` · R:R ${planRr.toFixed(1)}` : ''}`,
-    i.genConvictionBand ? `conviction band at publish: ${i.genConvictionBand}` : null,
+    (() => {
+      // The ONE grade, as published: the logged stamp when present, else rebuilt
+      // from the generation-time evidence at first board surfacing.
+      const logged = i.nexusGradeAtPublish && i.nexusGradeAtPublish.letter && Number.isFinite(Number(i.nexusGradeAtPublish.score))
+        ? { letter: i.nexusGradeAtPublish.letter, score: Number(i.nexusGradeAtPublish.score) } : null;
+      const g = logged ?? (i.genConvictionScore != null ? gradeIdeaRowAtPublish({ ...i, entryPrice: planEntry, targetPrice: planTarget, stopLoss: planStop, direction: planDirection, expiryDate: planExpiry }) : null);
+      return g ? `NEXUS grade at publish: ${g.letter} ${g.score} (actionability, unvalidated)` : null;
+    })(),
+    i.genConvictionBand ? `diagnostics (unvalidated): conviction band ${i.genConvictionBand}` : null,
     resolved ? `outcome: ${status}${i.resolutionReason ? ` (${i.resolutionReason})` : ''}` : 'still open — no live mark carried here',
     exitTimeNote ? `exit time: ${exitTimeNote} — the tracker could not find the bar that touched the ${status === 'hit_stop' ? 'stop' : 'target'}` : null,
     i.catalyst ? `catalyst: ${i.catalyst}` : null,

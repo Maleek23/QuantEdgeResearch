@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { gradeOfLoosePick, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { fmtUsd } from '@/lib/format';
 import { toggleWatch, useWatchlist, watchLabel } from '@/hooks/use-watchlist';
 import { failToast, undoToast } from '@/lib/undo-toast';
@@ -507,8 +508,8 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
   const open = rows.filter((r) => r.outcome === 'open').length;
   const decided = won + lost;
 
-  const band = pick?.publishedConvictionBand ?? pick?.convictionBand ?? null;
-  const score = pick?.publishedConvictionScore ?? pick?.convictionScore ?? null;
+  // The one grade (shared/nexus-grade.ts) — not the raw evidence band/points.
+  const grade = gradeOfLoosePick(pick as any);
   const short = (pick?.direction ?? '').toLowerCase().includes('short') || (pick?.direction ?? '').toLowerCase().includes('bear');
 
   const rules: { name: string; state: string; tone: 'gain' | 'loss' | 'caution' | 'mute' }[] = [];
@@ -524,7 +525,7 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
           <div className="tk-idea-h">
             <LuxTag tone={short ? 'loss' : 'gain'}>{short ? '▼ SHORT' : '▲ LONG'}</LuxTag>
             <span className="tk-idea-type">{pick.tradeType ?? pick.holdingPeriod ?? 'idea'}</span>
-            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${Math.round(score)}` : ''}</LuxTag>}
+            {grade && <span title={nexusGradeTitle(grade)}><LuxTag tone="accent">{NEXUS_GRADE_LABEL} {formatNexusGrade(grade)}</LuxTag></span>}
           </div>
           <div className="tk-stats tk-stats-4">
             <Stat k={pick.levelBasis === 'contract' ? 'Entry (premium)' : 'Entry'} v={fmtPx(pick.entryPrice)} tone="accent" />

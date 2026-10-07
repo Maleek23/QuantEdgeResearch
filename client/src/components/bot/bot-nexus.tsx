@@ -24,6 +24,7 @@
  * The mock's fabricated fills, jittering SPY, fake latency and looping
  * uptime counter do not ship.
  */
+import { gradeOfLoosePick, formatNexusGrade } from '@/components/canon/nexus-grade';
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
@@ -259,10 +260,10 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
     const rows: { time: string; job: string; sym: string; action: JSX.Element; price: string; chip: string; cls: string }[] = [];
     const t = conv?.generatedAt;
     (conv?.picks ?? []).forEach((p) => {
-      const band = p.publishedConvictionBand ?? p.convictionBand;
+      const g = gradeOfLoosePick(p as any);
       rows.push({
         time: t ?? '', job: 'Conviction', sym: p.symbol,
-        action: <><b>idea published</b> · {band ?? 'ungraded'} · {(p.direction ?? 'long').toUpperCase()}{p.tradeType ? ` · ${p.tradeType}` : ''}</>,
+        action: <><b>idea published</b> · {g ? `NEXUS ${formatNexusGrade(g)}` : 'ungraded'} · {(p.direction ?? 'long').toUpperCase()}{p.tradeType ? ` · ${p.tradeType}` : ''}</>,
         price: p.entryPrice != null ? `$${Number(p.entryPrice).toFixed(2)}` : '—',
         chip: 'published', cls: 'filled',
       });

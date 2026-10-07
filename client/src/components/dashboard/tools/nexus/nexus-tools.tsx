@@ -159,7 +159,7 @@ function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, co
         {SIDES.map((s) => <button key={s} type="button" className={side === s ? 'on' : ''} onClick={() => onSide(s)}>{s.toUpperCase()}</button>)}
       </div>
       {rank && onRank && <div className="of-seg" role="group" aria-label="Rank">
-        {RANKS.map((r) => <button key={r} type="button" className={rank === r ? 'on' : ''} onClick={() => onRank(r)} title={RANK_HELP[r]}>{r.toUpperCase()}</button>)}
+        {RANKS.map((r) => <button key={r} type="button" className={rank === r ? 'on' : ''} onClick={() => onRank(r)} title={RANK_HELP[r]}>{r === 'conviction' ? 'GRADE A/B' : r.toUpperCase()}</button>)}
       </div>}
       <label className="nxd-search"><Search size={12} aria-hidden /><input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} /></label>
       {children}
@@ -171,7 +171,7 @@ const RANK_HELP: Record<Rank, string> = {
   all: 'Every published setup, in the board order (BOARD_SORT)',
   new: 'Published in the last 24 hours',
   best: 'Top 10 in the board order',
-  conviction: 'S and A evidence bands only',
+  conviction: 'NEXUS grade A and B only (actionability, unvalidated)',
 };
 
 function DetailHint() {

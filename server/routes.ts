@@ -12,6 +12,7 @@ import { parseJournalFilters, countJournalFilters } from "@shared/journal-filter
 import { readExitPolicy, exitPolicyPlan } from "@shared/exit-policy";
 import { WATCHLIST_ORDER_PAGE, applyWatchlistOrder, sanitizeWatchlistOrder } from "@shared/watchlist-order";
 import { isRealWin } from "@shared/constants";
+import { gradePick, gradeBreakdown, gradeIdeaRow } from "@shared/nexus-grade";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
 // LAZY-LOADED: diagnostic-export — imported via await import() in handlers
@@ -16403,10 +16404,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (!events.length) continue;
 
+        const g = gradePick(p as any, now);
         const base = {
           symbol: sym,
           direction: p.direction,
           convictionScore: p.convictionScore,
+          // The one grade (shared/nexus-grade.ts); the client shows only this.
+          nexusGrade: { letter: g.letter, score: g.score, breakdown: gradeBreakdown(g) },
           holdingPeriod: p.holdingPeriod,
           entryPrice: p.entryPrice,
           currentPrice: p.currentPrice ?? null,

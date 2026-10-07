@@ -47,7 +47,7 @@ import type { ConvictionPick } from '@/lib/convictions';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { CONVICTION_LAYERS } from '@shared/conviction-layers';
 import { Sparkline } from './sparkline';
-import { tierColor } from '@/components/canon';
+import { gradeOfPick, nexusGradeColor, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { cn } from '@/lib/utils';
 
 const dirTone = (d: string): Tone => (d === 'long' ? 'bull' : 'bear');
@@ -123,7 +123,7 @@ export function SignalGrid({
               <RecordCard
                 key={p.ideaId}
                 ticker={p.symbol}
-                badge={`${p.convictionBand} · ${p.convictionScore > 0 ? '+' : ''}${p.convictionScore} evidence`}
+                badge={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(gradeOfPick(p))}`}
                 /* The badge carries BAND and CONVICTION — a quality axis. Moss
                    and clay are reserved for direction, so a confident short was
                    rendering clay and reading as a warning. Cyan is the
@@ -136,7 +136,7 @@ export function SignalGrid({
                 className={cn('qe-sig-card', selectedId === p.ideaId && 'ring-1 ring-[color:var(--brand-cyan)]')}
                 /* Edge stripe carries the quality axis (band → --grade-* token),
                    leaving moss/clay free to keep meaning direction. */
-                style={{ ['--band-color' as string]: tierColor(p.convictionBand) }}
+                style={{ ['--band-color' as string]: nexusGradeColor(gradeOfPick(p).letter) }}
                 onClick={() => onSelect(p.ideaId)}
                 footLeft={pending
                   ? `${g.progressPct.toFixed(0)}% to trigger`
