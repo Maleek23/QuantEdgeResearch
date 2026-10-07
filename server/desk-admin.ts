@@ -74,7 +74,7 @@ async function platformSleeves() {
   return readBotSleeveConfig(process.env);
 }
 
-export interface DeskBotState { slug: string; enabled: boolean; enabledAt: string | null; config: DeskBotConfig; updatedAt: string | null; updatedBy: string | null; exists: boolean }
+export interface DeskBotState { slug: string; enabled: boolean; shareBook: boolean; enabledAt: string | null; config: DeskBotConfig; updatedAt: string | null; updatedBy: string | null; exists: boolean }
 
 export async function readDeskBot(slug: string): Promise<DeskBotState> {
   const { db } = await import('./db');
@@ -83,9 +83,9 @@ export async function readDeskBot(slug: string): Promise<DeskBotState> {
   const sleeves = await platformSleeves();
   try {
     const [row] = await db.select().from(deskBots).where(eq(deskBots.traderSlug, slug)).limit(1);
-    if (!row) return { slug, enabled: false, enabledAt: null, config: defaultDeskBotConfig(base, sleeves), updatedAt: null, updatedBy: null, exists: false };
+    if (!row) return { slug, enabled: false, shareBook: false, enabledAt: null, config: defaultDeskBotConfig(base, sleeves), updatedAt: null, updatedBy: null, exists: false };
     return {
-      slug, enabled: row.enabled, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
+      slug, enabled: row.enabled, shareBook: !!row.shareBook, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
       config: normalizeStoredDeskConfig(row.config, base, sleeves), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
       updatedBy: row.updatedBy ?? null, exists: true,
     };
@@ -139,7 +139,7 @@ export async function listDeskBots(): Promise<DeskBotState[]> {
   try {
     const rows = await db.select().from(deskBots).orderBy(asc(deskBots.traderSlug));
     return rows.map((row) => ({
-      slug: row.traderSlug, enabled: row.enabled, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
+      slug: row.traderSlug, enabled: row.enabled, shareBook: !!row.shareBook, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
       config: normalizeStoredDeskConfig(row.config, base, sleeves), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
       updatedBy: row.updatedBy ?? null, exists: true,
     }));
@@ -147,6 +147,51 @@ export async function listDeskBots(): Promise<DeskBotState[]> {
     if (isMissingTable(e)) throw new DeskBotsUnavailable();
     throw e;
   }
+}
+
+// ─── Privacy (book sharing) ──────────────────────────────────
+
+export async function setDeskShareBook(slug: string, share: boolean, actorId: string | null): Promise<void> {
+  const { db } = await import('./db');
+  const { deskBots } = await import('@shared/schema');
+  const base = await platformConfig();
+  const sleeves = await platformSleeves();
+  try {
+    await db.insert(deskBots).values({ traderSlug: slug, config: defaultDeskBotConfig(base, sleeves), enabled: false, shareBook: share, updatedBy: actorId })
+      .onConflictDoUpdate({ target: deskBots.traderSlug, set: { shareBook: share, updatedBy: actorId, updatedAt: new Date() } });
+  } catch (e) {
+    if (isMissingTable(e)) throw new DeskBotsUnavailable();
+    throw e;
+  }
+  sharedCache = null;
+}
+
+let sharedCache: { at: number; slugs: Set<string> } | null = null;
+/** Slugs whose desk admin shared the book with the group. Missing table → none (private by default). */
+export async function sharedDeskSlugs(): Promise<Set<string>> {
+  if (sharedCache && Date.now() - sharedCache.at < 30_000) return sharedCache.slugs;
+  let slugs = new Set<string>();
+  try {
+    const { db } = await import('./db');
+    const { deskBots } = await import('@shared/schema');
+    const rows = await db.select({ slug: deskBots.traderSlug }).from(deskBots).where(eq(deskBots.shareBook, true));
+    slugs = new Set(rows.map((r) => r.slug));
+  } catch (e) {
+    if (!isMissingTable(e)) logger.warn('[DESK] shared-book read failed — treating every book as private:', e);
+  }
+  sharedCache = { at: Date.now(), slugs };
+  return slugs;
+}
+
+/**
+ * A visibility predicate for trader books. DESK_ADMINS off: every book is
+ * visible as before (passcodes still apply). On: shared/desk-admin.ts traderBookVisible.
+ */
+export async function traderVisibilityFor(actor: { userId: string | null; isAdmin: boolean }): Promise<(t: { slug: string; linkedUserId: string | null }) => boolean> {
+  if (!deskAdminsEnabled()) return () => true;
+  const { traderBookVisible } = await import('@shared/desk-admin');
+  const shared = await sharedDeskSlugs();
+  return (t) => traderBookVisible(actor, t, shared.has(t.slug));
 }
 
 // ─── Running desk bots ───────────────────────────────────────

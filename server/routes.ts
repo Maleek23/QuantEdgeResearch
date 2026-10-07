@@ -32831,6 +32831,9 @@ Use this checklist before entering any trade:
   {
     const { registerJournalsRoutes } = await import('./journals-routes');
     registerJournalsRoutes(app, requireBetaAccess);
+    // "I took this" on a NEXUS idea → the caller's book, origin quantedge_idea (docs/DESK_ADMINS.md).
+    const { registerTookIdeaRoutes } = await import('./took-idea-routes');
+    registerTookIdeaRoutes(app, requireBetaAccess);
     // Loss rules v1: before/after + hypothetical counterfactual (server/loss-rules-report.ts)
     const { registerLossRulesRoutes } = await import('./loss-rules-report');
     registerLossRulesRoutes(app, requireBetaAccess);

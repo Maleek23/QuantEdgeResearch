@@ -20,9 +20,13 @@ CREATE TABLE IF NOT EXISTS "desk_bots" (
   "enabled" boolean NOT NULL DEFAULT false,
   "enabled_at" timestamp,
   "config" jsonb NOT NULL,
+  "share_book" boolean NOT NULL DEFAULT false,
   "updated_by" varchar,
   "created_at" timestamp DEFAULT now(),
   "updated_at" timestamp DEFAULT now()
 );
+-- share_book: trader books are private by default under DESK_ADMINS; the desk
+-- admin opts in to group visibility. (Idempotent for a table created earlier.)
+ALTER TABLE "desk_bots" ADD COLUMN IF NOT EXISTS "share_book" boolean NOT NULL DEFAULT false;
 
 COMMIT;

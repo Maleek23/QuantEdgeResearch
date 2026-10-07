@@ -11,6 +11,7 @@
  *   POST   /api/desk/:slug/bot/enabled        { enabled }
  *   POST   /api/desk/:slug/bot/run            one cycle now — super-admin only
  *   PUT    /api/desk/:slug/passcode           { passcode } ('' clears) — the desk's own book
+ *   PUT    /api/desk/:slug/privacy            { shareWithGroup } — book private (default) or visible to the group
  *
  * Hub routes — requireAdminJWT (the admin hub cookie), like every /api/admin/*:
  *   GET    /api/admin/ops/desks               every trader book, its desk admin, its bot
@@ -31,7 +32,7 @@ import {
 
 export interface DeskTraderRow { id: string; slug: string; name: string; handle?: string | null; source?: string | null; linkedUserId: string | null; passcodeHash?: string | null; createdAt?: Date | string | null }
 export interface DeskUserRow { id: string; email: string; firstName?: string | null; subscriptionTier?: string | null; subscriptionStatus?: string | null; hasBetaAccess?: boolean | null }
-export interface DeskBotStateLike { enabled: boolean; config: DeskBotConfig; exists: boolean; updatedAt: string | null }
+export interface DeskBotStateLike { enabled: boolean; shareBook?: boolean; config: DeskBotConfig; exists: boolean; updatedAt: string | null }
 
 export interface DeskRouteDeps {
   enabled: () => boolean;
@@ -48,6 +49,7 @@ export interface DeskRouteDeps {
   botStatus: (t: DeskTraderRow) => Promise<unknown>;
   bookStats: (t: DeskTraderRow) => Promise<unknown>;
   setPasscodeHash: (slug: string, hash: string | null) => Promise<void>;
+  setShareBook: (slug: string, share: boolean, actorId: string | null) => Promise<void>;
   hashPasscode: (code: string) => Promise<string>;
   setLinkedUser: (slug: string, userId: string | null) => Promise<void>;
   runCycle: (slug: string) => Promise<unknown>;
@@ -79,6 +81,7 @@ async function defaultDeps(): Promise<DeskRouteDeps> {
       const { eq } = await import('drizzle-orm');
       await db.update(traders).set({ passcodeHash: hash }).where(eq(traders.slug, slug));
     },
+    setShareBook: d.setDeskShareBook,
     hashPasscode: async (code) => (await import('bcrypt')).default.hash(code, 12),
     setLinkedUser: async (slug, userId) => {
       const { db } = await import('./db');
@@ -176,6 +179,7 @@ export function registerDeskAdminRoutes(app: Express, requireAdmin: RequestHandl
       res.set('Cache-Control', 'no-store');
       res.json({
         trader: { slug: t.slug, name: t.name, handle: t.handle ?? null, source: t.source ?? null, locked: !!t.passcodeHash },
+        shareWithGroup: await d.readBot(t.slug).then((b) => !!b.shareBook).catch(() => false),
         deskAdmin: user ? { email: user.email, name: user.firstName ?? null, hasBetaAccess: !!user.hasBetaAccess } : null,
         viewer: { role: ctx(req).access.role },
         bot, book,
@@ -190,7 +194,7 @@ export function registerDeskAdminRoutes(app: Express, requireAdmin: RequestHandl
       const d = await deps();
       const s = await d.readBot(ctx(req).slug);
       res.set('Cache-Control', 'no-store');
-      res.json({ enabled: s.enabled, config: s.config, updatedAt: s.updatedAt, caps: DESK_BOT_CAPS, maxBlocked: DESK_BOT_MAX_BLOCKED, maxBots: d.maxBots() });
+      res.json({ enabled: s.enabled, shareWithGroup: !!s.shareBook, config: s.config, updatedAt: s.updatedAt, caps: DESK_BOT_CAPS, maxBlocked: DESK_BOT_MAX_BLOCKED, maxBots: d.maxBots() });
     } catch (err) { fail(res, err, 'Desk bot'); }
   });
 
@@ -244,6 +248,17 @@ export function registerDeskAdminRoutes(app: Express, requireAdmin: RequestHandl
       audit(req, hash ? 'desk.passcode_set' : 'desk.passcode_clear', slug);
       res.json({ ok: true, locked: !!hash });
     } catch (err) { fail(res, err, 'Set passcode'); }
+  });
+
+  app.put('/api/desk/:slug/privacy', deskGate(), async (req, res) => {
+    try {
+      const d = await deps();
+      const { slug, access } = ctx(req);
+      if (typeof req.body?.shareWithGroup !== 'boolean') return res.status(400).json({ error: 'shareWithGroup must be true or false' });
+      await d.setShareBook(slug, req.body.shareWithGroup, access.userId);
+      audit(req, 'desk.privacy', slug, { shareWithGroup: req.body.shareWithGroup });
+      res.json({ ok: true, shareWithGroup: req.body.shareWithGroup });
+    } catch (err) { fail(res, err, 'Desk privacy'); }
   });
 
   // ── Admin hub: desk admins (requireAdminJWT) ───────────

@@ -34,7 +34,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   'trader.passcode_set', 'trader.passcode_clear',
   // Desk admins (docs/DESK_ADMINS.md) — actor is the desk admin's user (or the hub), detail.role says which.
   'desk.assign', 'desk.unassign', 'desk.bot_config', 'desk.bot_enable', 'desk.bot_disable', 'desk.bot_run',
-  'desk.passcode_set', 'desk.passcode_clear',
+  'desk.passcode_set', 'desk.passcode_clear', 'desk.privacy',
 ] as const;
 
 export function adminAuditFile(): string {

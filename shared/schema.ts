@@ -3477,7 +3477,7 @@ export type IvSnapshot = typeof ivSnapshots.$inferSelect;
 // TRADE JOURNAL — Personal trade imports from brokers
 // ==========================================
 
-export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv' | 'alpaca' | 'discord';
+export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv' | 'alpaca' | 'discord' | 'quantedge';
 
 export const journalTrades = pgTable("journal_trades", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -3601,6 +3601,8 @@ export const deskBots = pgTable("desk_bots", {
   enabled: boolean("enabled").notNull().default(false),
   enabledAt: timestamp("enabled_at"),
   config: jsonb("config").notNull(),
+  /** Private by default: the book is visible to the group only when its desk admin opts in. */
+  shareBook: boolean("share_book").notNull().default(false),
   updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -312,5 +312,98 @@ export function deskBotsToRun<T extends { traderSlug: string; enabled: boolean; 
 /** Audit actions written by desk admins (and the super-admin acting on a desk). */
 export const DESK_AUDIT_ACTIONS = [
   'desk.assign', 'desk.unassign', 'desk.bot_config', 'desk.bot_enable', 'desk.bot_disable', 'desk.bot_run',
-  'desk.passcode_set', 'desk.passcode_clear',
+  'desk.passcode_set', 'desk.passcode_clear', 'desk.privacy',
 ] as const;
+
+// ─── Privacy: trader books are private by default ───────────
+
+/**
+ * With DESK_ADMINS on, a trader book (its journal, watchlist, analysis, calls,
+ * leaderboard row and every "I took this" attribution in it) is visible only to
+ * the super-admin and the book's own desk admin — unless the desk admin opts in
+ * to sharing it with the group (desk_bots.share_book). A passcode still locks a
+ * shared book on top of this.
+ */
+export function traderBookVisible(
+  actor: { userId: string | null; isAdmin: boolean },
+  trader: { slug: string; linkedUserId: string | null },
+  sharedWithGroup: boolean,
+): boolean {
+  if (actor.isAdmin) return true;
+  if (actor.userId && trader.linkedUserId === actor.userId) return true;
+  return sharedWithGroup;
+}
+
+// ─── "I took this": NEXUS idea → the taker's journal book ────
+
+/** journal_trades.broker for a trade taken from a QuantEdge idea (no migration: broker is free text). */
+export const QUANTEDGE_IDEA_BROKER = 'quantedge';
+export type JournalOrigin = 'own_idea' | 'quantedge_idea';
+export function journalOriginOf(row: { broker?: string | null }): JournalOrigin {
+  return row.broker === QUANTEDGE_IDEA_BROKER ? 'quantedge_idea' : 'own_idea';
+}
+/** journal_trades.broker_order_id of a taken idea — one take per idea per book. */
+export function tookIdeaKey(ideaId: string): string { return `idea:${ideaId}`; }
+
+export interface TookIdeaSource {
+  id: string; symbol: string; assetType?: string | null; direction?: string | null;
+  optionType?: string | null; strikePrice?: number | null; expiryDate?: string | null;
+  entryPrice?: number | null; entryPremium?: number | null; targetPrice?: number | null; stopLoss?: number | null;
+  source?: string | null; timestamp?: string | null;
+}
+
+/**
+ * The journal row for "I took this". Origin 'quantedge_idea' (broker
+ * 'quantedge'), attribution (who took it, from which desk) in raw_csv_row.
+ * The entry is the trader's fill when given; otherwise the PUBLISHED level,
+ * stamped as such in the notes (never presented as their fill).
+ */
+export function buildTookIdeaTrade(idea: TookIdeaSource, o: {
+  ownerId: string; takenBy: string; deskSlug: string | null; journalKey: string; nowIso: string;
+  entryPrice?: unknown; quantity?: unknown; note?: unknown;
+}): { ok: true; row: Record<string, unknown> } | { ok: false; error: string } {
+  const isOption = idea.assetType === 'option' && !!idea.optionType;
+  const fill = typeof o.entryPrice === 'number' && Number.isFinite(o.entryPrice) && o.entryPrice > 0 ? o.entryPrice : null;
+  if (o.entryPrice !== undefined && o.entryPrice !== null && fill === null) return { ok: false, error: 'entryPrice must be a positive number' };
+  const published = isOption ? (Number(idea.entryPremium) > 0 ? Number(idea.entryPremium) : null) : (Number(idea.entryPrice) > 0 ? Number(idea.entryPrice) : null);
+  const entry = fill ?? published;
+  if (!entry) return { ok: false, error: 'This idea has no published entry — enter your fill price' };
+  let qty = 1;
+  if (o.quantity !== undefined && o.quantity !== null) {
+    if (typeof o.quantity !== 'number' || !Number.isFinite(o.quantity) || o.quantity <= 0 || o.quantity > 100_000) return { ok: false, error: 'quantity must be a positive number' };
+    qty = o.quantity;
+  }
+  const note = typeof o.note === 'string' ? o.note.trim().slice(0, 500) : '';
+  const assetType = isOption ? 'option' : idea.assetType === 'crypto' ? 'crypto' : idea.assetType === 'future' ? 'future' : 'stock';
+  const direction = isOption ? 'long' : idea.direction === 'short' ? 'short' : 'long';
+  const notes = [
+    `Taken from a QuantEdge idea (${idea.source ?? 'NEXUS'}, published ${idea.timestamp ?? 'time unknown'}).`,
+    fill ? `Entry ${fill} = your fill.` : `Entry ${entry} = the PUBLISHED ${isOption ? 'premium' : 'entry'}, not your fill — edit it to your fill.`,
+    idea.targetPrice != null || idea.stopLoss != null ? `Published plan (underlying): target ${idea.targetPrice ?? '—'} · stop ${idea.stopLoss ?? '—'}` : null,
+    note || null,
+  ].filter(Boolean).join('\n');
+  return {
+    ok: true,
+    row: {
+      userId: o.ownerId,
+      symbol: String(idea.symbol).toUpperCase(),
+      assetType, direction,
+      optionType: isOption ? idea.optionType : null,
+      strikePrice: isOption ? idea.strikePrice ?? null : null,
+      expiryDate: isOption ? idea.expiryDate ?? null : null,
+      quantity: qty,
+      entryPrice: entry,
+      entryTime: o.nowIso,
+      status: 'open',
+      outcome: 'open',
+      notes,
+      setupType: idea.source ?? null,
+      broker: QUANTEDGE_IDEA_BROKER,
+      brokerOrderId: tookIdeaKey(idea.id),
+      rawCsvRow: {
+        origin: 'quantedge_idea', ideaId: idea.id, takenBy: o.takenBy, deskSlug: o.deskSlug, journal: o.journalKey,
+        entryBasis: fill ? 'fill' : 'published', takenAt: o.nowIso,
+      },
+    },
+  };
+}

@@ -66,6 +66,12 @@ const attachmentSchema = z.object({
 /** Account balance cache (Alpaca /v2/account is rate-limited; one read per user per minute). */
 const balanceCache = new Map<string, { at: number; value: unknown }>();
 
+/** DESK_ADMINS privacy: which trader books this caller may see (all, when the flag is off). */
+async function visibleTo(actor: { userId: string | null; isAdmin: boolean }) {
+  const { traderVisibilityFor } = await import('./desk-admin');
+  return traderVisibilityFor(actor);
+}
+
 export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   // ── Bars for the Loss analysis page ──────────────────────
   // One request for up to 25 symbols instead of one per symbol per interval
@@ -106,7 +112,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const slug = String(req.params.slug || '').toLowerCase();
       const code = String(req.body?.passcode ?? '');
       const t = await getTraderBySlug(slug);
-      if (!t) return res.status(404).json({ error: 'No such trader' });
+      if (!t || !(await visibleTo(await journalActor(req)))(t)) return res.status(404).json({ error: 'No such trader' });
       if (!t.passcodeHash) return res.json({ ok: true, unlocked: slug });
       const sess: any = (req as any).session;
       if (!sess) return res.status(401).json({ error: 'Sign in first' });
@@ -158,7 +164,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
         { key: 'desk', kind: 'desk', label: 'NEXUS ideas', hint: 'Official · every idea NEXUS published, scored as a trade', readOnly: true, canWrite: false },
         { key: 'bot', kind: 'bot', label: 'Quantinum Bot', hint: "Official · Quantinum Bot's paper fills", readOnly: true, canWrite: false },
         { key: 'mine', kind: 'mine', label: mineLabel, hint: 'Your trades — manual, broker CSV, Alpaca', readOnly: false, canWrite: !!actor.userId },
-        ...list.filter((t) => !(actor.userId && t.linkedUserId === actor.userId)).map((t): JournalSourceListItem => {
+        ...list.filter((t) => !(actor.userId && t.linkedUserId === actor.userId)).filter(await visibleTo(actor)).map((t): JournalSourceListItem => {
           const canWrite = canWriteTrader(actor, t);
           return { key: `trader:${t.slug}`, kind: 'trader', label: t.name, hint: `${t.name}'s journal${t.source ? ` · from ${t.source}` : ''}`, readOnly: !canWrite, canWrite, locked: isTraderLocked(actor, t) };
         }),
@@ -331,7 +337,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   app.get('/api/traders', requireBetaAccess, async (req, res) => {
     try {
       const actor = await journalActor(req);
-      const list = await listTraders();
+      const list = (await listTraders()).filter(await visibleTo(actor));
       const counts = await db.select({ traderId: traderWatchlistItems.traderId, n: sql<number>`count(*)::int` })
         .from(traderWatchlistItems).groupBy(traderWatchlistItems.traderId);
       const n = new Map(counts.map((c) => [c.traderId, c.n]));
@@ -387,7 +393,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
     try {
       const actor = await journalActor(req);
       const t = await getTraderBySlug(String(req.params.slug));
-      if (!t) return res.status(404).json({ error: 'No such trader' });
+      if (!t || !(await visibleTo(actor))(t)) return res.status(404).json({ error: 'No such trader' });
       const items = await db.select().from(traderWatchlistItems).where(eq(traderWatchlistItems.traderId, t.id)).orderBy(traderWatchlistItems.addedAt);
       res.json({ trader: { slug: t.slug, name: t.name }, canWrite: canWriteTrader(actor, t), items: items.map(({ id, symbol, note, addedAt }) => ({ id, symbol, note, addedAt })) });
     } catch (err) { fail(res, err, 'Trader watchlist'); }
@@ -535,10 +541,14 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   });
 
   // ── Trader analysis, leaderboard, NEXUS trader-call evidence ──
-  app.get('/api/traders/leaderboard', requireBetaAccess, async (_req, res) => {
+  app.get('/api/traders/leaderboard', requireBetaAccess, async (req, res) => {
     try {
       const { leaderboard } = await import('./trader-analysis');
-      res.json(await leaderboard());
+      const board = await leaderboard();
+      const all = await listTraders();
+      const vis = await visibleTo(await journalActor(req));
+      const ok = new Set(all.filter(vis).map((t) => t.slug));
+      res.json({ ...board, rows: board.rows.filter((r: { slug: string }) => ok.has(r.slug)) });
     } catch (err) { fail(res, err, 'Trader leaderboard'); }
   });
 
@@ -546,6 +556,8 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
     try {
       const slug = String(req.params.slug).toLowerCase();
       if (!TRADER_SLUG_RE.test(slug)) return res.status(400).json({ error: 'Invalid trader' });
+      const t0 = await getTraderBySlug(slug);
+      if (!t0 || !(await visibleTo(await journalActor(req)))(t0)) return res.status(404).json({ error: 'No such trader' });
       const { traderAnalysis, leaderboard } = await import('./trader-analysis');
       const a = await traderAnalysis(slug);
       if (!a) return res.status(404).json({ error: 'No such trader' });
@@ -560,7 +572,10 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const symbol = typeof req.query.symbol === 'string' && SYMBOL_RE.test(req.query.symbol.toUpperCase()) ? req.query.symbol.toUpperCase() : null;
       const { traderCallsFeed } = await import('./trader-analysis');
       res.setHeader('Cache-Control', 'private, max-age=30');
-      res.json(await traderCallsFeed({ symbol }));
+      const feed = await traderCallsFeed({ symbol });
+      const vis = await visibleTo(await journalActor(req));
+      const ok = new Set((await listTraders()).filter(vis).map((t) => t.slug));
+      res.json({ ...feed, traders: feed.traders.filter((t: { slug: string }) => ok.has(t.slug)), calls: feed.calls.filter((c: { trader: { slug: string } }) => ok.has(c.trader.slug)) });
     } catch (err) { fail(res, err, 'Trader calls'); }
   });
 
