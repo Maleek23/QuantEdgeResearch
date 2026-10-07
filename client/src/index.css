@@ -2846,9 +2846,9 @@ button:not([disabled]):active,
 /* Bare ticker links (SPY, MU, GEV…) were as narrow as the word — 18–35px — and inline
    in tables, so the min-height above never applied. On touch they are 44×44 boxes. */
 @media (max-width:767px),(pointer:coarse){
-  :is(.sx-sym,.zd-sym-link,.st-link.st-mono,a.lx-tag){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  :is(.sx-sym,.zd-sym-link,.st-link.st-mono,a.lx-tag,.ah-link){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
   /* bordered chips keep their compact look; the 44px hit area is an invisible ::after */
-  :is(a.si-sym,.ig-strip a)[href][href]{position:relative;min-height:0!important} /* outranks the a[href] 44px floor */
+  :is(a.si-sym,.ig-strip a)[href][href][href][href]{position:relative;min-height:0!important} /* outranks the a[href] 44px floor */
   :is(.si-sym,.ig-strip a)::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 }
 /* Mouse: the same links were 15–22px tall — below WCAG 2.5.8's 24px target minimum. */

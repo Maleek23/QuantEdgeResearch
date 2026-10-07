@@ -63,6 +63,19 @@
   html[data-mode] .flowdash .bot-only .book-pos>div:first-child,
   html[data-mode] .botlab .book-pos>div:first-child{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
 
+  /* LEAPS / CATALYST (mock boards): the header and summary carried desktop padding (20px 28px)
+     and their own ground inside the page section — a box in a box in a box on a phone */
+  html[data-mode] .nexus-vars .leaps-header{padding:12px 4px 10px;background:none;backdrop-filter:none}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary{padding:12px 4px}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-card{padding:10px 12px}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-val{font-size:var(--ph-kpi);font-variant-numeric:tabular-nums}
+  html[data-mode] :is(.nexus-vars,.catalystlab) .summary-label{font-size:var(--ph-label)!important;letter-spacing:.05em}
+
+  /* freshness chips (qe-phone.tsx) were scaled to 10px by their containers */
+  html[data-mode] .qp-chip{font-size:11px}
+  /* links / text buttons stretched to 44px keep their label centred */
+  html[data-mode] :is(.rti-row-open,.sx-link-btn,.ah-link){display:inline-flex;align-items:center;min-height:44px}
+
   /* ── spacing: tiles and panels breathe without eating the width ── */
   html[data-mode] :is(.lx-kpi,.lx-kpi-tile,.stat-card,.sx-kpi){padding:10px 12px}
   html[data-mode] .lx-panel>:is(.lx-panel-body,.lx-panel-head){padding-left:12px;padding-right:12px}
