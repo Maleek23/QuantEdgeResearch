@@ -68,6 +68,11 @@ async function cycle(origin: string): Promise<void> {
 export const scheduleQuantBotInWeb = (log: LogFn) => scheduleQuantBot(log);
 
 export async function scheduleQuantBot(log: LogFn): Promise<void> {
+  // The bot belongs to the worker (ROLE=worker, or ROLE=all single-process).
+  // Origins used to be labelled 'web' even in the worker, which read as a
+  // double run in the logs; runBotCycle also refuses under ROLE=web.
+  const { processRole } = await import('./lib/process-role');
+  if (processRole() === 'web') { log('🤖 [QUANT-BOT] not scheduled — ROLE=web; the worker owns the bot'); return; }
   const { setBotDiscordAlerts } = await import('./quant-bot');
   setBotDiscordAlerts(process.env.QUANT_BOT_DISCORD === '1');
   const cron = (await import('./guarded-cron')).default;
@@ -76,17 +81,20 @@ export async function scheduleQuantBot(log: LogFn): Promise<void> {
 
   cron.schedule('4-54/10 9-15 * * 1-5', () => {
     if (etMinutes().mins < 9 * 60 + 34) return; // let the open print settle
-    void cycle('web');
+    void cycle('worker');
   }, ET);
-  cron.schedule('56 15 * * 1-5', () => { void cycle('web 0DTE flatten'); }, ET);
-  cron.schedule('20 16 * * 1-5', () => { void cycle('web post-close settle'); }, ET);
+  // 0DTE sleeve hard flatten at 15:45 ET (BOT_0DTE_FLATTEN_ET) — its own tick so
+  // it never waits for the 15:54 cycle.
+  cron.schedule('45 15 * * 1-5', () => { void cycle('worker 0DTE sleeve flatten'); }, ET);
+  cron.schedule('56 15 * * 1-5', () => { void cycle('worker 0DTE flatten'); }, ET);
+  cron.schedule('20 16 * * 1-5', () => { void cycle('worker post-close settle'); }, ET);
 
   // Boot: a woken bot checks its book first (index.ts rationale). Off-hours it
   // only settles expiries — never enters on a closed market.
   if (isSchedulerLeader()) {
     setTimeout(() => {
       const { mins, weekday } = etMinutes();
-      if (weekday && mins >= 9 * 60 + 34 && mins < 16 * 60) { void cycle('web boot'); return; }
+      if (weekday && mins >= 9 * 60 + 34 && mins < 16 * 60) { void cycle('worker boot'); return; }
       void (async () => {
         try {
           const { reconcileExpiredBotPositions } = await import('./bot-reconcile');
@@ -99,5 +107,5 @@ export async function scheduleQuantBot(log: LogFn): Promise<void> {
     }, 120_000);
   }
 
-  log(`🤖 [WEB] Quant bot scheduled — paper cycle every 10m 09:34–15:54 ET, 15:56 0DTE flatten, 16:20 expiry settle; Discord ${process.env.QUANT_BOT_DISCORD === '1' ? 'on' : 'off'} (QUANT_BOT_IN_WEB=false disables)`);
+  log(`🤖 [WORKER] Quant bot scheduled (ROLE=${processRole()}) — paper cycle every 10m 09:34–15:54 ET, 15:45 0DTE-sleeve flatten, 15:56 0DTE flatten, 16:20 expiry settle; Discord ${process.env.QUANT_BOT_DISCORD === '1' ? 'on' : 'off'} (QUANT_BOT_IN_WEB=false disables)`);
 }

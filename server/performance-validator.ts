@@ -191,9 +191,9 @@ export interface RealPerformanceStats {
 interface ValidationResult {
   shouldUpdate: boolean;
   outcomeStatus?: TradeIdea['outcomeStatus'];
-  exitPrice?: number;
+  exitPrice?: number | null;
   realizedPnL?: number;
-  percentGain?: number;
+  percentGain?: number | null;
   resolutionReason?: TradeIdea['resolutionReason'];
   exitDate?: string;
   /**

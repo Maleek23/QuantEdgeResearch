@@ -19,6 +19,7 @@ import { passesShortDiscipline, isBtcProxy, isSubstantiveEventCatalyst } from '.
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
+import { applyEnrichedContract } from '../shared/idea-price-scale';
 import { validateTradeWithChart, analyzeChart } from './chart-analysis';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { historicalIntelligenceService } from './historical-intelligence-service';
@@ -909,15 +910,16 @@ function calculateLevels(
   let targetPrice: number;
   let stopLoss: number;
 
-  // Asset-type-specific multipliers for targets
+  // Asset-type-specific multipliers for targets. Options get the STOCK
+  // multipliers: these are UNDERLYING levels (the contract premium lives in
+  // entryPremium — shared/idea-price-scale.ts). The old 25% / 6.25% option
+  // multipliers were premium-move sizes applied to the share price.
   const targetMultiplier = assetType === 'crypto' ? 1.5 :  // 12% min for crypto
-                           assetType === 'option' ? 3.125 : // 25% min for options
-                           1.0;  // 8% min for stocks
+                           1.0;  // 8% min for stocks and options' underlying
   
   // v3.2: WIDENED STOPS - Research shows 3.5% for stocks, 5% for crypto
   const stopMultiplier = assetType === 'crypto' ? 1.43 :  // 5% for crypto (was 3%)
-                         assetType === 'option' ? 1.79 : // 6.25% for options (unchanged)
-                         1.0;  // 3.5% for stocks (was 2%)
+                         1.0;  // 3.5% for stocks and options' underlying (was 2%)
 
   // Handle SHORT positions
   if (signal.direction === 'short' || (assetType === 'option' && optionType === 'put')) {
@@ -2061,15 +2063,11 @@ export async function generateQuantIdeas(
       const enrichedOption = await enrichOptionIdea(aiIdea, { holdingPeriod: idea.holdingPeriod });
       
       if (enrichedOption) {
-        // Replace stock-based prices with real option premium prices
-        idea.entryPrice = enrichedOption.entryPrice;
-        idea.targetPrice = enrichedOption.targetPrice;
-        idea.stopLoss = enrichedOption.stopLoss;
-        idea.riskRewardRatio = enrichedOption.riskRewardRatio;
-        idea.strikePrice = enrichedOption.strikePrice;
-        idea.optionType = enrichedOption.optionType;
-        idea.expiryDate = enrichedOption.expiryDate;
-        idea.analysis = enrichedOption.analysis; // Use enriched analysis with option details
+        // entry/target/stop STAY on the underlying; the contract mid goes to
+        // entryPremium (shared/idea-price-scale.ts). Overwriting them with the
+        // premium made the write-point premium guard republish these as STOCK
+        // ideas with a $2.40 "share" entry — 17 rows, +$273k phantom P&L.
+        idea = applyEnrichedContract(idea, enrichedOption) as InsertTradeIdea;
         isLottoPlay = enrichedOption.isLottoPlay;
         
         logger.info(`✅ [QUANT-OPTIONS] Enriched ${data.symbol} option${isLottoPlay ? ' (LOTTO PLAY)' : ''} - Premium: $${enrichedOption.entryPrice.toFixed(2)}, Strike: $${enrichedOption.strikePrice}, Type: ${enrichedOption.optionType}`);

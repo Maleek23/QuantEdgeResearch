@@ -50,7 +50,21 @@ export interface QuantBotStatus {
   runs?: BotRunStatusView[];
   config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number; maxProgressPct?: number };
   repricedAt?: string | null;
-  lastCycle?: { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string } | null;
+  lastCycle?: {
+    at: string; origin: string; opened: number; closed: number; skipped: number; openCount: number; error?: string;
+    pid?: number; role?: string;
+    /** Why candidates were refused that cycle (server/quant-bot.ts SkipTally). */
+    skipSummary?: {
+      total: number;
+      byReason: Record<string, number>;
+      bySleeve: Record<string, Record<string, number>>;
+      top: Array<{ symbol: string; sleeve: string; code: string; reason: string }>;
+      capacity?: Record<string, { held: number; max: number }>;
+    };
+    openedList?: Array<{ symbol: string; reason: string }>;
+  } | null;
+  /** Two sleeves, separate capacity (shared/bot-sleeves.ts). */
+  sleeves?: Record<'0dte' | 'swing', { held: number; max: number; [k: string]: unknown }>;
 }
 
 class HttpError extends Error { constructor(public status: number, msg: string) { super(msg); } }

@@ -91,7 +91,7 @@ export interface ConvictionPick {
   priceIsLive?: boolean;
 
   /** A plan becomes live only after a trigger or recorded execution. */
-  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
+  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'invalidated' | 'closed';
   /** Exact publish time (ISO). */
   calledAt?: string | null;
   /** Exact time price traded through the trigger (ISO). */
@@ -215,7 +215,7 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
  */
 export const CONVICTIONS_QUERY_KEY = ['/api/convictions', 'nexus-prototype'] as const;
 export function isLiveBookPick(p: { isBotHeld?: boolean | null; lifecycleState?: string | null; convictionScore?: number | null }): boolean {
-  return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'closed';
+  return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'invalidated' && p.lifecycleState !== 'closed';
 }
 
 /** "Sep 30 · 10:42:13 AM ET" — exact, always Eastern. */

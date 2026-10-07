@@ -13,7 +13,7 @@ import { db } from './db';
 import { tradeIdeas } from '@shared/schema';
 import { eq, sql, and, gte, lte, isNotNull, ne } from 'drizzle-orm';
 import { logger } from './logger';
-import { isRealLoss } from '@shared/constants';
+import { classifyOutcomeV2 } from '@shared/constants';
 
 export interface CalibrationData {
   assetType: string;
@@ -89,6 +89,7 @@ export async function refreshCalibrationCache(): Promise<void> {
       source: string;
       totalTrades: number;
       winCount: number;
+      lossCount: number;
       totalGain: number;  // Sum of all winning gains
       totalLoss: number;  // Sum of all losses (negative values)
       signalSum: number;  // Sum of signal counts
@@ -107,6 +108,7 @@ export async function refreshCalibrationCache(): Promise<void> {
           source: trade.source,
           totalTrades: 0,
           winCount: 0,
+          lossCount: 0,
           totalGain: 0,
           totalLoss: 0,
           signalSum: 0
@@ -114,25 +116,30 @@ export async function refreshCalibrationCache(): Promise<void> {
       }
       
       const acc = accumulators.get(key)!;
+      const outcome = classifyOutcomeV2(trade);
+      const isWin = outcome === 'win';
+      const isLoss = outcome === 'loss';
+      // Do not train confidence from an option status whose contract premium
+      // was never measured at execution/expiry. Also leave breakeven neutral.
+      if (!isWin && !isLoss) continue;
       acc.totalTrades++;
       
       // Count signal occurrences
       const signalCount = trade.qualitySignals?.length || 0;
       acc.signalSum += signalCount;
       
-      const status = (trade.outcomeStatus || '').trim().toLowerCase();
-      const isWin = status === 'hit_target';
-      const isLoss = isRealLoss(trade);
+      const measuredReturn = String(trade.assetType ?? '').toLowerCase() === 'option'
+        ? Number(trade.optionPercentGain)
+        : Number(trade.percentGain);
       
       if (isWin) {
         acc.winCount++;
-        if (trade.percentGain && trade.percentGain > 0) {
-          acc.totalGain += trade.percentGain;
-        }
+        if (Number.isFinite(measuredReturn)) acc.totalGain += measuredReturn;
       }
       
-      if (isLoss && trade.percentGain && trade.percentGain < 0) {
-        acc.totalLoss += trade.percentGain; // Negative value
+      if (isLoss) {
+        acc.lossCount++;
+        if (Number.isFinite(measuredReturn)) acc.totalLoss += measuredReturn; // Negative value
       }
     }
     
@@ -142,8 +149,7 @@ export async function refreshCalibrationCache(): Promise<void> {
     Array.from(accumulators.entries()).forEach(([key, acc]) => {
       const winRate = acc.totalTrades > 0 ? (acc.winCount / acc.totalTrades) * 100 : 0;
       const avgGain = acc.winCount > 0 ? acc.totalGain / acc.winCount : 0;
-      const lossCount = acc.totalTrades - acc.winCount;
-      const avgLoss = lossCount > 0 ? acc.totalLoss / lossCount : 0;
+      const avgLoss = acc.lossCount > 0 ? acc.totalLoss / acc.lossCount : 0;
       const avgSignalCount = acc.totalTrades > 0 ? acc.signalSum / acc.totalTrades : 0;
       
       groups.set(key, {

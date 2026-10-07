@@ -25,7 +25,8 @@ import { FILTERED_PAGES, JOURNAL_GROUPS, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES
 import type { JournalTradeRow } from '../client/src/lib/journal/types';
 import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
-import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
+import { deskVerificationMeta, mapDeskIdea, verifyDeskRows, type DeskIdea } from '../server/journal-row-maps';
+import { deskIntegrityFlags, findDuplicates, isSyntheticOrRetroactive } from '../shared/desk-integrity';
 import { positionBias, positionBiasText } from '../shared/position-bias';
 import { labelBotRuns, pickActiveBotPortfolio, runsCovered } from '../shared/bot-runs';
 import { dueForSettlement, expirySessionOver, nyCloseIso, settleAtExpiry, type OpenBotOptionRow } from '../server/bot-expiry-plan';
@@ -246,6 +247,82 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', percentGain
 
 assert.ok('excluded' in mapDeskIdea(idea({ assetType: 'option', entryPremium: null })), 'option without premium is excluded');
 assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionReason: 'missed_entry_would_have_won', percentGain: 12 })), 'never-entered idea is not a trade');
+
+// ── NEXUS book verification (audit 2026-10-06): inflated rows are not counted ──
+{
+  const closedAt = '2026-09-02T15:00:00Z';
+  const opt = (p: Partial<DeskIdea>) => idea({ assetType: 'option', optionType: 'call', strikePrice: 100, entryPrice: 101, entryPremium: 2, outcomeStatus: 'hit_target', exitPrice: 104, exitDate: closedAt, ...p });
+  const flagsOf = (i: DeskIdea) => deskIntegrityFlags(i).map((f) => f.code);
+  // Clean option + stock rows: nothing fails.
+  assert.deepEqual(flagsOf(opt({ exitPremium: 4.5 })), []);
+  assert.deepEqual(flagsOf(idea({ outcomeStatus: 'hit_target', exitPrice: 110, highestPriceReached: 111, lowestPriceReached: 99 })), []);
+  // Premium-space ladder (SMCI: entry 3.09 vs strike 40) — the validator's
+  // unit guard existed but the journal never applied it.
+  assert.ok(flagsOf(opt({ optionType: 'put', strikePrice: 40, entryPrice: 3.09, exitPrice: 1.55, entryPremium: 3.09, exitPremium: 38.45 })).includes('premium_scale_ladder'));
+  // Intrinsic floor off a premium-scale fill: put exit premium 38.45 on a 40 strike — passes the ≤K cap, caught by the fill scale.
+  assert.ok(flagsOf(opt({ optionType: 'put', strikePrice: 40, entryPrice: 39, exitPrice: 1.55, entryPremium: 1, exitPremium: 38.45 })).includes('fill_off_strike_scale'));
+  // Exit premium above what the contract can be worth: $866 on a $100 call with the underlying at $104.
+  assert.ok(flagsOf(opt({ exitPremium: 866 })).includes('impossible_exit_premium'));
+  // Entry premium in per-contract units (200 = $2.00 × 100).
+  assert.ok(flagsOf(opt({ entryPremium: 200, exitPremium: 450 })).includes('impossible_entry_premium'));
+  assert.ok(flagsOf(opt({ entryPremium: 0.01, exitPremium: 0.5 })).includes('sub_tick_entry_premium'));
+  assert.ok(flagsOf(opt({ entryPremium: 0.1, exitPremium: 3 })).includes('implausible_contract_multiple'));
+  // Inferred exit from % is a caveat, not a failure.
+  assert.deepEqual(deskIntegrityFlags(opt({ optionPercentGain: 50 })).map((f) => [f.code, f.severity]), [['exit_premium_inferred', 'caveat']]);
+  // Stocks: wrong-instrument exit and exit outside the recorded path.
+  assert.ok(flagsOf(idea({ outcomeStatus: 'hit_target', exitPrice: 8760 })).includes('implausible_underlying_move'));
+  assert.ok(flagsOf(idea({ outcomeStatus: 'hit_target', exitPrice: 120, highestPriceReached: 108, lowestPriceReached: 97 })).includes('exit_outside_recorded_range'));
+  // Synthetic backfill rows are not publications.
+  assert.ok(flagsOf(idea({ outcomeStatus: 'hit_target', exitPrice: 105, dataSourceUsed: 'backfill_synthetic' })).includes('synthetic_or_retroactive'));
+  assert.equal(isSyntheticOrRetroactive({ sessionContext: 'backfill' }), true);
+
+  // Duplicates: same contract published twice while the first was open → the second is labelled.
+  const d = findDuplicates([
+    { id: 'a', symbol: 'NVDA', assetType: 'option', direction: 'long', optionType: 'call', strikePrice: 190, expiryDate: '2026-10-16', entryMs: 1, exitMs: 10 },
+    { id: 'b', symbol: 'nvda', assetType: 'option', direction: 'long', optionType: 'CALL', strikePrice: 190, expiryDate: '2026-10-16T00:00:00Z', entryMs: 5, exitMs: 12 },
+    { id: 'c', symbol: 'NVDA', assetType: 'option', direction: 'long', optionType: 'call', strikePrice: 190, expiryDate: '2026-10-16', entryMs: 11, exitMs: 20 },
+    { id: 'd', symbol: 'NVDA', assetType: 'option', direction: 'long', optionType: 'call', strikePrice: 195, expiryDate: '2026-10-16', entryMs: 5, exitMs: 12 },
+  ]);
+  assert.deepEqual([...d.entries()], [['b', 'a']], 'b overlaps a; c opens after a closed; d is another strike');
+
+  // verifyDeskRows: the default book counts clean rows only, labels the rest.
+  const pair = (i: DeskIdea) => { const m = mapDeskIdea(i); assert.ok('row' in m); return { idea: i, row: (m as any).row }; };
+  const clean = opt({ id: 'clean', exitPremium: 4.5 });
+  const inflated = opt({ id: 'inflated', symbol: 'TSLA', exitPremium: 866 });
+  const dupe = opt({ id: 'dupe', exitPremium: 4.5, timestamp: '2026-09-01T15:00:00Z' });
+  const open = idea({ id: 'open' });
+  const res = verifyDeskRows([pair(clean), pair(inflated), pair(dupe), pair(open)], null);
+  assert.deepEqual(res.counted.map((r) => r.id).sort(), ['desk:clean', 'desk:open']);
+  assert.deepEqual(res.unverified.map((r) => [r.id, r.verification!.reasons[0].code]).sort(), [['desk:dupe', 'duplicate'], ['desk:inflated', 'impossible_exit_premium']]);
+  assert.equal(res.counted.find((r) => r.id === 'desk:clean')!.verification!.status, 'checked');
+  assert.match(res.unverified.find((r) => r.id === 'desk:inflated')!.notes!, /UNVERIFIED — recorded \+\$86,400/);
+  const meta = deskVerificationMeta(res, null, false);
+  assert.deepEqual([meta.counted.checked, meta.counted.verified, meta.unverified.count, meta.ledger], [1, 0, 2, null]);
+  assert.equal(meta.unverified.recordedPnL, 86400 + 250);
+  assert.equal(meta.unverified.rows[0].id, 'desk:inflated', 'largest recorded P&L first');
+
+  // A bar ledger overrides: VERIFIED counts (even past a caveat), MISMATCH is not counted and shows the recomputed P&L.
+  const ledger = { asOf: '2026-10-06T22:00:00Z', path: '/tmp/x.json', byId: new Map([
+    ['clean', { verdict: 'MISMATCH' as const, recordedPnL: 250, recomputedPnL: 40, bugClass: 'entry_premium_at_publish_not_trigger', reason: 'entry 2 vs bar 3.6' }],
+    ['inflated', { verdict: 'VERIFIED' as const, recordedPnL: 86400, recomputedPnL: 86400, bugClass: null, reason: null }],
+  ]) };
+  const res2 = verifyDeskRows([pair(clean), pair(inflated), pair(open)], ledger);
+  assert.deepEqual(res2.counted.map((r) => [r.id, r.verification!.status]).sort(), [['desk:inflated', 'verified'], ['desk:open', 'checked']]);
+  assert.deepEqual([res2.unverified[0].id, res2.unverified[0].verification!.recomputedPnL, res2.unverified[0].verification!.reasons[0].code], ['desk:clean', 40, 'bar_mismatch']);
+  // Wiring: loader applies it; the route takes ?unverified=1; the basis panel lists them.
+  const fsx = await import('node:fs');
+  const read = (f: string) => fsx.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  assert.match(read('server/journal-sources.ts'), /verifyDeskRows\(pairs, ledger\)/);
+  assert.match(read('server/routes.ts'), /loadJournal\(j, \{ includeUnverified \}\)/);
+  assert.match(read('client/src/components/journal/journal-switcher.tsx'), /UNVERIFIED — recorded/);
+  // The verifier is read-only: one READ ONLY transaction, rolled back, and no write statement anywhere.
+  const verifier = read('research/verify-nexus-book.ts');
+  assert.match(verifier, /BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY/);
+  assert.match(verifier, /query\('ROLLBACK'\)/);
+  assert.equal(/\b(UPDATE|INSERT INTO|DELETE FROM|TRUNCATE|ALTER TABLE)\b/.test(verifier.replace(/\/\*[\s\S]*?\*\//g, '')), false, 'no write SQL in the verifier');
+  const dry = read('research/repair-nexus-book-dryrun.ts');
+  assert.equal(/from 'pg'|server\/db/.test(dry), false, 'the repair proposal never opens a DB connection');
+}
 
 // ── Discord parser: sample messages ──
 let mid = 0;
@@ -499,7 +576,7 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
   const cls = (row: LossRow, bars: Bar[]) => analyseTrade(row, { h1: bars, d1: null }, t0 + 400 * H);
 
   // Context parsing: desk notes → plan, exit category, conviction; option thesis from the contract.
-  const c = tradeContext(lrow({ notes: 'plan: entry 412.5 · target 430 · stop 405\nconviction band at publish: A\noutcome: expired (time)' }));
+  const c = tradeContext(lrow({ notes: 'plan: entry 412.5 · target 430 · stop 405\nNEXUS grade at publish: A 91 (actionability, unvalidated)\ndiagnostics (unvalidated): conviction band S\noutcome: expired (time)' }));
   assert.deepEqual([c.planEntry, c.target, c.stop, c.exitCat, c.conviction], [412.5, 430, 405, 'expired', 'A']);
   assert.equal(tradeContext(lrow({ assetType: 'option', optionType: 'put', direction: 'long' })).thesis, 'short', 'a bought put is short the underlying');
   assert.equal(tradeContext(lrow({ notes: 'Exit: stop loss hit' })).exitCat, 'stop', 'bot exit reason');

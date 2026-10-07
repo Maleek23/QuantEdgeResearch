@@ -40,6 +40,17 @@ export interface JournalTradeRow {
   exitTimeNote?: string | null;
   /** Desk rows, closed: realized ÷ best favourable underlying move (shared/exit-policy.ts captureRatio). */
   captureRatio?: number | null;
+  /** NEXUS ideas rows: verified (bars) / checked (integrity) / unverified, with reasons (server/journal-row-maps.ts verifyDeskRows). */
+  verification?: {
+    status: 'verified' | 'checked' | 'unverified';
+    basis: 'bars' | 'integrity';
+    reasons: { code: string; detail: string }[];
+    recordedPnL: number | null;
+    recomputedPnL: number | null;
+  };
+  /** Bot options only: outcome has or lacks reconcilable fill/settlement evidence. */
+  measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';
+  measurementNote?: string | null;
   /** Client-derived: an option with no closing fill, settled by the expiry rule — at intrinsic by the server, or $0 unverified (shared/journal-expiry.ts). */
   expiredAssumed?: boolean;
   createdAt?: string | null;

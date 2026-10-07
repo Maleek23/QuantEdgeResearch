@@ -104,6 +104,7 @@ export interface AlpacaChain {
 // ─── Process-wide budget + cooldown ──────────────────────────────────────
 
 let cooldownUntil = 0;
+let opraUnavailableUntil = 0;
 let requestsThisMinute = 0;
 let minuteStart = Date.now();
 // ─── Priority lane ───────────────────────────────────────────────────────
@@ -389,23 +390,24 @@ export interface AlpacaContractQuote {
   ask: number | null;
   last: number | null;
   quoteTime: string | null;
-  feed: typeof ALPACA_OPTIONS_FEED;
-  /** 'chain_cache' = read from a chain this process already holds (no request). */
-  via: 'chain_cache' | 'snapshot';
+  feed: 'indicative' | 'opra';
+  /** 'chain_cache' = cached indicative chain; OPRA is always fetched from latest quotes. */
+  via: 'chain_cache' | 'snapshot' | 'latest_quote';
 }
 
 /**
- * One contract's indicative quote — for marking/pricing a single held or
- * about-to-be-entered contract without pulling a whole chain.
+ * One contract's quote without pulling a whole chain. OPRA requests use the
+ * latest-quotes endpoint; indicative requests may reuse the chain cache.
  *
- * Reads a fresh cached chain first (zero requests), else ONE snapshot request
- * (`/v1beta1/options/snapshots?symbols=`). It rides the same process-wide
+ * Indicative reads use a fresh cached chain first (zero requests), else ONE
+ * snapshot request (`/v1beta1/options/snapshots?symbols=`). OPRA uses the
+ * latest-quotes endpoint directly. Both ride the same process-wide
  * budget and serial queue as every other Alpaca call, in the BACKGROUND lane
  * unless the caller wrapped it in withAlpacaPriority. Returns null when
  * unconfigured, cooling down, or Alpaca has no quote for the contract —
  * callers fall through to CBOE.
  */
-export async function getAlpacaContractQuote(occ: string): Promise<AlpacaContractQuote | null> {
+export async function getAlpacaContractQuote(occ: string, feed: 'indicative' | 'opra' = 'indicative'): Promise<AlpacaContractQuote | null> {
   if (!isAlpacaOptionsConfigured()) return null;
   const sym = occ.toUpperCase().replace(/^O:/, '');
   const parsed = parseOcc(sym);
@@ -414,16 +416,28 @@ export async function getAlpacaContractQuote(occ: string): Promise<AlpacaContrac
   if (root === 'SPX' || root === 'SPXW' || root === 'VIX' || root === 'NDX' || root === 'RUT') return null;
 
   const now = Date.now();
+  if (feed === 'opra') {
+    if (now < opraUnavailableUntil) return null;
+    const qs = new URLSearchParams({ symbols: sym, feed });
+    const { status, json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/quotes/latest?${qs}`, () => isPriority());
+    if (status === 401 || status === 403) opraUnavailableUntil = Date.now() + 5 * 60_000;
+    const q = json?.quotes?.[sym];
+    if (!q) return null;
+    const bid = num(q.bp), ask = num(q.ap);
+    if (bid == null && ask == null) return null;
+    return { occ: sym, bid, ask, last: null, quoteTime: q.t ?? null, feed, via: 'latest_quote' };
+  }
+
   for (const [key, entry] of chainCache) {
     if (!key.startsWith(`${root}|`) || entry.expiresAt <= now) continue;
     const c = entry.chain.contracts.find((x) => x.occ === sym);
     if (c && (c.bid != null || c.ask != null)) {
-      return { occ: sym, bid: c.bid, ask: c.ask, last: c.last, quoteTime: c.quoteTime, feed: ALPACA_OPTIONS_FEED, via: 'chain_cache' };
+      return { occ: sym, bid: c.bid, ask: c.ask, last: c.last, quoteTime: c.quoteTime, feed, via: 'chain_cache' };
     }
   }
 
   const high = isPriority();
-  const qs = new URLSearchParams({ symbols: sym, feed: ALPACA_OPTIONS_FEED });
+  const qs = new URLSearchParams({ symbols: sym, feed });
   const { json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/snapshots?${qs}`, () => high);
   const s = json?.snapshots?.[sym];
   if (!s) return null;
@@ -431,7 +445,7 @@ export async function getAlpacaContractQuote(occ: string): Promise<AlpacaContrac
   const ask = num(s?.latestQuote?.ap);
   const last = num(s?.latestTrade?.p);
   if (bid == null && ask == null && last == null) return null;
-  return { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed: ALPACA_OPTIONS_FEED, via: 'snapshot' };
+  return { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed, via: 'snapshot' };
 }
 
 export interface AlpacaOptionBar { t: number; o: number; h: number; l: number; c: number; v: number }

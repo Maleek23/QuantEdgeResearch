@@ -1,0 +1,504 @@
+{
+  "summary": {
+    "label": "open_drive replay — measuring / unvalidated; gamma gate NOT evaluated; tiny sample",
+    "sessions": 20,
+    "from": "2026-09-09",
+    "to": "2026-10-06",
+    "orBars": 3,
+    "sessionsWithSignal": 15,
+    "signals": 25,
+    "bySymbol": {
+      "SPY": 9,
+      "QQQ": 7,
+      "IWM": 9
+    },
+    "byDirection": {
+      "long": 12,
+      "short": 13
+    },
+    "underlying": {
+      "target": 12,
+      "stop": 12,
+      "time": 1,
+      "avgR": 0.25
+    },
+    "option": {
+      "measured": 2,
+      "unmeasured": 23,
+      "t1Bracket": {
+        "T1": 2,
+        "stop": 0,
+        "flat": 0,
+        "avgRetPct": 50
+      },
+      "t2Bracket": {
+        "T2": 1,
+        "stop": 1,
+        "flat": 0,
+        "avgRetPct": 30
+      }
+    }
+  },
+  "rows": [
+    {
+      "date": "2026-09-09",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:43",
+      "entry": 293.08,
+      "stop": 294.15,
+      "target": 291.47,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "11:10"
+      },
+      "option": {
+        "occ": "IWM260909P00293000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-11",
+      "symbol": "SPY",
+      "direction": "long",
+      "triggerEt": "09:35",
+      "entry": 765.76,
+      "stop": 764.22,
+      "target": 768.06,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "10:38"
+      },
+      "option": {
+        "occ": "SPY260911C00766000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-11",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:43",
+      "entry": 715.46,
+      "stop": 713.93,
+      "target": 717.76,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "10:47"
+      },
+      "option": {
+        "occ": "QQQ260911C00716000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-14",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:38",
+      "entry": 758.59,
+      "stop": 759.21,
+      "target": 757.65,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "09:42"
+      },
+      "option": {
+        "occ": "SPY260914P00758000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-15",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:35",
+      "entry": 759.4,
+      "stop": 760.34,
+      "target": 757.99,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:13"
+      },
+      "option": {
+        "occ": "SPY260915P00759000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-15",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:35",
+      "entry": 285.96,
+      "stop": 286.93,
+      "target": 284.5,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:47"
+      },
+      "option": {
+        "occ": "IWM260915P00285000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-18",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:35",
+      "entry": 284.09,
+      "stop": 285.27,
+      "target": 282.33,
+      "underlying": {
+        "outcome": "time",
+        "r": 0.1617016855829416,
+        "exitEt": "15:55"
+      },
+      "option": {
+        "occ": "IWM260918P00284000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-18",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:37",
+      "entry": 760.8,
+      "stop": 761.76,
+      "target": 759.36,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:02"
+      },
+      "option": {
+        "occ": "SPY260918P00760000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-21",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:38",
+      "entry": 729.64,
+      "stop": 727.95,
+      "target": 732.18,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "09:54"
+      },
+      "option": {
+        "occ": "QQQ260921C00730000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:36",
+      "entry": 743.82,
+      "stop": 741,
+      "target": 748.05,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "15:52"
+      },
+      "option": {
+        "occ": "QQQ260922C00744000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:35",
+      "entry": 285.2,
+      "stop": 286.17,
+      "target": 283.76,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:05"
+      },
+      "option": {
+        "occ": "IWM260923P00285000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:36",
+      "entry": 772.22,
+      "stop": 773.05,
+      "target": 770.96,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "09:51"
+      },
+      "option": {
+        "occ": "SPY260923P00772000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-24",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:43",
+      "entry": 280.63,
+      "stop": 281.73,
+      "target": 278.98,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "12:17"
+      },
+      "option": {
+        "occ": "IWM260924P00280000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-25",
+      "symbol": "SPY",
+      "direction": "long",
+      "triggerEt": "09:35",
+      "entry": 769.44,
+      "stop": 767.75,
+      "target": 771.98,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "10:04"
+      },
+      "option": {
+        "occ": "SPY260925C00770000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-25",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:35",
+      "entry": 743.59,
+      "stop": 741.66,
+      "target": 746.5,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "10:05"
+      },
+      "option": {
+        "occ": "QQQ260925C00744000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-28",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:37",
+      "entry": 767.29,
+      "stop": 768.61,
+      "target": 765.31,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:43"
+      },
+      "option": {
+        "occ": "SPY260928P00767000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-28",
+      "symbol": "QQQ",
+      "direction": "short",
+      "triggerEt": "09:37",
+      "entry": 739.06,
+      "stop": 741.42,
+      "target": 735.52,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "10:14"
+      },
+      "option": {
+        "occ": "QQQ260928P00739000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-29",
+      "symbol": "SPY",
+      "direction": "short",
+      "triggerEt": "09:35",
+      "entry": 765.39,
+      "stop": 766.98,
+      "target": 763.01,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "11:23"
+      },
+      "option": {
+        "occ": "SPY260929P00765000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-09-29",
+      "symbol": "IWM",
+      "direction": "long",
+      "triggerEt": "09:43",
+      "entry": 280.9,
+      "stop": 279.89,
+      "target": 282.43,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "09:48"
+      },
+      "option": {
+        "occ": "IWM260929C00281000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-10-01",
+      "symbol": "IWM",
+      "direction": "long",
+      "triggerEt": "09:35",
+      "entry": 278.11,
+      "stop": 277.23,
+      "target": 279.43,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "09:40"
+      },
+      "option": {
+        "occ": "IWM261001C00279000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-10-01",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:39",
+      "entry": 743.41,
+      "stop": 741.04,
+      "target": 746.96,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "09:46"
+      },
+      "option": {
+        "occ": "QQQ261001C00744000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-10-02",
+      "symbol": "IWM",
+      "direction": "long",
+      "triggerEt": "09:37",
+      "entry": 283.07,
+      "stop": 281.9,
+      "target": 284.81,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "11:05"
+      },
+      "option": {
+        "occ": "IWM261002C00284000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-10-02",
+      "symbol": "SPY",
+      "direction": "long",
+      "triggerEt": "09:44",
+      "entry": 771.3,
+      "stop": 769.49,
+      "target": 774.01,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "09:56"
+      },
+      "option": {
+        "occ": "SPY261002C00772000",
+        "error": "no reported option trades (Yahoo)"
+      }
+    },
+    {
+      "date": "2026-10-05",
+      "symbol": "QQQ",
+      "direction": "long",
+      "triggerEt": "09:35",
+      "entry": 751.76,
+      "stop": 749.08,
+      "target": 755.78,
+      "underlying": {
+        "outcome": "target",
+        "r": 1.5,
+        "exitEt": "14:58"
+      },
+      "option": {
+        "occ": "QQQ261005C00752000",
+        "entryPremium": 1.7300000190734863,
+        "t1": "T1",
+        "t1Ret": 50,
+        "t2": "T2",
+        "t2Ret": 100,
+        "mfePct": 102.3
+      }
+    },
+    {
+      "date": "2026-10-05",
+      "symbol": "IWM",
+      "direction": "short",
+      "triggerEt": "09:38",
+      "entry": 280.84,
+      "stop": 282.2,
+      "target": 278.8,
+      "underlying": {
+        "outcome": "stop",
+        "r": -1,
+        "exitEt": "10:10"
+      },
+      "option": {
+        "occ": "IWM261005P00280000",
+        "entryPremium": 0.38999998569488525,
+        "t1": "T1",
+        "t1Ret": 50,
+        "t2": "stop",
+        "t2Ret": -40,
+        "mfePct": 64.1
+      }
+    }
+  ]
+}

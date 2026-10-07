@@ -1,0 +1,48 @@
+run,symbol,signalSource,status,optionType,strike,expiry,quantity,entryTime,exitTime,entryPremium,exitPremium,realizedPnL,outcome,exitReason,entryQuoteSource,entryBid,entryAsk,entryDelayed,entryQuoteTime,entryQuoteAgeSeconds,entryQuoteAudit,exitQuoteSource,exitBid,exitAsk,exitDelayed,exitQuoteTime,exitQuoteAgeSeconds,exitObservedAt,exitQuoteAudit
+Run 2 · 100K · Aug 26–Sep 18,LITE,quant,closed,call,980,2026-09-04,1,2026-08-27T17:00:07.693Z,2026-08-28T14:10:14.551Z,21.7,17.8,-390,loss,trailing_stop_hit_locked_1pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,AAPL,market_scanner,closed,call,325,2026-09-11,3,2026-08-28T13:40:09.689Z,2026-08-31T17:50:03.825Z,2.58,1.75,-249,loss,flow_reversal,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,AFRM,quant,closed,call,77,2026-09-04,3,2026-08-27T13:40:18.129Z,2026-08-28T14:00:08.813Z,4.55,11.95,2220,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,PANW,quant,closed,call,400,2026-09-04,3,2026-08-27T13:40:16.151Z,2026-08-27T14:30:05.090Z,2.79,11.9,2733,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,MSFT,quant,closed,call,500,2026-09-04,3,2026-08-26T19:49:07.215Z,2026-08-27T14:30:06.495Z,6.33,9.2,861,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SHOP,quant,closed,call,160,2026-09-04,3,2026-08-27T13:40:16.819Z,2026-08-27T13:50:04.744Z,1.27,0.88,-117,loss,soft_stop_31pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,RIVN,quant,closed,call,17.5,2026-09-04,3,2026-08-27T14:10:16.063Z,2026-08-28T13:50:16.794Z,0.27,0.14,-39,loss,hard_stop_48pct_loss,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,HOOD,quant,closed,call,115,2026-09-04,3,2026-08-27T13:50:08.238Z,2026-08-28T13:50:17.542Z,1.77,1.6,-51,loss,trailing_stop_hit_locked_5pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SNOW,quant,closed,call,350,2026-09-04,3,2026-08-26T19:49:08.898Z,2026-08-27T16:50:07.372Z,8.63,13.2,1371,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,WDAY,quant,closed,call,200,2026-09-18,2,2026-08-27T18:30:11.745Z,2026-08-28T14:00:10.217Z,10,5.5,-900,loss,thesis_invalidated_45pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SHOP,quant,closed,call,160,2026-09-04,3,2026-08-27T14:10:15.027Z,2026-08-28T14:00:10.942Z,2.34,1.62,-216,loss,soft_stop_31pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SHOP,quant,closed,call,160,2026-09-04,3,2026-08-27T13:50:06.912Z,2026-08-27T14:10:06.973Z,1.27,2.1,249,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,LITE,quant,closed,call,1000,2026-09-04,1,2026-08-26T19:49:08.009Z,2026-08-27T14:10:07.761Z,28.65,19.2,-945,loss,soft_stop_33pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,TSLA,quant,closed,call,355,2026-09-18,2,2026-08-27T18:20:06.809Z,2026-08-28T13:50:15.294Z,13.48,15.3,364,win,flow_reversal,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SNOW,market_scanner,closed,call,360,2026-09-11,2,2026-08-28T13:50:20.081Z,2026-09-01T17:00:06.790Z,11.2,7.25,-790,loss,thesis_invalidated_35pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,PANW,quant,closed,call,412.5,2026-09-04,3,2026-08-27T17:20:09.112Z,2026-08-28T13:50:15.971Z,8.97,4.9,-1221,loss,hard_stop_45pct_loss,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,WDC,quant,closed,call,530,2026-09-25,1,2026-08-28T13:50:24.054Z,2026-09-01T17:20:35.045Z,14.97,7.8,-717,loss,thesis_invalidated_48pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,AMZN,market_scanner,closed,call,265,2026-09-11,3,2026-08-28T13:50:23.007Z,2026-08-31T18:30:05.859Z,2.98,2.42,-168,loss,flow_reversal,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,WDAY,quant,closed,call,200,2026-09-18,3,2026-08-28T14:00:13.427Z,2026-08-31T17:50:02.610Z,6.6,10.8,1260,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,SDOW,market_scanner,closed,call,21,2026-09-18,3,2026-09-08T19:00:04.187Z,2026-09-10T13:10:07.798Z,1.9,2.8,270,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 1 · 10K · Aug 24–Sep 18,COPX,quant,closed,call,105,2026-09-18,1,2026-08-24T13:30:06.939Z,2026-09-18T20:00:00.000Z,1.73,0,-173,loss,expired,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,XOM,market_scanner,closed,call,165,2026-09-18,3,2026-09-09T14:52:48.650Z,2026-09-10T14:00:09.386Z,2.67,4.1,429,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,AAPL,market_scanner,closed,call,322.5,2026-09-11,3,2026-08-31T19:40:28.244Z,2026-09-08T18:50:03.594Z,3.03,2.05,-294,loss,trailing_stop_hit_locked_64pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,MDB,market_scanner,closed,call,500,2026-09-18,1,2026-08-31T19:30:43.053Z,2026-09-08T18:50:04.264Z,21.68,1.03,-2065,loss,hard_stop_95pct_loss,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,PATH,quant,closed,call,19,2026-09-18,3,2026-08-28T14:00:15.101Z,2026-09-08T18:50:04.930Z,1.37,0.09,-384,loss,hard_stop_93pct_loss,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,PANW,market_scanner,closed,call,410,2026-09-11,2,2026-08-31T19:30:42.367Z,2026-09-01T16:50:18.423Z,9.7,4.2,-1100,loss,hard_stop_57pct_loss,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,NET,quant,closed,call,310,2026-09-18,3,2026-08-27T13:40:15.375Z,2026-09-01T16:50:19.238Z,6.15,5.2,-285,loss,trailing_stop_hit_locked_39pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,QCOM,quant,closed,call,160,2026-10-02,1,2026-08-31T19:40:26.615Z,2026-09-09T13:55:12.350Z,13.97,20,603,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,PM,flow,closed,call,190,2026-10-16,3,2026-09-24T18:39:26.207Z,2026-09-25T16:10:47.015Z,5.2,3.1,-630,loss,soft_stop_40pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,ETHA,market_scanner,closed,call,21.5,2026-10-09,3,2026-09-25T16:28:46.219Z,2026-09-29T17:27:38.708Z,0.32,0.18,-42,loss,thesis_invalidated_44pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,B,market_scanner,closed,call,30,2026-09-18,3,2026-09-09T13:57:09.758Z,2026-09-18T20:00:00.000Z,6.38,13.33,2085,win,expired,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,PLTR,gex_scanner,closed,call,200,2026-10-02,3,2026-09-25T13:25:13.879Z,2026-09-25T15:53:36.640Z,2.7,1.8,-270,loss,soft_stop_33pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,AAPL,flow,closed,put,335,2026-10-02,3,2026-09-25T12:45:51.528Z,2026-09-25T15:53:37.329Z,3.85,2.53,-396,loss,soft_stop_34pct,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,AAPL,market_scanner,closed,call,325,2026-09-18,3,2026-09-09T13:57:08.177Z,2026-09-18T20:00:00.000Z,2.94,11.13,2457,win,expired,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,PLUG,market_scanner,closed,call,2,2026-09-18,3,2026-09-08T19:00:04.998Z,2026-09-18T20:00:00.000Z,0.3,0.09,-63,loss,expired,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,JNJ,quant,open,call,260,2026-10-16,2,2026-08-28T14:20:08.454Z,,13.18,,,open,,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,KEYS,market_scanner,closed,call,340,2026-10-16,1,2026-09-24T18:39:26.740Z,2026-10-01T14:52:20.487Z,23.1,32.619,951.9,win,gap_magnet,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,SU,market_scanner,closed,call,70,2026-10-16,3,2026-09-25T15:53:50.629Z,2026-09-30T16:45:02.121Z,1.63,0.85,-234,loss,thesis_invalidated_48pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,NFLX,gex_scanner,closed,call,75,2026-10-16,3,2026-09-25T13:38:06.560Z,2026-09-28T14:12:07.990Z,1.04,0.51,-159,loss,soft_stop_51pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,SNOW,gex_scanner,closed,call,420,2027-01-15,1,2026-09-25T13:38:05.699Z,2026-09-28T14:12:11.156Z,25.18,9.8,-1538,loss,soft_stop_61pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,AAPL,market_scanner,open,call,365,2026-11-20,1,2026-10-02T14:17:42.859Z,,2.87,,,open,,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,BTC,market_scanner,open,call,31,2026-10-16,3,2026-09-25T17:12:59.205Z,,6.45,,,open,,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,SWKS,market_scanner,closed,call,80,2026-10-16,2,2026-09-25T15:53:52.646Z,2026-09-30T17:15:07.307Z,11.1,6.61,-898,loss,thesis_invalidated_40pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,NVS,market_scanner,open,call,135,2026-10-16,3,2026-09-24T18:39:27.364Z,,8.85,,,open,,,,,,,,missing,,,,,,,,missing
+Run 2 · 100K · Aug 26–Sep 18,DKS,quant,open,call,130,2026-10-16,3,2026-08-28T14:00:14.319Z,,8.45,,,open,,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,SAP,market_scanner,closed,call,210,2026-10-16,3,2026-09-25T15:53:51.729Z,2026-10-02T13:35:21.938Z,8.15,5.32,-849,loss,thesis_invalidated_36pct,,,,,,,missing,,,,,,,,missing
+Run 3 · 100K · Sep 24–,MET,market_scanner,closed,call,95,2026-10-16,3,2026-09-25T16:11:25.407Z,2026-09-29T17:27:39.238Z,3.6,2.05,-465,loss,thesis_invalidated_43pct,,,,,,,missing,,,,,,,,missing

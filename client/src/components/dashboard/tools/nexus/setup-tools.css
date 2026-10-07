@@ -67,3 +67,5 @@
 .nxp-ts ul{margin:0;padding-left:16px;color:var(--text-mute);font:500 10px/1.5 Inter,sans-serif}
 .nxp-ts p{margin:0;color:var(--text-mute);font:500 10px/1.5 Inter,sans-serif}
 @media(max-width:767px){.nxp-ts-grid{grid-template-columns:1fr 1fr}.nxp-ts-btn{min-height:44px}}
+.nxp-timeline-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr);gap:12px;margin-top:12px}
+@media (max-width:760px){.nxp-timeline-grid{grid-template-columns:1fr}}

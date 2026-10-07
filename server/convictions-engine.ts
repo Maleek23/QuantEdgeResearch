@@ -29,8 +29,9 @@ import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/ora
 import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
+import { stripConflictingTargetClaims } from "@shared/plan-narrative";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
-import { gradePick, type NexusGrade } from "@shared/nexus-grade";
+import { gradePick, gradeComponents, gradeComponentsTag, type NexusGrade } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -2102,7 +2103,9 @@ function deriveViewSync(base: ConvictionsResponse, m: BuildConvictionsOptions, w
     picks = picks.map((p) => {
       if (!weekly.has(String(p.symbol).toUpperCase())) return p;
       const convictionScore = Math.max(0, Math.min(100, p.convictionScore + 3));
-      return { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
+      const next = { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
+      // A stamped grade must follow the score it was built from.
+      return p.nexusGrade ? { ...next, nexusGrade: gradePick(next) } : next;
     });
     if (m.weeklyOnly) picks = picks.filter((p) => weekly.has(String(p.symbol).toUpperCase()));
     const mode = base.boardSort ?? "score";
@@ -2867,7 +2870,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
           .filter((l) => l && typeof l.why === "string" && Number.isFinite(Number(l.points)))
           .map((l) => ({ kind: String(l.kind), points: Number(l.points), why: String(l.why) }))
         : null,
-      thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+      thesis: stripConflictingTargetClaims(
+        idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+        Number(idea.targetPrice),
+      ),
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
       generatedAt: idea.generationTimestamp ?? idea.timestamp,
@@ -3045,6 +3051,22 @@ bandFor(p.convictionScore);
     : orderBoard(deconflicted, boardSort);
   const filtered = ordered.filter((p) => p.convictionScore >= minScore).slice(0, limit);
 
+  // 🧪 NEXUS grade components at first surfacing — logged once per idea
+  // (convergenceSignalsJson.nexusGradeAtPublish, never overwritten) so the g2
+  // weights can be validated out of sample (research/grade-audit.ts).
+  async function logGradeAtPublish(p: ConvictionPick): Promise<void> {
+    try {
+      const g = gradePick(p);
+      const rec = gradeComponents(g);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      await db.execute(sql`update trade_ideas
+        set convergence_signals_json = coalesce(convergence_signals_json, '{}'::jsonb) || jsonb_build_object('nexusGradeAtPublish', ${JSON.stringify(rec)}::jsonb)
+        where id = ${p.ideaId} and not (coalesce(convergence_signals_json, '{}'::jsonb) ? 'nexusGradeAtPublish')`);
+      logger.info(`[NEXUS-GRADE] ${p.symbol} ${p.ideaId} ${gradeComponentsTag(g)}`);
+    } catch { /* telemetry only */ }
+  }
+
   // 🧪 Persist the scoring breakdown for the surfaced picks so resolved ideas can
   // be attributed back to the layers that fired (grade-calibration + reweighting).
   // Fire-and-forget + non-fatal: pre-migration column absence or a transient write
@@ -3061,7 +3083,7 @@ bandFor(p.convictionScore);
               genScoringLayers: p.layers.map((l) => ({ kind: l.kind, points: l.points, why: l.why })),
               engineVersion: process.env.GIT_SHA || process.env.RAILWAY_GIT_COMMIT_SHA || 'local-unversioned',
               generationTimestamp: p.generatedAt || new Date().toISOString(),
-            } as any)
+            } as any).then(() => logGradeAtPublish(p))
             : Promise.resolve(),
         ),
       );

@@ -9,8 +9,9 @@
 
 import { db } from '../db';
 import { tradeIdeas } from '@shared/schema';
-import { gte, and, desc, or, eq, isNotNull } from 'drizzle-orm';
+import { gte, and, desc, isNotNull, ne, or, eq } from 'drizzle-orm';
 import { logger } from '../logger';
+import { classifyOutcomeV2 } from '@shared/constants';
 
 export interface CalibrationBin {
   binStart: number;
@@ -54,35 +55,41 @@ export async function runCalibrationStudy(
 
   try {
     // Fetch completed trades with outcomes (using tradeIdeas.outcomeStatus)
-    const completedTrades = await db
+    const fetchedTrades = await db
       .select({
         id: tradeIdeas.id,
         symbol: tradeIdeas.symbol,
-        confidence: tradeIdeas.confidence,
+        confidence: tradeIdeas.confidenceScore,
         direction: tradeIdeas.direction,
         entryPrice: tradeIdeas.entryPrice,
         targetPrice: tradeIdeas.targetPrice,
         stopLoss: tradeIdeas.stopLoss,
-        createdAt: tradeIdeas.createdAt,
+        createdAt: tradeIdeas.timestamp,
         outcomeStatus: tradeIdeas.outcomeStatus,
+        assetType: tradeIdeas.assetType,
         exitPrice: tradeIdeas.exitPrice,
+        percentGain: tradeIdeas.percentGain,
+        entryPremium: tradeIdeas.entryPremium,
+        exitPremium: tradeIdeas.exitPremium,
+        optionPercentGain: tradeIdeas.optionPercentGain,
+        outcomeNotes: tradeIdeas.outcomeNotes,
         source: tradeIdeas.source,
       })
       .from(tradeIdeas)
       .where(
         and(
-          gte(tradeIdeas.createdAt, cutoffDate),
-          or(
-            eq(tradeIdeas.outcomeStatus, 'hit_target'),
-            eq(tradeIdeas.outcomeStatus, 'hit_stop')
-          )
+          gte(tradeIdeas.timestamp, cutoffDate.toISOString()),
+          isNotNull(tradeIdeas.outcomeStatus),
+          ne(tradeIdeas.outcomeStatus, 'open')
         )
       )
-      .orderBy(desc(tradeIdeas.createdAt));
+      .orderBy(desc(tradeIdeas.timestamp));
+
+    const completedTrades = fetchedTrades.filter((trade) => classifyOutcomeV2(trade) !== 'unresolved');
 
     if (completedTrades.length < 30) {
-      logger.warn(`[CALIBRATION] Insufficient data: ${completedTrades.length} trades (need 30+)`);
-      return generateEmptyReport('Insufficient data for calibration study (need 30+ completed trades)');
+      logger.warn(`[CALIBRATION] Insufficient measurable outcomes: ${completedTrades.length} trades after option-premium validation (need 30+)`);
+      return generateEmptyReport('Insufficient measurable outcomes for calibration study (need 30+ decided trades)');
     }
 
     // Create calibration bins (10% intervals)
@@ -111,7 +118,7 @@ export async function runCalibrationStudy(
         continue;
       }
 
-      const wins = tradesInBin.filter(t => t.outcomeStatus === 'hit_target').length;
+      const wins = tradesInBin.filter((trade) => classifyOutcomeV2(trade) === 'win').length;
       const actualWinRate = (wins / tradesInBin.length) * 100;
       const avgConfidence = tradesInBin.reduce((sum, t) => sum + (t.confidence || 0), 0) / tradesInBin.length;
 
@@ -135,7 +142,7 @@ export async function runCalibrationStudy(
 
     // Calculate overall metrics
     const totalTrades = completedTrades.length;
-    const totalWins = completedTrades.filter(t => t.outcomeStatus === 'hit_target').length;
+    const totalWins = completedTrades.filter((trade) => classifyOutcomeV2(trade) === 'win').length;
     const overallAccuracy = (totalWins / totalTrades) * 100;
 
     // Brier Score: Mean squared error of probability predictions
@@ -143,7 +150,7 @@ export async function runCalibrationStudy(
     let brierSum = 0;
     for (const trade of completedTrades) {
       const predicted = (trade.confidence || 50) / 100;
-      const actual = trade.outcomeStatus === 'hit_target' ? 1 : 0;
+      const actual = classifyOutcomeV2(trade) === 'win' ? 1 : 0;
       brierSum += Math.pow(predicted - actual, 2);
     }
     const brierScore = brierSum / totalTrades;
@@ -393,14 +400,14 @@ export async function getWinRateBySource(lookbackDays: number = 90): Promise<Map
       .select({
         source: tradeIdeas.source,
         outcomeStatus: tradeIdeas.outcomeStatus,
-        confidence: tradeIdeas.confidence,
+        confidence: tradeIdeas.confidenceScore,
         entryPrice: tradeIdeas.entryPrice,
         exitPrice: tradeIdeas.exitPrice,
       })
       .from(tradeIdeas)
       .where(
         and(
-          gte(tradeIdeas.createdAt, cutoffDate),
+          gte(tradeIdeas.timestamp, cutoffDate.toISOString()),
           or(
             eq(tradeIdeas.outcomeStatus, 'hit_target'),
             eq(tradeIdeas.outcomeStatus, 'hit_stop')

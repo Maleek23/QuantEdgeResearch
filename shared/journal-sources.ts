@@ -64,6 +64,28 @@ export interface JournalSourceMeta {
   asOf: string;
   /** Bot book: every run (paper portfolio) the rows come from, labelled. */
   runs?: import('./bot-runs').BotRunInfo[];
+  /** NEXUS ideas book: what the counted P&L is verified against, and the closed rows left out. */
+  verification?: DeskVerificationMeta;
+}
+
+export interface DeskUnverifiedItem {
+  id: string;
+  symbol: string;
+  entryTime: string;
+  recordedPnL: number | null;
+  recomputedPnL: number | null;
+  reasons: { code: string; detail: string }[];
+}
+
+export interface DeskVerificationMeta {
+  /** Bar-level ledger (research/verify-nexus-book.ts) the server read, if any. */
+  ledger: { asOf: string; path: string } | null;
+  /** Closed rows counted, by how far they are verified. */
+  counted: { verified: number; checked: number; verifiedPnL: number; checkedPnL: number };
+  /** Closed rows NOT counted by default; recordedPnL is what the book used to add. */
+  unverified: { count: number; recordedPnL: number; byReason: { code: string; label: string; count: number; recordedPnL: number }[]; rows: DeskUnverifiedItem[] };
+  /** True when the response includes the unverified rows (?unverified=1). */
+  includeUnverified: boolean;
 }
 
 /** Entry in the switcher list (GET /api/journal/sources). */

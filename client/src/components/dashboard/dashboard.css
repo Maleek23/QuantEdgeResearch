@@ -631,3 +631,26 @@ html[data-mode=light] .flowdash .gxp-spot,html[data-mode=light] .flowdash .gxp-p
   .flowdash.dash-gex .gx-spot-tag,.flowdash.dash-gex .of-seg button,.flowdash.dash-gex .fd-cue,
   .flowdash.dash-gex .gx-actions span,.flowdash.dash-gex .gx-actions p{font-size:11px}
 }
+
+/* ── show / hide picker + collapsible tiles (NEXUS workspace, PageSpec.toggles) ── */
+.flowdash .fd-pick-n{font:600 10px var(--fd-mono);opacity:.8;margin-left:2px}
+.flowdash .fd-pick-item{justify-content:flex-start}
+.flowdash .fd-pick-box{display:inline-grid!important;place-items:center;width:15px;height:15px;flex:none;border:1px solid var(--nx-border-hi);border-radius:3px;color:var(--cyan)}
+.flowdash .fd-pick-item.on .fd-pick-box{border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent)}
+.flowdash .fd-pick-item:not(.on) .fd-pick-title{color:var(--text-dim)}
+.flowdash .fd-tool.fd-collapsed .fd-tool-head{border-bottom:0;height:100%;align-items:center}
+.flowdash .fd-collapse{margin-left:auto}
+.flowdash .fd-collapse + .fd-icon-btn{margin-left:0}
+
+/* ── workspace scroll mode (use-workspace-mode.ts) ──
+   No scroll traps: a tool's inner scroller hands the wheel / touch scroll to
+   the page at its top and bottom, in both modes. */
+.flowdash .fd-tile .fd-tile-scroller,.flowdash .fd-tile .of-scroll,.flowdash .fd-tile .fd-scroll{overscroll-behavior:auto}
+.flowdash .fd-seg{display:inline-flex}
+.flowdash .fd-seg .fd-btn{border-radius:0}
+.flowdash .fd-seg .fd-btn:first-child{border-radius:5px 0 0 5px}
+.flowdash .fd-seg .fd-btn:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
+.flowdash .fd-seg .fd-btn.on{background:color-mix(in srgb,var(--cyan) 18%,var(--panel-2));color:var(--text);border-color:color-mix(in srgb,var(--cyan) 50%,transparent);position:relative}
+/* PAGE mode: a tile not clicked into passes the wheel to the page (dashboard.tsx onWheel); the engaged one is outlined */
+.flowdash.ws-page .fd-tile.ws-engaged .fd-tool{box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 45%,transparent)}
+.flowdash .fd-expand{font-weight:700}

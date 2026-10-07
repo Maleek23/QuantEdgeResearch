@@ -1,5 +1,39 @@
 import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
+import { capturePlanSnapshot, freezePlanFields, planRiskRewardRatio, readPlanSnapshot, touchesPlan } from "@shared/plan-snapshot";
+
+/**
+ * Published plans are immutable (shared/plan-snapshot.ts): levels are frozen to
+ * the first-publish snapshot; contract terms unknown at publish may be attached
+ * once. A draft -> published transition captures the snapshot.
+ */
+function guardPlanUpdate(existing: Record<string, any>, updates: Record<string, any>): any {
+  const frozen = readPlanSnapshot(existing.convergenceSignalsJson);
+  if (frozen) {
+    const { fields, snapshot } = freezePlanFields(updates, frozen);
+    const base = (updates.convergenceSignalsJson ?? existing.convergenceSignalsJson) as Record<string, unknown> | null;
+    return { ...fields, convergenceSignalsJson: { ...(base && typeof base === 'object' ? base : {}), planSnapshot: snapshot } };
+  }
+  if (updates.status === 'published' && existing.status !== 'published') {
+    const merged = { ...existing, ...updates };
+    return {
+      ...updates,
+      convergenceSignalsJson: capturePlanSnapshot(updates.convergenceSignalsJson ?? existing.convergenceSignalsJson, {
+        direction: merged.direction,
+        holdingPeriod: merged.holdingPeriod ?? 'day',
+        entryPrice: merged.entryPrice,
+        targetPrice: merged.targetPrice,
+        stopLoss: merged.stopLoss,
+        riskRewardRatio: merged.riskRewardRatio,
+        entryPremium: merged.entryPremium,
+        optionType: merged.optionType,
+        strikePrice: merged.strikePrice,
+        expiryDate: merged.expiryDate,
+      }),
+    };
+  }
+  return updates;
+}
 
 import type {
   MarketData,
@@ -190,6 +224,7 @@ import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrent
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
+import { checkIdeaPriceScale, usesEquityQuote } from "@shared/idea-price-scale";
 import { logger } from "./logger";
 
 // ========================================
@@ -214,6 +249,31 @@ import { logger } from "./logger";
  */
 const BEARISH_KEYWORDS = /\b(bearish|breakdown|sell[- ]off|crash|plunge|tumble|collaps|rejected|reversal down|put wall|gamma flip down)\b/i;
 const BULLISH_KEYWORDS = /\b(bullish|breakout|squeeze|surge|rally|ramp|pop|moonshot|call wall break|gamma squeeze)\b/i;
+
+/**
+ * The underlying's live price for the price-scale gate, or null (no quote /
+ * provider slow / not an equity-quoted idea) — a missing quote never rejects.
+ * Cached + de-duplicated by realtime-pricing-service; capped at 3 s.
+ */
+async function liveUnderlyingQuote(idea: { symbol?: string; assetType?: string; sessionContext?: string | null; timestamp?: string | null }): Promise<number | null> {
+  if (!idea?.symbol || !usesEquityQuote(idea.assetType, idea.symbol)) return null;
+  // Backfills / replays carry historical entries — a live quote is not their yardstick.
+  if (idea.sessionContext === "backfill") return null;
+  const ts = idea.timestamp ? Date.parse(idea.timestamp) : NaN;
+  if (Number.isFinite(ts) && Date.now() - ts > 6 * 3_600_000) return null;
+  if (process.env.PRICE_SCALE_QUOTE_CHECK === "off") return null;
+  try {
+    const { getRealtimeQuote } = await import("./realtime-pricing-service");
+    const q = await Promise.race([
+      getRealtimeQuote(idea.symbol, "stock"),
+      new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+    ]);
+    const px = Number((q as any)?.price);
+    return Number.isFinite(px) && px > 0 ? px : null;
+  } catch {
+    return null;
+  }
+}
 
 export function validateTradeIdeaForCreate(
   idea: InsertTradeIdea,
@@ -1586,6 +1646,8 @@ export class MemStorage implements IStorage {
   }
 
   async createTradeIdea(rawIdea: InsertTradeIdea, _opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
+    const scale = checkIdeaPriceScale(rawIdea as any, null);
+    if (!scale.ok) throw new Error(`Invalid trade idea: ${scale.code}: ${scale.reason}`);
     const idea = ensureScorableOptionIdea(rawIdea as any).idea as InsertTradeIdea;
     const id = randomUUID();
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
@@ -1598,6 +1660,19 @@ export class MemStorage implements IStorage {
       confidenceScore: cappedConfidence,
       outcomeStatus: 'open'
     } as TradeIdea;
+    tradeIdea.convergenceSignalsJson = idea.status === 'draft' ? idea.convergenceSignalsJson : capturePlanSnapshot(idea.convergenceSignalsJson, {
+      direction: idea.direction,
+      holdingPeriod: idea.holdingPeriod ?? 'day',
+      entryPrice: idea.entryPrice,
+      targetPrice: idea.targetPrice,
+      stopLoss: idea.stopLoss,
+      riskRewardRatio: idea.riskRewardRatio,
+      entryPremium: idea.entryPremium,
+      optionType: idea.optionType,
+      strikePrice: idea.strikePrice,
+      expiryDate: idea.expiryDate,
+    });
+    tradeIdea.riskRewardRatio = planRiskRewardRatio(idea.entryPrice, idea.targetPrice, idea.stopLoss);
     this.tradeIdeas.set(id, tradeIdea);
     return tradeIdea;
   }
@@ -1605,7 +1680,8 @@ export class MemStorage implements IStorage {
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
-    const updated = { ...existing, ...updates };
+    const safeUpdates = guardPlanUpdate(existing, updates);
+    const updated = { ...existing, ...safeUpdates };
     this.tradeIdeas.set(id, updated);
     return updated;
   }
@@ -2677,6 +2753,18 @@ export class DatabaseStorage implements IStorage {
       ? ({ ...rawIdea, source: normalizeIdeaSource((rawIdea as any).source) } as InsertTradeIdea)
       : rawIdea;
 
+    // 📏 Price-scale gate (shared/idea-price-scale.ts) — BEFORE the premium
+    // guard below, which would otherwise republish an option carrying PREMIUM
+    // levels as a STOCK idea with a $2.40 "share" entry (17 quant ideas,
+    // +$273k phantom P&L, verifier 2026-10-06). Operator-authored rows are left alone.
+    if (!["manual", "user"].includes(String((sourced as any).source ?? "").toLowerCase()) && (sourced as any).status !== "draft") {
+      const scale = checkIdeaPriceScale(sourced as any, await liveUnderlyingQuote(sourced as any));
+      if (!scale.ok) {
+        logger.warn(`[PRICE-SCALE] rejected ${(sourced as any).source ?? "unknown"} ${sourced.symbol} ${(sourced as any).assetType}: ${scale.reason}`);
+        throw new Error(`Invalid trade idea: ${scale.code}: ${scale.reason}`);
+      }
+    }
+
     // 💵 An option idea without an entry premium can never be scored — the
     // journal drops it (SR 11-7 v6 F-4: all 142 spx_session ideas). Publish it
     // as an underlying-only idea that says so. See shared/option-premium-guard.ts.
@@ -2789,9 +2877,22 @@ export class DatabaseStorage implements IStorage {
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedIdea = {
       ...ruled,
+      riskRewardRatio: planRiskRewardRatio(ruled.entryPrice, ruled.targetPrice, ruled.stopLoss),
       confidenceScore: ruled.confidenceScore
         ? Math.min(94, Math.max(0, ruled.confidenceScore))
-        : ruled.confidenceScore
+        : ruled.confidenceScore,
+      convergenceSignalsJson: ruled.status === 'draft' ? ruled.convergenceSignalsJson : capturePlanSnapshot(ruled.convergenceSignalsJson, {
+        direction: ruled.direction,
+        holdingPeriod: ruled.holdingPeriod ?? 'day',
+        entryPrice: ruled.entryPrice,
+        targetPrice: ruled.targetPrice,
+        stopLoss: ruled.stopLoss,
+        riskRewardRatio: ruled.riskRewardRatio,
+        entryPremium: ruled.entryPremium,
+        optionType: ruled.optionType,
+        strikePrice: ruled.strikePrice,
+        expiryDate: ruled.expiryDate,
+      }),
     };
     const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
     return created;
@@ -2856,8 +2957,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
+    let safeUpdates = updates;
+    // The plan guard needs the stored plan only when the update can touch it;
+    // the outcome tracker's frequent updates skip the extra read.
+    if (touchesPlan(updates)) {
+      const [existing] = await db.select({
+        status: tradeIdeas.status,
+        convergenceSignalsJson: tradeIdeas.convergenceSignalsJson,
+        direction: tradeIdeas.direction,
+        holdingPeriod: tradeIdeas.holdingPeriod,
+        entryPrice: tradeIdeas.entryPrice,
+        targetPrice: tradeIdeas.targetPrice,
+        stopLoss: tradeIdeas.stopLoss,
+        riskRewardRatio: tradeIdeas.riskRewardRatio,
+        entryPremium: tradeIdeas.entryPremium,
+        optionType: tradeIdeas.optionType,
+        strikePrice: tradeIdeas.strikePrice,
+        expiryDate: tradeIdeas.expiryDate,
+      }).from(tradeIdeas).where(eq(tradeIdeas.id, id)).limit(1);
+      if (!existing) return undefined;
+      safeUpdates = guardPlanUpdate(existing as any, updates);
+    }
     const [updated] = await db.update(tradeIdeas)
-      .set(updates)
+      .set(safeUpdates)
       .where(eq(tradeIdeas.id, id))
       .returning();
     return updated || undefined;
@@ -4328,6 +4450,8 @@ export class DatabaseStorage implements IStorage {
       optionType: position.optionType ?? undefined,
       strikePrice: position.strikePrice ?? undefined,
       expiryDate: position.expiryDate ?? undefined,
+      entryReason: position.entryReason ?? undefined,
+      entrySignals: position.entrySignals ?? undefined,
       targetPrice: position.targetPrice ?? undefined,
       stopLoss: position.stopLoss ?? undefined,
       currentPrice: position.currentPrice ?? undefined,

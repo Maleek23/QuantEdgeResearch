@@ -167,7 +167,13 @@ export function registerIdeaTimelineRoutes(app: Express, gate: RequestHandler): 
 
   app.post('/api/ideas/:id/test-setup', gate, async (req, res) => {
     try {
-      const out = await testSetup(String(req.params.id));
+      // Each test replays up to MAX_REPLAY ideas' bars sequentially; the droplet is
+      // CPU-bound, so at most two distinct tests run at once (same idea coalesces).
+      const id = String(req.params.id);
+      if (!inflight.has(id) && !cache.get(id) && inflight.size >= 2) {
+        return res.status(429).json({ error: 'two setup tests are already running — try again in a minute' });
+      }
+      const out = await testSetup(id);
       if (!out) return res.status(404).json({ error: 'idea not found — no trade_ideas row for this id' });
       res.json(out);
     } catch (e: any) {

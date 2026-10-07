@@ -179,6 +179,10 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   }, 'high', 'index');
   cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
+  // Open drive (server/open-drive-core.ts): every minute 09:31–09:44 ET — the 1-minute
+  // opening-range policy decides on 1-minute closes. Same guarded pass (the scanner
+  // reuses a pass younger than 60 s), same index lane. OPEN_DRIVE=off disables the policy.
+  cron.schedule('31-44 9 * * 1-5', index0dte, ET);
 
   // ── Index pre-open warm (server/index-prewarm.ts): SPY/QQQ/IWM chains + GEX
   // snapshots and the SPX desk chain, warmed 09:20–09:28 ET and refreshed every
@@ -427,6 +431,20 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('15 16 * * 1-5', board, ET);
     cron.schedule('45 17 * * 1-5', board, ET);
     (await import('./sector-board')).scheduleSectorBoardBootstrap();
+    // Live quotes-only pass (no daily-bar refetch): today / since open / last 30m,
+    // intraday + live composite rank, breadth, the in-day sparkline ring. On ≡1 mod 5
+    // so the :07/:22/:37/:52 board run one minute later reuses the 60 s quote cache.
+    // SECTOR_BOARD_LIVE=false turns it off.
+    if (process.env.SECTOR_BOARD_LIVE !== 'false') {
+      const live = guarded('sector-board-live', async () => {
+        const { runSectorBoardLive } = await import('./sector-board');
+        return runSectorBoardLive();
+      }, 'normal');
+      cron.schedule('1-51/10 8 * * 1-5', live, ET);
+      cron.schedule('1-56/5 9-15 * * 1-5', live, ET);
+      cron.schedule('1,6,11,31 16 * * 1-5', live, ET);
+      cron.schedule('1,31 17-19 * * 1-5', live, ET);
+    }
   }
 
   // ── Sector rotation ideas (server/sector-rotation-ideas.ts) — OFF unless

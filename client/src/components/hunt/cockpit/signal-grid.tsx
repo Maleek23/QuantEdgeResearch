@@ -47,7 +47,7 @@ import type { ConvictionPick } from '@/lib/convictions';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { CONVICTION_LAYERS } from '@shared/conviction-layers';
 import { Sparkline } from './sparkline';
-import { tierColor } from '@/components/canon';
+import { gradeOfPick, nexusGradeColor, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { cn } from '@/lib/utils';
 
 const dirTone = (d: string): Tone => (d === 'long' ? 'bull' : 'bear');
@@ -77,10 +77,11 @@ export function SignalGrid({
   const wl = useWatchlist();
 
   const botVerdict = (p: ConvictionPick, px: number, pending: boolean): string => {
-    const floor = bot?.config?.minConviction ?? 18;
+    const minGrade = Number(bot?.sleeves?.swing?.minGrade ?? 65);
     const maxProg = bot?.config?.maxProgressPct ?? 35;
     if (held.has(p.symbol)) return 'held by Quantinum Bot ✓';
-    if ((p.convictionScore ?? 0) < floor) return `below bot floor (${p.convictionScore} < ${floor})`;
+    const g = gradeOfPick({ ...p, currentPrice: px });
+    if (g.score < minGrade) return `below the swing sleeve's grade floor (${formatNexusGrade(g)} < ${minGrade})`;
     if (pending) return 'pending trigger — bot won\'t front-run its own entry';
     if (p.direction === 'long' ? px <= (p.stopLoss ?? 0) : px >= (p.stopLoss ?? Infinity)) return 'invalidated — stop already traded';
     const span = p.direction === 'long' ? (p.targetPrice ?? 0) - (p.entryPrice ?? 0) : (p.entryPrice ?? 0) - (p.targetPrice ?? 0);
@@ -123,7 +124,7 @@ export function SignalGrid({
               <RecordCard
                 key={p.ideaId}
                 ticker={p.symbol}
-                badge={`${p.convictionBand} · ${p.convictionScore > 0 ? '+' : ''}${p.convictionScore} evidence`}
+                badge={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(gradeOfPick(p))}`}
                 /* The badge carries BAND and CONVICTION — a quality axis. Moss
                    and clay are reserved for direction, so a confident short was
                    rendering clay and reading as a warning. Cyan is the
@@ -136,7 +137,7 @@ export function SignalGrid({
                 className={cn('qe-sig-card', selectedId === p.ideaId && 'ring-1 ring-[color:var(--brand-cyan)]')}
                 /* Edge stripe carries the quality axis (band → --grade-* token),
                    leaving moss/clay free to keep meaning direction. */
-                style={{ ['--band-color' as string]: tierColor(p.convictionBand) }}
+                style={{ ['--band-color' as string]: nexusGradeColor(gradeOfPick(p).letter) }}
                 onClick={() => onSelect(p.ideaId)}
                 footLeft={pending
                   ? `${g.progressPct.toFixed(0)}% to trigger`

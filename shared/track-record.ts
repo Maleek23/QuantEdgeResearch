@@ -92,6 +92,10 @@ export interface TrackRecord {
     unresolved: number;
     /** decided option ideas whose contract exit was priced at the tracker pass, not the touch */
     pricedAtPass: number;
+    /** option exits priced from the contract's own bar at the touch (the record's method) */
+    pricedAtTouchBar: number;
+    /** exact contract expiry settlements priced from intrinsic value */
+    intrinsicSettlements: number;
     /** option stops whose premium was withheld (no P&L, still a loss by status) */
     withheld: number;
     note: string;
@@ -222,13 +226,14 @@ export function computeTrackRecord(
     .sort((a, b) => b.total - a.total);
 
   const opt = pop.filter((i) => assetKey(i.assetType) === 'option');
-  let optDecided = 0; let pricedAtPass = 0; let withheld = 0;
+  let optDecided = 0; let pricedAtPass = 0; let pricedAtTouchBar = 0; let intrinsicSettlements = 0; let withheld = 0;
   for (const i of opt) {
-    if (classifyOutcomeV2(i) === 'unresolved') continue;
-    optDecided++;
     const notes = String(i.outcomeNotes ?? '');
     if (notes.includes('[exit-premium:pass]')) pricedAtPass++;
+    if (notes.includes('[exit-premium:touch_bar]')) pricedAtTouchBar++;
     if (notes.includes('[exit-premium:withheld]')) withheld++;
+    if (notes.includes('[expiry-premium:intrinsic]')) intrinsicSettlements++;
+    if (classifyOutcomeV2(i) !== 'unresolved') optDecided++;
   }
 
   return {
@@ -238,8 +243,10 @@ export function computeTrackRecord(
     options: {
       included: true, since: baseline, exitAtTouchSince: OPTION_EXIT_AT_TOUCH_SINCE,
       total: opt.length, decided: optDecided, unresolved: opt.length - optDecided, pricedAtPass, withheld,
+      pricedAtTouchBar, intrinsicSettlements,
       note: `Option ideas count in this record since ${baseline}: barriers on the wrong price scale and never-entered plans are left unresolved, not scored. `
-        + `Contract exits have been priced at the touch since ${OPTION_EXIT_AT_TOUCH_SINCE}; earlier exits used the tracker's next quote.`,
+        + `Contract exits have been priced at the touch since ${OPTION_EXIT_AT_TOUCH_SINCE}; earlier exits used the tracker's next quote. `
+        + `Expiries settle at exact intrinsic value when the expiry-day print exists; otherwise they stay unmeasured.`,
     },
     triggerObserverSince: TRIGGER_OBSERVER_START,
   };
