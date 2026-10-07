@@ -997,6 +997,15 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
     // No priced contract → publish EXPLICITLY as an underlying-only idea (the
     // idea says so) rather than an unscorable option. shared/option-premium-guard.ts.
     const { ensureScorableOptionIdea } = await import('@shared/option-premium-guard');
+    // …unless the contract is short-dated: a 0DTE/1DTE idea is never shares.
+    if (!contract) {
+      const { shortDatedReason } = await import('@shared/short-dated-option');
+      const sd = shortDatedReason(optionIdea as any, Date.now());
+      if (sd) {
+        logger.warn(`[SPX-SESSION] WITHHELD ${signal.symbol} ${signal.suggestedStrike}${signal.optionType === 'call' ? 'C' : 'P'} ${signal.suggestedExpiry}: short-dated (${sd}) with no two-sided quote — not published as underlying-only`);
+        return;
+      }
+    }
     const tradeIdea = ensureScorableOptionIdea(optionIdea).idea;
     if (!contract) {
       logger.info(`[SPX-SESSION] ${signal.symbol}: no two-sided quote for ${signal.suggestedStrike}${signal.optionType === 'call' ? 'C' : 'P'} ${signal.suggestedExpiry} — publishing underlying-only`);

@@ -297,6 +297,12 @@ export const JOBS: JobDef[] = [
     start: async ({ log }) => { await (await import('./after-stop-job')).scheduleAfterStopJob(log); },
   },
   {
+    name: 'discord-lifecycle', role: 'worker', bootDelayMs: 360_000,
+    what: 'QuantEdge Labs Discord: outbox retry for gated card/reply posts every 30 s (local state file, no market data) + weekdays 16:20 ET per-channel recap',
+    disabled: () => (['off', 'false', '0'].includes(String(process.env.DISCORD_LIFECYCLE ?? '').toLowerCase()) ? 'DISCORD_LIFECYCLE=off' : null),
+    start: async ({ log }) => { await (await import('./discord-lifecycle')).scheduleDiscordLifecycle(log); },
+  },
+  {
     name: 'option-peak', role: 'worker', bootDelayMs: 345_000,
     what: 'option peak (MFE) backfill 16:30 + 09:15 ET (Massive prior-day → Alpaca → Yahoo bars) → [peak:…] tag / bot entry_signals; 0DTE runner pass every 5 min in session (RUNNER_POLICY)',
     disabled: () => (process.env.OPTION_PEAK_JOB === 'off' ? 'OPTION_PEAK_JOB=off' : null),

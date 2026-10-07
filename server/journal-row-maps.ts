@@ -15,6 +15,7 @@ import {
 } from '@shared/desk-integrity';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
 import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
+import { deskRiskBasis, type DeskCall, type DeskManaged, type DeskPeak, type DeskRiskBasis } from '@shared/desk-view';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -59,6 +60,12 @@ export type JournalWireRow = Pick<JournalTrade,
   /** Bot book only: whether option P&L reconciles to its saved execution/settlement evidence. */
   measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';
   measurementNote?: string | null;
+  /** Desk rows: published plan levels for equal-risk re-sizing (shared/desk-view.ts, shared/position-sizing.ts). */
+  riskBasis?: DeskRiskBasis | null;
+  /** Desk rows: managed-exit replay, peak (MFE) and call accuracy from the replay ledger (server/managed-replay-ledger.ts). */
+  managed?: DeskManaged | null;
+  peak?: DeskPeak | null;
+  call?: DeskCall | null;
 };
 
 /**
@@ -187,11 +194,9 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   }
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   const option = i.assetType === 'option';
-  // Operator decision 2026-10-06: a contract exit priced at a LATER tracker pass is
-  // not the outcome-time price (live, not carried) — no journal P&L from it.
-  if (option && resolved && i.exitPremiumBasis === 'pass') {
-    return { excluded: 'option exit premium came from a later tracker pass, not the outcome time' };
-  }
+  // Operator rule 2026-10-07 (supersedes the 2026-10-06 exclusion): never hide a
+  // trade the platform called. A pass-priced contract exit keeps its row and P&L;
+  // verifyDeskRows labels it unverified (exit_premium_pass, shared/desk-integrity.ts).
   const short = planDirection === 'short';
 
   let entry: number, qty: number, exit: number | null = null, pnl: number | null = null, pct: number | null = null;
@@ -283,6 +288,10 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       ...(exitTimeNote ? { exitTimeNote } : {}),
       ...(capture != null ? { captureRatio: capture } : {}),
       ...(afterStop ? { afterStop } : {}),
+      riskBasis: deskRiskBasis({
+        assetType: i.assetType, direction: planDirection, entry: planEntry, stop: planStop, entryPremium: option ? entry : null,
+        expiryDate: planExpiry, publishedAt: i.timestamp, unitQty: qty,
+      }),
       ...(peakTxt ? { peak: peakTxt } : {}),
       ...(runnerTxt ? { runner: runnerTxt } : {}),
     },
@@ -366,7 +375,8 @@ export function deskVerificationMeta(res: DeskVerifyResult, ledger: DeskLedger |
   }
   const rows: DeskUnverifiedItem[] = [...res.unverified]
     .sort((a, b) => Math.abs(b.realizedPnL ?? 0) - Math.abs(a.realizedPnL ?? 0))
-    .slice(0, 200)
+    // Every unverified row is listed (operator rule 2026-10-07: nothing silently disappears).
+    .slice(0, 5000)
     .map((r) => ({
       id: r.id, symbol: r.symbol, entryTime: r.entryTime, recordedPnL: r.realizedPnL ?? null,
       recomputedPnL: r.verification?.recomputedPnL ?? null, reasons: r.verification?.reasons ?? [],

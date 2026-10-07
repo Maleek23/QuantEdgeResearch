@@ -67,7 +67,7 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
           <div key={wi} role="row" style={{ display: 'contents' }}>
             {cells.map((day, di) => {
               if (!day) return <div key={di} className="jr-cal-day blank" role="gridcell" />;
-              const traded = day.trades > 0;
+              const traded = day.trades > 0 || (day.unverified ?? 0) > 0;
               const dom = Number(day.date.slice(8));
               const wk = di === 4 && weekend.length > 0;
               const wkNote = wk ? `incl. weekend ${weekend.map((w) => `${w.date.slice(5)} ${fmtMoney(w.netPnl)}`).join(', ')}` : '';
@@ -87,7 +87,7 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
                     type="button"
                     className={day.netPnl !== 0 ? 'jr-cal-day jr-cal-tint' : 'jr-cal-day'}
                     aria-pressed={isSel}
-                    aria-label={`${day.date}: ${fmtMoney(day.netPnl)}, ${day.trades} trade${day.trades === 1 ? '' : 's'}, ${day.wins} win${day.wins === 1 ? '' : 's'}${wk ? ` (${wkNote})` : ''}`}
+                    aria-label={`${day.date}: ${fmtMoney(day.netPnl)}, ${day.trades} trade${day.trades === 1 ? '' : 's'}, ${day.wins} win${day.wins === 1 ? '' : 's'}${day.unverified ? `, ${day.unverified} unverified` : ''}${wk ? ` (${wkNote})` : ''}`}
                     title={wk ? wkNote : undefined}
                     onClick={() => onSelect?.(isSel ? null : day.date)}
                     style={{ background: `color-mix(in srgb, ${hue} ${Math.round(intensity * 100)}%, var(--panel-solid, #0e1117))` }}
@@ -95,6 +95,7 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
                     <span className="jr-cal-d">{dom}</span>
                     <span className="jr-cal-p">{cellMoney(day.netPnl)}</span>
                     <span className="jr-cal-t">{day.trades} trade{day.trades === 1 ? '' : 's'}</span>
+                    {(day.unverified ?? 0) > 0 && <span className="jr-cal-t" style={{ color: 'var(--amber,#facc15)' }} title={`${day.unverified} unverified close${day.unverified === 1 ? '' : 's'} (recorded ${fmtMoney(day.unverifiedPnl ?? 0)}) — listed, not in this day's verified P&L`}>+{day.unverified} unverified</span>}
                     {wk && <span className="jr-cal-wk">+wknd</span>}
                   </button>
                   {renderPreview && peek === day.date && (

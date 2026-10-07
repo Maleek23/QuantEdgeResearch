@@ -26,7 +26,7 @@ import type { JournalTradeRow } from '../client/src/lib/journal/types';
 import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
 import { deskVerificationMeta, mapDeskIdea, verifyDeskRows, type DeskIdea } from '../server/journal-row-maps';
-import { deskIntegrityFlags, findDuplicates, isSyntheticOrRetroactive } from '../shared/desk-integrity';
+import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, isSyntheticOrRetroactive } from '../shared/desk-integrity';
 import { positionBias, positionBiasText } from '../shared/position-bias';
 import { labelBotRuns, pickActiveBotPortfolio, runsCovered } from '../shared/bot-runs';
 import { dueForSettlement, expirySessionOver, nyCloseIso, settleAtExpiry, type OpenBotOptionRow } from '../server/bot-expiry-plan';
@@ -309,6 +309,63 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
   const res2 = verifyDeskRows([pair(clean), pair(inflated), pair(open)], ledger);
   assert.deepEqual(res2.counted.map((r) => [r.id, r.verification!.status]).sort(), [['desk:inflated', 'verified'], ['desk:open', 'checked']]);
   assert.deepEqual([res2.unverified[0].id, res2.unverified[0].verification!.recomputedPnL, res2.unverified[0].verification!.reasons[0].code], ['desk:clean', 40, 'bar_mismatch']);
+  // ── Operator rule 2026-10-07: NEVER hide a trade the platform called ──
+  // The TSLA 380P 0DTE winner (zero_dte_flow, hit_target, exit premium basis "pass")
+  // was excluded outright; it must appear with its P&L, labelled unverified.
+  {
+    const tsla = idea({
+      id: 'b3cca13b-74a5-4d9a-a82c-97adc813777c', symbol: 'TSLA', assetType: 'option', optionType: 'put', direction: 'short',
+      strikePrice: 380, expiryDate: '2026-10-07', entryPrice: 381.2, targetPrice: 377, stopLoss: 383,
+      entryPremium: 1.6, exitPremium: 4.1, exitPremiumBasis: 'pass', exitPrice: 375.9,
+      outcomeStatus: 'hit_target', exitDate: '2026-10-07T15:20:00Z', timestamp: '2026-10-07T13:58:00Z', source: 'zero_dte_flow',
+    });
+    const mapped = mapDeskIdea(tsla);
+    assert.ok('row' in mapped, `pass-priced option exit is NOT excluded: ${JSON.stringify(mapped)}`);
+    assert.equal((mapped as any).row.realizedPnL, 250, '1 contract 1.60 → 4.10 = +$250');
+    assert.ok(deskIntegrityFlags(tsla).some((f) => f.code === 'exit_premium_pass' && f.severity === 'fail'));
+    assert.equal(DESK_BUG_CLASSES.exit_premium_pass, 'exit priced from intrinsic at target touch — unverified fill');
+    const failing = opt({ id: 'impossible', symbol: 'NVDA', exitPremium: 866 });
+    const cleanRow = opt({ id: 'clean2', exitPremium: 4.5, timestamp: '2026-09-03T14:00:00Z', exitDate: '2026-09-03T15:00:00Z' });
+    const r = verifyDeskRows([pair(tsla), pair(failing), pair(cleanRow)], null);
+    const all = [...r.counted, ...r.unverified];
+    const tslaRow = all.find((x) => x.id === 'desk:b3cca13b-74a5-4d9a-a82c-97adc813777c')!;
+    const failRow = all.find((x) => x.id === 'desk:impossible')!;
+    assert.ok(tslaRow && failRow, 'both the pass-priced winner and the integrity-fail row are rows');
+    assert.equal(tslaRow.verification!.status, 'unverified');
+    assert.equal(tslaRow.verification!.reasons[0].code, 'exit_premium_pass');
+    assert.match(tslaRow.notes!, /exit priced from intrinsic at target touch — unverified fill/);
+    assert.equal(failRow.verification!.status, 'unverified');
+    assert.equal(failRow.verification!.reasons[0].code, 'impossible_exit_premium');
+    // Totals split: verified total vs incl. unverified.
+    const m2 = deskVerificationMeta(r, null, true);
+    assert.equal(m2.counted.checkedPnL, 250, 'verified total = the clean row only');
+    assert.equal(m2.unverified.recordedPnL, 250 + 86400, 'unverified recorded P&L reported separately');
+    assert.equal(m2.unverified.rows.length, 2, 'every unverified row listed');
+    assert.ok(m2.unverified.rows.every((x) => x.reasons.length > 0 && x.reasons.every((y) => y.code && y.detail)), 'no blank reasons');
+    // Client split (client/src/lib/journal/metrics.ts): lists keep every row, totals stay verified.
+    const { toTrade, isUnverifiedTrade, unverifiedSummary, computeMetrics, withUnverifiedDays, dailyStats } = await import('../client/src/lib/journal/metrics');
+    const listTrades = all.map((x) => toTrade(x as any));
+    assert.equal(listTrades.length, 3, 'all three rows listed');
+    const scored = listTrades.filter((t) => !isUnverifiedTrade(t));
+    assert.equal(computeMetrics(scored).netPnl, 250, 'Net P&L (verified)');
+    const u = unverifiedSummary(listTrades);
+    assert.deepEqual([u.count, u.netPnl], [2, 86650]);
+    assert.equal(computeMetrics(scored).netPnl + u.netPnl, 86900, 'incl. unverified');
+    const cal = withUnverifiedDays(dailyStats(scored), listTrades);
+    const oct7 = cal.find((d) => d.date === '2026-10-07')!;
+    assert.deepEqual([oct7.trades, oct7.netPnl, oct7.unverified, oct7.unverifiedPnl], [0, 0, 1, 250], 'unverified-only day stays on the calendar');
+    // Wiring: default route includes unverified rows; ?unverified=0 opts out; public record stays verified-only.
+    const fsy = await import('node:fs');
+    const rd = (f: string) => fsy.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    assert.match(rd('server/routes.ts'), /includeUnverified = !\(req\.query\.unverified === '0'/);
+    assert.match(rd('server/journal-sources.ts'), /loadDesk\(false\)/, 'public record stays verified-only');
+    assert.doesNotMatch(rd('server/journal-row-maps.ts'), /exitPremiumBasis === 'pass'\) \{\s*return \{ excluded/, 'no pass-priced exclusion');
+    assert.match(rd('client/src/pages/journal/dashboard-view.tsx'), /Net P&L \(verified\)/);
+    assert.match(rd('client/src/pages/journal/dashboard-view.tsx'), /incl\. unverified/);
+    assert.match(rd('client/src/components/journal/parts.tsx'), /export function UnverifiedChip/);
+    for (const f of ['client/src/pages/journal/trades-view.tsx', 'client/src/components/journal/trade-mini-list.tsx']) assert.match(rd(f), /<UnverifiedChip row=\{t\.row\} \/>/, `${f} shows the chip`);
+    assert.match(rd('client/src/components/journal/journal-switcher.tsx'), /excludedRows\.map/, 'not-scored panel lists every row');
+  }
   // Wiring: loader applies it; the route takes ?unverified=1; the basis panel lists them.
   const fsx = await import('node:fs');
   const read = (f: string) => fsx.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');

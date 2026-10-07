@@ -518,6 +518,22 @@ class PerformanceValidationService {
           optionPercentGain: ideaForResult?.assetType === 'option' && result.outcomeStatus !== 'open' ? optionPercentGain : undefined,
         });
 
+        // QuantEdge Labs Discord: edit the idea's card + one exit reply (no card → no-op).
+        // exitDate is the refined hit time; exitTimeSource says whether it was verified on a bar.
+        if (result.outcomeStatus && result.outcomeStatus !== 'open') {
+          void import('./discord-lifecycle').then((m) => m.onIdeaResolved({
+            ideaId,
+            outcomeStatus: String(result.outcomeStatus),
+            resolutionReason: result.resolutionReason ?? null,
+            exitDate: result.exitDate ?? null,
+            exitTimeSource: result.exitTimeSource ?? null,
+            exitPrice: result.exitPrice ?? null,
+            percentGain: result.percentGain ?? null,
+            optionPercentGain: ideaForResult?.assetType === 'option' ? optionPercentGain : null,
+            optionPremiumBasis: ideaForResult?.assetType === 'option' ? optionPremiumBasis : null,
+          })).catch(() => {});
+        }
+
         validated++;
         const idea = openIdeas.find(i => i.id === ideaId);
         

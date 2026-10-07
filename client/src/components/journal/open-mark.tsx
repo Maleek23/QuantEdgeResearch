@@ -48,6 +48,7 @@ export function OpenMark({ rowId, live, stored, compact }: {
       {m.note
         ? <small className="jr-dim"> · {m.note}</small>
         : <> · <span className={tone}>{fmtMoney(pnl)}</span>{m.unrealizedPct != null && <span className={tone}> ({m.unrealizedPct > 0 ? '+' : m.unrealizedPct < 0 ? '−' : ''}{Math.abs(m.unrealizedPct).toFixed(1)}%)</span>}</>}
+      {live?.peak != null && Number.isFinite(live.peak) && <small className="jr-dim" title="Peak mark since entry (runners tracker)"> · peak {fmtPrice(live.peak)}</small>}
       <small className="jr-dim"> · {markAgeLabel(m.asOf, now)}{m.delayed ? ' delayed' : ''}{!live ? ' old' : ''}</small>
     </span>
   );

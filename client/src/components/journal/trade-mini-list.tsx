@@ -3,7 +3,7 @@
  * dashboard's Activity tool, the Calendar day panel and the Daily journal.
  */
 import { fmtMoney, type JTrade } from '@/lib/journal/metrics';
-import { OutcomeChip, Pnl, SideChip } from './parts';
+import { OutcomeChip, Pnl, SideChip, UnverifiedChip } from './parts';
 import { positionBias } from '@shared/position-bias';
 import { OpenMark } from './open-mark';
 import type { LiveMark } from '@/lib/journal/use-journal-marks';
@@ -21,6 +21,7 @@ export function TradeMiniList({ trades, onOpen, marks }: { trades: JTrade[]; onO
             : <Pnl value={t.netPnl} />}</span>
           <span className="meta">
             <OutcomeChip status={t.status} />
+            <UnverifiedChip row={t.row} />
             {new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}
             {t.row.setupType && <span className="jr-tag">{t.row.setupType}</span>}
             {t.row.notes && <span title="Has notes">✎ notes</span>}

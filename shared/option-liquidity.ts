@@ -22,7 +22,10 @@
  *
  * When the chosen strike fails, pickers step to the nearest liquid strike of
  * the same type and expiry within the delta band (pickLiquidStrike); when none
- * passes the idea is published underlying-only with "no liquid contract".
+ * passes the idea is published underlying-only with "no liquid contract" —
+ * unless it is short-dated (0DTE/≤1DTE or a same-day engine,
+ * shared/short-dated-option.ts), in which case it is WITHHELD: a 0DTE option
+ * idea is never republished as shares.
  *
  * Pure: no I/O.
  */
@@ -118,7 +121,7 @@ export interface ContractLiquiditySnapshot {
   /** Set when the publish gate replaced the producer's strike. */
   steppedFrom?: string | null;
   /** Set when no liquid contract existed and the idea went underlying-only. */
-  action?: 'kept' | 'stepped' | 'underlying_only' | 'unverified';
+  action?: 'kept' | 'stepped' | 'underlying_only' | 'withheld' | 'unverified';
 }
 
 export interface LiquidityVerdict { ok: boolean; failures: string[]; snapshot: ContractLiquiditySnapshot }

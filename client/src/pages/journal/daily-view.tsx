@@ -16,7 +16,7 @@ import { journalDayKey } from '@shared/journal-filters';
 import { QEError, QEEmpty } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, Pnl, fmtDayLabel } from '@/components/journal/parts';
-import { fmtMoney, fmtPct, type DayStats, type JTrade } from '@/lib/journal/metrics';
+import { fmtMoney, fmtPct, isUnverifiedTrade, type DayStats, type JTrade } from '@/lib/journal/metrics';
 import { dayEquity, dayRecap } from '@/lib/journal/metrics-extra';
 import { useTradeReviews } from '@/lib/journal/use-journal-extra';
 import { Sparkline } from '@/components/journal/lux-charts';
@@ -31,7 +31,8 @@ const PAGE = 30;
 
 export default function DailyView() {
   const { data, filters, canWrite, focusDay, bookLabel } = useJournal();
-  const { trades, days, notesQ } = data;
+  // Every trade in view is listed (unverified ones labelled); day money stays verified.
+  const { listTrades: trades, days, notesQ } = data;
   const f = filters.resolved;
   const today = journalDayKey(new Date());
   const [open, setOpen] = useState<string | null>(focusDay);
@@ -81,7 +82,7 @@ export default function DailyView() {
   const notesUnavailable = data.key === 'bot' || data.key === 'desk';
   // Live marks for open rows (desk book: the 60 most recent open rows).
   const openTotal = useMemo(() => trades.filter((t) => t.status === 'open').length, [trades]);
-  const marks = useJournalMarks(data.key, openTotal);
+  const marks = useJournalMarks(data.key, openTotal, data.rows);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -122,8 +123,12 @@ export default function DailyView() {
 /** Won / lost / net on the day's closes, and live unrealized on what it opened that is still open. */
 function dayMoney(trades: JTrade[], marks: Record<string, LiveMark>) {
   const closed = trades.filter((t) => t.status !== 'open');
-  const won = closed.filter((t) => t.netPnl > 0).reduce((a, t) => a + t.netPnl, 0);
-  const lost = closed.filter((t) => t.netPnl < 0).reduce((a, t) => a + t.netPnl, 0);
+  // Unverified closes are listed but not in the day's verified money.
+  const counted = closed.filter((t) => !isUnverifiedTrade(t));
+  const unv = closed.filter((t) => isUnverifiedTrade(t));
+  const unvPnl = unv.reduce((a, t) => a + t.netPnl, 0);
+  const won = counted.filter((t) => t.netPnl > 0).reduce((a, t) => a + t.netPnl, 0);
+  const lost = counted.filter((t) => t.netPnl < 0).reduce((a, t) => a + t.netPnl, 0);
   const open = trades.filter((t) => t.status === 'open');
   let unreal = 0, marked = 0, up = 0, down = 0;
   for (const t of open) {
@@ -131,7 +136,7 @@ function dayMoney(trades: JTrade[], marks: Record<string, LiveMark>) {
     if (u == null || !Number.isFinite(u)) continue;
     marked++; unreal += u; if (u > 0) up++; else if (u < 0) down++;
   }
-  return { closed, won, lost, net: won + lost, open, unreal, marked, up, down };
+  return { closed, won, lost, net: won + lost, open, unreal, marked, up, down, unvCount: unv.length, unvPnl };
 }
 
 function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: {
@@ -170,6 +175,7 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: 
             <>
               <Pnl value={money.net} />
               <span className="jr-n">won <span className="jr-gain">{fmtMoney(money.won)}</span> · lost <span className="jr-loss">{fmtMoney(money.lost)}</span> · {money.closed.length} closed{stats ? ` · ${stats.wins}W/${stats.losses}L` : ''}</span>
+              {money.unvCount > 0 && <span className="jr-n" style={{ color: 'var(--amber,#facc15)' }} title="Unverified closes are listed with an amber chip and kept out of the verified day total">· incl. unverified: {fmtMoney(money.net + money.unvPnl)} ({money.unvCount} unverified)</span>}
             </>
           ) : <span className="jr-mute">no closed trades</span>}
           {openCount > 0 && (
@@ -183,7 +189,7 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: 
         <div id={panelId} className="jr-day-body">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }} aria-label="Day scoreboard">
-              <div><span>Closed net</span><b><Pnl value={money.closed.length ? money.net : null} /></b><small>{money.closed.length} closed · realized</small></div>
+              <div><span>Closed net{money.unvCount ? ' (verified)' : ''}</span><b><Pnl value={money.closed.length ? money.net : null} /></b><small>{money.closed.length} closed · realized{money.unvCount ? ` · incl. unverified ${fmtMoney(money.net + money.unvPnl)}` : ''}</small></div>
               <div><span>Won</span><b><Pnl value={money.won || null} /></b><small>{winners.length} winners</small></div>
               <div><span>Lost</span><b><Pnl value={money.lost || null} /></b><small>{losers.length} losers{flat.length ? ` · ${flat.length} flat` : ''}</small></div>
               <div><span>Open, live</span><b><Pnl value={money.marked ? money.unreal : null} /></b><small>{openCount ? `${money.marked} of ${openCount} marked · ${money.up}▲ ${money.down}▼ · unrealized` : 'nothing open'}</small></div>
@@ -196,8 +202,8 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: 
             {!trades.length && <p className="jr-note" style={{ margin: 0 }}>No trades this day.</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {stats && stats.trades > 0 && <DayStatsBlock day={day} trades={trades} stats={stats} />}
-            <DayRecap day={day} trades={trades} reviews={reviews} />
+            {stats && stats.trades > 0 && <DayStatsBlock day={day} trades={trades.filter((t) => !isUnverifiedTrade(t))} stats={stats} />}
+            <DayRecap day={day} trades={trades.filter((t) => !isUnverifiedTrade(t))} reviews={reviews} />
             <div className="jr-kpi-l">Day note</div>
             {canWrite ? <DayNoteEditor day={day} note={dayNote} /> : dayNote ? (
               <>

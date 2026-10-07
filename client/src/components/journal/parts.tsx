@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 import { positionBias } from '@shared/position-bias';
 import { useTheme } from '@/components/theme-provider';
 import {
-  fmtDuration, fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, type BucketStats, type TradeStatus,
+  fmtDuration, fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, unverifiedReason, type BucketStats, type TradeStatus,
 } from '@/lib/journal/metrics';
+import type { JournalTradeRow } from '@/lib/journal/types';
 
 /** Class list for portaled journal surfaces (dialogs/sheets render outside .nexus-vars). */
 export function useJournalPortalClass(): string {
@@ -71,6 +72,17 @@ export function Card({ title, num, meta, children, className, id }: {
 export function OutcomeChip({ status }: { status: TradeStatus }) {
   const label = status === 'win' ? 'WIN' : status === 'loss' ? 'LOSS' : status === 'breakeven' ? 'B/E' : 'OPEN';
   return <span className={cn('jr-chip', status === 'win' && 'win', status === 'loss' && 'loss', status === 'open' && 'open')}>{label}</span>;
+}
+
+/**
+ * Amber "unverified" chip for a NEXUS ideas row whose recorded P&L failed
+ * verification — shown, never hidden (operator rule 2026-10-07); the reason is
+ * the hover text. Renders nothing for any other row.
+ */
+export function UnverifiedChip({ row }: { row: Pick<JournalTradeRow, 'verification' | 'status'> }) {
+  if (row.verification?.status !== 'unverified') return null;
+  const why = unverifiedReason(row);
+  return <span className="jr-chip unv" title={`Unverified — not in the verified total: ${why}`} aria-label={`unverified: ${why}`}>unverified</span>;
 }
 
 /**

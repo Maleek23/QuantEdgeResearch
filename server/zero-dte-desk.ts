@@ -34,7 +34,7 @@
  */
 import { afterStopLabel, parseAfterStop } from '@shared/after-stop';
 import type { Express, Request, Response, NextFunction } from 'express';
-import { and, gte, like, or, eq } from 'drizzle-orm';
+import { and, gte, like, or, eq, desc } from 'drizzle-orm';
 import { logger } from './logger';
 import { readShared, sharedStamp, writeSharedSync } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
@@ -49,6 +49,7 @@ import {
 } from './zero-dte-desk-core';
 import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type PolicyVerdict, type ZeroDteSetup } from './zero-dte-policies';
 import { BoundedCache } from './lib/bounded-cache';
+import { autoZeroDteNames, type AutoName, type ActiveIdeaLike } from '@shared/zero-dte-names';
 import {
   capsFor, ENTRY_WINDOW_MIN, ideaStage, KIND_LABEL, kindForSetup, occSymbol, pickIdeaContract, sortIdeas, watchSetups, zeroDteEligibility,
   type Eligibility, type IdeaContract, type IdeaStage, type SetupKind, type WatchSetup,
@@ -216,6 +217,63 @@ const toRef = (r: IdeaLite): DeskIdeaRef => ({
   entry: r.entryPrice, stop: r.stopLoss, target: r.targetPrice, exitPrice: r.exitPrice, resolutionReason: r.resolutionReason, kind: kindOf(r),
 });
 
+// ─── AUTO names: open / today's short-dated option ideas + flow triggers ──
+
+let activeCache: { at: number; rows: ActiveIdeaLike[] } | null = null;
+/** Option ideas that are open, or were published since yesterday — any source. */
+async function activeOptionIdeas(nowMs: number): Promise<ActiveIdeaLike[]> {
+  if (activeCache && nowMs - activeCache.at < 60_000) return activeCache.rows;
+  const { db } = await import('./db');
+  const since = new Date(nowMs - 36 * 3_600_000).toISOString();
+  const rows = await db.select({
+    symbol: tradeIdeas.symbol, assetType: tradeIdeas.assetType, source: tradeIdeas.source, dataSourceUsed: tradeIdeas.dataSourceUsed,
+    expiryDate: tradeIdeas.expiryDate, expiryTier: tradeIdeas.expiryTier, optionDte: tradeIdeas.optionDte,
+    outcomeStatus: tradeIdeas.outcomeStatus, timestamp: tradeIdeas.timestamp, qualitySignals: tradeIdeas.qualitySignals,
+  }).from(tradeIdeas).where(and(
+    eq(tradeIdeas.assetType, 'option' as any),
+    or(eq(tradeIdeas.outcomeStatus, 'open' as any), gte(tradeIdeas.timestamp, since)),
+  )).orderBy(desc(tradeIdeas.timestamp)).limit(600);
+  activeCache = { at: nowMs, rows: rows as ActiveIdeaLike[] };
+  return activeCache.rows;
+}
+
+export async function deskActiveNames(nowMs: number, exclude: string[]): Promise<AutoName[]> {
+  let ideas: ActiveIdeaLike[] = [];
+  try { ideas = await activeOptionIdeas(nowMs); } catch (e) { logger.warn(`[0DTE-DESK] active ideas read failed: ${(e as Error).message}`); }
+  let flow: Array<{ symbol: string; at: string }> = [];
+  try {
+    const { getZeroDteFlowState } = await import('./zero-dte-flow');
+    flow = getZeroDteFlowState(nowMs).rows.map((r: any) => ({ symbol: r.symbol, at: r.at }));
+  } catch (e) { logger.warn(`[0DTE-DESK] flow rows read failed: ${(e as Error).message}`); }
+  return autoZeroDteNames(ideas, flow, nowMs, { exclude });
+}
+
+// ─── on-demand single-name read (desk symbol search) ─────────────────────
+
+const readCache = new BoundedCache<string, { at: number; row: DeskRow }>({ name: '0dte.deskReads', maxEntries: 64, ttlMs: 10 * 60_000, noSizing: true });
+const readInflight = new Map<string, Promise<DeskRow>>();
+export const DESK_READ_SYMBOL = /^[A-Z][A-Z.]{0,5}$/;
+
+/** One name's 0DTE / nearest-expiry read (levels, expected move, VWAP/OR, flow tide, engine state). 45 s cache. */
+export async function readDeskName(symRaw: string): Promise<DeskRow> {
+  const sym = String(symRaw ?? '').trim().toUpperCase();
+  if (!DESK_READ_SYMBOL.test(sym)) throw new Error(`bad symbol "${symRaw}"`);
+  const hit = readCache.get(sym);
+  if (hit && Date.now() - hit.at < 45_000) return hit.row;
+  const running = readInflight.get(sym);
+  if (running) return running;
+  const p = (async () => {
+    const nowMs = Date.now();
+    let ideas: IdeaLite[] = [];
+    try { ideas = await engineIdeas(); } catch { /* engine ideas optional for a read */ }
+    const row = await buildRow(sym, sessionPhase(nowMs), ideas, true, nowMs);
+    readCache.set(sym, { at: Date.now(), row });
+    return row;
+  })().finally(() => readInflight.delete(sym));
+  readInflight.set(sym, p);
+  return p;
+}
+
 // ─── single-name engine state (last evaluation per name) ─────────────────
 
 interface EvalMemo { at: number; verdict: PolicyVerdict; withheld: string | null }
@@ -268,6 +326,12 @@ export interface DeskPayload {
   indexEngineHealth?: import('./index-engine-health').IndexEngineHealth & { source?: string; ageSec?: number | null };
   /** Index engine (SPY GEX → SPX) health inputs; the client classifies with shared/zero-dte-actionability.ts indexHealth(). */
   indexEngine?: { scanAt: string | null; gexAt: string | null; wait: string | null };
+  /**
+   * AUTO name list (shared/zero-dte-names.ts): names with an open or today's
+   * short-dated option idea (any source) and today's flow-ignition triggers.
+   * Replaces the fixed ZERO_DTE_WATCH name cards on the client; the index card stays.
+   */
+  activeNames?: AutoName[];
   notes: string[];
 }
 
@@ -648,8 +712,9 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
       const ls = getLastIndexScan();
       if (ls) indexEngine = { scanAt: new Date(ls.at).toISOString(), gexAt: ls.result.gexAt?.SPY ?? null, wait: ls.result.waits?.SPY?.[0] ?? null };
     } catch (e) { logger.warn(`[0DTE-DESK] index health read failed: ${(e as Error).message}`); }
+    const activeNames = await deskActiveNames(nowMs, rows.filter((r) => INDEX_OWNED.has(r.symbol)).map((r) => r.symbol));
     const p: DeskPayload = {
-      asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info, indexEngine,
+      asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info, indexEngine, activeNames,
       record: { ...summarizeDeskRecord(recRows, OUTCOME_BASELINE_DATE), perName },
       provenance: ZERO_DTE_PROVENANCE,
       ...(engineStamp ? { engineState: engineStamp } : {}),
@@ -1019,6 +1084,18 @@ export function registerZeroDteDeskRoutes(app: Express, requireBetaAccess: Mw) {
     } catch (err) {
       logger.error('[0DTE-DESK] desk failed', { error: (err as Error)?.message });
       res.status(500).json({ error: '0DTE desk failed', message: (err as Error)?.message });
+    }
+  });
+  // On-demand read for any ticker (desk symbol search).
+  app.get('/api/zero-dte/read/:symbol', requireBetaAccess, async (req, res) => {
+    const sym = String(req.params.symbol ?? '').trim().toUpperCase();
+    if (!DESK_READ_SYMBOL.test(sym)) return res.status(400).json({ error: 'bad symbol' });
+    try {
+      const row = await readDeskName(sym);
+      res.json({ asOf: new Date().toISOString(), phase: sessionPhase(Date.now()), row });
+    } catch (err) {
+      logger.warn(`[0DTE-DESK] read ${sym} failed: ${(err as Error)?.message}`);
+      res.status(500).json({ error: `0DTE read for ${sym} failed`, message: (err as Error)?.message });
     }
   });
 }

@@ -88,4 +88,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   'desk.assign': 'Made desk admin', 'desk.unassign': 'Removed desk admin', 'desk.bot_config': 'Changed desk bot settings',
   'desk.bot_enable': 'Turned desk bot on', 'desk.bot_disable': 'Turned desk bot off', 'desk.bot_run': 'Ran a desk bot cycle',
   'desk.passcode_set': 'Desk set book passcode', 'desk.passcode_clear': 'Desk cleared book passcode', 'desk.privacy': 'Desk changed book sharing',
+  'trader_account.create': 'Created trader account', 'trader_account.regenerate': 'Re-issued trader credentials', 'trader_account.revoke': 'Revoked trader link',
+  'trader_account.setup_complete': 'Trader finished setup', 'trader_account.password_changed': 'Trader replaced temp password',
+  'trader_self_setup.fail': 'Self-setup refused', 'trader_self_setup.lockout': 'Self-setup name locked (5 fails)', 'trader_self_setup.complete': 'Trader set up own account', 'trader_self_setup.config': 'Self-setup switch changed',
 };

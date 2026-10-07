@@ -136,9 +136,98 @@ privacy), Watchlist & alerts, Account. `/admin/users` → Desk admins. Command p
 (super-admin) and "My desk" (desk admin). The side nav / phone sheet links are owned by the nav
 redesign and read `useDeskRole()`.
 
+## Trader accounts: Malik creates the logins (2026-10-07)
+
+Instead of invite codes, Malik can create each trader's account himself from
+`/admin/users` → **Trader accounts** → **Add trader account** (admin hub cookie required;
+every action audited). Code: `server/trader-accounts.ts` (secrets, pure),
+`server/trader-accounts-routes.ts` (routes), `shared/trader-accounts.ts` (username rules),
+`client/src/components/admin/trader-accounts-panel.tsx`, `client/src/pages/setup-account.tsx`.
+
+**Form:** trader book (select; prefills the display name), display name, email (optional),
+username (only when there is no email; prefilled from the name, e.g. `femi`), tier (default
+**Free + beta access** = everything open during the beta), credentials (setup link / temporary
+password), **desk admin of this book** (ticked; disabled when the book already has one).
+
+**On submit** the server creates the user (`has_beta_access = true`, the chosen tier), links it to
+the book as desk admin (`traders.linked_user_id`, also audited as `desk.assign`) and issues ONE
+credential, shown **once** in the panel with a Copy button:
+
+- **Setup link (default)** `https://…/setup#token=…` — 32 random bytes (base64url), stored only
+  as `setup:` + sha256 in `password_reset_tokens.token`; expires in **48 h**; **single use** (atomic
+  `UPDATE … WHERE used = false AND expires_at > now() RETURNING`); per-IP limited (10 / 15 min,
+  30 / day). The token sits in the URL **fragment**, so it never reaches server logs or a Referer;
+  `/setup` strips it from the address bar on load. The trader sees their name and sign-in name,
+  chooses a password (the normal policy, ≥ 8), is signed in on a fresh session (older sessions
+  ended) and lands on `/desk`.
+- **Temporary password** — ~115 random bits (`xxxxx-xxxxx-xxxxx-xxxxx`), stored only as
+  `mustchange$` + bcrypt in `users.password_hash`. Signing in with it returns
+  `403 { mustChangePassword: true }` and **no session**; the login page then asks for a new
+  password (`POST /api/auth/first-login`), and only after that is a session created.
+
+**No email → username login.** `users.email` is NOT NULL, so a username account is stored as
+`<username>@login.quantedge.invalid` (the reserved `.invalid` TLD: undeliverable, unregistrable).
+The login form takes "Email or username"; a username is mapped to that address and checked by
+the same limiter, bcrypt and generic error. Public sign-up refuses the domain (no squatting);
+forgot-password never emails it.
+
+**Status column:** Setup pending (with link expiry) · Link expired · Temp password — change
+pending · Revoked — no way in · Active · Disabled. **Regenerate link** / **Temp password** issue a
+new credential and kill every earlier link (a temp password also replaces an existing password
+and signs the account out; a new link kills an outstanding temp password). **Revoke** kills the
+outstanding link / temp password. To cut an active trader off, use Users → **Disable**.
+
+**Never stored or logged in plaintext:** link tokens, temp passwords, chosen passwords. The audit
+log (`trader_account.create`, `.regenerate`, `.revoke`, `.setup_complete`, `.password_changed`) keeps
+only `codeTail` (last 4). `/api/auth/reset-password` refuses `setup:` values, so a stored hash can
+never be replayed as a reset token. An account awaiting setup holds `pending$<random>` (not a bcrypt
+hash: nothing verifies, and the beta-onboarding "add a password to a password-less account" path
+does not apply).
+
+**How Malik uses it (per trader):** `/admin` → Users → Trader accounts → pick the book (e.g. Femi)
+→ leave email blank (username `femi`) or type theirs → **Add trader account** → **Copy link** → DM
+it to them. Watch the row turn **Active**. Lost or expired → **Regenerate link**. They then follow
+step 6 of the onboarding list below (passcode, privacy, watchlist, bot).
+
+Tests: `npm run test:trader-accounts` (no DB, 180 checks) — token randomness/hashing/shape, 48 h
+expiry, single use (incl. a concurrent race), regenerate/revoke kill old credentials, admin-only
+(no token 401, member/desk-admin session 401, forged 403, no writes), password policy on both
+paths, forced change (no session before it, temp can't be kept or replayed), username login,
+disabled accounts, real per-IP limiter trips, and every issued secret is absent from the fake DB,
+the audit file and everything the process printed.
+
+## Trader self-setup: from the sign-in page (2026-10-07)
+
+For a trader whose book already has a **passcode** (the one Malik set and gave them out-of-band).
+Sign-in page → **Trader? Set up your account** → `/trader-setup`:
+
+1. **Pick your name** — only books with a passcode, **no linked account**, a slug that is a valid
+   unreserved username nobody holds, not closed per book. Never offered: Malik's / operator books
+   and system books (`mine`, `malik`, `leek`, `operator`, `bot`, `nexus`, `desk`, `quant…` as a
+   word of the slug or name — `shared/trader-self-setup.ts`), plus env `TRADER_SELF_SETUP_EXCLUDE`.
+2. **Enter the book passcode** — bcrypt-compared with `traders.passcode_hash`.
+3. **Choose a password** (password policy) → `provisionTraderAccount` (the same path as the hub's
+   "Add trader account"): username = the book's slug (`<slug>@login.quantedge.invalid`), the
+   default trader tier + beta access, **desk admin of that book**; a fresh session; `/desk`.
+
+One-time: once the book has a linked account it is closed for good — the trader signs in with their
+name/username; a forgotten password is a **Regenerate** in Trader accounts.
+
+Security: every refusal (wrong passcode, unknown name, set-up name, operator/bot book, closed book)
+is the same 403 and costs one bcrypt; **5 failed attempts per name per 15 min** lock that name (even
+the right passcode gets 429; non-existent names lock the same way); per-IP limits 10 / 15 min and
+30 / day (`traderSelfSetupLimiters`); the POSTs check the CSRF double-submit themselves (`/api/auth/*`
+is exempt from the global check); audit `trader_self_setup.fail|lockout|complete|config` +
+`desk.assign` (`via: trader_self_setup`) — never the passcode or password.
+
+Switches (no migration): env `TRADER_SELF_SETUP` (default on; `off` is a hard off), and in the hub
+(Trader accounts → Self-setup) a global switch and a per-book switch, kept in the shared-state file
+`trader-self-setup`. Routes: `server/trader-self-setup-routes.ts`. Tests: `npm run test:trader-self-setup`.
+
 ## Migrations to run before deploy
 
-One table. The desk-admin **role** needs no migration (`traders.linked_user_id` exists), nor does
+Trader accounts need **no migration** (they reuse `users.email`, `users.password_hash` and
+`password_reset_tokens`). Desk bots need one table. The desk-admin **role** needs no migration (`traders.linked_user_id` exists), nor does
 "I took this" (`journal_trades.broker` is text). Do not `drizzle-kit push` production.
 
 ```sh
@@ -174,6 +263,8 @@ read) — so apply it before turning `DESK_ADMINS` on.
 |---|---|---|
 | `DESK_ADMINS` | off | `true` turns on desk portals, desk bots and book privacy |
 | `DESK_BOTS_MAX` | `3` | desk bots enabled at once (0–6) |
+| `TRADER_SELF_SETUP` | on | `off` closes trader self-setup from the sign-in page (the hub switch can't reopen it) |
+| `TRADER_SELF_SETUP_EXCLUDE` | — | comma-separated book slugs never offered for self-setup |
 
 The platform bot's own env (`BOT_0DTE_*`, `BOT_SWING_*`, `QUANT_BOT_DISCORD`, `ROLE`) also bounds
 every desk bot.
@@ -182,7 +273,9 @@ every desk bot.
 
 1. **Make sure the trader book exists.** `/admin/users` → Desk admins lists every book. If the
    friend has none, add it (journal → Traders, or `POST /api/traders` while signed in as the admin).
-2. **Generate an invite code.** `/admin/invites` → count 1, **email-lock it to the friend's
+2. **Create the account** (simplest): `/admin/users` → **Trader accounts** → Add trader account
+   (see §Trader accounts) — this does steps 2–5 in one go; skip to 6. Or, the invite route:
+   **Generate an invite code.** `/admin/invites` → count 1, **email-lock it to the friend's
    address**, tier as you like, expiry e.g. 14 days → copy the invite link (`/signup?code=…`) and
    send it to them yourself (or "Email it" if `RESEND_API_KEY` is set).
 3. **The friend signs up** at that link with their own email + password (or Google with the same
