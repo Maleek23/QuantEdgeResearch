@@ -7,11 +7,13 @@
  *           managed    the same ideas replayed with the current managed exit rules
  *                      (shared/managed-exit.ts via research/managed-exit-replay.ts) —
  *                      "replayed with current exit rules — not live fills"
- *   sizing  unit       1 contract / $1,000 notional (the book's native unit)
- *           risk       equal risk $R to the stop per idea (shared/position-sizing.ts)
+ *   sizing  risk       DEFAULT — equal risk $R (default $500, max $1,000) to the stop per idea
+ *           unit       1 contract / $1,000 notional (the book's native unit, secondary)
+ *                      (shared/position-sizing.ts: fractional "scaled" when 1 unit
+ *                      risks more than $R; losses worse than the stop capped at −$R)
  *
  * Win = positive CLOSED P&L under the view's exits. Rows the view cannot price
- * (not in the replay ledger; too expensive for the risk budget; no stop) are
+ * (not in the replay ledger; no stop to size from; futures) are
  * left out AND counted by reason — nothing disappears silently.
  *
  * Desk rows carry the fields this reads (server/journal-row-maps.ts riskBasis;
@@ -19,7 +21,7 @@
  */
 import type { CallResult } from './call-accuracy';
 import { journalDayKey } from './journal-filters';
-import { sizeForRisk, scaleUnitPnl, type RiskBasis, type SizingChoice } from './position-sizing';
+import { DEFAULT_SIZING, MAX_RISK_DOLLARS, MIN_RISK_DOLLARS, riskSizedPnl, scaleUnitPnl, sizeForRisk, type RiskBasis, type SizingChoice } from './position-sizing';
 
 export type DeskView = 'recorded' | 'managed';
 export const DESK_VIEW_LABEL: Record<DeskView, string> = { recorded: 'Recorded', managed: 'Managed replay' };
@@ -76,14 +78,32 @@ export interface DeskViewRow {
   peak?: DeskPeak | null;
   call?: DeskCall | null;
   /** Set by this transform: how the row is sized / which view priced it. */
-  sizedAs?: { mode: 'risk'; riskDollars: number; qty: number; riskToStop: number; notional: number; premiumStopBasis: string | null } | null;
+  sizedAs?: DeskSizedAs | null;
   viewedAs?: DeskView;
+}
+
+export interface DeskSizedAs {
+  mode: 'risk';
+  riskDollars: number;
+  qty: number;
+  riskToStop: number;
+  notional: number;
+  premiumStopBasis: string | null;
+  /** Fractional size: 1 unit risked more than the budget (P&L = 1-unit P&L × qty). */
+  scaled: boolean;
+  /** The loss was worse than the stop and is capped at −riskToStop (assumes the stop filled). */
+  capped: boolean;
+  /** The risk-sized P&L before the cap (equals realizedPnL when not capped). */
+  uncappedPnL: number | null;
 }
 
 export interface DeskViewResult<T> {
   rows: T[];
   /** Rows left out of this view, by reason. */
   skipped: { reason: string; count: number }[];
+  /** Risk sizing: rows sized fractionally, and closed losses capped at the stop (with the $ the cap removed). */
+  scaled: number;
+  capped: { count: number; uncappedPnL: number; cappedPnL: number };
   view: DeskView;
   sizing: SizingChoice;
 }
@@ -96,9 +116,8 @@ const minutesBetween = (a: string, b: string | null | undefined) => {
   return Number.isFinite(d) ? Math.max(0, Math.round(d)) : null;
 };
 
-/** Normalise a skip reason into a stable bucket ("too expensive …$1,234…" → one bucket). */
+/** Normalise a skip reason into a stable bucket. */
 function bucket(reason: string): string {
-  if (reason.startsWith('too expensive for risk budget')) return 'too expensive for risk budget';
   return reason;
 }
 
@@ -106,6 +125,8 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
   const skipped = new Map<string, number>();
   const skip = (why: string) => skipped.set(bucket(why), (skipped.get(bucket(why)) ?? 0) + 1);
   const out: T[] = [];
+  let scaled = 0;
+  const capped = { count: 0, uncappedPnL: 0, cappedPnL: 0 };
   for (const row0 of rows) {
     let row: T = row0;
     // ── view ──
@@ -143,14 +164,22 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
       if (!b) { skip('no plan levels to size from'); continue; }
       const sz = sizeForRisk(b, opts.sizing.riskDollars);
       if (!sz.ok) { skip(sz.reason); continue; }
-      const pnl = scaleUnitPnl(row.realizedPnL ?? null, b.unitQty, sz);
+      const rs = riskSizedPnl(row.realizedPnL ?? null, b.unitQty, sz);
+      const pnl = rs.pnl;
+      if (sz.scaled) scaled++;
+      if (rs.capped) { capped.count++; capped.uncappedPnL = r2(capped.uncappedPnL + (rs.uncapped ?? 0)); capped.cappedPnL = r2(capped.cappedPnL + (pnl ?? 0)); }
       row = {
         ...row,
         quantity: sz.qty,
         realizedPnL: row.realizedPnL == null ? null : pnl,
         grossPnL: row.realizedPnL == null ? null : pnl,
+        realizedPnLPercent: rs.capped && row.realizedPnLPercent != null && rs.uncapped
+          ? r2(row.realizedPnLPercent * ((pnl ?? 0) / rs.uncapped)) : row.realizedPnLPercent,
         outcome: row.realizedPnL == null ? row.outcome : outcomeOf(pnl),
-        sizedAs: { mode: 'risk', riskDollars: opts.sizing.riskDollars, qty: sz.qty, riskToStop: r2(sz.riskDollars), notional: r2(sz.notional), premiumStopBasis: sz.premiumStopBasis },
+        sizedAs: {
+          mode: 'risk', riskDollars: opts.sizing.riskDollars, qty: sz.qty, riskToStop: r2(sz.riskDollars), notional: r2(sz.notional),
+          premiumStopBasis: sz.premiumStopBasis, scaled: sz.scaled, capped: rs.capped, uncappedPnL: rs.uncapped,
+        },
         ...(row.peak && row.peak.unitPnl != null ? { peak: { ...row.peak, unitPnl: scaleUnitPnl(row.peak.unitPnl, b.unitQty, sz) } } : {}),
       };
     }
@@ -159,6 +188,8 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
   return {
     rows: out,
     skipped: [...skipped.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
+    scaled,
+    capped,
     view: opts.view,
     sizing: opts.sizing,
   };
@@ -166,11 +197,12 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
 
 /** Parse the persisted sizing preference (journal prefs). */
 export function parseSizingChoice(raw: unknown): SizingChoice {
-  if (!raw || typeof raw !== 'object') return { mode: 'unit', riskDollars: 0 };
+  if (!raw || typeof raw !== 'object') return DEFAULT_SIZING;
   const r = raw as Record<string, unknown>;
+  if (r.mode === 'unit') return { mode: 'unit', riskDollars: 0 };
   const v = Number(r.riskDollars);
-  if (r.mode === 'risk' && Number.isFinite(v) && v >= 50 && v <= 100_000) return { mode: 'risk', riskDollars: Math.round(v) };
-  return { mode: 'unit', riskDollars: 0 };
+  if (r.mode === 'risk' && Number.isFinite(v) && v >= MIN_RISK_DOLLARS && v <= MAX_RISK_DOLLARS) return { mode: 'risk', riskDollars: Math.round(v) };
+  return DEFAULT_SIZING;
 }
 
 export function parseDeskView(raw: unknown): DeskView {

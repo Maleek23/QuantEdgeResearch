@@ -45,6 +45,7 @@
  * State file: <SHARED_STATE_DIR>/discord-lifecycle.json (server/lib/shared-state.ts).
  */
 import { logger } from './logger';
+import { readNexusRiskDollars, riskSizedFromPct } from '@shared/position-sizing';
 import { readShared, writeSharedSync } from './lib/shared-state';
 
 // ─── Channels & routing ─────────────────────────────────────────────────
@@ -180,6 +181,9 @@ export interface Card {
   channelId: string | null;
   guildId: string | null;
   postFailed?: boolean;
+  /** Exit $ at the NEXUS risk size (shared/position-sizing.ts riskSizedFromPct; NEXUS_RISK_DOLLARS, default $500). */
+  riskPnl?: number | null;
+  riskDollars?: number;
 }
 export interface BotRecord { positionId: string; day: string; entryAt?: number; exitAt?: number; label: string; pnl?: number | null; pct?: number | null; reason?: string | null }
 export type OutboxKind = 'card' | 'edit' | 'reply' | 'recap' | 'bot' | 'digest';
@@ -536,6 +540,11 @@ export function classifyResolution(ev: Pick<ResolveEvent, 'outcomeStatus' | 'res
   return { status: 'expired', word: 'EXPIRED', icon: '⌛' };
 }
 
+/** Only a triggered idea (or a decided one) has a position to put $ on. */
+function triggeredOrDecided(c: Card, status: CardStatus): boolean {
+  return c.events.some((e) => e.kind === 'trigger') || status === 'win' || status === 'loss';
+}
+
 export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
   try {
     if (!lifecycleEnabled()) return 'off';
@@ -554,6 +563,16 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
     const pctParts: string[] = [];
     if (c.isOption && optPct != null) pctParts.push(`${signedPct(optPct)} option (${ev.optionPremiumBasis === 'intrinsic' ? 'expiry intrinsic' : 'modeled from the contract bar'}, delayed quote)`);
     if (undPct != null) pctParts.push(`${signedPct(undPct)} underlying`);
+    // $ at the NEXUS risk size (default $500/trade): no exit post shows a loss larger than the budget.
+    const riskDollars = readNexusRiskDollars(process.env);
+    const sized = triggeredOrDecided(c, cls.status) ? riskSizedFromPct({
+      isOption: c.isOption, entry: c.plan.entry, stop: c.plan.stop, premium: c.plan.premium,
+      zeroDte: !!c.plan.expiry && String(c.plan.expiry).slice(0, 10) === etDayOf(c.publishedAt),
+      underlyingPct: undPct, optionPct: optPct,
+    }, riskDollars) : null;
+    c.riskPnl = sized?.pnl ?? null;
+    c.riskDollars = riskDollars;
+    if (sized) pctParts.unshift(`${sized.pnl >= 0 ? '+' : '−'}$${Math.abs(sized.pnl).toFixed(0)} at $${riskDollars} risk${sized.scaled ? ' (scaled)' : ''}${sized.capped ? ' (capped at stop)' : ''}`);
     const pct = pctParts.length ? pctParts.join(' / ') : 'P&L not measured';
     const triggered = c.events.some((e) => e.kind === 'trigger');
     const line = `${etHm(atMs)} ${cls.word.toLowerCase()}${ev.exitPrice != null ? ` @ ${money(num(ev.exitPrice))}` : ''} · ${pct} (${timeTag})`;
@@ -828,6 +847,13 @@ export function buildRecap(s: LifecycleState, ch: LabsChannel, day: string): Rec
   return replyBody([
     `📋 **${CHANNEL_TAG[ch as Exclude<LabsChannel, 'bot'>]} · daily recap ${day}**`,
     `Published ${published.length} · Triggered ${triggeredToday.length} · Wins ${wins.length} (${v(wins)}) · Losses ${losses.length} (${v(losses)}) · Time/expired ${other.length} · Still open ${open.length}`,
+    ...(() => {
+      const sized = resolvedToday.filter((c) => typeof c.riskPnl === 'number');
+      if (!sized.length) return [];
+      const net = sized.reduce((a, c) => a + (c.riskPnl as number), 0);
+      const rd = sized[0].riskDollars ?? readNexusRiskDollars(process.env);
+      return [`Net ${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)} at $${rd}/trade risk (${sized.length} closed, risk-sized; losses capped at the stop)`];
+    })(),
     `-# verified = hit time confirmed on the bar path; unverified = observed by a delayed poll. Model/paper record, not live fills.`,
     ...lines,
   ].join('\n'));

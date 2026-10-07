@@ -32826,6 +32826,12 @@ Use this checklist before entering any trade:
       try {
         const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
         rows = (await loadJournal(j)).rows;
+        if (j.kind === 'desk') {
+          // Same sizing (default Risk $500) and exit view the client applied to its rows (shared/desk-view.ts).
+          const { applyDeskView, parseDeskView } = await import('@shared/desk-view');
+          const { parseSizingParam } = await import('@shared/position-sizing');
+          rows = applyDeskView(rows, { view: parseDeskView(req.query.jview), sizing: parseSizingParam(req.query.jsize as string) }).rows;
+        }
       } catch (err) {
         if (err instanceof JournalAccessError) return res.status(err.status).json({ error: err.message });
         throw err;

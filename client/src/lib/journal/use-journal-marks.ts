@@ -4,6 +4,7 @@
  * (react-query pauses interval refetches in a hidden tab). Separate from the
  * rows query so a book of thousands of rows is not re-downloaded to move a price.
  */
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { JournalKey } from '@shared/journal-sources';
 
@@ -21,7 +22,12 @@ export interface LiveMark {
 
 export const MARKS_POLL_MS = 30_000;
 
-export function useJournalMarks(key: JournalKey, openCount: number) {
+/**
+ * NEXUS ideas rows are re-sized on the client (shared/desk-view.ts); the server
+ * marks them at the unit size, so a risk-sized row's unrealized $ is scaled by
+ * qty ÷ unit qty here (pass the book's rows).
+ */
+export function useJournalMarks(key: JournalKey, openCount: number, rows?: readonly { id: string; quantity: number; riskBasis?: { unitQty: number } | null; sizedAs?: unknown }[]) {
   const eligible = key === 'mine' || key === 'desk' || key.startsWith('trader:');
   const q = useQuery<{ marks: Record<string, LiveMark>; asOf: string }>({
     queryKey: ['/api/journal/marks', key],
@@ -35,7 +41,19 @@ export function useJournalMarks(key: JournalKey, openCount: number) {
     refetchIntervalInBackground: false,
     staleTime: MARKS_POLL_MS - 1_000,
   });
-  return q.data?.marks ?? {};
+  const marks = q.data?.marks;
+  return useMemo(() => {
+    if (!marks || key !== 'desk' || !rows) return marks ?? {};
+    const factor = new Map<string, number>();
+    for (const r of rows) if (r.sizedAs && r.riskBasis && r.riskBasis.unitQty > 0) factor.set(r.id, r.quantity / r.riskBasis.unitQty);
+    if (!factor.size) return marks;
+    const out: Record<string, LiveMark> = {};
+    for (const [id, m] of Object.entries(marks)) {
+      const f = factor.get(id);
+      out[id] = f == null || m.unrealizedPnL == null ? m : { ...m, unrealizedPnL: Math.round(m.unrealizedPnL * f * 100) / 100 };
+    }
+    return out;
+  }, [marks, key, rows]);
 }
 
 /** "12s", "4m", "3h", "2d" — the age of an observation. */

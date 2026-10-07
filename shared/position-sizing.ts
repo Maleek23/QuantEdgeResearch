@@ -13,11 +13,18 @@
  *                   premiumStop = the plan's premium stop when it has one, else
  *                   −40% of premium for 0DTE, −50% for anything longer.
  *
- * A position that cannot be bought inside the budget is NOT forced in at a
- * larger risk: one share / one contract whose risk to the stop exceeds risk$ is
- * reported "too expensive for the risk budget" and left out of the risk-sized
- * book (and counted, so nothing disappears silently). Futures carry an unknown
- * multiplier here and are not risk-sized.
+ * When even ONE contract (or share) risks more than risk$ to its stop, the
+ * position is FRACTIONALLY sized (qty = risk$ / risk-per-unit, e.g. 0.31
+ * contracts) and labelled "scaled" — its P&L is the 1-unit P&L × that fraction.
+ * No trade may lose more than its risk budget: a recorded exit WORSE than the
+ * stop (gap, held past the premium stop) is capped at −risk-to-stop and
+ * labelled "capped at stop" (it assumes the stop filled at its level); the
+ * uncapped figure is kept on the row so the cap is never hidden. Futures carry
+ * an unknown multiplier here and are not risk-sized.
+ *
+ * Operator decision 2026-10-07: Risk $500 is the DEFAULT for the NEXUS ideas
+ * book; $1,000 is the most a custom budget may be; "Unit" stays as a secondary
+ * view.
  *
  * Pure: no I/O. Used by the journal (client/src/lib/journal/use-journal.ts via
  * shared/desk-view.ts) and research/managed-exit-replay.ts.
@@ -34,8 +41,11 @@ export interface SizingChoice {
 
 export const RISK_PRESETS = [500, 1000] as const;
 export const UNIT_SIZING: SizingChoice = { mode: 'unit', riskDollars: 0 };
+export const DEFAULT_RISK_DOLLARS = 500;
+export const DEFAULT_SIZING: SizingChoice = { mode: 'risk', riskDollars: DEFAULT_RISK_DOLLARS };
 export const MIN_RISK_DOLLARS = 50;
-export const MAX_RISK_DOLLARS = 100_000;
+/** Operator ceiling: NEXUS never risks more than $1,000 per trade. */
+export const MAX_RISK_DOLLARS = 1000;
 
 /** Default premium stops when the plan has none (fraction of premium lost). */
 export const DEFAULT_PREMIUM_STOP_PCT = { zeroDte: 0.40, swing: 0.50 } as const;
@@ -54,7 +64,11 @@ export interface RiskBasis {
 }
 
 export type SizeResult =
-  | { ok: true; qty: number; riskPerUnit: number; riskDollars: number; notional: number; premiumStop: number | null; premiumStopBasis: string | null }
+  | {
+    ok: true; qty: number; riskPerUnit: number; riskDollars: number; notional: number; premiumStop: number | null; premiumStopBasis: string | null;
+    /** Fractional: 1 unit risked more than the budget, so P&L is the 1-unit P&L × qty (< 1). */
+    scaled: boolean;
+  }
   | { ok: false; reason: string; riskPerUnit: number | null };
 
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -103,18 +117,21 @@ export function sizeForRisk(b: RiskBasis, riskDollars: number): SizeResult {
     if (!ps) return { ok: false, reason: 'no entry premium to size from', riskPerUnit: null };
     const perContract = (b.entryPremium! - ps.stop) * 100;
     if (!(perContract > 0)) return { ok: false, reason: 'premium stop is not below the entry premium', riskPerUnit: null };
-    const n = Math.floor(riskDollars / perContract + 1e-9);
-    if (n < 1) return { ok: false, reason: `too expensive for risk budget — 1 contract risks $${Math.round(perContract)} to its stop (${ps.basis})`, riskPerUnit: perContract };
-    return { ok: true, qty: n, riskPerUnit: perContract, riskDollars: n * perContract, notional: n * b.entryPremium! * 100, premiumStop: ps.stop, premiumStopBasis: ps.basis };
+    const whole = Math.floor(riskDollars / perContract + 1e-9);
+    const scaled = whole < 1;
+    const n = scaled ? Math.floor((riskDollars / perContract) * 1e4) / 1e4 : whole;
+    return { ok: true, qty: n, riskPerUnit: perContract, riskDollars: n * perContract, notional: n * b.entryPremium! * 100, premiumStop: ps.stop, premiumStopBasis: ps.basis, scaled };
   }
   if (!fin(b.entry) || b.entry <= 0) return { ok: false, reason: 'no entry price', riskPerUnit: null };
   if (!fin(b.stop) || b.stop <= 0) return { ok: false, reason: 'no stop — cannot size to risk', riskPerUnit: null };
   const perUnit = Math.abs(b.entry - b.stop);
   if (!(perUnit > 0)) return { ok: false, reason: 'stop equals entry — cannot size to risk', riskPerUnit: null };
   const raw = riskDollars / perUnit;
-  const qty = b.assetType === 'crypto' ? Math.floor(raw * 1e6) / 1e6 : Math.floor(raw + 1e-9);
-  if (!(qty > 0)) return { ok: false, reason: `too expensive for risk budget — 1 share risks $${perUnit.toFixed(2)} to its stop`, riskPerUnit: perUnit };
-  return { ok: true, qty, riskPerUnit: perUnit, riskDollars: qty * perUnit, notional: qty * b.entry, premiumStop: null, premiumStopBasis: null };
+  const whole = Math.floor(raw + 1e-9);
+  const scaled = b.assetType !== 'crypto' && whole < 1;
+  const qty = b.assetType === 'crypto' || scaled ? Math.floor(raw * 1e6) / 1e6 : whole;
+  if (!(qty > 0)) return { ok: false, reason: 'risk budget too small for this stop', riskPerUnit: perUnit };
+  return { ok: true, qty, riskPerUnit: perUnit, riskDollars: qty * perUnit, notional: qty * b.entry, premiumStop: null, premiumStopBasis: null, scaled };
 }
 
 /**
@@ -125,6 +142,59 @@ export function sizeForRisk(b: RiskBasis, riskDollars: number): SizeResult {
 export function scaleUnitPnl(unitPnl: number | null, unitQty: number, sized: SizeResult): number | null {
   if (unitPnl == null || !sized.ok || !(unitQty > 0)) return null;
   return Math.round(unitPnl * (sized.qty / unitQty) * 100) / 100;
+}
+
+/**
+ * Risk-sized P&L with the loss cap: never below −(risk to stop). Returns the
+ * capped value, the uncapped value, and whether the cap bit.
+ */
+export function riskSizedPnl(unitPnl: number | null, unitQty: number, sized: SizeResult): { pnl: number | null; uncapped: number | null; capped: boolean } {
+  const raw = scaleUnitPnl(unitPnl, unitQty, sized);
+  if (raw == null || !sized.ok) return { pnl: raw, uncapped: raw, capped: false };
+  const floor = -Math.round(sized.riskDollars * 100) / 100;
+  return raw < floor - 0.01 ? { pnl: floor, uncapped: raw, capped: true } : { pnl: raw, uncapped: raw, capped: false };
+}
+
+/**
+ * Risk-sized $ P&L of an idea from its % result (Discord exit posts / recap):
+ * options from the contract % (unit = 1 contract), stocks from the underlying %
+ * (unit = $1,000 notional). Null when it cannot be sized or priced.
+ */
+export function riskSizedFromPct(a: {
+  isOption: boolean; entry: number | null; stop: number | null; premium: number | null; zeroDte: boolean;
+  underlyingPct: number | null; optionPct: number | null;
+}, riskDollars: number): { pnl: number; scaled: boolean; capped: boolean; qty: number } | null {
+  if (a.isOption) {
+    if (a.optionPct == null || !(a.premium != null && a.premium > 0)) return null;
+    const sz = sizeForRisk({ assetType: 'option', entry: a.entry ?? 0, stop: a.stop, entryPremium: a.premium, zeroDte: a.zeroDte }, riskDollars);
+    if (!sz.ok) return null;
+    const r = riskSizedPnl(a.premium * 100 * (a.optionPct / 100), 1, sz);
+    return r.pnl == null ? null : { pnl: r.pnl, scaled: sz.scaled, capped: r.capped, qty: sz.qty };
+  }
+  if (a.underlyingPct == null || !(a.entry != null && a.entry > 0)) return null;
+  const sz = sizeForRisk({ assetType: 'stock', entry: a.entry, stop: a.stop }, riskDollars);
+  if (!sz.ok) return null;
+  const r = riskSizedPnl(1000 * (a.underlyingPct / 100), 1000 / a.entry, sz);
+  return r.pnl == null ? null : { pnl: r.pnl, scaled: sz.scaled, capped: r.capped, qty: sz.qty };
+}
+
+/** NEXUS_RISK_DOLLARS (server): the per-trade risk the Discord $ figures use; default $500, max $1,000. */
+export function readNexusRiskDollars(env: Record<string, string | undefined> = {}): number {
+  return clampRiskDollars(env.NEXUS_RISK_DOLLARS) ?? DEFAULT_RISK_DOLLARS;
+}
+
+/** URL / query form: "unit" | "risk:500". */
+export function sizingParam(c: SizingChoice): string {
+  return c.mode === 'unit' ? 'unit' : `risk:${c.riskDollars}`;
+}
+
+/** Parse "unit" | "risk:<$>" — anything else (or a budget outside $50–$1,000) → the $500 default. */
+export function parseSizingParam(raw: string | null | undefined): SizingChoice {
+  const v = String(raw ?? '').trim().toLowerCase();
+  if (v === 'unit') return UNIT_SIZING;
+  const m = v.match(/^risk:(\d+(?:\.\d+)?)$/);
+  const d = m ? clampRiskDollars(m[1]) : null;
+  return d != null ? { mode: 'risk', riskDollars: d } : DEFAULT_SIZING;
 }
 
 export function sizingLabel(c: SizingChoice): string {

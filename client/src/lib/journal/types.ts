@@ -55,6 +55,14 @@ export interface JournalTradeRow {
   /** Bot options only: outcome has or lacks reconcilable fill/settlement evidence. */
   measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';
   measurementNote?: string | null;
+  /** NEXUS ideas rows: published plan levels for equal-risk sizing; replay / peak / call fields (shared/desk-view.ts). */
+  riskBasis?: import('@shared/desk-view').DeskRiskBasis | null;
+  managed?: import('@shared/desk-view').DeskManaged | null;
+  peak?: import('@shared/desk-view').DeskPeak | null;
+  call?: import('@shared/desk-view').DeskCall | null;
+  /** Client-derived (shared/desk-view.ts applyDeskView): risk sizing applied to this row, and which view priced it. */
+  sizedAs?: import('@shared/desk-view').DeskSizedAs | null;
+  viewedAs?: import('@shared/desk-view').DeskView;
   /** Client-derived: an option with no closing fill, settled by the expiry rule — at intrinsic by the server, or $0 unverified (shared/journal-expiry.ts). */
   expiredAssumed?: boolean;
   createdAt?: string | null;

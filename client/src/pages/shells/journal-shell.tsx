@@ -41,6 +41,7 @@ import { TradeEditor } from '@/components/journal/trade-editor';
 import type { JournalTradeRow } from '@/lib/journal/types';
 import { JournalLockedError, useJournalData, useJournalFilterState, useJournalKey, useJournalPrefs, useJournalSources } from '@/lib/journal/use-journal';
 import { JournalUnlock } from '@/components/journal/journal-unlock';
+import { DeskControls } from '@/components/journal/desk-controls';
 import { queryClient } from '@/lib/queryClient';
 import type { JournalKey } from '@shared/journal-sources';
 import { FILTERED_PAGES, JOURNAL_PAGES, TRADE_PAGES, resolveJournalPage } from '@/lib/journal/legacy-jtab';
@@ -94,7 +95,8 @@ export default function JournalShell() {
   const filters = useJournalFilterState();
   const [journalKey, setJournalKey] = useJournalKey();
   const sourcesQ = useJournalSources();
-  const data = useJournalData(filters.resolved, journalKey);
+  const deskOpts = useMemo(() => ({ view: prefs.deskView, sizing: prefs.deskSizing }), [prefs.deskView, prefs.deskSizing]);
+  const data = useJournalData(filters.resolved, journalKey, deskOpts);
   const source = sourcesQ.data?.sources.find((x) => x.key === journalKey);
   const bookLabel = data.meta?.label ?? source?.label ?? (journalKey === 'mine' ? 'My journal' : journalKey);
   const canWrite = data.meta?.canWrite ?? source?.canWrite ?? false;
@@ -281,6 +283,9 @@ export default function JournalShell() {
 
           {personal && tradesQ.isSuccess && view !== 'settings' && (
             <JournalBasis compact meta={data.meta} shown={data.rows.length} total={total} sizing={prefs.sizing} rows={data.rows} />
+          )}
+          {journalKey === 'desk' && tradesQ.isSuccess && view !== 'settings' && !tradePage && (
+            <DeskControls prefs={prefs} setPrefs={setPrefs} data={data} />
           )}
 
           {personal && tradesQ.isSuccess && total > 0 && FILTERED_PAGES.has(view) && !tradePage && (

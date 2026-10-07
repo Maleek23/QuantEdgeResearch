@@ -49,7 +49,7 @@ export default function TradesView() {
   const [deleteError, setDeleteError] = useState('');
   const openCount = useMemo(() => data.allRows.filter((r) => String(r.status).toLowerCase() === 'open').length, [data.allRows]);
   // Live marks for open rows (Mine / trader books), polled every 30 s while visible.
-  const marks = useJournalMarks(data.key, openCount);
+  const marks = useJournalMarks(data.key, openCount, data.rows);
 
   const sorted = useMemo(() => {
     const val = (t: JTrade): number | string => {
@@ -137,14 +137,14 @@ export default function TradesView() {
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>
                   <td><SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
-                  <td className="num">{t.quantity}</td>
+                  <td className="num">{t.quantity}{t.row.sizedAs?.scaled && <span className="jr-tag-scaled" title={`1 unit risks more than $${t.row.sizedAs.riskDollars} to its stop — sized fractionally; P&L = 1-unit P&L × ${t.quantity}`}>scaled</span>}</td>
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
                   <td className="num">{t.status === 'open'
                     // Open rows: live mark (Mine/trader) or the stored ledger mark (bot), always with its age — unrealized, not 0.
                     ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
                     : <Pnl value={t.netPnl} />}</td>
-                  <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}</td>
+                  <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.sizedAs?.capped && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title={`Recorded exit was worse than the stop; capped at −$${t.row.sizedAs.riskToStop} (assumes the stop filled). Uncapped: ${t.row.sizedAs.uncappedPnL}`}>capped at stop</div>}{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}</td>
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
