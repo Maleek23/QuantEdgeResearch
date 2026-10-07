@@ -21,6 +21,7 @@
     "test:exit-dates": "tsx scripts/test-exit-dates.ts",
     "test:outcome-pipeline": "tsx scripts/test-outcome-pipeline.ts",
     "test:run-up": "tsx scripts/test-run-up.ts",
+    "test:idea-timeline": "tsx scripts/test-idea-timeline.ts",
     "test:premarket-ideas": "tsx scripts/test-premarket-ideas.ts",
     "test:crypto-ideas": "tsx scripts/test-crypto-ideas.ts",
     "test:squeeze": "tsx scripts/test-squeeze.ts",

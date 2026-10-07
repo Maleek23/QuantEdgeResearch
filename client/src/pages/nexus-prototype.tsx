@@ -10,6 +10,7 @@ import {
   useDevelopingQuote, useNexusConvictions, useNexusExtended, useNexusPatterns, useNexusPulse, useSpxExpression,
   SIDES, RANKS, type DetailTab,
 } from '@/components/dashboard/tools/nexus/nexus-parts';
+import { BoardTimeRangeFilter, EMPTY_CALLED_RANGE, filterByCalledRange, type CalledRange } from '@/components/dashboard/tools/nexus/board-time-filter';
 import '@/styles/nexus-prototype.css';
 
 /**
@@ -28,6 +29,7 @@ export default function NexusPrototype() {
   const [view, setView] = useState<'focus' | 'grid' | 'table'>('focus');
   const [rank, setRank] = useState<'all' | 'new' | 'best' | 'conviction'>('all');
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [calledRange, setCalledRange] = useState<CalledRange>(EMPTY_CALLED_RANGE);
   const stageRef = useRef<HTMLElement>(null);
 
   const convictions = useNexusConvictions();
@@ -36,10 +38,10 @@ export default function NexusPrototype() {
   const patterns = useNexusPatterns();
   const spySource = spySourceOf(convictions.data?.picks);
   const spxMap = useSpxExpression(spySource);
-  const rows = useMemo(() => rankRows(
+  const rows = useMemo(() => filterByCalledRange(rankRows(
     withSpxRow(convictions.data?.picks, spySource, spxMap.data),
     { scope: scope === 'positions' ? 'positions' : 'setups', side, query, rank },
-  ), [convictions.data, query, scope, side, rank, spySource, spxMap.data]);
+  ), calledRange.from, calledRange.to), [convictions.data, query, scope, side, rank, spySource, spxMap.data, calledRange]);
   const developing = useMemo(() => rankDeveloping(patterns.data?.hits, convictions.data?.picks, { query, side }), [patterns.data, convictions.data, query, side]);
   const developingPick = developing.find((hit) => hit.symbol === developingSymbol) ?? developing[0];
   const developingQuote = useDevelopingQuote(developingPick?.symbol, scope === 'developing');
@@ -96,6 +98,7 @@ export default function NexusPrototype() {
           {scope === 'setups' && <div className="nxp-rank-filter">
             {RANKS.map((value) => <button key={value} className={rank === value ? 'active' : ''} onClick={() => setRank(value)}>{value}</button>)}
           </div>}
+          {scope !== 'developing' && <div className="nxp-trf-row"><BoardTimeRangeFilter value={calledRange} onChange={setCalledRange} count={rows.length} /></div>}
           <div className="nxp-rows">
             {scope === 'developing' && patterns.isLoading && <div className="nxp-state">Scanning the opportunity funnel…</div>}
             {scope === 'developing' && !patterns.isLoading && developing.length === 0 && <div className="nxp-state">No measured developing structures match this view.</div>}

@@ -35,6 +35,7 @@ import {
 } from './nexus-parts';
 import { TraderCallLine } from './trader-calls';
 import { TrackedRow } from './tracked-row';
+import { BoardTimeRangeFilter, EMPTY_CALLED_RANGE, filterByCalledRange, type CalledRange } from './board-time-filter';
 import { useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { dayHeading, etDay, filterBoardByDay, type DayChip, type DayFilter } from '@shared/setup-lifecycle';
 import { useTraderCalls } from '@/lib/trader-calls';
@@ -208,15 +209,17 @@ export function NexusBoardTool() {
   const [showStale, setShowStale] = useToolSetting<boolean>('showStale', false);
   // SPX chip: SPY/SPX index 0DTE ideas (the index engines publish SPX plays on SPY; SPY rows carry an SPXW mirror).
   const [spxOnly, setSpxOnly] = useToolSetting<boolean>('spxOnly', false);
+  // Called-time range (ET) — board-time-filter.tsx; applied to rankRows' output.
+  const [calledRange, setCalledRange] = useToolSetting<CalledRange>('calledRange', EMPTY_CALLED_RANGE);
   const rotMap = useRotationMap();
   const { map: life } = useSetupLifecycles(all, convictions.data?.generatedAt, now);
   // Every filter except the day, in board order (stale + resolved sink below fresh/carried).
   const pre = useMemo(() => {
-    const ranked = rankRows(all, { scope: 'setups', side, query, rank }, life);
+    const ranked = filterByCalledRange(rankRows(all, { scope: 'setups', side, query, rank }, life), calledRange?.from ?? null, calledRange?.to ?? null);
     const c = cryptoOnly ? ranked.filter((p) => String(p.assetType).toLowerCase() === 'crypto') : ranked;
     const x = spxOnly ? c.filter(isIndexZeroDte) : c;
     return withRotation ? x.filter((p) => rotationTagFor(rotMap, p.symbol, p.direction, p.source)?.tag === 'with') : x;
-  }, [all, side, query, rank, cryptoOnly, spxOnly, withRotation, rotMap, life]);
+  }, [all, side, query, rank, cryptoOnly, spxOnly, withRotation, rotMap, life, calledRange]);
   const byDay = useMemo(() => filterBoardByDay(pre, {
     dayOf: (p) => life.get(p.ideaId)?.life.publishedDay ?? null,
     stateOf: (p) => life.get(p.ideaId)?.life.state,
@@ -241,7 +244,7 @@ export function NexusBoardTool() {
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   const row = (pick: ConvictionPick) => <SetupRow key={pick.ideaId} pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />;
   const dayLabel = isDateKey(day) ? `on ${dayHeading(day, now)}` : day === 'week' ? 'this week' : day;
-  const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); setSpxOnly(false); };
+  const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); setSpxOnly(false); setCalledRange(EMPTY_CALLED_RANGE); };
   return (
     <div className="fd-fill nxd nxd-board">
       <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); setDay('all'); }} />
@@ -268,6 +271,7 @@ export function NexusBoardTool() {
             {showStale ? 'hide stale' : `+${byDay.staleHidden} stale`}
           </button>
         )}
+        <BoardTimeRangeFilter value={calledRange ?? EMPTY_CALLED_RANGE} onChange={setCalledRange} count={rows.length} />
       </div>
       <DetailHint />
       {blocked ?? (rows.length === 0
