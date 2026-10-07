@@ -246,6 +246,13 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-basis b{color:var(--text)}
 .jr-basis-k{font-family:var(--jr-mono);font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--jr-accent-hi)}
 .jr-basis-s{font-size:11.5px;color:var(--text-mute);margin-top:3px}
+/* NEXUS ideas: sizing + exit view (components/journal/desk-controls.tsx) */
+.jr-desk-ctl{display:flex;flex-direction:column;gap:6px;padding:6px 0 2px}
+.jr-desk-ctl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.jr-desk-ctl .jr-seg button{font-size:11px}
+.jr-desk-custom{display:inline-flex;align-items:center;gap:6px}
+.jr-desk-custom .jr-input{width:80px}
+.jr-tag-scaled{font-size:10px;color:var(--text-mute);margin-left:4px}
 
 /* notes (Discord analysis posts etc.) */
 .jr-note-item{border:1px solid var(--jr-line);border-radius:8px;padding:9px 11px;background:rgba(127,178,255,0.02);display:flex;flex-direction:column;gap:5px;min-width:0}

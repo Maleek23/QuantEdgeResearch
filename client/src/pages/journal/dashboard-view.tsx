@@ -37,7 +37,7 @@ export default function DashboardView() {
   const drill = useJournalDrill();
   const m = data.metrics;
   // Live marks for open positions (Mine / trader books) — 30 s poll while visible.
-  const marks = useJournalMarks(data.key, m.openTrades);
+  const marks = useJournalMarks(data.key, m.openTrades, data.rows);
 
   // Balance behind the book → anchor for % drawdown (null + reason when none).
   const bal = useJournalBalance(data.key);
