@@ -33,6 +33,7 @@ import '@/styles/nexus.css';
 
 interface BoardSignal {
   symbol: string; direction?: string | null; convictionScore?: number | null;
+  nexusGrade?: { letter: string; score: number; breakdown?: string } | null;
   holdingPeriod?: string | null; horizonDays?: number | null;
   event?: { type?: string; title?: string; date?: string; daysAway?: number; polarity?: string; importance?: number; isBinary?: boolean };
   note?: string;
@@ -245,7 +246,7 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
                     {/* phones: the NEXUS side column drops; its arrow rides on the ticker */}
                     {side && <span className={`qp-phone-only impact-side ${side === 'SHORT' ? 'short' : 'long'}`} aria-label={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`} title={`${side}${d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}`}><span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span></span>}
                     {d.symbol}
-                    {d.score != null && <span className="score" title="Evidence score, 0–100 (same scale as NEXUS)">{d.score}</span>}
+                    {d.nexusGrade && <span className="score" title={`NEXUS grade ${d.nexusGrade.letter} ${d.nexusGrade.score}/100 — actionability score — unvalidated, not a win probability.${d.nexusGrade.breakdown ? ` ${d.nexusGrade.breakdown}.` : ''}`}>{d.nexusGrade.letter} {d.nexusGrade.score}</span>}
                   </div>
                 </td>
                 <td><div className={`impact-type ${d.type === 'nosignal' ? 'conflict' : d.type}`}>{TYPE_LABEL[d.type]}</div></td>

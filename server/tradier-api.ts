@@ -345,15 +345,47 @@ export interface OptionMark {
   mid: number;
   /**
    * Which venue actually answered. Never inferred — always the real one.
-   * 'alpaca' = Alpaca's free INDICATIVE options feed (not the OPRA NBBO).
    */
   source: 'tradier' | 'alpaca' | 'cboe' | 'yahoo';
+  /** Alpaca quote feed, when applicable; distinguishes OPRA from indicative. */
+  feed: 'opra' | 'indicative' | null;
   /**
-   * False only for a real-time Tradier quote. Alpaca indicative, CBOE (~15 min)
-   * and Yahoo are all flagged delayed, so every existing "delayed quote" gate
-   * (e.g. the bot's opening-price-discovery wait) still applies to them.
+   * False for a non-delayed Tradier quote or OPRA. Indicative Alpaca, CBOE and
+   * Yahoo are flagged delayed and cannot pass simulated-fill gates.
    */
   delayed: boolean;
+  /** Provider timestamp when supplied; null means the venue did not expose it. */
+  quoteTime: string | null;
+}
+
+/**
+ * Is this mark usable as a simulated fill?
+ *
+ * Strict (default): live, two-sided, uncrossed and timestamped within maxAgeMs —
+ * the only kind of quote bot-fill-verification can call "verified".
+ *
+ * `allowDelayed`: the paper bot's operating standard while no live OPRA /
+ * production Tradier feed is configured. A delayed quote is still required to
+ * be two-sided and uncrossed; the fill is tagged delayed=true so the audit marks
+ * it unverified. Refusing delayed quotes outright (Codex 2026-10-03) left the
+ * bot unable to enter, re-mark, stop out or flatten anything on the delayed
+ * feeds production actually has (Alpaca indicative, CBOE, Tradier sandbox).
+ */
+export function optionMarkExecutionIssue(
+  mark: OptionMark, nowMs = Date.now(), maxAgeMs = 60_000, opts: { allowDelayed?: boolean } = {},
+): string | null {
+  if (!(Number.isFinite(mark.bid) && mark.bid > 0 && Number.isFinite(mark.ask) && mark.ask > 0)) return 'missing positive bid/ask';
+  if (mark.bid > mark.ask) return 'crossed bid/ask';
+  if (mark.delayed) return opts.allowDelayed ? null : `delayed ${mark.source}${mark.feed ? ` (${mark.feed})` : ''} quote`;
+  const raw = mark.quoteTime == null ? NaN : Number(mark.quoteTime);
+  const timestampMs = Number.isFinite(raw)
+    ? raw < 1e12 ? raw * 1000 : raw
+    : Date.parse(String(mark.quoteTime ?? ''));
+  if (!Number.isFinite(timestampMs)) return 'quote timestamp unavailable';
+  const ageMs = nowMs - timestampMs;
+  if (ageMs < -5_000) return 'quote timestamp is in the future';
+  if (ageMs > maxAgeMs) return `quote is stale (${Math.round(ageMs / 1000)}s old)`;
+  return null;
 }
 
 export async function getOptionQuote(
@@ -368,13 +400,13 @@ export async function getOptionQuote(
 ): Promise<{ last: number; bid: number; ask: number; mid: number } | null> {
   const m = await resolveOptionMark(params, apiKey);
   if (!m) return null;
-  const { source, delayed, ...quote } = m;
+  const { source, feed, delayed, quoteTime, ...quote } = m;
   return quote;
 }
 
 /**
- * The universal option mark. Resolves Tradier first, CBOE delayed chain second,
- * and reports which one answered so callers can label a delayed price instead of
+ * The universal option mark. Resolves Tradier first, Alpaca OPRA then indicative,
+ * CBOE, and Yahoo, and reports which feed answered so callers can label a delayed price instead of
  * implying it's live. Returns null only when NEITHER venue has a price — never a
  * stock price, and never a zero-row masquerading as a $0.00 contract.
  */
@@ -460,7 +492,8 @@ async function resolveOptionMark(
       return fallbackOptionMark(optionSymbol, params);
     }
 
-    return { last, bid, ask, mid, source: 'tradier', delayed: false };
+    const providerTime = quote.bid_date ?? quote.ask_date ?? quote.quote_time ?? quote.trade_date ?? null;
+    return { last, bid, ask, mid, source: 'tradier', feed: null, delayed: isSandboxKey(key), quoteTime: providerTime == null ? null : String(providerTime) };
   } catch (error) {
     return fallbackOptionMark(optionSymbol, params);
   }
@@ -499,14 +532,14 @@ function resolveContractParts(
   return { underlying, expiry: String(expiry).slice(0, 10), optionType, strike: Number(strike) };
 }
 
-/** Bid/ask/last → a delayed mark, or null when there is no price (never a $0.00 contract). */
-function toDelayedMark(bidRaw: unknown, askRaw: unknown, lastRaw: unknown, source: OptionMark['source']): OptionMark | null {
+/** Bid/ask/last → a mark with explicit feed latency, or null when there is no price. */
+function toOptionMark(bidRaw: unknown, askRaw: unknown, lastRaw: unknown, source: OptionMark['source'], quoteTime: unknown, delayed: boolean, feed: OptionMark['feed'] = null): OptionMark | null {
   const bid = Number(bidRaw) || 0;
   const ask = Number(askRaw) || 0;
   const last = Number(lastRaw) || 0;
   const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : ask || bid;
   if (!(mid > 0)) return null;
-  return { last: last > 0 ? last : mid, bid, ask, mid, source, delayed: true };
+  return { last: last > 0 ? last : mid, bid, ask, mid, source, feed, delayed, quoteTime: quoteTime == null ? null : String(quoteTime) };
 }
 
 async function alpacaOptionQuote(
@@ -517,11 +550,16 @@ async function alpacaOptionQuote(
     const parts = resolveContractParts(occSymbol, params);
     if (!parts) return null;
     const { getAlpacaContractQuote } = await import('./alpaca-options');
-    const q = await getAlpacaContractQuote(buildOptionSymbol(parts.underlying, parts.expiry, parts.optionType, parts.strike));
+    const occ = buildOptionSymbol(parts.underlying, parts.expiry, parts.optionType, parts.strike);
+    // Prefer consolidated OPRA when this account has the required agreement
+    // and entitlement. Fall back to indicative only as a delayed research mark.
+    // Lane is the caller's: a display mark must not jump the priority queue.
+    const q = await getAlpacaContractQuote(occ, 'opra')
+      ?? await getAlpacaContractQuote(occ, 'indicative');
     if (!q) return null;
     // A quote with neither side is not a mark — fall through to CBOE.
     if (!((q.bid ?? 0) > 0 || (q.ask ?? 0) > 0)) return null;
-    return toDelayedMark(q.bid, q.ask, q.last, 'alpaca');
+    return toOptionMark(q.bid, q.ask, q.last, 'alpaca', q.quoteTime, q.feed !== 'opra', q.feed);
   } catch {
     return null;
   }
@@ -542,7 +580,7 @@ async function yahooOptionQuote(
       String(o.expiration_date).slice(0, 10) === parts.expiry,
     );
     if (!row) return null;
-    return toDelayedMark(row.bid, row.ask, row.last, 'yahoo');
+    return toOptionMark(row.bid, row.ask, row.last, 'yahoo', row.quoteTime ?? row.lastTradeDate, true);
   } catch {
     return null;
   }
@@ -594,7 +632,7 @@ async function cboeOptionQuote(
     const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : ask || bid;
     if (!(mid > 0)) return null;
 
-    return { last: mid, bid, ask, mid, source: 'cboe', delayed: true };
+    return { last: mid, bid, ask, mid, source: 'cboe', feed: null, delayed: true, quoteTime: null };
   } catch {
     return null;
   }

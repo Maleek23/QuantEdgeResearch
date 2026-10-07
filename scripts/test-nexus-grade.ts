@@ -4,7 +4,8 @@
  *   npm run test:nexus-grade
  */
 import assert from 'node:assert/strict';
-import { nexusGrade, gradePick, gradeFromLife, letterFor, rotationAligned, windowLeft, whyRankedHere, NEXUS_GRADE_POINTS, type GradeInput } from '../shared/nexus-grade';
+import { nexusGrade, gradePick, gradeFromLife, letterFor, rotationAligned, windowLeft, whyRankedHere, technicalPoints, NEXUS_GRADE_POINTS, type GradeInput } from '../shared/nexus-grade';
+import { formatNexusGrade, gradeIdeaRow, gradeIdeaRowAtPublish, pickFromIdeaRow, gradeComponentsTag, gradeComponents, gradeAtLeast } from '../shared/nexus-grade';
 import { readBoardSort, orderBoard, boardComparator } from '../shared/board-sort';
 import { setupLifecycle } from '../shared/setup-lifecycle';
 import { dbR, rowFromDb, rrBand, spearman, splitHalves, featureReport, audit, IDEAS_SQL, type AuditRow } from '../research/grade-audit';
@@ -19,39 +20,45 @@ const base: GradeInput = {
   publishedDay: '2026-10-01', today: '2026-10-01', nowMs: NOW, layers: [],
 };
 
-// ── points + letters ──────────────────────────────────────────────────────
-t('points table sums to 100', () => {
+// ── points + letters (g2) ─────────────────────────────────────────────────
+t('points table: the five factors sum to 100', () => {
   const P = NEXUS_GRADE_POINTS;
-  assert.equal(P.valid + P.fresh + P.window + P.rotation, 100);
+  assert.equal(P.evidence + P.technical + P.valid + P.window + P.session, 100);
 });
-t('fresh day trade 1.5h into a 6.5h window', () => {
+t('fresh day trade 1.5h into a 6.5h window, no evidence', () => {
   const g = nexusGrade(base);
-  // 60 + 20 + 15 × (5/6.5) = 91.5
-  assert.equal(g.score, 91.5);
-  assert.equal(g.letter, 'A');
+  // 0 + 0 + 25 + 25 × (5/6.5) + 10 = 54.2 → 54
+  assert.equal(g.score, 54);
+  assert.equal(g.letter, 'D');
   assert.equal(g.validated, false);
-  assert.equal(g.factors.length, 4);
+  assert.equal(g.factors.length, 5);
+  assert.ok(Number.isInteger(g.score), 'one integer score');
 });
-t('letters: A ≥ 90, B ≥ 80, C ≥ 60, D ≥ 10, else F', () => {
-  assert.equal(letterFor(100), 'A'); assert.equal(letterFor(90), 'A'); assert.equal(letterFor(89.9), 'B');
-  assert.equal(letterFor(80), 'B'); assert.equal(letterFor(79), 'C'); assert.equal(letterFor(60), 'C');
-  assert.equal(letterFor(59), 'D'); assert.equal(letterFor(10), 'D'); assert.equal(letterFor(9), 'F');
-  assert.equal(letterFor(NaN), 'F');
+t('strong evidence + technical lift the same plan to A', () => {
+  const g = nexusGrade({ ...base, convictionScore: 35, layers: [{ kind: 'technical', points: 6 }, { kind: 'structure', points: 4 }] });
+  // 25 + 15 + 25 + 19.2 + 10 = 94.2 → 94
+  assert.equal(g.score, 94);
+  assert.equal(g.letter, 'A');
 });
-t('carried (earlier day) gets no fresh points → C band', () => {
+t('letters: A ≥ 90, B ≥ 80, C ≥ 65, D ≥ 45, else F — on the rounded score', () => {
+  assert.equal(letterFor(100), 'A'); assert.equal(letterFor(90), 'A'); assert.equal(letterFor(89.6), 'A');
+  assert.equal(letterFor(89.4), 'B'); assert.equal(letterFor(80), 'B'); assert.equal(letterFor(79), 'C');
+  assert.equal(letterFor(65), 'C'); assert.equal(letterFor(64), 'D'); assert.equal(letterFor(45), 'D');
+  assert.equal(letterFor(44), 'F'); assert.equal(letterFor(NaN), 'F');
+});
+t('carried (earlier day) gets no session points', () => {
   const g = nexusGrade({ ...base, lifecycle: 'carried', publishedDay: '2026-09-30', publishMs: et('2026-09-30', '10:00'), windowEndsMs: et('2026-10-06', '16:00') });
-  assert.equal(g.factors.find((f) => f.key === 'fresh')!.points, 0);
-  assert.equal(g.letter, 'C');
+  assert.equal(g.factors.find((f) => f.key === 'session')!.points, 0);
 });
-t('stale and resolved sink below every live setup', () => {
-  const stale = nexusGrade({ ...base, lifecycle: 'stale', layers: [{ kind: 'sector', points: 8 }] });
-  const resolved = nexusGrade({ ...base, lifecycle: 'resolved' });
-  const worstLive = nexusGrade({ ...base, lifecycle: 'carried', publishedDay: '2026-09-30', windowEndsMs: NOW });
+t('stale and resolved sink below every live setup with the same evidence', () => {
+  const ev = { convictionScore: 30, layers: [{ kind: 'technical', points: 10 }] };
+  const stale = nexusGrade({ ...base, ...ev, lifecycle: 'stale' });
+  const resolved = nexusGrade({ ...base, ...ev, lifecycle: 'resolved' });
+  const worstLive = nexusGrade({ ...base, ...ev, lifecycle: 'carried', publishedDay: '2026-09-30', windowEndsMs: NOW });
   assert.ok(stale.score < worstLive.score);
   assert.ok(resolved.score < stale.score);
-  assert.equal(stale.letter, 'D'); assert.equal(resolved.letter, 'F');
-  // no window or fresh credit once not live
   assert.equal(stale.factors.find((f) => f.key === 'window')!.points, 0);
+  assert.equal(stale.factors.find((f) => f.key === 'session')!.points, 0);
 });
 t('window left clamps to [0, 1] and is 0 when unreadable', () => {
   assert.equal(windowLeft(0, 100, -50), 1);
@@ -59,40 +66,22 @@ t('window left clamps to [0, 1] and is 0 when unreadable', () => {
   assert.equal(windowLeft(null, 100, 50), 0);
   assert.equal(windowLeft(100, 100, 50), 0);
 });
-
-// ── rotation bonus: bounded, with-rotation only, never negative ──────────
-t('with rotation = +5 exactly', () => {
+t('technical reads positive technical/ta/structure points only, capped', () => {
+  assert.equal(technicalPoints([{ kind: 'technical', points: 4 }, { kind: 'ta', points: -3 }, { kind: 'gex', points: 9 }, { kind: 'structure', points: 2 }]), 6);
+  const capped = nexusGrade({ ...base, layers: [{ kind: 'technical', points: 40 }] });
+  assert.equal(capped.factors.find((f) => f.key === 'technical')!.points, NEXUS_GRADE_POINTS.technical);
+});
+t('rotation is not a factor (audit helper kept)', () => {
   const a = nexusGrade(base);
   const b = nexusGrade({ ...base, layers: [{ kind: 'sector', points: 6 }] });
-  assert.equal(Math.round((b.score - a.score) * 10) / 10, NEXUS_GRADE_POINTS.rotation);
-  assert.equal(b.rotationAligned, true);
-  const f = b.factors.find((x) => x.key === 'rotation')!;
-  assert.equal(f.basis, 'operator prior'); assert.equal(f.validated, false);
-});
-t('against rotation = 0, not negative', () => {
-  const a = nexusGrade(base);
-  const against = nexusGrade({ ...base, layers: [{ kind: 'sector', points: -14 }] });
-  assert.equal(against.score, a.score);
-  assert.equal(against.factors.find((x) => x.key === 'rotation')!.points, 0);
-});
-t('rotation reads only the sector / peers layer, net of its parts', () => {
-  assert.equal(rotationAligned([{ kind: 'technical', points: 10 }]), false);
+  assert.equal(a.score, b.score);
   assert.equal(rotationAligned([{ kind: 'sector', points: 3 }, { kind: 'sector', points: -4 }]), false);
   assert.equal(rotationAligned([{ kind: 'sector', points: 3 }]), true);
-  assert.equal(rotationAligned(null), false);
-});
-t('the evidence score / confluence count / R:R do not move the grade', () => {
-  const thin = nexusGrade({ ...base, layers: [] });
-  const thick = nexusGrade({ ...base, layers: [{ kind: 'technical', points: 14 }, { kind: 'gex', points: 10 }, { kind: 'ta', points: 8 }, { kind: 'structure', points: 6 }] });
-  assert.equal(thin.score, thick.score);
 });
 t('top 3 contributors + why line', () => {
-  const g = nexusGrade({ ...base, layers: [{ kind: 'sector', points: 4 }] });
+  const g = nexusGrade({ ...base, convictionScore: 30 });
   assert.equal(g.top.length, 3);
-  assert.deepEqual(g.top.map((f) => f.key), ['lifecycle', 'fresh', 'window']);
-  assert.match(whyRankedHere(g), /^live & valid \+60 · published today \+20 · \d+% of window left \+[\d.]+$/);
-  const late = nexusGrade({ ...base, nowMs: et('2026-10-01', '15:55'), layers: [{ kind: 'sector', points: 4 }] });
-  assert.deepEqual(late.top.map((f) => f.key), ['lifecycle', 'fresh', 'rotation']);
+  assert.match(whyRankedHere(g), /\+/);
 });
 
 // ── pick-level grading uses the shared lifecycle ──────────────────────────
@@ -100,10 +89,10 @@ const pick = (o: Record<string, unknown> = {}) => ({
   ideaId: 'x', direction: 'long', entryPrice: 100, stopLoss: 98, targetPrice: 104, holdingPeriod: 'swing',
   assetType: 'stock', calledAt: new Date(et('2026-10-01', '09:45')).toISOString(), currentPrice: 100.5, layers: [], convictionScore: 10, ...o,
 });
-t('gradePick: fresh swing on its first session', () => {
-  const g = gradePick(pick(), NOW);
-  assert.equal(g.letter, 'A');
-  assert.equal(g.factors[0].label, 'live & valid');
+t('gradePick: fresh swing on its first session, strong evidence', () => {
+  const g = gradePick(pick({ convictionScore: 30, layers: [{ kind: 'technical', points: 10 }] }), NOW);
+  assert.equal(g.factors.find((f) => f.key === 'lifecycle')!.label, 'live & valid');
+  assert.ok(g.letter === 'A' || g.letter === 'B', `got ${g.letter} ${g.score}`);
 });
 t('gradePick: through the stop = resolved → F', () => {
   assert.equal(gradePick(pick({ currentPrice: 97 }), NOW).letter, 'F');
@@ -159,7 +148,10 @@ t('rowFromDb: drops pre-2026-08-26, open and unlabelled rows', () => {
   const r = rowFromDb(ok)!;
   assert.equal(r.R, 0.5);
   assert.equal(r.f.rotWith, 1); assert.equal(r.f.confFamilies, 1); assert.equal(r.f.rrBand, 2);
-  assert.equal(r.f.grade, 100);
+  // g2 at surfacing: live 25 + window 25 + session 10 + technical 6/10 × 15 = 69 (no conviction score stamped)
+  assert.equal(r.f.grade, 69);
+  // a logged stamp wins over the rebuild
+  assert.equal(rowFromDb({ ...ok, logged_grade: { score: 83, f: { evidence: 20 } } })!.f.grade, 83);
   assert.equal(rowFromDb({ ...ok, ts: '2026-08-20T14:00:00Z' }), null);
   assert.equal(rowFromDb({ ...ok, outcome_status: 'open' }), null);
   assert.equal(rowFromDb({ ...ok, exit_price: null }), null);
@@ -178,6 +170,37 @@ t('a feature passes only when both halves agree with the top 5 removed', () => {
   assert.equal(featureReport(rows, 'good').sameSignDropTop, true);
   assert.equal(featureReport(rows, 'flip').sameSignDropTop, false);
   assert.deepEqual(audit(rows).passing, ['good']);
+});
+
+// ── ONE grade on every surface: same fixture idea → identical letter + score ──
+t('every surface formatter shows the same letter + score for one idea', () => {
+  const at = et('2026-10-01', '10:30');
+  // The board pick (NEXUS rows/detail/grid, Today, ticker, Catalyst, Quantinum, alerts, bot, Discord signal)
+  const boardPick = {
+    ideaId: 'fx', symbol: 'NVDA', direction: 'long', entryPrice: 100, stopLoss: 97, targetPrice: 106, holdingPeriod: 'swing',
+    assetType: 'stock', source: 'quant', calledAt: new Date(et('2026-10-01', '09:45')).toISOString(), currentPrice: 100.4,
+    convictionScore: 24, layers: [{ kind: 'technical', points: 5 }, { kind: 'structure', points: 2 }, { kind: 'gex', points: 4 }],
+  };
+  // The same idea as a stored trade_ideas row (journal, trade audit, Discord daily)
+  const row = {
+    direction: 'long', entryPrice: 100, stopLoss: 97, targetPrice: 106, holdingPeriod: 'swing', assetType: 'stock', source: 'quant',
+    timestamp: boardPick.calledAt, generationTimestamp: boardPick.calledAt, outcomeStatus: 'open', currentPrice: 100.4,
+    genConvictionScore: 24, genScoringLayers: boardPick.layers,
+  };
+  const g1 = gradePick(boardPick, at);
+  const g2 = gradeIdeaRow(row, at);
+  const g3 = gradeFromLife(setupLifecycle(boardPick, at), boardPick, at);
+  const g4 = gradePick(pickFromIdeaRow(row), at);
+  const shown = [g1, g2, g3, g4].map(formatNexusGrade);
+  assert.deepEqual(new Set(shown).size, 1, `surfaces disagree: ${shown.join(' / ')}`);
+  // Discord embeds + journal note + alert detail + bot fill tag all print formatNexusGrade / the same letter:score.
+  assert.ok(gradeComponentsTag(g1).includes(`:${g1.letter}:${g1.score}|`));
+  assert.equal(gradeComponents(g1, at).score, g1.score);
+  assert.equal(gradeAtLeast(g1, 'B'), g1.letter === 'A' || g1.letter === 'B');
+  // As published (journal / trade audit): graded at the publish instant.
+  const pub = gradeIdeaRowAtPublish(row)!;
+  assert.equal(formatNexusGrade(pub), formatNexusGrade(gradePick({ ...pickFromIdeaRow(row), currentPrice: null, lifecycleState: null }, Date.parse(row.timestamp))));
+  assert.match(formatNexusGrade(g1), /^[A-F] \d{1,3}$/);
 });
 
 console.log(`nexus-grade: ${n} tests passed`);

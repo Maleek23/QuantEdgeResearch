@@ -3,7 +3,9 @@ import { PerformanceValidator, computeRealisedPnl } from "./performance-validato
 import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
 import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pricing";
-import { expiryDay } from "@shared/option-expiry";
+import { expiryDay, optionExpiryCloseMs } from "@shared/option-expiry";
+import { intrinsicValue, settlementUnderlying } from "@shared/journal-expiry";
+import { defaultExpiryBarFetcher, fetchExpiryPrints } from "./journal-expiry-settle";
 import { readLossRulesStamp, progressR } from "@shared/loss-rules";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { fetchCboeChain, findContractMid, type CboeChain } from "./contract-analyzer/cboe-chain";
@@ -326,13 +328,54 @@ class PerformanceValidationService {
           }
         }
 
-        // 💵 REAL OPTION P&L: when an option idea resolves, capture the exit
-        // premium (current contract mid) and compute the actual contract
-        // return off the entry premium. This is what the trader's contract
-        // really did — independent of the stock-level percentGain above.
-        // Never fabricate: only set these when we have BOTH premiums.
+        // An option that reaches its own expiry settles at intrinsic, not at
+        // whatever quote happened to be available on the later tracker pass.
+        // Use the exact expiry-day underlying print (including AM-settled index
+        // rules). If the print is unavailable, leave contract P&L unmeasured.
+        let expiryIntrinsic: number | null = null;
+        let optionExpiryAttempted = false;
+        if (
+          ideaForResult?.assetType === 'option' && result.outcomeStatus === 'expired' &&
+          result.resolutionReason === 'auto_expired' && ideaForResult.expiryDate
+        ) {
+          const expiryCloseMs = optionExpiryCloseMs(ideaForResult.expiryDate);
+          const publishedMs = Date.parse(ideaForResult.timestamp);
+          const exitMs = Date.parse(result.exitDate ?? '');
+          // Only the option's own expiry deadline qualifies. A shorter planned
+          // time stop is still priced from its exit quote, not expiry intrinsic.
+          optionExpiryAttempted = Number.isFinite(expiryCloseMs) && Number.isFinite(publishedMs) && publishedMs < expiryCloseMs &&
+            Number.isFinite(exitMs) && Math.abs(exitMs - expiryCloseMs) < 60_000;
+          if (optionExpiryAttempted) {
+            const source = settlementUnderlying(ideaForResult.symbol, String(ideaForResult.expiryDate).slice(0, 10));
+            const prints = await fetchExpiryPrints([ideaForResult as any], defaultExpiryBarFetcher);
+            const print = source ? prints.get(`${source.symbol}|${String(ideaForResult.expiryDate).slice(0, 10)}`) : null;
+            const strike = Number((ideaForResult as any).strikePrice);
+            if (source && print && Number.isFinite(strike) && strike > 0 && ideaForResult.optionType) {
+              const settlementSpot = Math.round(Number(print[source.field]) * source.scale * 100) / 100;
+              expiryIntrinsic = intrinsicValue(ideaForResult.optionType, strike, settlementSpot);
+              result.exitPrice = settlementSpot;
+              const direction = PerformanceValidator.getNormalizedDirection(ideaForResult);
+              const move = (settlementSpot - Number(ideaForResult.entryPrice)) / Number(ideaForResult.entryPrice) * 100;
+              result.percentGain = Math.round((direction === 'short' ? -move : move) * 100) / 100;
+              result.resolutionReason = 'option_expiry_intrinsic';
+              outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes,
+                `[expiry-premium:intrinsic] ${source.symbol} ${source.field} ${settlementSpot} on ${String(ideaForResult.expiryDate).slice(0, 10)}${source.approximate ? ` (${source.approximate})` : ''}`);
+            } else {
+              result.exitPrice = null;
+              result.percentGain = null;
+              result.resolutionReason = 'option_expiry_unmeasured';
+              outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes,
+                `[expiry-premium:withheld] no exact expiry-day settlement print; option outcome excluded from P&L and win-rate metrics`);
+            }
+          }
+        }
+
+        // 💵 OPTION OUTCOME: an expiry uses intrinsic above; a barrier uses the
+        // contract's own bar when available. A later tracker-pass mark is kept
+        // only as provenance and excluded from realized option-return metrics.
         let exitPremium: number | null = null;
         let optionPercentGain: number | null = null;
+        let optionPremiumBasis: 'touch_bar' | 'pass' | 'withheld' | 'intrinsic' | null = null;
         if (
           ideaForResult?.assetType === 'option' &&
           result.outcomeStatus && result.outcomeStatus !== 'open' &&
@@ -358,12 +401,16 @@ class PerformanceValidationService {
               optionType: (ideaForResult as any).optionType,
             });
             exitPremium = priced.exitPremium;
+            optionPremiumBasis = priced.basis === 'none' ? 'withheld' : priced.basis;
             outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes, priced.note);
             if (priced.stopGain === 'withheld') {
               console.warn(`  🚩 [STOP-GAIN] ${ideaForResult.symbol} ${ideaId}: ${priced.note}`);
             } else if (priced.stopGain === 'allowed') {
               console.warn(`  🚩 [STOP-GAIN] ${ideaForResult.symbol} ${ideaId} (genuine fill in favour): ${priced.note}`);
             }
+          } else if (optionExpiryAttempted) {
+            exitPremium = expiryIntrinsic;
+            optionPremiumBasis = expiryIntrinsic == null ? 'withheld' : 'intrinsic';
           } else if (livePremium != null) {
             /**
              * Floor the exit premium at intrinsic value.
@@ -392,8 +439,15 @@ class PerformanceValidationService {
               }
             }
             exitPremium = Math.round(effective * 100) / 100;
+            optionPremiumBasis = 'pass';
+            outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes,
+              '[exit-premium:pass] current option mark does not match the recorded outcome timestamp; excluded from realized option P&L');
+          } else {
+            optionPremiumBasis = 'withheld';
+            outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes,
+              '[exit-premium:withheld] no option premium aligned with the recorded outcome timestamp');
           }
-          if (exitPremium != null) {
+          if (exitPremium != null && optionPremiumBasis !== 'pass' && optionPremiumBasis !== 'withheld') {
             const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
             // Calls and puts are bought. `direction` describes the underlying
             // thesis, not the side of the option contract.
@@ -423,8 +477,8 @@ class PerformanceValidationService {
           missedEntryTheoreticalOutcome: result.missedEntryTheoreticalOutcome,
           missedEntryTheoreticalGain: result.missedEntryTheoreticalGain,
           // 💵 Real option contract P&L (option ideas only)
-          exitPremium: exitPremium ?? undefined,
-          optionPercentGain: optionPercentGain ?? undefined,
+          exitPremium: ideaForResult?.assetType === 'option' && result.outcomeStatus !== 'open' ? exitPremium : undefined,
+          optionPercentGain: ideaForResult?.assetType === 'option' && result.outcomeStatus !== 'open' ? optionPercentGain : undefined,
         });
 
         validated++;

@@ -22,6 +22,7 @@
  */
 import { BoundedCache } from '../lib/bounded-cache';
 import { logger } from '../logger';
+import { stripConflictingTargetClaims } from '@shared/plan-narrative';
 import {
   buildLevelMap, type Bar, type ExternalLevel, type LevelMap,
 } from '@shared/levels/level-math';
@@ -242,6 +243,6 @@ export async function snapPlanForPublish(plan: PublishPlan): Promise<PublishSnap
  * Remove producer sentences that the snap makes false ("T1 … is stated plainly
  * as 2R …, not a structural level.") before appending the snap's own text.
  */
-export function stripFormulaTargetClaims(text: string | undefined): string {
-  return String(text ?? '').replace(/\s*T1 \$[\d.,]+ is stated plainly as 2R[^.]*\./g, '').trim();
+export function stripFormulaTargetClaims(text: string | undefined, canonicalTarget?: number | null): string {
+  return stripConflictingTargetClaims(text, canonicalTarget);
 }

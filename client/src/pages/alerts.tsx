@@ -39,7 +39,7 @@ const ALERT_DESCRIPTIONS: Record<AlertType, string> = {
   danger_zone: 'Price is approaching the stop',
   invalidated: 'The stop was taken out — the setup no longer holds',
   rating_jump: "An idea's conviction score moved 5+ points",
-  high_conviction: 'An idea scored 90 or above',
+  high_conviction: 'An idea reached NEXUS grade A (actionability score 90+, unvalidated — not a win probability)',
 };
 
 const fmtHour = (h: number) => `${String(h).padStart(2, '0')}:00`;

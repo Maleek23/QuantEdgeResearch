@@ -29,7 +29,7 @@ interface Overview {
   at: string;
 }
 interface Stats { totalIdeas: number; activeIdeas: number; closedIdeas: number; wins: number; losses: number; winRate: number }
-interface BotStatus { lastCycle: { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string } | null; repricedAt: string | null }
+interface BotStatus { lastCycle: { at: string; origin: string; opened: number; closed: number; skipped: number; openCount: number; error?: string } | null; repricedAt: string | null }
 
 export default function AdminOverview() {
   const ov = useAdminJson<Overview>('/api/admin/ops/overview', 60_000);
@@ -94,7 +94,7 @@ export default function AdminOverview() {
                 <b>Quantinum Bot cycle</b>
                 <span className="ah-kv">{bot.data?.lastCycle ? fmtAgo(bot.data.lastCycle.at) : bot.isError ? 'status unavailable' : bot.data ? 'not seen by this process' : '—'}</span>
                 <small>{bot.data?.lastCycle
-                  ? `${bot.data.lastCycle.origin} · opened ${bot.data.lastCycle.opened} · closed ${bot.data.lastCycle.closed} · ${bot.data.lastCycle.openCount} open${bot.data.lastCycle.error ? ` · error: ${bot.data.lastCycle.error}` : ''}`
+                  ? `${bot.data.lastCycle.origin} · opened ${bot.data.lastCycle.opened} · skipped ${bot.data.lastCycle.skipped} · closed ${bot.data.lastCycle.closed} · ${bot.data.lastCycle.openCount} open${bot.data.lastCycle.error ? ` · error: ${bot.data.lastCycle.error}` : ''}`
                   : 'From /api/quant-bot/status. The cycle runs in the worker; the web process only sees cycles it ran itself.'}</small>
               </div>
             </div>

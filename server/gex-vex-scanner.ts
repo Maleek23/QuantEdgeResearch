@@ -19,6 +19,7 @@ import { getTradierQuote } from './tradier-api';
 import { getChartLastPrice, safeQuote, getBestPrice } from './yahoo-finance-service';
 import { enrichOptionIdea } from './options-enricher';
 import type { AITradeIdea } from './ai-service';
+import { calendarDaysToExpiry, holdingPeriodForDte } from '@shared/option-expiry';
 import {
   APPROVED_TICKERS,
   S_TIER,
@@ -884,8 +885,11 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     try {
       const enriched = await enrichOptionIdea(aiShape, { holdingPeriod: play.playScore >= 65 ? 'day' : 'swing' });
       if (enriched) {
-        const risk = Math.abs(play.spotPrice - underlyingStop);
-        const reward = Math.abs(underlyingTarget - play.spotPrice);
+        // The signal score chooses a contract-search horizon; once a contract
+        // is selected, its actual expiry controls the published hold period
+        // and volatility stop floor. A 16-DTE option must not inherit `day`
+        // merely because the GEX signal scored highly.
+        const holdingPeriod = holdingPeriodForDte(calendarDaysToExpiry(enriched.expiryDate, Date.now()), { fallback: 'swing' });
         tradeIdea = {
           symbol: play.symbol,
           sector: play.sector ?? null,
@@ -898,7 +902,10 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
           entryPrice: play.spotPrice,
           targetPrice: underlyingTarget,
           stopLoss: underlyingStop,
-          riskRewardRatio: risk > 0 ? +(reward / risk).toFixed(2) : 0,
+          riskRewardRatio: (() => {
+            const risk = Math.abs(play.spotPrice - underlyingStop);
+            return risk > 0 ? +(Math.abs(underlyingTarget - play.spotPrice) / risk).toFixed(2) : 0;
+          })(),
           // Contract premium is separate from the share-price ladder.
           entryPremium: enriched.entryPrice,
           optionType: enriched.optionType,
@@ -912,7 +919,7 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
           timestamp: new Date().toISOString(),
           outcomeStatus: 'open',
           confidenceScore: Math.min(94, Math.round(play.playScore * 0.9 + 10)),
-          holdingPeriod: play.playScore >= 65 ? 'day' : 'swing',
+          holdingPeriod,
           qualitySignals: [
             `gamma_regime:${play.regime}`,
             `vex_signal:${play.vexSignal}`,
@@ -930,6 +937,7 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
       }
     } catch {
       // Fallback: stock-level idea
+      const holdingPeriod = play.playScore >= 65 ? 'day' : 'swing';
       const stockRisk = Math.abs(play.spotPrice - underlyingStop);
       const stockRR = stockRisk > 0 ? Math.abs(underlyingTarget - play.spotPrice) / stockRisk : 0;
       tradeIdea = {
@@ -949,7 +957,7 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
         timestamp: new Date().toISOString(),
         outcomeStatus: 'open',
         confidenceScore: Math.min(94, Math.round(play.playScore * 0.9 + 10)),
-        holdingPeriod: play.playScore >= 65 ? 'day' : 'swing',
+        holdingPeriod,
         qualitySignals: [
           `gamma_regime:${play.regime}`,
           `vex_signal:${play.vexSignal}`,
@@ -962,9 +970,8 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     }
 
     try {
-      const created = await storage.createTradeIdea(tradeIdea as any);
-      const { isDedupedResult } = await import('./lib/instrument-dedup');
-      if (!isDedupedResult(created)) persisted++;
+      const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+      if (await persistPreparedTradeIdea(tradeIdea)) persisted++;
     } catch (err) {
       logger.warn(`[GEX-HUB] TopPlay persist failed ${play.symbol}: ${(err as Error).message}`);
     }

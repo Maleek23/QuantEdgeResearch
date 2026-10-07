@@ -6,6 +6,8 @@ import type { JournalTrade } from '@shared/schema';
 import { isUnmeasuredExpiry } from '@shared/constants';
 import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
 import { captureRatio } from '@shared/exit-policy';
+import { readPlanSnapshot } from '@shared/plan-snapshot';
+import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -30,6 +32,9 @@ export type JournalWireRow = Pick<JournalTrade,
    * move while open (shared/exit-policy.ts captureRatio; docs/EXIT_RULE_REPLAY.md).
    */
   captureRatio?: number | null;
+  /** Bot book only: whether option P&L reconciles to its saved execution/settlement evidence. */
+  measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';
+  measurementNote?: string | null;
 };
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -63,7 +68,10 @@ export interface DeskIdea {
   expiryDate: string | null;
   entryPremium: number | null;
   exitPremium: number | null;
+  /** Premium basis: historical contract trade print, tracker-pass fallback, or withheld. */
+  exitPremiumBasis?: 'touch_bar' | 'pass' | 'withheld' | null;
   optionPercentGain: number | null;
+  outcomeNotes?: string | null;
   exitPrice: number | null;
   percentGain: number | null;
   outcomeStatus: string | null;
@@ -73,11 +81,21 @@ export interface DeskIdea {
   source: string | null;
   catalyst: string | null;
   genConvictionBand: string | null;
+  /** Read by the NEXUS grade at publish (shared/nexus-grade.ts gradeIdeaRowAtPublish). */
+  genConvictionScore?: number | null;
+  genScoringLayers?: unknown;
+  generationTimestamp?: string | null;
+  holdingPeriod?: string | null;
+  exitBy?: string | null;
+  /** convergenceSignalsJson.nexusGradeAtPublish, when the board logged it. */
+  nexusGradeAtPublish?: { letter?: string; score?: number } | null;
   /** The [exit-time:…] tag from outcomeNotes (bar_hit | deadline | live), when present. */
   exitTimeSource?: string | null;
   /** Tracker's peak / trough of the UNDERLYING while the idea was open. */
   highestPriceReached?: number | null;
   lowestPriceReached?: number | null;
+  /** Immutable levels and contract terms captured at first publication. */
+  convergenceSignalsJson?: unknown;
   /**
    * convergence_signals_json.executionAudit.state (shared/oracle-lifecycle.ts).
    * When the loader supplies it, an OPEN idea counts as an open trade only once
@@ -99,6 +117,16 @@ export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
  * cannot be scored is returned as an exclusion reason — never as a 0 P&L.
  */
 export function mapDeskIdea(i: DeskIdea): DeskMapResult {
+  const snapshot = readPlanSnapshot(i.convergenceSignalsJson);
+  const planEntry = snapshot?.entryPrice ?? i.entryPrice;
+  const planTarget = snapshot?.targetPrice ?? i.targetPrice;
+  const planStop = snapshot?.stopLoss ?? i.stopLoss;
+  const planRr = snapshot?.riskRewardRatio ?? i.riskRewardRatio;
+  const planDirection = snapshot?.direction ?? i.direction;
+  const planPremium = snapshot?.entryPremium ?? i.entryPremium;
+  const planOptionType = snapshot?.optionType ?? i.optionType;
+  const planStrike = snapshot?.strikePrice ?? i.strikePrice;
+  const planExpiry = snapshot?.expiryDate ?? i.expiryDate;
   const status = (i.outcomeStatus ?? 'open').trim().toLowerCase();
   if ((i.resolutionReason ?? '').startsWith('missed_entry')) return { excluded: 'entry never triggered (missed entry window)' };
   const resolved = status !== 'open' && status !== '';
@@ -109,12 +137,17 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   }
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   const option = i.assetType === 'option';
-  const short = i.direction === 'short';
+  // Operator decision 2026-10-06: a contract exit priced at a LATER tracker pass is
+  // not the outcome-time price (live, not carried) — no journal P&L from it.
+  if (option && resolved && i.exitPremiumBasis === 'pass') {
+    return { excluded: 'option exit premium came from a later tracker pass, not the outcome time' };
+  }
+  const short = planDirection === 'short';
 
   let entry: number, qty: number, exit: number | null = null, pnl: number | null = null, pct: number | null = null;
   if (option) {
-    if (!(i.entryPremium != null && i.entryPremium > 0)) return { excluded: 'option idea without a recorded entry premium' };
-    entry = i.entryPremium;
+    if (!(planPremium != null && planPremium > 0)) return { excluded: 'option idea without a recorded entry premium' };
+    entry = planPremium;
     qty = 1;
     if (resolved) {
       exit = i.exitPremium != null && i.exitPremium >= 0 ? i.exitPremium
@@ -124,8 +157,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       pct = ((exit - entry) / entry) * 100;
     }
   } else {
-    if (!(i.entryPrice > 0)) return { excluded: 'no entry price' };
-    entry = i.entryPrice;
+    if (!(planEntry > 0)) return { excluded: 'no entry price' };
+    entry = planEntry;
     qty = DESK_STOCK_NOTIONAL / entry;
     if (resolved) {
       if (i.exitPrice != null && i.exitPrice > 0) pct = ((i.exitPrice - entry) / entry) * 100 * (short ? -1 : 1);
@@ -140,9 +173,17 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const exitTimeNote = exitTime && Number.isFinite(exitMs) && isHitTimeUnknown(status, i.exitTimeSource)
     ? unresolvedExitLabel(exitMs) : null;
   const plan = [
-    `Published ${i.direction.toUpperCase()} ${i.symbol}${option ? ` ${i.strikePrice ?? ''}${(i.optionType ?? '').charAt(0).toUpperCase()} ${i.expiryDate?.slice(0, 10) ?? ''}` : ''}`.trim(),
-    `plan: entry ${i.entryPrice} · target ${i.targetPrice ?? '—'} · stop ${i.stopLoss ?? '—'}${i.riskRewardRatio ? ` · R:R ${i.riskRewardRatio.toFixed(1)}` : ''}`,
-    i.genConvictionBand ? `conviction band at publish: ${i.genConvictionBand}` : null,
+    `Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
+    `plan${snapshot ? ` (${snapshot.version} · ${snapshot.capturedAt})` : ''}: entry ${planEntry} · target ${planTarget ?? '—'} · stop ${planStop ?? '—'}${planRr ? ` · R:R ${planRr.toFixed(1)}` : ''}`,
+    (() => {
+      // The ONE grade, as published: the logged stamp when present, else rebuilt
+      // from the generation-time evidence at first board surfacing.
+      const logged = i.nexusGradeAtPublish && i.nexusGradeAtPublish.letter && Number.isFinite(Number(i.nexusGradeAtPublish.score))
+        ? { letter: i.nexusGradeAtPublish.letter, score: Number(i.nexusGradeAtPublish.score) } : null;
+      const g = logged ?? (i.genConvictionScore != null ? gradeIdeaRowAtPublish({ ...i, entryPrice: planEntry, targetPrice: planTarget, stopLoss: planStop, direction: planDirection, expiryDate: planExpiry }) : null);
+      return g ? `NEXUS grade at publish: ${g.letter} ${g.score} (actionability, unvalidated)` : null;
+    })(),
+    i.genConvictionBand ? `diagnostics (unvalidated): conviction band ${i.genConvictionBand}` : null,
     resolved ? `outcome: ${status}${i.resolutionReason ? ` (${i.resolutionReason})` : ''}` : 'still open — no live mark carried here',
     exitTimeNote ? `exit time: ${exitTimeNote} — the tracker could not find the bar that touched the ${status === 'hit_stop' ? 'stop' : 'target'}` : null,
     i.catalyst ? `catalyst: ${i.catalyst}` : null,
@@ -150,7 +191,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const rp = pnl == null ? null : r2(pnl);
   // Capture on the underlying (options too: exitPrice is the underlying at exit).
   const capRaw = resolved ? captureRatio({
-    direction: short ? 'short' : 'long', entry: i.entryPrice, exit: i.exitPrice,
+    direction: short ? 'short' : 'long', entry: planEntry, exit: i.exitPrice,
     high: i.highestPriceReached ?? null, low: i.lowestPriceReached ?? null,
   }) : null;
   const capture = capRaw == null ? null : r2(capRaw);
@@ -189,4 +230,3 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     },
   };
 }
-

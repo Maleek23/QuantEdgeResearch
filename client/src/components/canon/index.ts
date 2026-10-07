@@ -15,4 +15,5 @@ export { CanonFreshness } from './freshness';
 export { CanonScore, CanonGrade, CanonRate, scoreBand, gradeColor, bandColor, tierColor, tierBadgeStyle, type ScoreBand } from './score';
 export { CanonLevelBadge, LEVEL_LABELS, levelColor, type LevelRole } from './level';
 export { CanonModelNote } from './model-note';
+export { NexusGradeChip, LegacyScoreDiagnostics, nexusGradeColor, nexusGradeTitle, gradeOfPick, gradeOfRow, gradeOfLoosePick, formatNexusGrade, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from './nexus-grade';
 export { feedTimestamp, lacksTimestamp } from './use-feed-freshness';

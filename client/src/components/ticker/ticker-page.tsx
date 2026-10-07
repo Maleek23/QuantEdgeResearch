@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { gradeOfLoosePick, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { fmtUsd } from '@/lib/format';
 import { toggleWatch, useWatchlist, watchLabel } from '@/hooks/use-watchlist';
 import { failToast, undoToast } from '@/lib/undo-toast';
@@ -540,16 +541,11 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
   const open = rows.filter((r) => r.outcome === 'open').length;
   const decided = won + lost;
 
-  // One scale everywhere (audit 2026-10-01 P0 #9): the LIVE evidence score on the
-  // 0–100 display index NEXUS and Today show; the publish-time grade is stamped
-  // separately as "at publish HH:MM", never mixed in unlabelled.
-  const band = pick?.convictionBand ?? pick?.publishedConvictionBand ?? null;
-  const score = pick?.convictionScore != null ? convictionDisplayPercent(pick.convictionScore) : null;
-  const pubScore = pick?.publishedConvictionScore != null ? convictionDisplayPercent(pick.publishedConvictionScore) : null;
+  // The one grade (shared/nexus-grade.ts) — not the raw evidence band/points.
+  const grade = gradeOfLoosePick(pick as any);
+  // Publish time stamped separately (audit P0 #9) — no second score beside the grade.
   const pubAt = pick?.calledAt ?? pick?.generatedAt ?? null;
-  const pubStamp = pubScore != null
-    ? `${pick?.publishedConvictionBand ?? ''} · ${pubScore}/100 at publish${pubAt ? ` ${new Date(pubAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}`.replace(/^ · /, '')
-    : null;
+  const pubStamp = pubAt ? `published ${new Date(pubAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : null;
   const short = (pick?.direction ?? '').toLowerCase().includes('short') || (pick?.direction ?? '').toLowerCase().includes('bear');
 
   const rules: { name: string; state: string; tone: 'gain' | 'loss' | 'caution' | 'mute' }[] = [];
@@ -565,7 +561,7 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
           <div className="tk-idea-h">
             <LuxTag tone={short ? 'loss' : 'gain'}>{short ? '▼ SHORT' : '▲ LONG'}</LuxTag>
             <span className="tk-idea-type">{pick.tradeType ?? pick.holdingPeriod ?? 'idea'}</span>
-            {band && <LuxTag tone="accent">{band}{score != null ? ` · ${score}/100 live` : ''}</LuxTag>}
+            {grade && <span title={nexusGradeTitle(grade)}><LuxTag tone="accent">{NEXUS_GRADE_LABEL} {formatNexusGrade(grade)}</LuxTag></span>}
             {pubStamp && <LuxTag tone="mute">{pubStamp}</LuxTag>}
           </div>
           <div className="tk-stats tk-stats-4">

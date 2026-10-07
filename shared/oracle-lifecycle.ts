@@ -10,6 +10,7 @@ export type OracleLifecycleState =
   | "pending_trigger"
   | "triggered"
   | "executed"
+  | "invalidated"
   | "closed";
 
 export interface OracleExecutionAudit {
@@ -19,6 +20,8 @@ export interface OracleExecutionAudit {
   triggerPrice?: number;
   triggerObservedAt?: string;
   triggerObservedPrice?: number;
+  invalidationObservedAt?: string;
+  invalidationPrice?: number;
   executionRecordedAt?: string;
   executionPrice?: number;
   executionVenue?: "paper" | "broker" | "manual";

@@ -220,6 +220,90 @@ function markIngested(symbol: string, source: IdeaSource, assetType?: string): v
 }
 
 /**
+ * Persist an already-constructed plan through the common producer-risk gates.
+ * Unlike `ingestTradeIdea`, this preserves the caller's contract, measured
+ * levels, and publication snapshot instead of regenerating the plan. Intended
+ * for structured publishers (currently GEX) that have already selected the
+ * exact option but must not bypass dedup, cross-source concentration, loss
+ * cooldown, or the shared ATR stop floor.
+ */
+export async function persistPreparedTradeIdea(
+  rawIdea: Record<string, any>,
+  options: {
+    cooldownMs?: number;
+    dedupWindowHours?: number;
+    /**
+     * Skip the open-row checks (same source open on the symbol; same-direction
+     * open from any source). For intraday contract publishers (index 0DTE
+     * scalps) whose own instrument-level dedup window is the right unit: a swing
+     * SPY idea must not block a 0DTE SPY scalp, nor one scalp the next.
+     */
+    intradayContract?: boolean;
+  } = {},
+): Promise<boolean> {
+  const symbol = String(rawIdea.symbol ?? '').trim().toUpperCase();
+  const source = String(rawIdea.source ?? '') as IdeaSource;
+  const assetType = String(rawIdea.assetType ?? 'stock');
+  if (!symbol || !source || !['long', 'short'].includes(String(rawIdea.direction))) return false;
+  if (LEVERAGED_INVERSE_ETFS.has(symbol)) return false;
+
+  const key = `${symbol}:${source}:${assetType || 'stock'}`;
+  const priorIngest = recentIngestions.get(key);
+  const cooldownMs = options.cooldownMs ?? INGESTION_COOLDOWN_MS;
+  if (priorIngest != null && Date.now() - priorIngest < cooldownMs) return false;
+  if (!options.intradayContract && await isDuplicateInDb(symbol, source)) {
+    markIngested(symbol, source, assetType);
+    return false;
+  }
+  const held = options.intradayContract ? { held: false } as { held: boolean; existingSource?: string; n?: number } : await isSymbolAlreadyHeld(symbol, rawIdea.direction);
+  if (held.held) {
+    markIngested(symbol, source, assetType);
+    logger.info(`[INGESTION] ⛔ Blocked prepared ${symbol} from ${source}: already held (${held.n} open row(s) from ${held.existingSource})`);
+    return false;
+  }
+  try {
+    const symbolAdj = await getSymbolAdjustment(symbol);
+    if (symbolAdj.shouldAvoid) {
+      logger.info(`[INGESTION] ⛔ Blocked prepared ${symbol} from ${source}: loss cooldown (${symbolAdj.lossStreak} consecutive losses)`);
+      return false;
+    }
+  } catch {
+    // Match ingestTradeIdea: unavailable loss history is soft-fail.
+  }
+
+  const { applyAtrStopFloor } = await import('./lib/atr-stop-floor');
+  const floored = await applyAtrStopFloor({
+    symbol,
+    entry: Number(rawIdea.entryPrice),
+    stop: Number(rawIdea.stopLoss),
+    target: Number(rawIdea.targetPrice),
+    direction: String(rawIdea.direction),
+    holdingPeriod: rawIdea.holdingPeriod,
+    assetType,
+  });
+  if (typeof floored.stopLoss === 'number') rawIdea.stopLoss = floored.stopLoss;
+  if (typeof floored.riskRewardRatio === 'number') rawIdea.riskRewardRatio = floored.riskRewardRatio;
+  if (floored.note) rawIdea.analysis = [rawIdea.analysis, floored.note].filter(Boolean).join(' ');
+
+  try {
+    const { storage } = await import('./storage');
+    const created = await storage.createTradeIdea(rawIdea as any,
+      options.dedupWindowHours == null ? undefined : { dedupWindowHours: options.dedupWindowHours });
+    const { isDedupedResult } = await import('./lib/instrument-dedup');
+    if (isDedupedResult(created)) return false;
+    markIngested(symbol, source, assetType);
+    try {
+      const { invalidateConvictionsCache } = await import('./convictions-engine');
+      invalidateConvictionsCache();
+    } catch { /* persisted successfully; cache invalidation is best-effort */ }
+    return true;
+  } catch (err) {
+    logger.warn(`[INGESTION] Prepared idea persistence failed for ${symbol} from ${source}: ${(err as Error).message}`);
+    return false;
+  }
+}
+
+/**
  * Central ingestion function - validates and saves trade ideas from any source
  * 
  * Quality gates applied:
@@ -451,7 +535,7 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       // A widened stop or a level snap voids the producer's "T1 is 2R" line —
       // drop it; the snap text / stopNote restate the plan and its R.
       analysis: snapText || stopNote
-        ? [stripFormulaTargetClaims(input.analysis), snapText, stopNote].filter(Boolean).join(' ')
+        ? [stripFormulaTargetClaims(input.analysis, targetPx), snapText, stopNote].filter(Boolean).join(' ')
         : input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
