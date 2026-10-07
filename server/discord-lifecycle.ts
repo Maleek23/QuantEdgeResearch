@@ -43,9 +43,14 @@
  * Switches: DISCORD_LIFECYCLE=off disables all of it (default on). Per-channel
  * on/off lives in the persisted state and is set from /admin → System.
  * State file: <SHARED_STATE_DIR>/discord-lifecycle.json (server/lib/shared-state.ts).
+ * Two processes (pm2 web + worker) write it: every change goes through mutate()
+ * under a cross-process file lock, and only the holder of the flush lock sends —
+ * see "Cross-process locks" below.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { logger } from './logger';
-import { readShared, writeSharedSync } from './lib/shared-state';
+import { sharedDir, sharedFile, writeSharedSync } from './lib/shared-state';
 
 // ─── Channels & routing ─────────────────────────────────────────────────
 
@@ -227,10 +232,16 @@ let testMode = false;
 
 const now = () => (testNow ? testNow() : Date.now());
 
+/**
+ * Always a fresh parse of the file (never readShared's mtime cache): prod runs TWO
+ * processes (pm2 web + worker) that both write this state, and callers mutate the
+ * object they get back — a shared cached object would leak half-done mutations.
+ */
 function load(): LifecycleState {
   if (testMode) return (memoryState ??= freshState());
-  const r = readShared<LifecycleState>(STATE_NAME);
-  const s = r?.data && (r.data as any).version === 1 ? r.data : freshState();
+  let data: any = null;
+  try { data = JSON.parse(fs.readFileSync(sharedFile(STATE_NAME), 'utf8'))?.data; } catch { data = null; }
+  const s: LifecycleState = data && data.version === 1 ? data : freshState();
   for (const k of Object.keys(freshState()) as (keyof LifecycleState)[]) if ((s as any)[k] == null) (s as any)[k] = (freshState() as any)[k];
   return s;
 }
@@ -239,6 +250,107 @@ function save(s: LifecycleState): void {
   if (testMode) { memoryState = s; return; }
   if (!writeSharedSync(STATE_NAME, s)) logger.warn('[DISCORD-LIFECYCLE] state write failed');
 }
+
+// ─── Cross-process locks ────────────────────────────────────────────────
+//
+// web (createTradeIdea, admin toggles) and worker (tracker, reconciler, outbox
+// timer, recap) both read-modify-write the state file. Without a lock, two
+// interleaved load→save pairs lose one side's write (a dedupe key, an outbox
+// removal, a message id) → a second card / reply. Two locks, both exclusive-create
+// files in SHARED_STATE_DIR (temp file opened 'wx' with the pid, then link() → EEXIST):
+//   state lock  held only across a synchronous load → mutate → save (microseconds);
+//               blocking acquire. Reentrant within a process (sync code cannot
+//               interleave, so a nested mutate is the same critical section).
+//   flush lock  held for a whole outbox pass, try-acquire: when the other process
+//               is flushing this one skips (the holder or the next 30 s tick sends
+//               it). Guarantees one outbox item is POSTed by one process only.
+// A lock whose owner pid is dead, or that is older than its stale age, is broken.
+
+const SLEEP_CELL = new Int32Array(new SharedArrayBuffer(4));
+const sleepSync = (ms: number) => { Atomics.wait(SLEEP_CELL, 0, 0, ms); };
+const lockFile = (kind: 'state' | 'flush') => path.join(sharedDir(), `${STATE_NAME}.${kind}.lock`);
+
+const DEAD_OWNER_GRACE_MS = 1_000;
+function pidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  if (pid === process.pid) return true;
+  try { process.kill(pid, 0); return true; } catch (e: any) { return e?.code === 'EPERM'; }
+}
+
+/** One exclusive-create attempt; breaks a dead-owner / stale lock and retries once. */
+function tryLock(file: string, staleMs: number): boolean {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // Exclusive create with the owner pid already inside: write a private temp file
+    // ('wx'), then link() it to the lock path — link fails with EEXIST atomically, and
+    // a reader can never see an empty lock (which would look like a dead owner).
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const mine = `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    const fd = fs.openSync(mine, 'wx');
+    try { fs.writeSync(fd, `${process.pid} ${Date.now()}`); } finally { fs.closeSync(fd); }
+    try {
+      fs.linkSync(mine, file);
+      return true;
+    } catch (e: any) {
+      if (e?.code !== 'EEXIST') throw e;
+    } finally {
+      try { fs.unlinkSync(mine); } catch { /* ignore */ }
+    }
+    // Judge ONE inode: content and mtime from the same fd (a path-level read + stat can mix
+    // a just-released lock's pid with its successor's mtime).
+    let owner = '', mtimeMs = 0, ino = 0;
+    try {
+      const rfd = fs.openSync(file, 'r');
+      try { const st = fs.fstatSync(rfd); mtimeMs = st.mtimeMs; ino = st.ino; owner = fs.readFileSync(rfd, 'utf8'); } finally { fs.closeSync(rfd); }
+    } catch { continue; /* released meanwhile — retry the create */ }
+    const pid = Number(owner.split(' ')[0]);
+    const age = Date.now() - mtimeMs;
+    const stale = age > staleMs;
+    if (pid === process.pid && !stale) return false; // our own live lock (flush in progress here)
+    // A dead owner only counts once its lock is older than any real critical section.
+    if (!stale && (age < DEAD_OWNER_GRACE_MS || pidAlive(pid))) return false;
+    // Break it via rename (atomic: only one breaker wins), then retry the create. If what we
+    // renamed is not the inode we judged (a new owner took the path meanwhile), put it back.
+    const grave = `${file}.${process.pid}.${Date.now()}.stale`;
+    try {
+      fs.renameSync(file, grave);
+      if (fs.statSync(grave).ino !== ino) { try { fs.linkSync(grave, file); } catch { /* path re-taken */ } fs.unlinkSync(grave); return false; }
+      fs.unlinkSync(grave);
+      logger.warn(`[DISCORD-LIFECYCLE] broke ${stale ? 'stale' : 'dead-owner'} lock ${path.basename(file)} (pid ${pid}, ${Math.round(age / 1000)}s old)`);
+    } catch { /* another process broke it */ }
+  }
+  return false;
+}
+function unlock(file: string): void {
+  try { if (Number(fs.readFileSync(file, 'utf8').split(' ')[0]) === process.pid) fs.unlinkSync(file); } catch { /* gone */ }
+}
+
+const STATE_LOCK_STALE_MS = 10_000;
+const STATE_LOCK_WAIT_MS = 5_000;
+let stateLockDepth = 0;
+
+/**
+ * The only way to change persisted state: lock → fresh load → fn → save → unlock.
+ * fn must be synchronous (no await inside — the lock would be held across it).
+ */
+function mutate<T>(fn: (s: LifecycleState) => T): T {
+  const run = () => { const s = load(); const r = fn(s); save(s); return r; };
+  if (testMode || stateLockDepth > 0) return run(); // in-memory, or already inside this process's critical section
+  const file = lockFile('state');
+  const deadline = Date.now() + STATE_LOCK_WAIT_MS;
+  let got = tryLock(file, STATE_LOCK_STALE_MS);
+  while (!got && Date.now() < deadline) { sleepSync(2 + Math.floor(Math.random() * 6)); got = tryLock(file, STATE_LOCK_STALE_MS); }
+  if (!got) throw new Error('state lock busy'); // every public entry point catches: logged, nothing sent twice
+  stateLockDepth++;
+  try {
+    return run();
+  } finally {
+    stateLockDepth--;
+    unlock(file);
+  }
+}
+
+const FLUSH_LOCK_STALE_MS = 5 * 60_000;
+function touchFlushLock(): void { try { const t = new Date(); fs.utimesSync(lockFile('flush'), t, t); } catch { /* ignore */ } }
 
 const DAY_MS = 86_400_000;
 function prune(s: LifecycleState): void {
@@ -263,10 +375,10 @@ export function channelEnabled(ch: LabsChannel, s: LifecycleState = load()): boo
   return s.toggles[ch] !== false;
 }
 export function setChannelEnabled(ch: LabsChannel, on: boolean): void {
-  const s = load();
-  s.toggles[ch] = on;
-  if (!on) s.outbox = s.outbox.filter((o) => o.channel !== ch); // nothing stale bursts out when it is turned back on
-  save(s);
+  mutate((s) => {
+    s.toggles[ch] = on;
+    if (!on) s.outbox = s.outbox.filter((o) => o.channel !== ch); // nothing stale bursts out when it is turned back on
+  });
 }
 
 let seq = 0;
@@ -409,47 +521,48 @@ export async function onIdeaPublished(i: IdeaLike, opts: PublishOpts = {}): Prom
     const grade = opts.grade ?? (await gradeAtPublish(i));
     if (channel !== '0dte' && !(grade && ['A', 'B'].includes(grade.letter))) return logPublish(i, ch, 'below_grade', grade ? `${grade.letter} ${Math.round(grade.score)}` : 'ungraded');
 
-    const s = load(); // re-read after the await
-    if (s.cards[String(i.id)] || s.thesis[key]) return logPublish(i, ch, 'duplicate', 'raced');
-    const label = ideaLabel(i, t);
-    s.thesis[key] = String(i.id);
+    // Dedupe + claim under the cross-process state lock: web and worker can both publish the same row.
+    const result = mutate((s): PublishResult => {
+      if (s.cards[String(i.id)] || s.thesis[key]) return logPublish(i, ch, 'duplicate', 'raced');
+      const label = ideaLabel(i, t);
+      s.thesis[key] = String(i.id);
 
-    if (channel !== '0dte') {
-      const caps = cardCaps();
-      const carded = (s.carded[channel] ?? []).filter((x) => t - x < DAY_MS);
-      const lastHour = carded.filter((x) => t - x < 3_600_000).length;
-      const today = carded.filter((x) => etDayOf(x) === etDayOf(t)).length;
-      if (lastHour >= caps.perHour || today >= caps.perDay) {
-        const list = (s.overflow[channel] ??= []);
-        list.push({ ideaId: String(i.id), label, direction: String(i.direction ?? 'long'), grade: grade ? `${grade.letter} ${Math.round(grade.score)}` : null, at: t });
-        if (!s.outbox.some((o) => o.kind === 'digest' && o.channel === channel)) {
-          enqueue(s, { channel, kind: 'digest' });
-          s.outbox[s.outbox.length - 1].nextAt = t + DIGEST_DELAY_MS;
+      if (channel !== '0dte') {
+        const caps = cardCaps();
+        const carded = (s.carded[channel] ?? []).filter((x) => t - x < DAY_MS);
+        const lastHour = carded.filter((x) => t - x < 3_600_000).length;
+        const today = carded.filter((x) => etDayOf(x) === etDayOf(t)).length;
+        if (lastHour >= caps.perHour || today >= caps.perDay) {
+          const list = (s.overflow[channel] ??= []);
+          list.push({ ideaId: String(i.id), label, direction: String(i.direction ?? 'long'), grade: grade ? `${grade.letter} ${Math.round(grade.score)}` : null, at: t });
+          if (!s.outbox.some((o) => o.kind === 'digest' && o.channel === channel)) {
+            enqueue(s, { channel, kind: 'digest' });
+            s.outbox[s.outbox.length - 1].nextAt = t + DIGEST_DELAY_MS;
+          }
+          return logPublish(i, ch, 'capped', `${lastHour}/${caps.perHour} this hour, ${today}/${caps.perDay} today → digest`);
         }
-        save(s);
-        return logPublish(i, ch, 'capped', `${lastHour}/${caps.perHour} this hour, ${today}/${caps.perDay} today → digest`);
+        s.carded[channel] = [...carded, t];
       }
-      s.carded[channel] = [...carded, t];
-    }
 
-    const publishedAt = Number.isFinite(Date.parse(String(i.timestamp ?? ''))) ? Math.min(Date.parse(String(i.timestamp)), t) : t;
-    const card: Card = {
-      ideaId: String(i.id), channel, day: etDayOf(t), thesisKey: thesisKeyOf(i), symbol: String(i.symbol).toUpperCase(), label,
-      direction: String(i.direction ?? 'long'), isOption: String(i.assetType) === 'option' && !!i.optionType,
-      isPut: String(i.optionType ?? '').toLowerCase().startsWith('p'),
-      plan: { entry: num(i.entryPrice), target: num(i.targetPrice), stop: num(i.stopLoss), premium: num(i.entryPremium), expiry: i.expiryDate ? String(i.expiryDate).slice(0, 10) : null },
-      grade: grade ? `${grade.letter} ${Math.round(grade.score)}` : null,
-      thesis: String(i.analysis ?? i.catalyst ?? '').replace(/\s+/g, ' ').trim(),
-      source: String(i.source ?? ''),
-      publishedAt, status: 'published', statusLine: 'Published — waiting for the entry trigger', verified: null,
-      events: [{ kind: 'publish', at: publishedAt, line: `${etHm(publishedAt)} published` }],
-      messageId: null, channelId: null, guildId: null,
-    };
-    s.cards[card.ideaId] = card;
-    enqueue(s, { channel, kind: 'card', ideaId: card.ideaId });
-    save(s);
-    kick();
-    return logPublish(i, ch, 'queued', card.grade ?? '0DTE');
+      const publishedAt = Number.isFinite(Date.parse(String(i.timestamp ?? ''))) ? Math.min(Date.parse(String(i.timestamp)), t) : t;
+      const card: Card = {
+        ideaId: String(i.id), channel, day: etDayOf(t), thesisKey: thesisKeyOf(i), symbol: String(i.symbol).toUpperCase(), label,
+        direction: String(i.direction ?? 'long'), isOption: String(i.assetType) === 'option' && !!i.optionType,
+        isPut: String(i.optionType ?? '').toLowerCase().startsWith('p'),
+        plan: { entry: num(i.entryPrice), target: num(i.targetPrice), stop: num(i.stopLoss), premium: num(i.entryPremium), expiry: i.expiryDate ? String(i.expiryDate).slice(0, 10) : null },
+        grade: grade ? `${grade.letter} ${Math.round(grade.score)}` : null,
+        thesis: String(i.analysis ?? i.catalyst ?? '').replace(/\s+/g, ' ').trim(),
+        source: String(i.source ?? ''),
+        publishedAt, status: 'published', statusLine: 'Published — waiting for the entry trigger', verified: null,
+        events: [{ kind: 'publish', at: publishedAt, line: `${etHm(publishedAt)} published` }],
+        messageId: null, channelId: null, guildId: null,
+      };
+      s.cards[card.ideaId] = card;
+      enqueue(s, { channel, kind: 'card', ideaId: card.ideaId });
+      return logPublish(i, ch, 'queued', card.grade ?? '0DTE');
+    });
+    if (result === 'queued') kick();
+    return result;
   } catch (e: any) {
     logger.warn(`[DISCORD-LIFECYCLE] publish ${i?.symbol}: ${e?.message ?? e}`);
     return 'off';
@@ -483,25 +596,26 @@ export type EventResult = 'queued' | 'off' | 'no_card' | 'duplicate' | 'already_
 export async function onIdeaTriggered(ev: TriggerEvent): Promise<EventResult> {
   try {
     if (!lifecycleEnabled()) return 'off';
-    const s = load();
-    const c = s.cards[String(ev.ideaId)];
-    if (!c) return 'no_card';
-    if (c.events.some((e) => e.kind === 'trigger')) return 'duplicate';
-    if (c.events.some((e) => e.kind === 'resolve')) return 'already_resolved';
-    const at = typeof ev.observedAt === 'number' ? ev.observedAt : Date.parse(String(ev.observedAt));
-    const atMs = Number.isFinite(at) ? at : now();
-    const px = num(ev.observedPrice) ?? num(ev.triggerPrice) ?? c.plan.entry;
-    const basis = ev.basis === 'poll' || !ev.basis ? 'observed by poll, no bar path' : `${ev.basis} bar start`;
-    const line = `${etHm(atMs)} triggered · ${money(px)} traded (${basis}, delayed data)`;
-    c.events.push({ kind: 'trigger', at: atMs, line });
-    c.status = 'triggered';
-    c.statusLine = `Triggered ${etHm(atMs)} · entry ${money(px)} traded — now tracking target ${money(c.plan.target)} / stop ${money(c.plan.stop)}`;
-    enqueue(s, { channel: c.channel, kind: 'edit', ideaId: c.ideaId });
-    const reply = `▶️ **ENTRY** · ${c.label} ${c.isOption ? '' : c.direction.toUpperCase() + ' '}· trigger ${money(px)} traded ${etHm(atMs)} (${basis}, delayed data)`.replace(/\s+·/g, ' ·');
-    enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: reply });
-    save(s);
-    kick();
-    return 'queued';
+    const result = mutate((s): EventResult => {
+      const c = s.cards[String(ev.ideaId)];
+      if (!c) return 'no_card';
+      if (c.events.some((e) => e.kind === 'trigger')) return 'duplicate';
+      if (c.events.some((e) => e.kind === 'resolve')) return 'already_resolved';
+      const at = typeof ev.observedAt === 'number' ? ev.observedAt : Date.parse(String(ev.observedAt));
+      const atMs = Number.isFinite(at) ? at : now();
+      const px = num(ev.observedPrice) ?? num(ev.triggerPrice) ?? c.plan.entry;
+      const basis = ev.basis === 'poll' || !ev.basis ? 'observed by poll, no bar path' : `${ev.basis} bar start`;
+      const line = `${etHm(atMs)} triggered · ${money(px)} traded (${basis}, delayed data)`;
+      c.events.push({ kind: 'trigger', at: atMs, line });
+      c.status = 'triggered';
+      c.statusLine = `Triggered ${etHm(atMs)} · entry ${money(px)} traded — now tracking target ${money(c.plan.target)} / stop ${money(c.plan.stop)}`;
+      enqueue(s, { channel: c.channel, kind: 'edit', ideaId: c.ideaId });
+      const reply = `▶️ **ENTRY** · ${c.label} ${c.isOption ? '' : c.direction.toUpperCase() + ' '}· trigger ${money(px)} traded ${etHm(atMs)} (${basis}, delayed data)`.replace(/\s+·/g, ' ·');
+      enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: reply });
+      return 'queued';
+    });
+    if (result === 'queued') kick();
+    return result;
   } catch (e: any) {
     logger.warn(`[DISCORD-LIFECYCLE] trigger ${ev?.ideaId}: ${e?.message ?? e}`);
     return 'off';
@@ -540,37 +654,38 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
   try {
     if (!lifecycleEnabled()) return 'off';
     if (!ev?.ideaId || !ev.outcomeStatus || ev.outcomeStatus === 'open') return 'no_card';
-    const s = load();
-    const c = s.cards[String(ev.ideaId)];
-    if (!c) return 'no_card';
-    if (c.events.some((e) => e.kind === 'resolve')) return 'duplicate';
-    const cls = classifyResolution(ev);
-    const parsed = Date.parse(String(ev.exitDate ?? ''));
-    const atMs = Number.isFinite(parsed) ? parsed : now();
-    const verified = ev.exitTimeSource === 'bar_hit';
-    const timeTag = ev.exitTimeSource === 'bar_hit' ? 'bar hit' : ev.exitTimeSource === 'deadline' ? 'at deadline' : 'observed — hit time unverified';
-    const optPct = num(ev.optionPercentGain);
-    const undPct = num(ev.percentGain);
-    const pctParts: string[] = [];
-    if (c.isOption && optPct != null) pctParts.push(`${signedPct(optPct)} option (${ev.optionPremiumBasis === 'intrinsic' ? 'expiry intrinsic' : 'modeled from the contract bar'}, delayed quote)`);
-    if (undPct != null) pctParts.push(`${signedPct(undPct)} underlying`);
-    const pct = pctParts.length ? pctParts.join(' / ') : 'P&L not measured';
-    const triggered = c.events.some((e) => e.kind === 'trigger');
-    const line = `${etHm(atMs)} ${cls.word.toLowerCase()}${ev.exitPrice != null ? ` @ ${money(num(ev.exitPrice))}` : ''} · ${pct} (${timeTag})`;
-    c.events.push({ kind: 'resolve', at: atMs, line });
-    c.status = cls.status;
-    c.verified = verified;
-    c.statusLine = `${cls.word} ${etHm(atMs)} · ${pct} · ${verified ? 'verified on the bar path' : 'unverified hit time'}`;
-    enqueue(s, { channel: c.channel, kind: 'edit', ideaId: c.ideaId });
-    // An idea that never triggered and simply lapsed gets the card edit (and the recap), not a reply.
-    const wantsReply = triggered || cls.status === 'win' || cls.status === 'loss' || cls.status === 'time';
-    if (wantsReply) {
-      const reply = `${cls.icon} **${cls.word}** · ${c.label} · ${etHm(atMs)} · ${pct} (${timeTag})`;
-      enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: reply });
-    }
-    save(s);
-    kick();
-    return 'queued';
+    const result = mutate((s): EventResult => {
+      const c = s.cards[String(ev.ideaId)];
+      if (!c) return 'no_card';
+      if (c.events.some((e) => e.kind === 'resolve')) return 'duplicate';
+      const cls = classifyResolution(ev);
+      const parsed = Date.parse(String(ev.exitDate ?? ''));
+      const atMs = Number.isFinite(parsed) ? parsed : now();
+      const verified = ev.exitTimeSource === 'bar_hit';
+      const timeTag = ev.exitTimeSource === 'bar_hit' ? 'bar hit' : ev.exitTimeSource === 'deadline' ? 'at deadline' : 'observed — hit time unverified';
+      const optPct = num(ev.optionPercentGain);
+      const undPct = num(ev.percentGain);
+      const pctParts: string[] = [];
+      if (c.isOption && optPct != null) pctParts.push(`${signedPct(optPct)} option (${ev.optionPremiumBasis === 'intrinsic' ? 'expiry intrinsic' : 'modeled from the contract bar'}, delayed quote)`);
+      if (undPct != null) pctParts.push(`${signedPct(undPct)} underlying`);
+      const pct = pctParts.length ? pctParts.join(' / ') : 'P&L not measured';
+      const triggered = c.events.some((e) => e.kind === 'trigger');
+      const line = `${etHm(atMs)} ${cls.word.toLowerCase()}${ev.exitPrice != null ? ` @ ${money(num(ev.exitPrice))}` : ''} · ${pct} (${timeTag})`;
+      c.events.push({ kind: 'resolve', at: atMs, line });
+      c.status = cls.status;
+      c.verified = verified;
+      c.statusLine = `${cls.word} ${etHm(atMs)} · ${pct} · ${verified ? 'verified on the bar path' : 'unverified hit time'}`;
+      enqueue(s, { channel: c.channel, kind: 'edit', ideaId: c.ideaId });
+      // An idea that never triggered and simply lapsed gets the card edit (and the recap), not a reply.
+      const wantsReply = triggered || cls.status === 'win' || cls.status === 'loss' || cls.status === 'time';
+      if (wantsReply) {
+        const reply = `${cls.icon} **${cls.word}** · ${c.label} · ${etHm(atMs)} · ${pct} (${timeTag})`;
+        enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: reply });
+      }
+      return 'queued';
+    });
+    if (result === 'queued') kick();
+    return result;
   } catch (e: any) {
     logger.warn(`[DISCORD-LIFECYCLE] resolve ${ev?.ideaId}: ${e?.message ?? e}`);
     return 'off';
@@ -591,22 +706,30 @@ export async function sendBotEvent(
   summary: { label: string; pnl?: number | null; pct?: number | null; reason?: string | null; at?: number },
 ): Promise<BotSendResult> {
   if (!lifecycleEnabled()) return 'off';
-  const s = load();
-  if (!channelEnabled('bot', s)) return 'off';
-  const t = summary.at ?? now();
-  const rec = s.bot[positionId] ?? { positionId, day: etDayOf(t), label: summary.label };
-  if (kind === 'entry' ? rec.entryAt != null : rec.exitAt != null) return 'duplicate';
-  if (kind === 'entry') rec.entryAt = t; else { rec.exitAt = t; rec.pnl = summary.pnl ?? null; rec.pct = summary.pct ?? null; rec.reason = summary.reason ?? null; }
-  s.bot[positionId] = rec;
-  save(s);
+  let claimed: BotSendResult | null;
+  try {
+    // Claim (positionId, kind) under the state lock — exactly one process gets to send it.
+    claimed = mutate((s): BotSendResult | null => {
+      if (!channelEnabled('bot', s)) return 'off';
+      const t = summary.at ?? now();
+      const rec = s.bot[positionId] ?? { positionId, day: etDayOf(t), label: summary.label };
+      if (kind === 'entry' ? rec.entryAt != null : rec.exitAt != null) return 'duplicate';
+      if (kind === 'entry') rec.entryAt = t; else { rec.exitAt = t; rec.pnl = summary.pnl ?? null; rec.pct = summary.pct ?? null; rec.reason = summary.reason ?? null; }
+      s.bot[positionId] = rec;
+      return null;
+    });
+  } catch (e: any) { logger.warn(`[DISCORD-LIFECYCLE] bot ${positionId}: ${e?.message ?? e}`); return 'failed'; }
+  if (claimed) return claimed;
   const r = await deliver(url, 'bot', 'POST', payload);
   if (r.ok) return 'sent';
   // Keep it for the outbox: a gated / failed bot post is retried, never re-announced.
-  const s2 = load();
-  enqueue(s2, { channel: 'bot', kind: 'bot', body: payload });
-  const last = s2.outbox[s2.outbox.length - 1];
-  last.attempts = 1; last.nextAt = now() + (r.retryAfterMs ?? 60_000);
-  save(s2);
+  try {
+    mutate((s2) => {
+      enqueue(s2, { channel: 'bot', kind: 'bot', body: payload });
+      const last = s2.outbox[s2.outbox.length - 1];
+      last.attempts = 1; last.nextAt = now() + (r.retryAfterMs ?? 60_000);
+    });
+  } catch (e: any) { logger.warn(`[DISCORD-LIFECYCLE] bot ${positionId} requeue: ${e?.message ?? e}`); }
   return r.gated ? 'gated' : 'failed';
 }
 
@@ -632,7 +755,7 @@ async function deliver(url: string, ch: LabsChannel, method: 'POST' | 'PATCH', b
     let json: any = null;
     try { json = res.status !== 204 ? await res.json() : null; } catch { json = null; }
     if (res.ok) {
-      if (method === 'POST') { const s = load(); (s.sends[ch] ??= []).push(now()); save(s); }
+      if (method === 'POST') { try { mutate((s) => { (s.sends[ch] ??= []).push(now()); }); } catch { /* accounting only */ } }
       return { ok: true, gated: false, status: res.status, json, retryAfterMs: null };
     }
     const retryAfterMs = res.status === 429 ? Math.max(1_000, Math.round(Number(json?.retry_after ?? 5) * 1000)) : null;
@@ -645,7 +768,7 @@ async function deliver(url: string, ch: LabsChannel, method: 'POST' | 'PATCH', b
 }
 function noteError(ch: string, message: string): void {
   logger.warn(`[DISCORD-LIFECYCLE] ${ch}: ${message}`);
-  try { const s = load(); s.lastError = { at: now(), channel: ch, message: message.slice(0, 300) }; save(s); } catch { /* ignore */ }
+  try { mutate((s) => { s.lastError = { at: now(), channel: ch, message: message.slice(0, 300) }; }); } catch { /* ignore */ }
 }
 
 /** guild/channel for message links: from the ?wait reply, else one GET of the webhook object. */
@@ -662,9 +785,7 @@ async function channelMeta(ch: LabsChannel, url: string, fromMessage: any): Prom
       if (r.ok) { const j: any = await r.json(); guildId = j?.guild_id ?? null; channelId = channelId ?? j?.channel_id ?? null; }
     } catch { /* links fall back to "re: card HH:MM" */ }
   }
-  const s2 = load();
-  s2.meta[ch] = { guildId, channelId, url: normalizeWebhookUrl(url) };
-  save(s2);
+  try { mutate((s2) => { s2.meta[ch] = { guildId, channelId, url: normalizeWebhookUrl(url) }; }); } catch { /* links only */ }
   return { guildId, channelId };
 }
 
@@ -682,15 +803,25 @@ function kick(): void {
 
 export function flushOutbox(): Promise<{ sent: number; deferred: number; dropped: number }> {
   if (flushing) return flushing;
-  flushing = flushOnce().finally(() => { flushing = null; });
+  flushing = flushLocked().finally(() => { flushing = null; });
   return flushing;
+}
+
+/** One outbox pass, only while holding the cross-process flush lock (else skip — the other process is sending). */
+async function flushLocked(): Promise<{ sent: number; deferred: number; dropped: number }> {
+  if (testMode) return flushOnce();
+  const file = lockFile('flush');
+  let got = false;
+  try { got = tryLock(file, FLUSH_LOCK_STALE_MS); } catch (e: any) { logger.warn(`[DISCORD-LIFECYCLE] flush lock: ${e?.message ?? e}`); }
+  if (!got) return { sent: 0, deferred: 0, dropped: 0 };
+  try { return await flushOnce(); } finally { unlock(file); }
 }
 
 async function flushOnce(): Promise<{ sent: number; deferred: number; dropped: number }> {
   let sent = 0, deferred = 0, dropped = 0;
   const on = lifecycleEnabled();
+  if (!on) { dropped = mutate((s0) => { const n = s0.outbox.length; s0.outbox = []; return n; }); return { sent, deferred, dropped }; }
   const s0 = load();
-  if (!on) { if (s0.outbox.length) { dropped = s0.outbox.length; s0.outbox = []; save(s0); } return { sent, deferred, dropped }; }
   const t = now();
   const byChannel = new Map<LabsChannel, OutboxItem[]>();
   for (const o of s0.outbox) { if (!byChannel.has(o.channel)) byChannel.set(o.channel, []); byChannel.get(o.channel)!.push(o); }
@@ -699,8 +830,8 @@ async function flushOnce(): Promise<{ sent: number; deferred: number; dropped: n
     const url = channelWebhook(ch);
     const st = load();
     if (!url || !channelEnabled(ch, st)) {
-      st.outbox = st.outbox.filter((o) => o.channel !== ch);
-      save(st); dropped += items.length; continue;
+      mutate((m) => { m.outbox = m.outbox.filter((o) => o.channel !== ch); });
+      dropped += items.length; continue;
     }
     let postsBlocked = false;
     const due = items.filter((o) => o.nextAt <= t).sort((a, b) => a.createdAt - b.createdAt);
@@ -716,40 +847,45 @@ async function flushOnce(): Promise<{ sent: number; deferred: number; dropped: n
       if (cur) chunks.push(cur);
       let i = 0;
       for (const chunk of chunks) {
+        touchFlushLock();
         const r = await deliver(url, ch, 'POST', replyBody(`**Updates (${etHm(t)})**\n${chunk}`));
         if (!r.ok) { postsBlocked = true; break; }
         i++; sent++;
       }
       const doneIds = new Set(i === chunks.length ? replies.map((o) => o.id) : []);
-      const s2 = load(); s2.outbox = s2.outbox.filter((o) => !doneIds.has(o.id)); save(s2);
+      if (doneIds.size) mutate((s2) => { s2.outbox = s2.outbox.filter((o) => !doneIds.has(o.id)); });
     }
 
     for (const o of due) {
+      touchFlushLock();
       const cur = load();
       const live = cur.outbox.find((x) => x.id === o.id);
       if (!live) continue;
       const card = o.ideaId ? cur.cards[o.ideaId] : undefined;
       let r: DeliverResult | null = null;
       if (o.kind === 'edit') {
-        if (!card) { drop(cur, o.id); dropped++; continue; }
+        if (!card) { drop(o.id); dropped++; continue; }
         if (!card.messageId) {
-          if (card.postFailed || !cur.outbox.some((x) => x.kind === 'card' && x.ideaId === card.ideaId)) { drop(cur, o.id); dropped++; continue; }
+          if (card.postFailed || !cur.outbox.some((x) => x.kind === 'card' && x.ideaId === card.ideaId)) { drop(o.id); dropped++; continue; }
           deferred++; continue; // card still queued — it will go out with the current state
         }
         r = await deliver(`${url.replace(/[?#].*$/, '').replace(/\/+$/, '')}/messages/${card.messageId}`, ch, 'PATCH', buildCardPayload(card));
       } else {
         if (postsBlocked) { deferred++; continue; }
         if (o.kind === 'card') {
-          if (!card) { drop(cur, o.id); dropped++; continue; }
+          if (!card) { drop(o.id); dropped++; continue; }
           r = await deliver(url, ch, 'POST', buildCardPayload(card));
           if (r.ok) {
             const meta = await channelMeta(ch, url, r.json);
-            const s3 = load();
-            const c3 = s3.cards[card.ideaId];
-            if (c3) { c3.messageId = r.json?.id ? String(r.json.id) : null; c3.channelId = r.json?.channel_id ?? meta.channelId; c3.guildId = r.json?.guild_id ?? meta.guildId; }
-            s3.outbox = s3.outbox.filter((x) => x.id !== o.id);
-            save(s3); sent++;
-            logger.info(`[DISCORD-LIFECYCLE] ${ch}: card posted ${card.label} (${card.ideaId.slice(0, 8)}) msg ${c3?.messageId ?? '?'}`);
+            const json = r.json;
+            const msgId = mutate((s3) => {
+              const c3 = s3.cards[card.ideaId];
+              if (c3) { c3.messageId = json?.id ? String(json.id) : null; c3.channelId = json?.channel_id ?? meta.channelId; c3.guildId = json?.guild_id ?? meta.guildId; }
+              s3.outbox = s3.outbox.filter((x) => x.id !== o.id);
+              return c3?.messageId ?? null;
+            });
+            sent++;
+            logger.info(`[DISCORD-LIFECYCLE] ${ch}: card posted ${card.label} (${card.ideaId.slice(0, 8)}) msg ${msgId ?? '?'}`);
             continue;
           }
         } else if (o.kind === 'reply') {
@@ -757,36 +893,43 @@ async function flushOnce(): Promise<{ sent: number; deferred: number; dropped: n
           r = await deliver(url, ch, 'POST', replyBody(`${o.line}${card ? refTo(card) : ''}`));
         } else if (o.kind === 'digest') {
           const body = buildDigest(cur, ch, now());
-          if (!body) { drop(cur, o.id); continue; }
+          if (!body) { drop(o.id); continue; }
           const n = (cur.overflow[ch] ?? []).length;
           r = await deliver(url, ch, 'POST', body);
-          if (r.ok) { const s5 = load(); s5.overflow[ch] = (s5.overflow[ch] ?? []).slice(n); s5.outbox = s5.outbox.filter((x) => x.id !== o.id); save(s5); sent++; logger.info(`[DISCORD-LIFECYCLE] ${ch}: digest of ${n} capped idea(s) posted`); continue; }
+          if (r.ok) {
+            mutate((s5) => { s5.overflow[ch] = (s5.overflow[ch] ?? []).slice(n); s5.outbox = s5.outbox.filter((x) => x.id !== o.id); });
+            sent++; logger.info(`[DISCORD-LIFECYCLE] ${ch}: digest of ${n} capped idea(s) posted`); continue;
+          }
         } else {
           r = await deliver(url, ch, 'POST', o.body ?? {});
         }
       }
-      const s4 = load();
-      const item = s4.outbox.find((x) => x.id === o.id);
-      if (!item) continue;
-      if (r.ok) { s4.outbox = s4.outbox.filter((x) => x.id !== o.id); save(s4); sent++; logger.info(`[DISCORD-LIFECYCLE] ${ch}: ${o.kind} sent${o.ideaId ? ` (${o.ideaId.slice(0, 8)})` : ''}`); continue; }
-      if (r.gated) { logger.info(`[DISCORD-LIFECYCLE] ${ch}: ${o.kind} held by the rate gate — queued, retry ${Math.round((r.retryAfterMs ?? 60_000) / 1000)}s`); item.nextAt = now() + (r.retryAfterMs ?? 60_000); postsBlocked = true; save(s4); deferred++; continue; }
-      item.attempts++;
-      if (item.attempts >= MAX_ATTEMPTS || r.status === 404 || r.status === 401) {
-        s4.outbox = s4.outbox.filter((x) => x.id !== o.id);
-        if (o.kind === 'card' && card && s4.cards[card.ideaId]) s4.cards[card.ideaId].postFailed = true;
-        logger.warn(`[DISCORD-LIFECYCLE] ${ch} ${o.kind} ${o.ideaId ?? ''} dropped after ${item.attempts} attempt(s) (HTTP ${r.status})`);
-        dropped++;
-      } else {
-        item.nextAt = now() + (r.retryAfterMs ?? Math.min(15 * 60_000, 30_000 * 2 ** item.attempts));
-        deferred++;
-      }
-      if (r.status === 429 && o.kind !== 'edit') postsBlocked = true;
-      save(s4);
+      const res = r;
+      const outcome = mutate((s4): 'gone' | 'sent' | 'gated' | 'dropped' | 'deferred' => {
+        const item = s4.outbox.find((x) => x.id === o.id);
+        if (!item) return 'gone';
+        if (res.ok) { s4.outbox = s4.outbox.filter((x) => x.id !== o.id); return 'sent'; }
+        if (res.gated) { item.nextAt = now() + (res.retryAfterMs ?? 60_000); return 'gated'; }
+        item.attempts++;
+        if (item.attempts >= MAX_ATTEMPTS || res.status === 404 || res.status === 401) {
+          s4.outbox = s4.outbox.filter((x) => x.id !== o.id);
+          if (o.kind === 'card' && card && s4.cards[card.ideaId]) s4.cards[card.ideaId].postFailed = true;
+          logger.warn(`[DISCORD-LIFECYCLE] ${ch} ${o.kind} ${o.ideaId ?? ''} dropped after ${item.attempts} attempt(s) (HTTP ${res.status})`);
+          return 'dropped';
+        }
+        item.nextAt = now() + (res.retryAfterMs ?? Math.min(15 * 60_000, 30_000 * 2 ** item.attempts));
+        return 'deferred';
+      });
+      if (outcome === 'gone') continue;
+      if (outcome === 'sent') { sent++; logger.info(`[DISCORD-LIFECYCLE] ${ch}: ${o.kind} sent${o.ideaId ? ` (${o.ideaId.slice(0, 8)})` : ''}`); continue; }
+      if (outcome === 'gated') { logger.info(`[DISCORD-LIFECYCLE] ${ch}: ${o.kind} held by the rate gate — queued, retry ${Math.round((res.retryAfterMs ?? 60_000) / 1000)}s`); postsBlocked = true; deferred++; continue; }
+      if (outcome === 'dropped') dropped++; else deferred++;
+      if (res.status === 429 && o.kind !== 'edit') postsBlocked = true;
     }
   }
   return { sent, deferred, dropped };
 }
-function drop(s: LifecycleState, id: string): void { s.outbox = s.outbox.filter((x) => x.id !== id); save(s); }
+function drop(id: string): void { mutate((s) => { s.outbox = s.outbox.filter((x) => x.id !== id); }); }
 /** A reply waits for its card to be posted (so it can link to it), unless the card failed. */
 function replyReady(s: LifecycleState, o: OutboxItem): boolean {
   if (!o.ideaId) return true;
@@ -838,17 +981,17 @@ export async function runDailyRecap(nowMs: number = now()): Promise<Record<LabsC
   if (!lifecycleEnabled()) { for (const ch of LABS_CHANNEL_KEYS) out[ch] = 'off'; return out; }
   const day = etDayOf(nowMs);
   for (const ch of LABS_CHANNEL_KEYS) {
-    const s = load();
     const key = `${day}|${ch}`;
     if (!channelWebhook(ch)) { out[ch] = 'no_webhook'; continue; }
-    if (!channelEnabled(ch, s)) { out[ch] = 'channel_off'; continue; }
-    if (s.recaps[key]) { out[ch] = 'duplicate'; continue; }
-    const body = buildRecap(s, ch, day);
-    if (!body) { out[ch] = 'nothing'; continue; }
-    s.recaps[key] = nowMs;
-    enqueue(s, { channel: ch, kind: 'recap', body });
-    save(s);
-    out[ch] = 'queued';
+    out[ch] = mutate((s) => {
+      if (!channelEnabled(ch, s)) return 'channel_off';
+      if (s.recaps[key]) return 'duplicate';
+      const body = buildRecap(s, ch, day);
+      if (!body) return 'nothing';
+      s.recaps[key] = nowMs;
+      enqueue(s, { channel: ch, kind: 'recap', body });
+      return 'queued';
+    });
   }
   await flushOutbox();
   return out;

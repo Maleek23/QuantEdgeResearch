@@ -11,8 +11,52 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-lifecycle-'));
+// Child role for the two-process race test (pm2 web + worker share one state file).
+if (process.env.QE_LIFECYCLE_RACE_CHILD) { await raceChild(); process.exit(0); }
+
+async function raceChild(): Promise<void> {
+  const dir = process.env.SHARED_STATE_DIR!;
+  const log = path.join(dir, 'posts.jsonl');
+  const L = await import('../server/discord-lifecycle');
+  let n = 0;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  L.__setLifecycleTestMode({
+    persist: true,
+    http: async () => new Response('{}', { status: 404 }),
+    post: async (url, init) => {
+      const body = JSON.parse(String(init.body));
+      fs.appendFileSync(log, JSON.stringify({ pid: process.pid, method: init.method, url, text: body.content ?? body.embeds?.[0]?.title ?? '' }) + '\n');
+      await sleep(Math.random() * 12); // widen the window between "sent" and "outbox updated"
+      if (init.method === 'PATCH') return new Response(JSON.stringify({ id: url.split('/').pop() }), { status: 200 });
+      return new Response(JSON.stringify({ id: `m-${process.pid}-${++n}`, channel_id: 'c1', guild_id: 'g1' }), { status: 200 });
+    },
+  });
+  const N = Number(process.env.QE_RACE_N);
+  const day = L.etDayOf(Date.now());
+  const ids = Array.from({ length: N }, (_, k) => k);
+  if (process.env.QE_RACE_REVERSE) ids.reverse();
+  const idea = (k: number) => ({
+    id: `race-${k}`, symbol: 'SPY', direction: 'short', assetType: 'option', source: 'orb_scanner', optionType: 'put',
+    strikePrice: 700 + k, expiryDate: day, entryPrice: 701, targetPrice: 690, stopLoss: 705, entryPremium: 1.5,
+    analysis: 'race', timestamp: new Date().toISOString(), status: 'published', outcomeStatus: 'open',
+  });
+  while (!fs.existsSync(path.join(dir, 'go'))) await sleep(2);
+  const flushes: Promise<unknown>[] = [];
+  for (const k of ids) {
+    await L.onIdeaPublished(idea(k));
+    if (k % 3 === 0) flushes.push(L.flushOutbox());
+  }
+  for (const k of ids) { await L.onIdeaTriggered({ ideaId: `race-${k}`, observedAt: Date.now(), observedPrice: 701, basis: '5m' }); if (k % 4 === 0) flushes.push(L.flushOutbox()); }
+  await L.sendBotEvent('https://discord.com/api/webhooks/9/bot', 'race-pos', 'entry', { content: 'BOT ENTRY race-pos' }, { label: 'SPY' });
+  for (const k of ids) { await L.onIdeaResolved({ ideaId: `race-${k}`, outcomeStatus: 'hit_target', exitDate: new Date().toISOString(), exitTimeSource: 'bar_hit', exitPrice: 690, percentGain: 1.5 }); if (k % 5 === 0) flushes.push(L.flushOutbox()); }
+  await Promise.all(flushes);
+  const until = Date.now() + 20_000;
+  while (L.__lifecycleStateForTest().outbox.length && Date.now() < until) { await L.flushOutbox(); await sleep(50); }
+}
+
+const tmp =fs.mkdtempSync(path.join(os.tmpdir(), 'qe-lifecycle-'));
 process.env.SHARED_STATE_DIR = tmp;
 const HOOK = (n: string) => `https://discord.com/api/webhooks/${n}/tok-${n}`;
 const ENV = {
@@ -309,6 +353,42 @@ t('restart: cards, dedupe keys and the outbox survive in the state file', async 
   mode = 'ok'; clock += 30_000;
   await L.flushOutbox(); clock -= 30_000;
   assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).data.cards['persist-1'].messageId, 'm1');
+});
+
+// ─── Two processes (pm2 web + worker) racing on one state file ──────────
+
+t('two processes: same publish / trigger / resolve / bot events → exactly one post each, no lost state', async () => {
+  const dir = fs.mkdtempSync(path.join(tmp, 'race-'));
+  const N = 20;
+  const tsx = path.join(process.cwd(), 'node_modules', '.bin', 'tsx');
+  const run = (reverse: boolean) => new Promise<number>((resolve) => {
+    const env: NodeJS.ProcessEnv = { ...process.env, QE_LIFECYCLE_RACE_CHILD: '1', SHARED_STATE_DIR: dir, QE_RACE_N: String(N) };
+    if (reverse) env.QE_RACE_REVERSE = '1'; else delete env.QE_RACE_REVERSE;
+    const p = spawn(tsx, [new URL(import.meta.url).pathname], { env, stdio: ['ignore', 'ignore', 'inherit'] });
+    p.on('exit', (code) => resolve(code ?? 1));
+  });
+  const kids = [run(false), run(true), run(false)]; // web, worker, + a third that exits early (dead-owner path)
+  await new Promise((r) => setTimeout(r, 2_500)); // both loaded, spinning on the start barrier
+  fs.writeFileSync(path.join(dir, 'go'), '');
+  assert.ok((await Promise.all(kids)).every((c) => c === 0), 'children exit cleanly');
+
+  const posts = fs.readFileSync(path.join(dir, 'posts.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((p) => p.method === 'POST');
+  const lines = posts.flatMap((p) => String(p.text).split('\n'));
+  const pids = new Set(posts.map((p) => p.pid));
+  for (let k = 0; k < N; k++) {
+    const label = `SPY ${700 + k}P 0DTE`;
+    assert.equal(posts.filter((p) => p.text.includes(`0DTE · ${label} ·`)).length, 1, `one card for ${label}`);
+    assert.equal(lines.filter((l) => l.includes('**ENTRY**') && l.includes(label)).length, 1, `one entry reply for ${label}`);
+    assert.equal(lines.filter((l) => l.includes('**TARGET HIT**') && l.includes(label)).length, 1, `one exit reply for ${label}`);
+  }
+  assert.equal(posts.filter((p) => p.text === 'BOT ENTRY race-pos').length, 1, 'one bot entry');
+  const state = JSON.parse(fs.readFileSync(path.join(dir, 'discord-lifecycle.json'), 'utf8')).data;
+  assert.equal(Object.keys(state.cards).length, N, 'no card lost');
+  assert.ok(Object.values(state.cards).every((c: any) => c.messageId && c.status === 'win' && c.events.length === 3), 'every card posted, triggered and resolved once');
+  assert.equal(state.outbox.length, 0, 'outbox drained');
+  assert.ok(state.bot['race-pos']?.entryAt, 'bot dedupe key kept');
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.lock')), [], 'no lock left behind');
+  console.log(`    (${posts.length} POSTs from ${pids.size} process(es))`);
 });
 
 let failed = 0;
