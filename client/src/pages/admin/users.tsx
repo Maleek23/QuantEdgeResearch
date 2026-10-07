@@ -11,6 +11,10 @@
  *
  * Every change lands in the audit log. The admin account itself is read-only here.
  *
+ * Trader accounts (docs/DESK_ADMINS.md §Trader accounts) — the panel on top:
+ *   "Add trader account" → login + desk admin link + one-time setup link / temp password
+ *   (components/admin/trader-accounts-panel.tsx).
+ *
  * Desk admins (docs/DESK_ADMINS.md, flag DESK_ADMINS) — the panel under the list:
  *   list               GET    /api/admin/ops/desks
  *   make desk admin    POST   /api/admin/ops/desks/:slug/assign { userId, replace? }
@@ -25,6 +29,7 @@ import { QEError } from '@/components/ui/qe-states';
 import { useToast } from '@/hooks/use-toast';
 import { toCsv, downloadCsv } from '@/lib/journal/metrics-extra';
 import { adminWrite, fmtAgo, fmtDate, getJson, type AdminUserRow } from '@/components/admin/hub-data';
+import { TraderAccountsPanel } from '@/components/admin/trader-accounts-panel';
 
 const KEY = '/api/admin/ops/users';
 type Filter = 'all' | 'free' | 'advanced' | 'pro' | 'admin' | 'beta' | 'no-beta' | 'disabled';
@@ -77,6 +82,7 @@ export default function AdminUsers() {
   return (
     <AdminLayout>
       <div className="ah-stack">
+        <TraderAccountsPanel />
         <LuxPanel title="Users" meta={q.data ? <LuxTag tone="mute">{rows.length} of {q.data.users.length}</LuxTag> : undefined}
           sub="New accounts start on Free. Tier changes take effect on the user's next request. Paid checkout is off, so tiers are set here.">
           <div className="ah-bar" style={{ marginBottom: 10 }}>

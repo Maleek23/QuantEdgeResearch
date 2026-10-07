@@ -238,6 +238,16 @@ export const signupLimiters = [
     message: 'Too many sign-up attempts from this network today. Please try again tomorrow.' }),
 ];
 
+// Trader-account setup links and first sign-in with a temporary password
+// (server/trader-accounts-routes.ts): 10 per 15 minutes and 30 per day per IP,
+// every request counted. Tokens are 256-bit, so this bounds noise, not guessing.
+export const setupLinkLimiters = [
+  makeStrictIpLimiter({ name: 'Account setup (15m)', windowMs: 15 * 60 * 1000, max: 10,
+    message: 'Too many attempts. Please wait 15 minutes and try again.' }),
+  makeStrictIpLimiter({ name: 'Account setup (day)', windowMs: 24 * 60 * 60 * 1000, max: 30,
+    message: 'Too many attempts from this network today. Please try again tomorrow.' }),
+];
+
 // Waitlist: each new email posts to the operator's Discord webhook, so cap it.
 export const waitlistLimiters = [
   makeStrictIpLimiter({ name: 'Waitlist (15m)', windowMs: 15 * 60 * 1000, max: 5,
