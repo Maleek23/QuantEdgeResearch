@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useJournal } from '@/components/journal/journal-context';
-import { Card, N, OutcomeChip, Pnl, SideChip, useJournalPortalClass } from '@/components/journal/parts';
+import { Card, N, OutcomeChip, Pnl, SideChip, UnverifiedChip, useJournalPortalClass } from '@/components/journal/parts';
 import { OptionsSim } from '@/components/journal/options-sim';
 import { fmtDuration, fmtPrice, type JTrade } from '@/lib/journal/metrics';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
@@ -37,7 +37,8 @@ function exportCsv(trades: JTrade[], book: string) {
 
 export default function TradesView() {
   const { data, openTrade, openEditor, openImport, simSymbol, filters } = useJournal();
-  const { trades, rows } = data;
+  // Every row in view, unverified ones included (labelled) — operator rule 2026-10-07.
+  const { listTrades: trades, rows } = data;
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: -1 });
   const [limit, setLimit] = useState(PAGE);
   const [simOpen, setSimOpen] = useState(!!simSymbol || new URLSearchParams(window.location.search).get('jsim') === '1');
@@ -143,7 +144,7 @@ export default function TradesView() {
                     // Open rows: live mark (Mine/trader) or the stored ledger mark (bot), always with its age — unrealized, not 0.
                     ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
                     : <Pnl value={t.netPnl} />}</td>
-                  <td><OutcomeChip status={t.status} />{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}</td>
+                  <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}</td>
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
@@ -172,6 +173,7 @@ export default function TradesView() {
               <span className="r">{t.status === 'open' ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} compact /> : <Pnl value={t.netPnl} />}</span>
               <span className="meta">
                 <OutcomeChip status={t.status} />
+                <UnverifiedChip row={t.row} />
                 {t.row.afterStop && <span className="jr-dim">{t.row.afterStop} · </span>}
                 {new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}
                 {' · '}{t.quantity} @ {fmtPrice(t.row.entryPrice)}{t.row.exitPrice != null ? ` → ${fmtPrice(t.row.exitPrice)}` : ''}

@@ -32651,9 +32651,10 @@ Use this checklist before entering any trade:
       const { parseJournalKey } = await import('@shared/journal-sources');
       try {
         const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
-        // NEXUS ideas book: unverified closed rows are left out of the default
-        // book; ?unverified=1 returns them too, each labelled (audit 2026-10-06).
-        const includeUnverified = req.query.unverified === '1' || req.query.unverified === 'true';
+        // NEXUS ideas book: every called trade is shown — unverified closed rows
+        // ride along labelled and are kept out of the verified total (operator
+        // rule 2026-10-07). ?unverified=1 still works; ?unverified=0 drops them.
+        const includeUnverified = !(req.query.unverified === '0' || req.query.unverified === 'false');
         const { rows, meta } = await loadJournal(j, { includeUnverified });
         res.json({ trades: rows, count: rows.length, journal: meta });
       } catch (err) {

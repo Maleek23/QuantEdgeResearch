@@ -21,7 +21,7 @@ import { positionBiasText } from '@shared/position-bias';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, Pnl, fmtDayLabel } from '@/components/journal/parts';
-import { fmtMoney, fmtPct, mergeDays, weekKey, type DayStats, type JTrade } from '@/lib/journal/metrics';
+import { fmtMoney, fmtPct, mergeDays, unverifiedSummary, weekKey, withUnverifiedDays, type DayStats, type JTrade } from '@/lib/journal/metrics';
 import { calendarInsights, dayEquity } from '@/lib/journal/metrics-extra';
 import { Sparkline } from '@/components/journal/lux-charts';
 import { fmtStamp, noteKindLabel } from '@/lib/journal/use-journal';
@@ -48,7 +48,9 @@ function cellDates(day: string): string[] {
 
 export default function CalendarView() {
   const { data, openTrade, goTo, filters, openDay, prefs } = useJournal();
-  const { trades, days, notesQ } = data;
+  // Day lists show every close (unverified ones labelled); day P&L stays verified.
+  const { listTrades: trades, days, notesQ } = data;
+  const calDays = useMemo(() => withUnverifiedDays(days, trades), [days, trades]);
   const latest = days[days.length - 1]?.date ?? journalDayKey(new Date());
   const [mode, setMode] = useState<'month' | 'week'>('month');
   const [ym, setYm] = useState<{ y: number; m: number }>({ y: Number(latest.slice(0, 4)), m: Number(latest.slice(5, 7)) });
@@ -107,7 +109,7 @@ export default function CalendarView() {
           }>
           {mode === 'month' ? (
             <div className="jr-cal-lg">
-              <CalendarPnl days={days} year={ym.y} month={ym.m} onMonth={(y, m) => { setYm({ y, m }); selectDay(null); }} selected={day} onSelect={selectDay} showWeeks
+              <CalendarPnl days={calDays} year={ym.y} month={ym.m} onMonth={(y, m) => { setYm({ y, m }); selectDay(null); }} selected={day} onSelect={selectDay} showWeeks
                 renderPreview={(d) => <DayPreview day={d} trades={cellTrades(d.date)} notes={(notesQ.data?.notes ?? []).filter((n) => cellDates(d.date).includes(n.day) && n.reason !== 'playbook' && n.reason !== 'trade_review').length} />} />
             </div>
           ) : (
@@ -152,6 +154,10 @@ export default function CalendarView() {
                   <div><span>Win rate</span><b>{fmtPct(dayStats.trades ? dayStats.wins / dayStats.trades : null)}</b><small>{dayStats.wins}W / {dayStats.losses}L{dayStats.breakevens ? ` / ${dayStats.breakevens}BE` : ''}</small></div>
                 </div>
               )}
+              {(() => {
+                const u = unverifiedSummary(dayTrades);
+                return u.count > 0 ? <p className="jr-note" style={{ margin: 0, color: 'var(--amber,#facc15)' }}>incl. unverified: {fmtMoney((dayStats?.netPnl ?? 0) + u.netPnl)} — {u.count} unverified close{u.count === 1 ? '' : 's'} ({fmtMoney(u.netPnl)}) listed below, not in the verified day P&amp;L.</p> : null;
+              })()}
               <TradeMiniList trades={dayTrades} onOpen={(id) => openTrade(id, dayTrades.map((t) => t.id))} />
               {dayNotes.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

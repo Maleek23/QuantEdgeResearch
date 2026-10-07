@@ -19,7 +19,7 @@ import { settleExpiredRows } from '@shared/journal-expiry';
 import { apiRequest } from '@/lib/queryClient';
 import { deferCommit, inverseOf, patchWhere, removeWhere } from '@/lib/optimistic';
 import { failToast, undoToast } from '@/lib/undo-toast';
-import { computeMetrics, dailyStats, equityCurve, toTrade } from './metrics';
+import { computeMetrics, dailyStats, equityCurve, isUnverifiedTrade, toTrade, unverifiedSummary } from './metrics';
 import type { JournalAnalytics, JournalNoteRow, JournalTradeRow } from './types';
 
 export const RANGE_PRESETS = [
@@ -213,7 +213,13 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
   const rawRows = tradesQ.data?.trades;
   const allRows = useMemo(() => settleExpiredRows(rawRows ?? []), [rawRows]);
   const rows = useMemo(() => allRows.filter((r) => matchesJournalFilters(r, filters)), [allRows, filters]);
-  const trades = useMemo(() => rows.map(toTrade), [rows]);
+  // Operator rule 2026-10-07: every called trade is SHOWN (listTrades — trade lists,
+  // calendar day lists, activity), but the headline numbers and analytics (trades,
+  // days, curve, metrics) stay on verified + integrity-checked P&L. Unverified rows
+  // are summed separately so the "incl. unverified" figure sits next to the total.
+  const listTrades = useMemo(() => rows.map(toTrade), [rows]);
+  const trades = useMemo(() => listTrades.filter((t) => !isUnverifiedTrade(t)), [listTrades]);
+  const unverified = useMemo(() => unverifiedSummary(listTrades), [listTrades]);
   const days = useMemo(() => dailyStats(trades), [trades]);
   const curve = useMemo(() => equityCurve(trades), [trades]);
   const metrics = useMemo(() => computeMetrics(trades, days, curve), [trades, days, curve]);
@@ -235,7 +241,7 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
   }, [allRows, tradesQ.data]);
 
   const meta = tradesQ.data?.journal ?? null;
-  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, days, curve, metrics, options };
+  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, listTrades, unverified, days, curve, metrics, options };
 }
 
 export type JournalData = ReturnType<typeof useJournalData>;

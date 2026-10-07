@@ -57,6 +57,8 @@ export interface JournalSourceMeta {
   sizing?: string | null;
   /** Rows the source holds but the journal cannot score, with why. Never silently dropped. */
   excluded?: { count: number; reason: string }[];
+  /** NEXUS ideas book: every source row behind `excluded`, one by one, with its reason. */
+  excludedRows?: JournalExcludedRow[];
   readOnly: boolean;
   /** The caller may add / edit / delete / import into this book. */
   canWrite: boolean;
@@ -66,6 +68,13 @@ export interface JournalSourceMeta {
   runs?: import('./bot-runs').BotRunInfo[];
   /** NEXUS ideas book: what the counted P&L is verified against, and the closed rows left out. */
   verification?: DeskVerificationMeta;
+}
+
+export interface JournalExcludedRow {
+  id: string;
+  symbol: string;
+  entryTime: string;
+  reason: string;
 }
 
 export interface DeskUnverifiedItem {
@@ -84,7 +93,7 @@ export interface DeskVerificationMeta {
   counted: { verified: number; checked: number; verifiedPnL: number; checkedPnL: number };
   /** Closed rows NOT counted by default; recordedPnL is what the book used to add. */
   unverified: { count: number; recordedPnL: number; byReason: { code: string; label: string; count: number; recordedPnL: number }[]; rows: DeskUnverifiedItem[] };
-  /** True when the response includes the unverified rows (?unverified=1). */
+  /** True when the response includes the unverified rows (the default since 2026-10-07; ?unverified=0 drops them). */
   includeUnverified: boolean;
 }
 

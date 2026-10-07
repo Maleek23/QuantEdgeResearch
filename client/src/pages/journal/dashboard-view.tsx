@@ -24,7 +24,7 @@ import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { EquityChart } from '@/components/journal/equity-chart';
 import { TradeMiniList } from '@/components/journal/trade-mini-list';
 import { EdgeRadar, RelativeDrawdownBars, TimeHeatmap } from '@/components/journal/lux-charts';
-import { fmtDuration, fmtMoney, fmtPct, fmtRatio, toTrade } from '@/lib/journal/metrics';
+import { fmtDuration, fmtMoney, fmtPct, fmtRatio, toTrade, withUnverifiedDays } from '@/lib/journal/metrics';
 import { edgeScore, relativeDrawdown, timeGrid, EDGE_MIN_CLOSED } from '@/lib/journal/metrics-extra';
 import { balanceAnchor, useJournalBalance } from '@/lib/journal/use-journal-extra';
 import { buildInsights, INSIGHT_DIM_LABEL, stopDoing } from '@/lib/journal/insights';
@@ -41,7 +41,7 @@ export default function DashboardView() {
 
   // Balance behind the book → anchor for % drawdown (null + reason when none).
   const bal = useJournalBalance(data.key);
-  const allTimeNet = useMemo(() => data.allRows.reduce((s, r) => s + (toTrade(r).netPnl || 0), 0), [data.allRows]);
+  const allTimeNet = useMemo(() => data.allRows.reduce((s, r) => s + (r.verification?.status === 'unverified' ? 0 : toTrade(r).netPnl || 0), 0), [data.allRows]);
   const anchor = balanceAnchor(bal.data, allTimeNet);
   const why = bal.isError ? 'The balance request failed — no % shown rather than a guess.' : bal.isLoading ? 'Reading the account balance…' : bal.data?.reason ?? (bal.data?.balance && !anchor ? 'The balance minus the book’s P&L is not positive — cannot anchor %.' : null);
   const edge = edgeScore(m, data.curve, anchor?.amount ?? null);
@@ -63,7 +63,8 @@ export default function DashboardView() {
   const [ym, setYm] = useState({ y: Number(latest.slice(0, 4)), m: Number(latest.slice(5, 7)) });
   const [tab, setTab] = useState<'recent' | 'open'>('recent');
   const [more, setMore] = useState(false);
-  const sorted = useMemo(() => [...data.trades].sort((a, b) => Date.parse(b.closedAt ?? b.openedAt) - Date.parse(a.closedAt ?? a.openedAt)), [data.trades]);
+  // Activity lists every trade in view, unverified ones included (labelled).
+  const sorted = useMemo(() => [...data.listTrades].sort((a, b) => Date.parse(b.closedAt ?? b.openedAt) - Date.parse(a.closedAt ?? a.openedAt)), [data.listTrades]);
   const activity = tab === 'recent' ? sorted.filter((t) => t.status !== 'open') : sorted.filter((t) => t.status === 'open');
   const activityShown = activity.slice(0, more ? 30 : 8);
   const grid = useMemo(() => timeGrid(data.trades), [data.trades]);
@@ -73,7 +74,8 @@ export default function DashboardView() {
   return (
     <div className="jr-page">
       <div className="jr-kpis" aria-label="Key numbers">
-        <Kpi k="Net P&L" v={<Pnl value={m.netPnl} />} s={<>n={m.closedTrades} closed{m.fees ? ` · fees ${fmtMoney(m.fees, { signed: false })}` : ''}</>}
+        <Kpi k={data.meta?.verification ? 'Net P&L (verified)' : 'Net P&L'} v={<Pnl value={m.netPnl} />} s={<>n={m.closedTrades} closed{m.fees ? ` · fees ${fmtMoney(m.fees, { signed: false })}` : ''}
+          {data.unverified.count > 0 && <span className="jr-incl-unv" title={`${data.unverified.count} unverified closed trade${data.unverified.count === 1 ? '' : 's'} recorded ${fmtMoney(data.unverified.netPnl)} — listed with an amber chip, not in the verified total`}>incl. unverified: {fmtMoney(m.netPnl + data.unverified.netPnl)} ({data.unverified.count} unverified)</span>}</>}
           x={delta && <span className={`jr-delta ${delta.v >= 0 ? 'up' : 'down'}`}>{delta.v >= 0 ? '▲' : '▼'} {fmtMoney(Math.abs(delta.v), { signed: false, compact: true })} vs prior 7d</span>} />
         <Kpi k="Win rate" v={fmtPct(m.winRate)} s={<>{m.wins}W · {m.breakevens}BE · {m.losses}L <LowSample n={m.closedTrades} /></>} />
         <Kpi k="Profit factor" v={fmtRatio(m.profitFactor, m.profitFactorIsInfinite)} s={<>{fmtMoney(m.grossProfit, { compact: true })} ÷ {fmtMoney(m.grossLoss, { compact: true, signed: false })}</>} />
@@ -126,7 +128,7 @@ export default function DashboardView() {
 
       <div className="jr-cols jr-cols-7-5">
         <Sec title="P&L calendar" meta={<N n={m.tradingDays} unit="trading days" />}>
-          <CalendarPnl days={data.days} year={ym.y} month={ym.m} onMonth={(y, mm) => setYm({ y, m: mm })} onSelect={(d) => d && openDay(d)} showWeeks />
+          <CalendarPnl days={withUnverifiedDays(data.days, data.listTrades)} year={ym.y} month={ym.m} onMonth={(y, mm) => setYm({ y, m: mm })} onSelect={(d) => d && openDay(d)} showWeeks />
         </Sec>
         <Sec title="Activity" meta={
           <div className="jr-seg" role="group" aria-label="Activity">
@@ -137,7 +139,7 @@ export default function DashboardView() {
           {activityShown.length ? <TradeMiniList trades={activityShown} marks={marks} onOpen={(id) => openTrade(id, activity.map((t) => t.id))} /> : <p className="jr-note">{tab === 'open' ? 'Flat — no open positions in view.' : 'No closed trades in view.'}</p>}
           <div className="jr-row-actions">
             {activity.length > 8 && <button type="button" className="jr-btn jr-btn-sm" onClick={() => setMore((v) => !v)}>{more ? 'Show fewer' : `Show more (${Math.min(30, activity.length)})`}</button>}
-            <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('trades')}>All {data.trades.length} trades <ArrowRight className="h-3.5 w-3.5" /></button>
+            <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('trades')}>All {data.listTrades.length} trades <ArrowRight className="h-3.5 w-3.5" /></button>
           </div>
         </Sec>
       </div>

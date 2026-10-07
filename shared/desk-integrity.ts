@@ -34,6 +34,7 @@ export const DESK_BUG_CLASSES = {
   bar_unverifiable: 'no market data was found to recompute this trade',
   illiquid_contract: 'published as an option although its liquidity-gate snapshot failed (OI / volume / two-sided / spread / mid — shared/option-liquidity.ts) — recorded fills on a contract that does not trade are untrustworthy',
   liquidity_unverified: 'option published with liquidity unverified (no chain answered; OPT_LIQUIDITY_UNVERIFIED=allow)',
+  exit_premium_pass: 'exit priced from intrinsic at target touch — unverified fill',
 } as const;
 
 export type DeskBugClass = keyof typeof DESK_BUG_CLASSES;
@@ -58,6 +59,8 @@ export interface DeskIntegrityInput {
   sessionContext?: string | null;
   /** convergenceSignalsJson.contractLiquidity — the publish-time liquidity-gate result (absent before the gate). */
   contractLiquidity?: { ok?: boolean; action?: string | null; failures?: string[] } | null;
+  /** [exit-premium:…] tag: 'pass' = contract exit priced at a tracker pass, not a contract print at the touch. */
+  exitPremiumBasis?: string | null;
 }
 
 /** Minimum fillable premium. */
@@ -102,6 +105,9 @@ export function deskIntegrityFlags(i: DeskIntegrityInput): DeskIntegrityFlag[] {
       }
       if (i.entryPremium < MIN_FILL_PREMIUM) add('sub_tick_entry_premium', 'fail', `entry premium ${i.entryPremium}`);
     }
+    // Operator rule 2026-10-07: never hide a trade the platform called. A
+    // pass-priced exit is shown with its P&L, labelled unverified (was excluded 2026-10-06).
+    if (resolved && i.exitPremiumBasis === 'pass') add('exit_premium_pass', 'fail', 'exit priced from intrinsic at target touch — unverified fill');
     if (resolved && fin(i.entryPremium) && i.entryPremium > 0) {
       let exitPrem: number | null = fin(i.exitPremium) && i.exitPremium >= 0 ? i.exitPremium : null;
       if (exitPrem == null && fin(i.optionPercentGain)) {
