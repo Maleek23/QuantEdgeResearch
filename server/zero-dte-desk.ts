@@ -250,6 +250,8 @@ export interface DeskPayload {
   provenance: string;
   /** ROLE=web: age of the worker's last evaluation pass. */
   engineState?: { source: string; asOf: string | null; ageSec: number | null; stale: boolean };
+  /** Index engine (SPY GEX → SPX) health inputs; the client classifies with shared/zero-dte-actionability.ts indexHealth(). */
+  indexEngine?: { scanAt: string | null; gexAt: string | null; wait: string | null };
   notes: string[];
 }
 
@@ -621,8 +623,14 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
     // Sector-ignition intraday vehicles join the list as WATCH first (server/sector-ignition.ts).
     const ign = await ignitionIdeas(nowMs);
     if (ign.length) assembled = { ...assembled, ideas: sortIdeas([...assembled.ideas, ...ign.filter((x) => !assembled.ideas.some((y) => y.symbol === x.symbol && y.direction === x.direction && y.stage !== 'done'))]) };
+    let indexEngine: DeskPayload['indexEngine'] = { scanAt: null, gexAt: null, wait: null };
+    try {
+      const { getLastIndexScan } = await import('./index-scalp-engine');
+      const ls = getLastIndexScan();
+      if (ls) indexEngine = { scanAt: new Date(ls.at).toISOString(), gexAt: ls.result.gexAt?.SPY ?? null, wait: ls.result.waits?.SPY?.[0] ?? null };
+    } catch (e) { logger.warn(`[0DTE-DESK] index health read failed: ${(e as Error).message}`); }
     const p: DeskPayload = {
-      asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info,
+      asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info, indexEngine,
       record: { ...summarizeDeskRecord(recRows, OUTCOME_BASELINE_DATE), perName },
       provenance: ZERO_DTE_PROVENANCE,
       ...(engineStamp ? { engineState: engineStamp } : {}),

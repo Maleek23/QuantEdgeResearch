@@ -19,7 +19,8 @@ export function spxMirrorChipTitle(m: SpxMirror): string {
   return `SPX equivalent: SPXW ${m.contract.strike}${m.contract.optionType === 'call' ? 'C' : 'P'} ${m.contract.expiry} — ${m.note}`;
 }
 
-export function SpxMirrorBlock({ mirror, className = 'nxp-spx-expression' }: { mirror: SpxMirror; className?: string }) {
+export function SpxMirrorBlock({ mirror, className = 'nxp-spx-expression', nowMs }: { mirror: SpxMirror; className?: string; nowMs?: number }) {
+  const now = nowMs ?? Date.now();
   const m = mirror;
   const c = m.contract;
   const p = m.premium;
@@ -31,13 +32,13 @@ export function SpxMirrorBlock({ mirror, className = 'nxp-spx-expression' }: { m
           <strong>SPXW {c.strike}{c.optionType === 'call' ? 'C' : 'P'} · {c.expiry}{c.dte != null ? ` · ${c.dte <= 0 ? '0DTE' : `${c.dte}DTE`}` : ''}</strong>
           <small>
             {p?.mid != null
-              ? <>est {money(p.mid)} <span title={`bid ${money(p.bid)} / ask ${money(p.ask)} · ${p.source}`}>· {Math.round(p.delayedSec / 60)}m delayed · fetched {ago(p.asOf)}</span></>
+              ? <>est {money(p.mid)} <span title={`bid ${money(p.bid)} / ask ${money(p.ask)} · ${p.source}`}>· {Math.round(p.delayedSec / 60)}m delayed · fetched {ago(p.asOf, now)}</span></>
               : <>premium — {m.reason ?? 'no delayed quote'}</>}
           </small>
           {m.levels && (m.levels.entry != null || m.levels.stop != null || m.levels.targets.length > 0) && (
             <small>SPX trigger {money(m.levels.entry)} · stop {money(m.levels.stop)}{m.levels.targets.map((t, i) => ` · T${i + 1} ${money(t)}`).join('')}</small>
           )}
-          {m.ratio && <small>ratio {m.ratio.value.toFixed(4)}× ({m.ratio.source}) · {ago(m.ratio.asOf)}</small>}
+          {m.ratio && <small>ratio {m.ratio.value.toFixed(4)}× ({m.ratio.source}) · {ago(m.ratio.asOf, now)}</small>}
         </>
       ) : <small>{m.reason ?? 'mirror unavailable'}</small>}
       <small><em>{m.note}</em></small>

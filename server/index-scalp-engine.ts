@@ -752,6 +752,8 @@ export interface IndexScalpResult {
   waits?: Record<string, string[]>;
   /** ISO — when this pass ran (a cached result is returned inside the min interval). */
   ranAt?: string;
+  /** ISO — fetchedAt of the GEX snapshot each symbol was evaluated on (null = no snapshot). The 0DTE desk's health line reads SPY. */
+  gexAt?: Record<string, string | null>;
 }
 
 function etMinutesNow(now = new Date()): number {
@@ -862,6 +864,7 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
   }
 
   const [snaps, eventBlock] = await Promise.all([getGexSnapshotBatch(symbols), eventBlockNow(etMin)]);
+  const gexAt: Record<string, string | null> = Object.fromEntries(symbols.map((sym) => [sym, snaps.get(sym)?.fetchedAt ?? null]));
 
   // SPX is not SPY × 10. The ratio drifts enough to move a 0DTE suggestion by
   // several strikes (today it was roughly 10.056). Resolve the live cash-index
@@ -945,7 +948,7 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
     if (await persistScalp(idea, opts)) persisted++;
   }
 
-  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt };
+  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt, gexAt };
 }
 
 // ─── Intraday Scheduler ─────────────────────────────────────
