@@ -10,9 +10,23 @@ import { lazyTool, type DefaultLayout, type ToolDef } from '../tool-def';
 const nexus = () => import('../tools/nexus/nexus-tools');
 const zeroDte = () => import('@/components/zerodte/zero-dte-desk');
 const ignition = () => import('@/components/sector-ignition/sector-ignition');
+const strips = () => import('../tools/nexus/nexus-strips');
 const BOOK = 'convictions engine';
 
 export const NEXUS_TOOLS: ToolDef[] = [
+  {
+    id: 'nexus-tracked', category: 'Ideas', title: 'Tracked Symbols',
+    phoneTitle: 'Tracking',
+    what: "The operator's time-boxed tracked names: live quote + change, nearest support / resistance, today's options net premium, open ideas on the board and the expiry; a symbol click opens its top setup.",
+    units: 'price $, % change, net premium $', source: 'nexus tracked + live quotes', backing: 'TrackedRow (tools/nexus/tracked-row.tsx) ← GET /api/nexus/tracked, /api/levels/:symbol, /api/bullflow/net-premium-batch',
+    ageInside: true, defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusTrackedTool'),
+  },
+  {
+    id: 'nexus-rotation', category: 'Market', title: 'Rotation Strip',
+    what: 'One line: the sector groups money is moving into and out of (igniting / extended), plus laggards to watch; click a group for its members ranked.',
+    units: '% move', source: 'sector ignition', backing: 'RotationStrip (components/sector-ignition) ← GET /api/sector-ignition?horizon=daily|swing',
+    defaultSize: { w: 6, h: 2 }, minSize: { w: 3, h: 2 }, Component: lazyTool(strips, 'NexusRotationTool'),
+  },
   {
     id: 'nexus-board', category: 'Ideas', title: 'Ranked Setups',
     what: 'Published setups ranked by conviction, filterable by side, recency / top-10 / S–A band and ticker or sector; list, card grid or table.',
@@ -76,27 +90,32 @@ export const NEXUS_TOOLS: ToolDef[] = [
 ];
 
 /**
- * NEXUS default — one screen (12 × 18):
+ * NEXUS default — a TOOL WORKSPACE (operator 2026-10-01: "I wanna be able to
+ * resize the elements… like tools"). The first screen is 12 × 18; the rest
+ * follows below the fold (PageSpec.tall), never hidden.
  *
- *   ┌ ranked ┬──────── setup detail ─────────────┬ context ──────┐
- *   │ setups │ chart, levels, tabs               │ regime, macro │   three columns, each the
- *   │ 3×12   │ 6×12                              │ 3×12          │   height of the screen and
- *   ├────────┴────── developing 6×6 ───┬──── bot positions 6×6 ──┤   its own framed scroller
- *   └──────────────────────────────────┴─────────────────────────┘   (PageSpec.columns)
+ *   ┌──── tracked symbols 6×2 ─────┬──── rotation strip 6×2 ──────┐  thin reads on top
+ *   ├ ranked setups 5×16 ──────────┼ setup detail 7×16 ───────────┤  master → detail:
+ *   │ filters, then ≥ 4 rows at    │ chart with trigger/stop/T1,  │  the board ~40% left,
+ *   │ 1366×768                     │ price ladder, tabs           │  the chart above the fold
+ *   ├ context 4×10 ┬ sector ign. 4×10 ┬ bot positions 4×10 ──────┤  ── fold ──
+ *   ├ developing 6×8 ─────────────┬ trader calls 6×8 ─────────────┤
+ *   └ 0DTE desk 12×16 ────────────────────────────────────────────┘
  *
- * Master → detail left to right; the market context that frames every idea
- * on the right, with ranked traders' recent calls (evidence, not signals)
- * under it; the funnel (developing) and what the bot holds underneath.
- * Book by horizon, stock chart, GEX levels and flow context: Add tool.
+ * Book by horizon and the classic all-in-one board: Tools menu.
  */
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
   tools: [
-    ['nexus-board', 0, 0, 3, 12],
-    ['nexus-detail', 3, 0, 6, 12],
-    ['nexus-context', 9, 0, 3, 12],
-    ['nexus-developing', 0, 12, 4, 6],
-    ['nexus-positions', 4, 12, 4, 6],
-    ['nexus-trader-calls', 8, 12, 4, 6],
+    ['nexus-tracked', 0, 0, 6, 2],
+    ['nexus-rotation', 6, 0, 6, 2],
+    ['nexus-board', 0, 2, 5, 16],
+    ['nexus-detail', 5, 2, 7, 16],
+    ['nexus-context', 0, 18, 4, 10],
+    ['nexus-sector-ignition', 4, 18, 4, 10],
+    ['nexus-positions', 8, 18, 4, 10],
+    ['nexus-developing', 0, 28, 6, 8],
+    ['nexus-trader-calls', 6, 28, 6, 8],
+    ['nexus-0dte', 0, 36, 12, 16],
   ],
 }];

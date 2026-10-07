@@ -215,6 +215,7 @@ function Router() {
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={ProtectedTerminalShell} />
         {DevGexPhone && <Route path="/dev/gex-phone" component={DevGexPhone} />}
+        {DevGexPhone && <Route path="/dev/nexus-workspace" component={DevGexPhone} />}
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
@@ -378,7 +379,7 @@ function App() {
   // NexusFrame with the rest of the product so navigation never disappears.
   // (/nexus used to be listed here too, but it is a legacy redirect to /t —
   // the redirect renders before this branch could ever matter.)
-  const isFullBleedShell = locationPath === '/t' || (import.meta.env.DEV && locationPath === '/dev/gex-phone');
+  const isFullBleedShell = locationPath === '/t' || (import.meta.env.DEV && (locationPath === '/dev/gex-phone' || locationPath === '/dev/nexus-workspace'));
 
   if (isFullBleedShell) {
     return (

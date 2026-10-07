@@ -39,7 +39,7 @@ import { PageSkeleton, ToolSkeleton } from '@/components/ui/qe-loading';
 import '@/styles/nexus.css';
 import './dashboard.css';
 import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
-import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
+import { COLLAPSED_H, COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
 import { DashboardCtx, PhoneMeta, ReportCtx, ToolFrame, ToolInstanceCtx, phoneTitleOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { usePhone } from '@/components/ui/qe-phone';
 import { materialize, useDashboards } from './use-dashboards';
@@ -197,11 +197,13 @@ function ToolBody({ tool }: { tool: PlacedTool }) {
 
 /* ── one draggable tile ── */
 function Tile({
-  tool, rect, onRemove, onNudge, onResizeStart, dragging, resizing, symbol,
+  tool, rect, onRemove, onCollapse, onNudge, onResizeStart, dragging, resizing, symbol,
 }: {
   tool: PlacedTool;
   rect: { left: number; top: number; width: number; height: number };
   onRemove: () => void;
+  /** NEXUS (toggles pages): fold the tile to its header / unfold it */
+  onCollapse?: () => void;
   onNudge: (dx: number, dy: number, dw: number, dh: number) => void;
   onResizeStart: (e: RPointerEvent) => void;
   dragging: boolean;
@@ -228,15 +230,17 @@ function Tile({
         def={def}
         symbol={symbol}
         onRemove={onRemove}
+        onCollapse={onCollapse}
+        collapsed={!!tool.c}
         dragHandle={
           <button type="button" className="fd-grip" aria-label={`Move ${def.title}. Arrow keys move, Shift+arrows resize.`} title="Drag to move · arrows move · Shift+arrows resize"
             {...attributes} {...listeners} onKeyDown={onKey}>
             <GripVertical size={13} />
           </button>
         }
-        resizeHandle={<span className="fd-resize" onPointerDown={onResizeStart} aria-hidden title="Drag to resize" />}
+        resizeHandle={tool.c ? undefined : <span className="fd-resize" onPointerDown={onResizeStart} aria-hidden title="Drag to resize" />}
       >
-        <ToolBody tool={tool} />
+        {!tool.c && <ToolBody tool={tool} />}
       </ToolFrame>
     </div>
   );
@@ -295,9 +299,44 @@ function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: str
   );
 }
 
+/* ── show / hide picker (NEXUS — PageSpec.toggles): one instance per tool, a check = on the board ── */
+function ToolPicker({ spec, present, onToggle }: { spec: PageSpec; present: Set<string>; onToggle: (id: string) => void }) {
+  const { open, setOpen, ref } = useMenu();
+  const offered = useMemo(() => TOOLS.filter((t) => inCatalog(spec, t)), [spec]);
+  const on = offered.filter((t) => present.has(t.id)).length;
+  return (
+    <div className="fd-menu-wrap" ref={ref}>
+      <button type="button" className="fd-btn primary" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu"
+        title="Show or hide NEXUS tools">
+        <LayoutGrid size={13} /> Tools <span className="fd-pick-n">{on}/{offered.length}</span>
+      </button>
+      {open && <ToolPickerList spec={spec} offered={offered} present={present} onToggle={onToggle} />}
+    </div>
+  );
+}
+
+function ToolPickerList({ spec, offered, present, onToggle }: { spec: PageSpec; offered: ToolDef[]; present: Set<string>; onToggle: (id: string) => void }) {
+  return (
+    <div className="fd-menu fd-menu-wide fd-pick" role="menu" aria-label={`${spec.label} tools`}>
+      <div className="fd-menu-head">{spec.label} TOOLS · CHECKED = ON THE BOARD</div>
+      {offered.map((t) => {
+        const isOn = present.has(t.id);
+        return (
+          <button key={t.id} type="button" role="menuitemcheckbox" aria-checked={isOn} className={cn('fd-menu-item fd-pick-item', isOn && 'on')}
+            title={`${t.what}\nUnits: ${t.units}\nSource: ${t.backing}`} onClick={() => onToggle(t.id)}>
+            <span className="fd-pick-box" aria-hidden>{isOn && <Check size={11} />}</span>
+            <span className="fd-pick-title">{t.title}</span>
+          </button>
+        );
+      })}
+      <div className="fd-menu-note">Hidden tools keep their settings; showing one puts it back in the first gap that fits.</div>
+    </div>
+  );
+}
+
 /* ── phone: every workspace control in ONE small menu (operator: no 3 rows of buttons) ── */
-function WorkspaceMenu({ spec, present, onAdd, onRestore, canRestore, onClear, canClear }: {
-  spec: PageSpec; present: Set<string>; onAdd: (id: string) => void;
+function WorkspaceMenu({ spec, present, onAdd, onToggle, onRestore, canRestore, onClear, canClear }: {
+  spec: PageSpec; present: Set<string>; onAdd: (id: string) => void; onToggle?: (id: string) => void;
   onRestore: () => void; canRestore: boolean; onClear: () => void; canClear: boolean;
 }) {
   const { open, setOpen, ref } = useMenu();
@@ -312,10 +351,11 @@ function WorkspaceMenu({ spec, present, onAdd, onRestore, canRestore, onClear, c
       {open && (
         <div className="fd-menu fd-menu-wide fd-ws-sheet" role="menu">
           <div className="fd-menu-group">
-            <button type="button" role="menuitem" className="fd-menu-item" disabled={!canRestore} onClick={() => { setOpen(false); onRestore(); }}><span><RotateCcw size={13} /> Restore default layout</span></button>
-            <button type="button" role="menuitem" className="fd-menu-item" disabled={!canClear} onClick={() => { setOpen(false); onClear(); }}><span><Eraser size={13} /> Clear all tools</span></button>
+            <button type="button" role="menuitem" className="fd-menu-item" disabled={!canRestore} onClick={() => { setOpen(false); onRestore(); }}><span><RotateCcw size={13} /> {spec.toggles ? 'Reset layout' : 'Restore default layout'}</span></button>
+            {!spec.toggles && <button type="button" role="menuitem" className="fd-menu-item" disabled={!canClear} onClick={() => { setOpen(false); onClear(); }}><span><Eraser size={13} /> Clear all tools</span></button>}
           </div>
-          {cats.map((c) => (
+          {spec.toggles && onToggle && <ToolPickerList spec={spec} offered={offered} present={present} onToggle={onToggle} />}
+          {!spec.toggles && cats.map((c) => (
             <div key={c} className="fd-menu-group">
               <div className="fd-menu-head">ADD · {c.toUpperCase()}</div>
               {offered.filter((t) => t.category === c).map((t) => (
@@ -765,9 +805,11 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  /** a collapsed tile keeps its one header row */
+  const minH = (t: PlacedTool) => (t.c ? COLLAPSED_H : TOOL_BY_ID.get(t.type)!.minSize.h);
   const moved = (t: PlacedTool, dx: number, dy: number) => {
     const def = TOOL_BY_ID.get(t.type)!;
-    return clampTool({ ...t, x: t.x + dx, y: t.y + dy }, def.minSize.w, def.minSize.h);
+    return clampTool({ ...t, x: t.x + dx, y: t.y + dy }, def.minSize.w, minH(t));
   };
   const onDragMove = (e: DragMoveEvent) => {
     const t = tools.find((x) => x.i === e.active.id);
@@ -786,7 +828,17 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
     api.updateActive((ts) => compact(ts.map((t) => {
       if (t.i !== id) return t;
       const def = TOOL_BY_ID.get(t.type)!;
+      if (t.c) return clampTool({ ...t, x: t.x + dx, y: t.y + dy, w: t.w + dw }, def.minSize.w, COLLAPSED_H); // collapsed: height stays one row
       return clampTool({ ...t, x: t.x + dx, y: t.y + dy, w: t.w + dw, h: t.h + dh }, def.minSize.w, def.minSize.h);
+    }), id));
+  }, [api]);
+
+  /** fold a tile to its header (remembering its height) or unfold it; neighbours re-pack */
+  const toggleCollapse = useCallback((id: string) => {
+    api.updateActive((ts) => compact(ts.map((t) => {
+      if (t.i !== id) return t;
+      if (t.c) { const { c, ...rest } = t; return { ...rest, h: c }; }
+      return { ...t, c: t.h, h: COLLAPSED_H };
     }), id));
   }, [api]);
 
@@ -819,6 +871,11 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
   }, [api]);
   const present = useMemo(() => new Set(tools.map((t) => t.type)), [tools]);
   const ctx = useMemo(() => ({ page, hasTool: (t: string) => present.has(t), addTool, editable: true }), [page, present, addTool]);
+  /** show / hide picker: hide = remove every instance (Undo offered), show = add one */
+  const toggleTool = (id: string) => {
+    if (!present.has(id)) { addTool(id); return; }
+    undoable(`Hid ${TOOL_BY_ID.get(id)?.title ?? 'tool'}`, () => api.updateActive((ts) => compact(ts.filter((x) => x.type !== id))));
+  };
   const needsFocus = tools.some((t) => TOOL_BY_ID.get(t.type)?.needs?.includes('symbol'));
   const symbolOf = (t: PlacedTool) => (TOOL_BY_ID.get(t.type)?.needs?.includes('symbol') ? focus : undefined);
 
@@ -870,7 +927,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
           </div>
           {isMobile ? (
           <div className="fd-bar-actions">
-            <WorkspaceMenu spec={spec} present={present} onAdd={addTool}
+            <WorkspaceMenu spec={spec} present={present} onAdd={addTool} onToggle={spec.toggles ? toggleTool : undefined}
               canRestore={!!spec.defaults.length && !api.active?.pristine}
               onRestore={restore}
               canClear={!!tools.length}
@@ -878,20 +935,20 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
           </div>
           ) : (
           <div className="fd-bar-actions">
-            <AddToolMenu spec={spec} onAdd={addTool} present={present} />
+            {spec.toggles ? <ToolPicker spec={spec} present={present} onToggle={toggleTool} /> : <AddToolMenu spec={spec} onAdd={addTool} present={present} />}
             {!isMobile && <button type="button" className="fd-btn" disabled={!tools.length}
-              onClick={() => api.updateActive((ts) => autoArrange(ts, (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
+              onClick={() => api.updateActive((ts) => autoArrange(ts.map(({ c, ...t }) => (c ? { ...t, h: c } : t)), (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
               title="Pack tools into rows with no gaps">
               <LayoutGrid size={13} /> Auto-arrange
             </button>}
             <button type="button" className="fd-btn" disabled={!spec.defaults.length || !!api.active?.pristine}
               onClick={restore}
               title="Reset this dashboard to the default layout">
-              <RotateCcw size={13} /> Restore default layout
+              <RotateCcw size={13} /> {spec.toggles ? 'Reset layout' : 'Restore default layout'}
             </button>
-            <button type="button" className="fd-btn" disabled={!tools.length} onClick={clear}>
+            {!spec.toggles && <button type="button" className="fd-btn" disabled={!tools.length} onClick={clear}>
               <Eraser size={13} /> Clear all tools
-            </button>
+            </button>}
             <SaveBadge api={api} />
           </div>
           )}
@@ -927,6 +984,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
                     <Tile key={t.i} tool={t} rect={rectOf(t)} symbol={symbolOf(t)}
                       dragging={dragId === t.i} resizing={resize?.i === t.i}
                       onRemove={() => remove(t.i)}
+                      onCollapse={spec.toggles ? () => toggleCollapse(t.i) : undefined}
                       onNudge={(dx, dy, dw, dh) => nudge(t.i, dx, dy, dw, dh)}
                       onResizeStart={startResize(t)} />
                   ))}

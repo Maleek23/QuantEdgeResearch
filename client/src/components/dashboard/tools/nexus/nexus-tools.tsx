@@ -192,6 +192,7 @@ const DAY_CHIPS: ReadonlyArray<{ key: DayChip; label: string; help: string }> = 
 const isDateKey = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 export function NexusBoardTool() {
+  const dash = useDashboard();
   const { convictions, all } = useSetupBook();
   const [sel] = useNexusSelection();
   const select = useSelect();
@@ -244,8 +245,9 @@ export function NexusBoardTool() {
   const resetAll = () => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); setDay('all'); setShowStale(false); setSpxOnly(false); };
   return (
     <div className="fd-fill nxd nxd-board">
-      <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); setDay('all'); }} />
-      <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>
+      {/* NEXUS workspace: the tracked row and rotation strip are tiles of their own; the board carries them only when they are not placed */}
+      {!dash.hasTool('nexus-tracked') && <TrackedRow picks={all} onFilter={(sym) => { setQuery(query === sym ? '' : sym); setSide('all'); setRank('all'); setCryptoOnly(false); setWithRotation(false); setDay('all'); }} />}
+      {!dash.hasTool('nexus-rotation') && <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>}
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
         <div className="of-seg" role="group" aria-label="Asset">
           <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>
@@ -531,3 +533,6 @@ export function NexusHorizonTool() {
     />
   );
 }
+
+/* shared with the NEXUS strip tiles (nexus-strips.tsx) */
+export { useSetupBook, useSelect };
