@@ -184,6 +184,8 @@ export interface Card {
   /** Exit $ at the NEXUS risk size (shared/position-sizing.ts riskSizedFromPct; NEXUS_RISK_DOLLARS, default $500). */
   riskPnl?: number | null;
   riskDollars?: number;
+  /** Follow-up replies already queued (dedupe keys): 'peak', 'runner'. */
+  followUps?: string[];
 }
 export interface BotRecord { positionId: string; day: string; entryAt?: number; exitAt?: number; label: string; pnl?: number | null; pct?: number | null; reason?: string | null }
 export type OutboxKind = 'card' | 'edit' | 'reply' | 'recap' | 'bot' | 'digest';
@@ -526,6 +528,10 @@ export interface ResolveEvent {
   optionPercentGain?: number | null;
   /** touch_bar | intrinsic | pass | withheld */
   optionPremiumBasis?: string | null;
+  /** "peak $5.45 at 10:12 · exit $4.22" (shared/option-peak.ts) — the best the contract printed so far. */
+  peakLine?: string | null;
+  /** "½ at T1 $4.22 · runner open, stop $3.05" (shared/runner-policy.ts) when the runner policy booked half at T1. */
+  runnerLine?: string | null;
 }
 
 export function classifyResolution(ev: Pick<ResolveEvent, 'outcomeStatus' | 'resolutionReason'>): { status: CardStatus; word: string; icon: string } {
@@ -575,7 +581,8 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
     if (sized) pctParts.unshift(`${sized.pnl >= 0 ? '+' : '−'}$${Math.abs(sized.pnl).toFixed(0)} at $${riskDollars} risk${sized.scaled ? ' (scaled)' : ''}${sized.capped ? ' (capped at stop)' : ''}`);
     const pct = pctParts.length ? pctParts.join(' / ') : 'P&L not measured';
     const triggered = c.events.some((e) => e.kind === 'trigger');
-    const line = `${etHm(atMs)} ${cls.word.toLowerCase()}${ev.exitPrice != null ? ` @ ${money(num(ev.exitPrice))}` : ''} · ${pct} (${timeTag})`;
+    const extra = [ev.runnerLine, ev.peakLine].filter(Boolean).join(' · ');
+    const line = `${etHm(atMs)} ${cls.word.toLowerCase()}${ev.exitPrice != null ? ` @ ${money(num(ev.exitPrice))}` : ''} · ${pct} (${timeTag})${extra ? ` · ${extra}` : ''}`;
     c.events.push({ kind: 'resolve', at: atMs, line });
     c.status = cls.status;
     c.verified = verified;
@@ -584,7 +591,7 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
     // An idea that never triggered and simply lapsed gets the card edit (and the recap), not a reply.
     const wantsReply = triggered || cls.status === 'win' || cls.status === 'loss' || cls.status === 'time';
     if (wantsReply) {
-      const reply = `${cls.icon} **${cls.word}** · ${c.label} · ${etHm(atMs)} · ${pct} (${timeTag})`;
+      const reply = `${cls.icon} **${cls.word}** · ${c.label} · ${etHm(atMs)} · ${pct} (${timeTag})${extra ? `\n${extra}` : ''}`;
       enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: reply });
     }
     save(s);
@@ -592,6 +599,28 @@ export async function onIdeaResolved(ev: ResolveEvent): Promise<EventResult> {
     return 'queued';
   } catch (e: any) {
     logger.warn(`[DISCORD-LIFECYCLE] resolve ${ev?.ideaId}: ${e?.message ?? e}`);
+    return 'off';
+  }
+}
+
+/**
+ * One follow-up reply under a resolved idea's card, once per key: the after-close
+ * peak ("peak $5.45 at 10:12 · exit $4.22") or the runner's close. No card → no-op.
+ */
+export async function onIdeaFollowUp(ev: { ideaId: string; key: 'peak' | 'runner'; line: string }): Promise<EventResult> {
+  try {
+    if (!lifecycleEnabled()) return 'off';
+    const s = load();
+    const c = s.cards[String(ev.ideaId)];
+    if (!c) return 'no_card';
+    if ((c.followUps ?? []).includes(ev.key)) return 'duplicate';
+    c.followUps = [...(c.followUps ?? []), ev.key];
+    enqueue(s, { channel: c.channel, kind: 'reply', ideaId: c.ideaId, line: `${ev.key === 'runner' ? '🏃' : '🏔️'} ${c.label} · ${ev.line}` });
+    save(s);
+    kick();
+    return 'queued';
+  } catch (e: any) {
+    logger.warn(`[DISCORD-LIFECYCLE] follow-up ${ev?.ideaId}: ${e?.message ?? e}`);
     return 'off';
   }
 }

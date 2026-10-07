@@ -45,7 +45,8 @@ export interface JournalTradeRow {
   /** Desk rows, stopped out: "stopped · later reached T1 at 11:42" — hindsight beside the loss (shared/after-stop.ts). */
   afterStop?: string | null;
   /** Option rows: "peak $5.45 at 10:12 · exit $4.22" — the contract's best price after entry (shared/option-peak.ts). */
-  peak?: string | null;
+  peakLine?: string | null;
+  peakPremium?: number | null;
   /** 0DTE desk rows under the runner policy: "½ at T1 $4.22 · runner $5.10 (…) · blended $4.66". */
   runner?: string | null;
   /** NEXUS ideas rows: verified (bars) / checked (integrity) / unverified, with reasons (server/journal-row-maps.ts verifyDeskRows). */

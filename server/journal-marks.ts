@@ -43,6 +43,8 @@ export interface MarkableRow {
   id: string; symbol: string; assetType: string; direction: string; status: string;
   quantity: number; entryPrice: number; fees?: number | null;
   optionType?: string | null; strikePrice?: number | null; expiryDate?: string | null;
+  /** Recorded peak premium since entry (desk rows: the idea's [peak:…] tag, shared/option-peak.ts). */
+  peakPremium?: number | null;
 }
 
 export type QuoteFn = (key: string, row: MarkableRow) => Promise<MarkQuote | null>;
@@ -116,7 +118,11 @@ function markFor(row: MarkableRow, q: MarkQuote): LiveMark {
   const entry = Number(row.entryPrice);
   const pnl = qty > 0 && entry > 0 ? r2((q.price - entry) * qty * mult * sign - (Number(row.fees) || 0)) : null;
   const pct = entry > 0 ? r2(((q.price - entry) / entry) * 100 * sign) : null;
-  return { ...q, unrealizedPnL: pnl, unrealizedPct: pct };
+  // LiveMark.peak: best contract mark since entry = max(recorded peak, this mark), once above entry.
+  const recorded = Number(row.peakPremium);
+  const best = Math.max(Number.isFinite(recorded) ? recorded : -Infinity, q.price);
+  const peak = row.assetType === 'option' && q.basis === 'contract' && entry > 0 && best > entry ? r2(best) : null;
+  return { ...q, unrealizedPnL: pnl, unrealizedPct: pct, ...(peak != null ? { peak } : {}) };
 }
 
 /** Marks for the OPEN rows, keyed by row id. Bounded concurrency, instrument-deduped. */

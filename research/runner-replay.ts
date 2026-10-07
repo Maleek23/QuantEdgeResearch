@@ -147,6 +147,8 @@ interface Row {
   recorded: string; barSource: string; underlyingSource: string; peak: number | null; peakAt: string | null;
   allOut: { exit: number; why: string; pct: number; R: number; capture: number | null };
   runner: { exit: number; t1: number | null; runner: number | null; why: string; pct: number; R: number; capture: number | null };
+  /** Runner with the partial at the underlying T1 only (what the idea record implements). */
+  runnerT1: { exit: number; why: string; pct: number; R: number; capture: number | null };
   t1Reached: boolean;
 }
 
@@ -216,7 +218,9 @@ async function main() {
     const plan: RunnerPlan = { dir: side === 'put' ? 'short' : 'long', entryPremium: E, uStop, uT1 };
     const A = runnerPath(ticks, plan, cfg, 'all_out', { endFill: true });
     const B = runnerPath(ticks, plan, cfg, 'runner', { endFill: true });
-    const sa = summarizeRunner(A), sb = summarizeRunner(B);
+    const C = runnerPath(ticks, { ...plan, premT1: false }, cfg, 'runner', { endFill: true });
+    const sa = summarizeRunner(A), sb = summarizeRunner(B), sc = summarizeRunner(C);
+    const pcx = sc.blendedPremium!;
     const pk = premiumPeakFromBars(chain.bars, entryMs, closeMs, 60_000);
     const pa = sa.blendedPremium!, pb = sb.blendedPremium!;
     const t1Reached = A.legs.some((l) => l.why === 'T1') || B.legs.some((l) => / half$/.test(l.why));
@@ -227,6 +231,7 @@ async function main() {
       peak: pk?.premium ?? null, peakAt: pk ? new Date(pk.atMs).toISOString() : null,
       allOut: { exit: r2(pa), why: A.legs.map((l) => l.why).join('+'), pct: r2((pa / E - 1) * 100), R: r3((pa / E - 1) / R_UNIT), capture: pk ? peakCapture(E, pa, pk.premium) : null },
       runner: { exit: r2(pb), t1: sb.t1ExitPremium, runner: sb.runnerExitPremium, why: B.legs.map((l) => l.why).join(' → '), pct: r2((pb / E - 1) * 100), R: r3((pb / E - 1) / R_UNIT), capture: pk ? peakCapture(E, pb, pk.premium) : null },
+      runnerT1: { exit: r2(pcx), why: C.legs.map((l) => l.why).join(' → '), pct: r2((pcx / E - 1) * 100), R: r3((pcx / E - 1) / R_UNIT), capture: pk ? peakCapture(E, pcx, pk.premium) : null },
       t1Reached,
     });
     console.log(`  ${day} ${i.symbol} ${occ} E ${E} · all_out ${r2(pa)} (${A.legs.map((l) => l.why).join('+')}) · runner ${r2(pb)} (${B.legs.map((l) => `${l.why} ${l.premium}`).join(' → ')}) · peak ${pk?.premium ?? '—'}`);
@@ -238,14 +243,15 @@ async function main() {
   const halves = { first: out.filter((r) => r.day < cut), second: out.filter((r) => r.day >= cut), all: out };
   const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const agg = (rs: Row[]) => {
-    const caps = (k: 'allOut' | 'runner') => rs.map((r) => r[k].capture).filter(fin);
-    const one = (k: 'allOut' | 'runner') => ({
+    type K = 'allOut' | 'runner' | 'runnerT1';
+    const caps = (k: K) => rs.map((r) => r[k].capture).filter(fin);
+    const one = (k: K) => ({
       n: rs.length,
       ER: mean(rs.map((r) => r[k].R)), avgPremiumPct: mean(rs.map((r) => r[k].pct)),
       winRate: rs.length ? rs.filter((r) => r[k].pct > 0).length / rs.length : null,
       captureOfPeak: mean(caps(k)), captureN: caps(k).length,
     });
-    return { allOut: one('allOut'), runner: one('runner'), t1ReachedN: rs.filter((r) => r.t1Reached).length };
+    return { allOut: one('allOut'), runner: one('runner'), runnerT1: one('runnerT1'), t1ReachedN: rs.filter((r) => r.t1Reached).length };
   };
   const res = {
     generatedAt: new Date().toISOString(), label: 'MEASURING — not a validated edge',
@@ -253,16 +259,17 @@ async function main() {
     halves: { first: agg(halves.first), second: agg(halves.second), all: agg(halves.all) },
     skipped, network: { calls: net, cacheHits: hits }, massive: entitlement.report(), rows: out,
   };
-  const beats = (h: ReturnType<typeof agg>) => h.allOut.n > 0 && (h.runner.ER ?? -Infinity) > (h.allOut.ER ?? Infinity);
-  const decision = beats(res.halves.first) && beats(res.halves.second) ? 'ON' : 'OFF';
-  (res as any).decision = { defaultOn: decision === 'ON', rule: 'runner E[R] > all_out E[R] in BOTH halves' };
+  const beats = (h: ReturnType<typeof agg>, k: 'runner' | 'runnerT1') => h.allOut.n > 0 && (h[k].ER ?? -Infinity) > (h.allOut.ER ?? Infinity);
+  const both = (k: 'runner' | 'runnerT1') => beats(res.halves.first, k) && beats(res.halves.second, k);
+  const decision = both('runner') && both('runnerT1') ? 'ON' : 'OFF';
+  (res as any).decision = { defaultOn: decision === 'ON', runnerBeatsBothHalves: both('runner'), runnerT1BeatsBothHalves: both('runnerT1'), rule: 'runner (T1/+50%) AND runner (T1 only) E[R] > all_out E[R] in BOTH halves' };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(res, null, 1));
 
   const f = (x: number | null, d = 3) => (x == null ? '—' : x.toFixed(d));
   const pc = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(0)}%`);
   const line = (name: string, h: ReturnType<typeof agg>) => [
-    `| ${name} | ${h.allOut.n} | ${h.t1ReachedN} | ${f(h.allOut.ER)} | ${f(h.runner.ER)} | ${f(h.allOut.avgPremiumPct, 1)}% | ${f(h.runner.avgPremiumPct, 1)}% | ${pc(h.allOut.captureOfPeak)} | ${pc(h.runner.captureOfPeak)} | ${pc(h.allOut.winRate)} | ${pc(h.runner.winRate)} |`,
+    `| ${name} | ${h.allOut.n} | ${h.t1ReachedN} | ${f(h.allOut.ER)} | ${f(h.runner.ER)} | ${f(h.runnerT1.ER)} | ${f(h.allOut.avgPremiumPct, 1)}% | ${f(h.runner.avgPremiumPct, 1)}% | ${f(h.runnerT1.avgPremiumPct, 1)}% | ${pc(h.allOut.captureOfPeak)} | ${pc(h.runner.captureOfPeak)} | ${pc(h.runnerT1.captureOfPeak)} | ${pc(h.allOut.winRate)} | ${pc(h.runner.winRate)} | ${pc(h.runnerT1.winRate)} |`,
   ].join('');
   const md = [
     `# Runner replay — 0DTE ideas, ${sessions[0] ?? '—'} → ${sessions[sessions.length - 1] ?? '—'}`,
@@ -271,18 +278,20 @@ async function main() {
     '',
     `Policies on the same entries (trigger pass when recorded, else publish; recorded entry premium): **all_out** = stop / T1 / 15:45, whole position; **runner** = ½ at T1 or +50% premium, rest breakeven → trail ${TRAIL}% from peak / back through VWAP / +100% / 15:45. R = ${R_UNIT * 100}% of the entry premium for both. Capture = (exit − entry) ÷ (peak to 16:00 − entry). Halves split the ${sessions.length} sessions with ideas in time order at ${cut}.`,
     '',
-    '| half | n | T1/+50% reached | E[R] all_out | E[R] runner | avg prem % all_out | avg prem % runner | capture all_out | capture runner | win all_out | win runner |',
-    '|---|---|---|---|---|---|---|---|---|---|---|',
+    'Columns: A = all_out · B = runner (½ at T1 or +50%, the bot) · C = runner (½ at the underlying T1 only, the idea record).',
+    '',
+    '| half | n | T1/+50% reached | E[R] A | E[R] B | E[R] C | prem % A | prem % B | prem % C | capture A | capture B | capture C | win A | win B | win C |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
     line('first', res.halves.first), line('second', res.halves.second), line('all', res.halves.all),
     '',
-    `**Decision: RUNNER_POLICY default ${decision}** (rule: runner E[R] > all_out E[R] in both halves).`,
+    `**Decision: RUNNER_POLICY default ${decision}** (rule: B and C each beat A on E[R] in both halves; B both halves: ${both('runner')}, C both halves: ${both('runnerT1')}).`,
     '',
     `Sessions requested ${SESSIONS}; sessions with replayable 0DTE ideas: ${sessions.length} (${sessions.join(', ')}). Skipped: ${JSON.stringify(skipped)}.`,
     `Contract bars: ${[...new Set(out.map((r) => r.barSource.split(':')[0]))].join(', ')}; underlying: ${[...new Set(out.map((r) => r.underlyingSource))].join(', ')}.`,
     '',
-    '| day | symbol | contract | entry | all_out | runner legs | peak | recorded |',
-    '|---|---|---|---|---|---|---|---|',
-    ...out.map((r) => `| ${r.day} | ${r.symbol} | ${r.contract} | ${r.entryPremium} | ${r.allOut.exit} (${r.allOut.why}) | ${r.runner.why} → blend ${r.runner.exit} | ${r.peak ?? '—'} | ${r.recorded} |`),
+    '| day | symbol | contract | entry | A all_out | B runner legs | C runner (T1 only) | peak | recorded |',
+    '|---|---|---|---|---|---|---|---|---|',
+    ...out.map((r) => `| ${r.day} | ${r.symbol} | ${r.contract} | ${r.entryPremium} | ${r.allOut.exit} (${r.allOut.why}) | ${r.runner.why} → blend ${r.runner.exit} | ${r.runnerT1.why} → ${r.runnerT1.exit} | ${r.peak ?? '—'} | ${r.recorded} |`),
     '',
     'Caveats: small n; option bars are trade prints (Massive / Alpaca indicative / Yahoo), not NBBO — fills at prints are optimistic for both policies alike; a minute with no print carries the last print as close only (no premium-level exits on it); IEX volume makes VWAP approximate.',
     '',

@@ -144,7 +144,7 @@ export default function TradesView() {
                     // Open rows: live mark (Mine/trader) or the stored ledger mark (bot), always with its age — unrealized, not 0.
                     ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
                     : <Pnl value={t.netPnl} />}</td>
-                  <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.sizedAs?.capped && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title={`Recorded exit was worse than the stop; capped at −$${t.row.sizedAs.riskToStop} (assumes the stop filled). Uncapped: ${t.row.sizedAs.uncappedPnL}`}>capped at stop</div>}{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}{t.row.runner && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Runner policy: half sold at T1, the rest trailed — the P&L is the blended exit">{t.row.runner}</div>}{t.row.peak && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="The contract's best price after entry — hindsight beside the exit, not the P&L">{t.row.peak}</div>}</td>
+                  <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.sizedAs?.capped && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title={`Recorded exit was worse than the stop; capped at −$${t.row.sizedAs.riskToStop} (assumes the stop filled). Uncapped: ${t.row.sizedAs.uncappedPnL}`}>capped at stop</div>}{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}{t.row.runner && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Runner policy: half sold at T1, the rest trailed — the P&L is the blended exit">{t.row.runner}</div>}{t.row.peakLine && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="The contract's best price after entry — hindsight beside the exit, not the P&L">{t.row.peakLine}</div>}</td>
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
@@ -175,7 +175,7 @@ export default function TradesView() {
                 <OutcomeChip status={t.status} />
                 <UnverifiedChip row={t.row} />
                 {t.row.afterStop && <span className="jr-dim">{t.row.afterStop} · </span>}
-                {t.row.peak && <span className="jr-dim">{t.row.peak} · </span>}
+                {t.row.peakLine && <span className="jr-dim">{t.row.peakLine} · </span>}
                 {new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}
                 {' · '}{t.quantity} @ {fmtPrice(t.row.entryPrice)}{t.row.exitPrice != null ? ` → ${fmtPrice(t.row.exitPrice)}` : ''}
                 {t.row.setupType && <span className="jr-tag">{t.row.setupType}</span>}

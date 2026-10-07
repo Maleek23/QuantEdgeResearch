@@ -52,7 +52,9 @@ export type JournalWireRow = Pick<JournalTrade,
    * Option rows: the contract's best price after entry beside the exit —
    * "peak $5.45 at 10:12 · exit $4.22" (shared/option-peak.ts; hindsight, the P&L is the exit's).
    */
-  peak?: string | null;
+  peakLine?: string | null;
+  /** Option rows: the recorded peak premium (number) — LiveMark.peak starts from it (server/journal-marks.ts). */
+  peakPremium?: number | null;
   /** 0DTE desk rows under the runner policy: "½ at T1 $4.22 · runner $5.10 (trail …) · blended $4.66". */
   runner?: string | null;
   /** Desk rows: whether the recorded P&L is verified, only integrity-checked, or unverified (and why). */
@@ -254,7 +256,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     ? afterStopLabel(parseAfterStop(i.outcomeNotes), exitTime ? Date.parse(exitTime) : null)
     : null;
   const runnerTxt = option && resolved ? runnerLine(parseRunner(i.outcomeNotes)) : null;
-  const peakTxt = option ? peakLine(parsePeak(i.outcomeNotes), resolved ? exit : null) : null;
+  const pkRec = option ? parsePeak(i.outcomeNotes) : null;
+  const peakTxt = pkRec ? peakLine(pkRec, resolved ? exit : null) : null;
   return {
     row: {
       id: `desk:${i.id}`,
@@ -292,7 +295,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
         assetType: i.assetType, direction: planDirection, entry: planEntry, stop: planStop, entryPremium: option ? entry : null,
         expiryDate: planExpiry, publishedAt: i.timestamp, unitQty: qty,
       }),
-      ...(peakTxt ? { peak: peakTxt } : {}),
+      ...(peakTxt ? { peakLine: peakTxt, peakPremium: pkRec!.premium } : {}),
       ...(runnerTxt ? { runner: runnerTxt } : {}),
     },
   };

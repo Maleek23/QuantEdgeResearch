@@ -220,7 +220,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       outcome: outcomeOf(pnl),
       measurementStatus: measurement.status,
       measurementNote: measurement.reason,
-      ...(option ? (() => { const pk = peakLine(readPeakSignal((p as any).entrySignals), closed ? p.exitPrice ?? null : null); return pk ? { peak: pk } : {}; })() : {}),
+      ...(option ? (() => { const pk = peakLine(readPeakSignal((p as any).entrySignals), closed ? p.exitPrice ?? null : null); return pk ? { peakLine: pk } : {}; })() : {}),
       notes,
       emotion: null,
       setupType: (p.tradeIdeaId && sourceOf.get(p.tradeIdeaId)) || null,

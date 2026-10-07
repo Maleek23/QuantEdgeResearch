@@ -23,10 +23,10 @@
 import { logger } from './logger';
 import { contractMinuteBars } from './option-bars-chain';
 import {
-  premiumPeakFromBars, underlyingPeakFromBars, intrinsicAt, withPeakTag, parsePeak, withPeakSignal, readPeakSignal, type OptionPeak,
+  premiumPeakFromBars, underlyingPeakFromBars, intrinsicAt, withPeakTag, parsePeak, peakLine, withPeakSignal, readPeakSignal, type OptionPeak,
 } from '@shared/option-peak';
 import {
-  buildRunnerTicks, parseRunner, readRunnerPolicy, runnerPath, runnerResume, summarizeRunner, withRunnerTag, type RunnerPlan,
+  buildRunnerTicks, parseRunner, readRunnerPolicy, runnerLine, runnerPath, runnerResume, summarizeRunner, withRunnerTag, type RunnerPlan,
 } from '@shared/runner-policy';
 import { etParts, etWallToMs } from '@shared/loss-rules';
 import { readOracleExecutionAudit } from '@shared/oracle-lifecycle';
@@ -124,7 +124,11 @@ export async function runPeakPass(opts: { nowMs?: number; lookbackDays?: number;
       const notes = withPeakTag(i.outcomeNotes, pk);
       if (notes === String(i.outcomeNotes ?? '')) { skip('no_improvement'); continue; }
       out.ideaPeaks++;
-      if (!opts.dryRun) await db.update(tradeIdeas).set({ outcomeNotes: notes } as any).where(eq(tradeIdeas.id, i.id));
+      if (!opts.dryRun) {
+        await db.update(tradeIdeas).set({ outcomeNotes: notes } as any).where(eq(tradeIdeas.id, i.id));
+        const line = peakLine(parsePeak(notes), num(i.exitPremium));
+        if (line && pk.basis === 'bar') void import('./discord-lifecycle').then((m) => m.onIdeaFollowUp({ ideaId: i.id, key: 'peak', line: `${line} (contract bars, ${pk.window === 'to_eod' ? 'through 16:00' : 'to the exit'})` })).catch(() => {});
+      }
     } catch (err) {
       skip('error');
       logger.warn(`[OPTION-PEAK] idea ${i.symbol} ${i.id}: ${(err as Error).message}`);
@@ -225,6 +229,8 @@ export async function runRunnerPass(opts: { nowMs?: number; dryRun?: boolean } =
           },
         },
       } as any).where(and(eq(tradeIdeas.id, i.id), eq(tradeIdeas.outcomeStatus, 'hit_target')));
+      const rl = runnerLine(parseRunner(notes));
+      if (rl) void import('./discord-lifecycle').then((m) => m.onIdeaFollowUp({ ideaId: i.id, key: 'runner', line: `runner closed · ${rl}` })).catch(() => {});
     } catch (err) {
       skip('error');
       logger.warn(`[RUNNER] ${i.symbol} ${i.id}: ${(err as Error).message}`);

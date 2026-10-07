@@ -136,7 +136,7 @@ function TradeBody({ rowId }: { rowId: string }) {
     ['Closed', row.exitTimeNote ?? when(row.exitTime)],
     ...(row.afterStop ? [['After the stop', `${row.afterStop} (hindsight — still a loss)`] as [string, React.ReactNode]] : []),
     ...(row.runner ? [['Runner', row.runner] as [string, React.ReactNode]] : []),
-    ...(row.peak ? [['Peak', `${row.peak} (hindsight — the P&L is the exit)`] as [string, React.ReactNode]] : []),
+    ...(row.peakLine ? [['Peak', `${row.peakLine} (hindsight — the P&L is the exit)`] as [string, React.ReactNode]] : []),
     ['Held', fmtDuration(t.durationMs)],
     ['Source', row.broker || 'manual'],
     ['Setup', row.setupType || '—'],

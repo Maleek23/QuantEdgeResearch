@@ -33,6 +33,7 @@
  * 60 s and built by one in-flight promise.
  */
 import { afterStopLabel, parseAfterStop } from '@shared/after-stop';
+import { parsePeak } from '@shared/option-peak';
 import type { Express, Request, Response, NextFunction } from 'express';
 import { and, gte, like, or, eq, desc } from 'drizzle-orm';
 import { logger } from './logger';
@@ -491,6 +492,9 @@ export interface DeskIdea {
   spxMirror?: import('@shared/spx-mirror').SpxMirror | null;
   /** Stopped-out ideas: what the underlying did next inside the hold window (shared/after-stop.ts). Hindsight — the outcome stays a stop. */
   afterStop?: string | null;
+  /** Best contract price after entry (shared/option-peak.ts `[peak:…]` tag): quote while open, bar high after the close. */
+  peakPremium?: number | null;
+  peakAt?: string | null;
 }
 
 export interface IdeasInfo {
@@ -583,6 +587,7 @@ async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[]
         entryBy: hhmmEt(r.entryValidUntil), exitBy: TIME_STOP_ET, why: String(r.analysis ?? r.catalyst ?? '').split(' | ')[0].slice(0, 200),
         grade: null, gradeWhy: [], at: r.timestamp, ideaId: r.id, logged: true, loggedNote: null,
         afterStop: afterStopLabel(parseAfterStop(r.outcomeNotes), r.exitDate ? Date.parse(r.exitDate) : null),
+        ...(() => { const pk = parsePeak(r.outcomeNotes); return pk ? { peakPremium: pk.premium, peakAt: new Date(pk.atMs).toISOString() } : {}; })(),
       });
     }
     if (!fresh || !elig.ok) continue;

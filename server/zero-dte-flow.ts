@@ -508,10 +508,29 @@ export async function getZeroDteFlowReport() {
   return v;
 }
 
+/**
+ * Peak hook for the 0DTE trade cards: each published row's best contract price
+ * after entry, from its idea's `[peak:…]` tag (shared/option-peak.ts). Best-effort —
+ * a DB failure returns the state unchanged.
+ */
+async function withFlowPeaks<T extends { rows: Array<{ ideaId: string | null }> }>(state: T): Promise<T> {
+  const ids = [...new Set(state.rows.map((r) => r.ideaId).filter((x): x is string => !!x))].slice(0, 60);
+  if (!ids.length) return state;
+  try {
+    const { db } = await import('./db');
+    const { tradeIdeas } = await import('@shared/schema');
+    const { inArray } = await import('drizzle-orm');
+    const { parsePeak } = await import('@shared/option-peak');
+    const rows = await db.select({ id: tradeIdeas.id, notes: tradeIdeas.outcomeNotes }).from(tradeIdeas).where(inArray(tradeIdeas.id, ids));
+    const pk = new Map(rows.map((r) => [r.id, parsePeak(r.notes)]));
+    return { ...state, rows: state.rows.map((r) => { const p = r.ideaId ? pk.get(r.ideaId) : null; return p ? { ...r, peakPremium: p.premium, peakAt: new Date(p.atMs).toISOString() } : r; }) };
+  } catch { return state; }
+}
+
 type Mw = (req: Request, res: Response, next: NextFunction) => unknown;
 export function registerZeroDteFlowRoutes(app: Express, requireBetaAccess: Mw) {
-  app.get('/api/zero-dte/flow', requireBetaAccess, (_req, res) => {
-    try { res.json(getZeroDteFlowState()); } catch (err) {
+  app.get('/api/zero-dte/flow', requireBetaAccess, async (_req, res) => {
+    try { res.json(await withFlowPeaks(getZeroDteFlowState())); } catch (err) {
       logger.error('[0DTE-FLOW] state failed', { error: (err as Error)?.message });
       res.status(500).json({ error: '0DTE flow state failed' });
     }

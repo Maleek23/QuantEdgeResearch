@@ -3,8 +3,8 @@ import { PerformanceValidator, computeRealisedPnl } from "./performance-validato
 import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
 import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pricing";
-import { parsePeak, withPeakTag } from "@shared/option-peak";
-import { readRunnerPolicy, runnerAppliesTo, withRunnerTag } from "@shared/runner-policy";
+import { parsePeak, peakLine, withPeakTag } from "@shared/option-peak";
+import { parseRunner, readRunnerPolicy, runnerAppliesTo, runnerLine, withRunnerTag } from "@shared/runner-policy";
 import { zeroDteKindOf } from "@shared/bot-sleeves";
 import { readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { exceedsOptionValue, fillOnStrikeScale, safeIntrinsic } from "@shared/option-value-bounds";
@@ -486,7 +486,8 @@ class PerformanceValidationService {
           ideaForResult?.assetType === 'option' && result.outcomeStatus === 'hit_target' && exitPremium != null &&
           optionPremiumBasis !== 'withheld' && runnerAppliesTo(zeroDteKindOf(ideaForResult as any), readRunnerPolicy(process.env))
         ) {
-          const t1AtMs = Number.isFinite(Number(result.exitTouchMs)) ? Number(result.exitTouchMs) : Date.parse(result.exitDate ?? '') || Date.now();
+          const touchMs = Number((result as any).exitTouchMs);
+          const t1AtMs = Number.isFinite(touchMs) ? touchMs : Date.parse(result.exitDate ?? '') || Date.now();
           outcomeNotes = withRunnerTag(outcomeNotes ?? ideaForResult.outcomeNotes, {
             state: 'open', t1ExitPremium: exitPremium, t1AtMs, stop: ideaForResult.entryPremium ?? null,
             runnerExitPremium: null, runnerAtMs: null, runnerWhy: null, blendedPremium: null,
@@ -531,6 +532,8 @@ class PerformanceValidationService {
             percentGain: result.percentGain ?? null,
             optionPercentGain: ideaForResult?.assetType === 'option' ? optionPercentGain : null,
             optionPremiumBasis: ideaForResult?.assetType === 'option' ? optionPremiumBasis : null,
+            peakLine: ideaForResult?.assetType === 'option' ? peakLine(parsePeak(outcomeNotes ?? ideaForResult.outcomeNotes), exitPremium) : null,
+            runnerLine: ideaForResult?.assetType === 'option' ? runnerLine(parseRunner(outcomeNotes ?? null)) : null,
           })).catch(() => {});
         }
 
