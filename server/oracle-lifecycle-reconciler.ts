@@ -6,6 +6,8 @@ import {
   recordPaperExecution,
   withOracleExecutionAudit,
 } from "@shared/oracle-lifecycle";
+import { barrierFill, firstBarrierTouch, formatExitDate, type TimedBar } from "@shared/exit-hit-time";
+import { barsSinceEntry } from "./lib/exit-time-bars";
 import { logger } from "./logger";
 
 /**
@@ -89,54 +91,131 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     symbols.map((symbol) => ({ symbol, assetType: byName.get(symbol)! })),
   );
 
-  const nowIso = new Date().toISOString();
-  let observed = 0;
-
-  for (const idea of pending) {
-    const entry = idea.entryPrice;
-    if (typeof entry !== "number" || !Number.isFinite(entry)) continue;
-
-    const quote = quotes.get(idea.symbol);
-    const live = quote && Number.isFinite(quote.price) ? quote.price : null;
-
-    // Persisted extrema beat a spot check: a trigger that traded between two
-    // polls is still a trigger, and sampling live price alone would miss it.
+  const now = new Date();
+  const nowMs = now.getTime();
+  const candidates = pending.filter((idea) => {
+    const entry = Number(idea.entryPrice), stop = Number(idea.stopLoss);
+    if (!(entry > 0 && stop > 0)) return false;
     const isLong = idea.direction !== "short";
-    const persistedExtreme = isLong ? idea.highestPriceReached : idea.lowestPriceReached;
     const checkpoint = checkpointExtrema.get(idea.id);
-    const checkpointExtreme = isLong ? checkpoint?.high : checkpoint?.low;
-    const best = [
-      live,
-      typeof persistedExtreme === "number" ? persistedExtreme : null,
-      typeof checkpointExtreme === "number" ? checkpointExtreme : null,
-    ].filter(
-      (v): v is number => typeof v === "number" && Number.isFinite(v),
-    );
-    if (best.length === 0) continue;
+    const favorable = isLong
+      ? Math.max(idea.highestPriceReached ?? -Infinity, checkpoint?.high ?? -Infinity, quotes.get(idea.symbol)?.price ?? -Infinity)
+      : Math.min(idea.lowestPriceReached ?? Infinity, checkpoint?.low ?? Infinity, quotes.get(idea.symbol)?.price ?? Infinity);
+    const adverse = isLong
+      ? Math.min(idea.lowestPriceReached ?? Infinity, checkpoint?.low ?? Infinity, quotes.get(idea.symbol)?.price ?? Infinity)
+      : Math.max(idea.highestPriceReached ?? -Infinity, checkpoint?.high ?? -Infinity, quotes.get(idea.symbol)?.price ?? -Infinity);
+    return (isLong ? favorable >= entry : favorable <= entry) || (isLong ? adverse <= stop : adverse >= stop);
+  });
+  if (candidates.length === 0) return 0;
 
-    const reached = isLong ? Math.max(...best) : Math.min(...best);
-    const triggered = isLong ? reached >= entry : reached <= entry;
-    if (!triggered) continue;
+  // A poll's max/min proves that a level traded, but it cannot tell whether the
+  // trigger or invalidation traded first. Use time-ordered OHLC bars whenever
+  // either boundary was crossed. Ambiguity resolves TOWARD the trigger: when
+  // both levels sit inside one bar the idea is marked triggered and the
+  // outcome tracker then records the stop as a loss. Resolving it as
+  // "invalidated before trigger" would drop a real loss from the record
+  // (missed_entry rows are unresolved). With no bar path at all the poll
+  // extrema still trigger the idea (pre-Codex behaviour) but never invalidate.
+  const symbolStarts = new Map<string, { symbol: string; assetType: string; entryMs: number }>();
+  for (const idea of candidates) {
+    const symbol = idea.symbol.toUpperCase();
+    const assetType = String((idea as any).assetType ?? "stock").toLowerCase();
+    const key = `${assetType}:${symbol}`;
+    const entryMs = Date.parse(idea.timestamp);
+    const prior = symbolStarts.get(key);
+    if (!prior || entryMs < prior.entryMs) symbolStarts.set(key, { symbol, assetType, entryMs });
+  }
+  // Sequential: one candle request at a time on the 1-CPU droplet.
+  const barsByKey = new Map<string, { bars: TimedBar[]; extendedBars?: TimedBar[]; interval: '5m' | '1d' | null }>();
+  for (const [key, row] of symbolStarts) {
+    barsByKey.set(key, await barsSinceEntry(row.symbol, row.assetType, row.entryMs, nowMs).catch(() => ({ bars: [], interval: null })));
+  }
+  let observed = 0;
+  let invalidated = 0;
 
+  for (const idea of candidates) {
+    const entry = Number(idea.entryPrice), stop = Number(idea.stopLoss);
+    if (!(Number.isFinite(entry) && Number.isFinite(stop) && entry > 0 && stop > 0)) continue;
+    const isLong = idea.direction !== "short";
+    if (isLong ? stop >= entry : stop <= entry) continue;
+    const assetType = String((idea as any).assetType ?? "stock").toLowerCase();
+    const path = barsByKey.get(`${assetType}:${idea.symbol.toUpperCase()}`);
+    const bars = path?.extendedBars ?? path?.bars ?? [];
+    if (!path || bars.length === 0) {
+      // No path: trigger on the poll extrema (live quote / persisted highs-lows).
+      const checkpoint = checkpointExtrema.get(idea.id);
+      const live = quotes.get(idea.symbol)?.price;
+      const reached = isLong
+        ? Math.max(idea.highestPriceReached ?? -Infinity, checkpoint?.high ?? -Infinity, live ?? -Infinity)
+        : Math.min(idea.lowestPriceReached ?? Infinity, checkpoint?.low ?? Infinity, live ?? Infinity);
+      if (!(isLong ? reached >= entry : reached <= entry)) continue;
+      const audit = withOracleExecutionAudit(idea.convergenceSignalsJson, {
+        version: 1, state: "triggered", triggerType: isLong ? "breakout" : "breakdown",
+        triggerPrice: entry, triggerObservedAt: now.toISOString(), triggerObservedPrice: reached,
+      });
+      await db.update(tradeIdeas).set({ convergenceSignalsJson: audit as any }).where(eq(tradeIdeas.id, idea.id));
+      observed++;
+      continue;
+    }
+    const touch = firstBarrierTouch(bars, {
+      direction: isLong ? "long" : "short",
+      target: entry,
+      stop,
+      fromSec: Math.floor(Date.parse(idea.timestamp) / 1000),
+      toSec: Math.floor(nowMs / 1000),
+    });
+    if (!touch) continue;
+    const first = touch.sameBar ? { ...touch, outcome: "hit_target" as const } : touch;
+
+    // Bars identify the first five-minute/daily interval, not the exact tick.
+    // Store the crossed level, except when that interval opened beyond it.
+    const observedAt = new Date(first.bar.time * 1000).toISOString();
+    const observedPrice = first.outcome === "hit_target"
+      ? barrierFill(isLong ? "long" : "short", "target", entry, first.bar).price
+      : barrierFill(isLong ? "long" : "short", "stop", stop, first.bar).price;
+
+    if (first.outcome === "hit_stop") {
+      const audit = withOracleExecutionAudit(idea.convergenceSignalsJson, {
+        version: 1,
+        state: "invalidated",
+        triggerType: isLong ? "breakout" : "breakdown",
+        triggerPrice: entry,
+        invalidationObservedAt: observedAt,
+        invalidationPrice: observedPrice,
+      });
+      await db.update(tradeIdeas).set({
+        outcomeStatus: "expired",
+        resolutionReason: "missed_entry_invalidated_before_trigger",
+        exitDate: formatExitDate(first.bar.time * 1000),
+        outcomeNotes: `[lifecycle] invalidated before trigger: ${path.interval ?? "bar"} path touched stop ${stop} before entry ${entry}`,
+        convergenceSignalsJson: audit as any,
+      }).where(eq(tradeIdeas.id, idea.id));
+      invalidated++;
+      continue;
+    }
+
+    // The path's first crossing was the trigger, so it predates any later stop
+    // touch. Record the first containing bar's start; it is interval precision,
+    // not an exact tick timestamp.
     const audit = withOracleExecutionAudit(idea.convergenceSignalsJson, {
       version: 1,
       state: "triggered",
       triggerType: isLong ? "breakout" : "breakdown",
       triggerPrice: entry,
-      triggerObservedAt: nowIso,
-      triggerObservedPrice: reached,
+      triggerObservedAt: observedAt,
+      triggerObservedPrice: observedPrice,
     });
-
     await db.update(tradeIdeas)
       .set({ convergenceSignalsJson: audit as any })
       .where(eq(tradeIdeas.id, idea.id));
     observed++;
   }
 
-  if (observed) {
+  if (observed || invalidated) {
     const { invalidateConvictionsCache } = await import("./convictions-engine");
     invalidateConvictionsCache();
-    logger.info(`[ORACLE LIFECYCLE] Observed ${observed} trigger${observed === 1 ? "" : "s"} (pending → triggered)`);
+    if (observed) logger.info(`[ORACLE LIFECYCLE] Observed ${observed} trigger${observed === 1 ? "" : "s"} (pending → triggered)`);
+    if (invalidated) logger.info(`[ORACLE LIFECYCLE] Closed ${invalidated} setup${invalidated === 1 ? "" : "s"} invalidated before trigger`);
   }
   return observed;
 }

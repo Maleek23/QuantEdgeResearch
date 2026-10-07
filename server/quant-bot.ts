@@ -13,8 +13,16 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { processRole } from './lib/process-role';
 import {
-  executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
+  readBotSleeveConfig, classifyZeroDteIdea, zeroDteKindOf, zeroDteQuantity, premiumManage, sleeveOfPosition, sleeveTag,
+  swingOrder, isLiveGrade, timeStopDue, executableQuote, etMinutesOf, in0dteWindow, daysToExpiry, underlyingSide, SkipTally, formatSkipSummary,
+  stoppedOutToday,
+  type BotSleeve, type SkipSummary,
+} from '@shared/bot-sleeves';
+import { gradePick, gradeIdeaRow, gradeComponentsTag, formatNexusGrade, gradeAtLeast, type NexusGrade } from '@shared/nexus-grade';
+import {
+  executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition, closeOptionPositionAtBid,
   recordEquitySnapshot,
   getOpenPositions,
 } from './paper-trading-service';
@@ -33,8 +41,15 @@ const BOT_USER = 'system-quant-bot';
 export const BOT_USER_ID = BOT_USER;
 
 export interface BotConfig {
-  minConviction: number;   // only take signals at/above this raw conviction score
-  maxOpen: number;         // concurrent positions
+  /**
+   * Raw evidence (conviction) score. NO LONGER an entry floor (2026-10-01): the
+   * grade audit found the score inverted on the honest record, and the floor kept
+   * every index 0DTE plan out. It is logged with each fill and still gates the
+   * board-flip exit. Entry selection: shared/bot-sleeves.ts.
+   */
+  minConviction: number;
+  /** Legacy total cap; the sleeves (BOT_0DTE_MAX + BOT_SWING_MAX) decide capacity now. */
+  maxOpen: number;
   startingCapital: number;
   riskPerTradePct: number;
   /** refuse a signal that has already travelled this far entry -> T1 (chase guard) */
@@ -51,8 +66,14 @@ export interface BotConfig {
   maxDebitDollars: number;
   /** Minimum modeled contract return when the underlying reaches T1. */
   minContractRoiAtT1Pct: number;
-  /** Do not simulate delayed-quote fills before this New York minute. */
+  /** Do not simulate delayed-quote fills before this New York minute (swing sleeve). */
   delayedFillNotBeforeEtMinutes: number;
+  /**
+   * 0DTE sleeve entries on a DELAYED quote wait until this minute: a ~15-minute
+   * delayed chain at 09:50 reflects the 09:35 market; at 09:35 it is pre-open.
+   * A live quote (OPRA / production Tradier) is usable from 09:35.
+   */
+  zeroDteDelayedNotBeforeEtMinutes: number;
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -69,13 +90,47 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   minUnderlyingRR: 1,
   maxOptionSpreadPct: 0.15,
   maxDebitPct: 0.03,
-  maxRiskDollars: 250,
-  maxDebitDollars: 300,
+  // Swing-sleeve values come from BOT_SWING_RISK_USD / BOT_SWING_MAX_DEBIT_USD
+  // (shared/bot-sleeves.ts, $500 / $1,500). $250 / $300 with 30–60 DTE (loss
+  // rule 4) left almost no large-cap contract that fit — 'no_contract' every cycle.
+  maxRiskDollars: 500,
+  maxDebitDollars: 1_500,
   minContractRoiAtT1Pct: 30,
   // Opening prints and delayed option chains are especially stale/wide. SNOW's
   // $420C was booked at 09:38 ET for $25.18 after being published near $15.78.
   delayedFillNotBeforeEtMinutes: 10 * 60,
+  zeroDteDelayedNotBeforeEtMinutes: 9 * 60 + 50,
 };
+
+/**
+ * Entry-quote standard (on top of executableQuote's two-sided / spread / session
+ * checks). A live quote must be fresh (60 s); a delayed quote is accepted only
+ * after the configured minute and is recorded delayed=true, so
+ * shared/bot-fill-verification.ts classifies the fill unverified, never verified.
+ */
+export function entryQuoteIssue(
+  q: import('./tradier-api').OptionMark,
+  notBeforeEtMinute: number,
+  issueFn: typeof import('./tradier-api').optionMarkExecutionIssue,
+  now = new Date(),
+): string | null {
+  const allowDelayed = easternMinutes(now) >= notBeforeEtMinute;
+  const issue = issueFn(q, now.getTime(), 60_000, { allowDelayed });
+  if (issue && q.delayed && !allowDelayed) return `${issue} before ${Math.floor(notBeforeEtMinute / 60)}:${String(notBeforeEtMinute % 60).padStart(2, '0')} ET`;
+  return issue;
+}
+
+/** Provenance tag for an entry fill — appended LAST so bot-fill-verification reads it. */
+function entryAuditTag(q: { ask: number; bid: number; source?: string; feed?: string | null; delayed?: boolean; quoteTime?: string | null }, observedAt: Date): string {
+  return `[entry ask=${q.ask.toFixed(4)} bid=${q.bid.toFixed(4)} source=${q.source ?? 'unknown'} feed=${q.feed ?? 'unknown'} delayed=${!!q.delayed} quoteTime=${q.quoteTime ?? 'unknown'} observedAt=${observedAt.toISOString()}]`;
+}
+/** Provenance tag for an exit at the bid. */
+function exitAuditTag(q: { ask: number; bid: number; source?: string; feed?: string | null; delayed?: boolean; quoteTime?: string | null }, observedAt: Date): string {
+  const raw = q.quoteTime == null ? NaN : Number(q.quoteTime);
+  const qMs = Number.isFinite(raw) ? (raw < 1e12 ? raw * 1000 : raw) : Date.parse(String(q.quoteTime ?? ''));
+  const age = Number.isFinite(qMs) ? Math.round((observedAt.getTime() - qMs) / 1000) : 'unknown';
+  return `[fill bid=${q.bid.toFixed(4)} ask=${q.ask.toFixed(4)} source=${q.source ?? 'unknown'} feed=${q.feed ?? 'unknown'} delayed=${!!q.delayed} quoteTime=${q.quoteTime ?? 'unknown'} quoteAgeSeconds=${age} observedAt=${observedAt.toISOString()}]`;
+}
 
 function easternMinutes(date = new Date()): number {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -158,6 +213,8 @@ export interface BotRunResult {
   openCount: number;
   /** Levels the bot exited on. A later fill clears the name for re-entry. */
   gapWatch: { symbol: string; level: number }[];
+  /** Why candidates were refused this cycle (counts by reason + the best-ranked three). */
+  skipSummary?: SkipSummary;
   error?: string;
 }
 
@@ -215,7 +272,23 @@ async function announceExit(pos: any, exitPrice: number, reason: string): Promis
 const BOT_CYCLE_LOCK_KEY = 8_531_2027;
 let cycleInFlight: Promise<BotRunResult> | null = null;
 
+/**
+ * Bot cycles belong to the worker. Under the web/worker split (ROLE=web on
+ * dist/web.js) the web process must never trade, manage or settle the book —
+ * only the worker (ROLE=worker) or a single-process ROLE=all (dev / rollback).
+ */
+export function botCycleAllowedHere(): { ok: boolean; role: string } {
+  const role = processRole();
+  return { ok: role !== 'web', role };
+}
+
 export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG, origin = 'manual'): Promise<BotRunResult> {
+  const here = botCycleAllowedHere();
+  if (!here.ok) {
+    const refused: BotRunResult = { ranAt: new Date().toISOString(), portfolioId: '', opened: [], closed: [], skipped: 0, openCount: 0, gapWatch: [], error: `bot cycles run only in the worker (this process is ROLE=${here.role}) — refused` };
+    logger.warn(`[QUANT-BOT] ${origin}: refused — ROLE=${here.role}; the worker owns the bot`);
+    return refused;
+  }
   if (cycleInFlight) return cycleInFlight;
   cycleInFlight = (async () => {
     const { pool } = await import('./db');
@@ -250,11 +323,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   const closed: BotRunResult['closed'] = [];
   // Levels we exited on, so a later fill can flip the name back to a candidate.
   const gapWatch: { symbol: string; level: number }[] = [];
-  let skipped = 0;
-
   const portfolio: any = await getBotPortfolio(cfg);
   if (!portfolio?.id) {
-    return { ranAt, portfolioId: '', opened, closed, skipped, openCount: 0, gapWatch: [], error: 'no portfolio' };
+    return { ranAt, portfolioId: '', opened, closed, skipped: 0, openCount: 0, gapWatch: [], error: 'no portfolio' };
   }
 
   // ── A cycle, concretely ──────────────────────────────────────────────────
@@ -278,36 +349,59 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   // the run stopped — the record shows them with a mark and its age.
   try { await repriceRetiredRuns(portfolio.id); } catch (err) { logger.warn('[QUANT-BOT] retired-run re-price failed:', err); }
 
-  // 2 — settle expiries. An option is not a share: at expiry it either has intrinsic
-  //     value or it is worth nothing, and either way it leaves the book.
+  const sleeves = readBotSleeveConfig(process.env);
+  const tally = new SkipTally();
+
+  // 2 — same-day contracts outside the 0DTE sleeve (legacy rows): flatten before
+  //     the close at a LIVE quote. The old code booked pos.currentPrice — a mark
+  //     that could be hours old. No live quote → no close; the reconciler settles
+  //     the contract at intrinsic after 16:00.
   try {
     const open = await getOpenPositions(portfolio.id);
     const today = easternDateKey();
     const etMinute = easternMinutes();
     for (const pos of open as any[]) {
       if (!pos.expiryDate || !pos.optionType) continue;
-      if (String(pos.expiryDate).slice(0, 10) > today) continue;
-
-      // Same-day contracts are still alive during the cash session. The old
-      // `expiry <= today` check liquidated every 0DTE position on the very next
-      // bot cycle, which made an intraday strategy impossible. Flatten the
-      // marked option shortly before the close; use intrinsic settlement only
-      // after 16:00 ET (or on a later date).
+      if (sleeveOfPosition(pos) === '0dte') continue; // managed by step 2a
       const expiryDay = String(pos.expiryDate).slice(0, 10);
-      if (expiryDay === today && etMinute < 15 * 60 + 55) continue;
-      if (expiryDay === today && etMinute < 16 * 60) {
-        const markedExit = Number(pos.currentPrice ?? 0);
-        await closePosition(pos.id, markedExit, '0dte_eod_exit');
-        await announceExit(pos, markedExit, '0DTE time exit before close');
-        closed.push({ symbol: pos.symbol, reason: '0DTE time exit before close' });
-        continue;
-      }
-
-      // After the close: left to the reconciler below (intrinsic at the
-      // underlying's expiry-day close, every run, exit reason 'expired').
+      if (expiryDay !== today || etMinute < 15 * 60 + 55 || etMinute >= 16 * 60) continue;
+      const live = await liveContractQuote(pos, 0.6);
+      if (!live) { logger.warn(`[QUANT-BOT] ${pos.symbol} same-day flatten skipped — no live quote (reconciler settles at intrinsic)`); continue; }
+      await closePosition(pos.id, live.bid, `0dte_eod_exit ${exitAuditTag(live.q, new Date())}`);
+      await announceExit(pos, live.bid, `0DTE time exit before close (${live.stamp})`);
+      closed.push({ symbol: pos.symbol, reason: `0DTE time exit before close (${live.stamp})` });
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] expiry settlement failed:', err);
+  }
+
+  // 2a — 0DTE sleeve premium management at a LIVE quote: −40% stop, +50% arms a
+  //      breakeven stop, +100% target, hard flatten 15:45 ET. Triggers read the
+  //      mid; exits fill at the bid. No live quote → nothing is decided.
+  const zeroDteManaged = new Set<string>();
+  try {
+    const etMin = easternMinutes();
+    for (const pos of (await getOpenPositions(portfolio.id)) as any[]) {
+      if (pos.assetType !== 'option' || sleeveOfPosition(pos) !== '0dte') continue;
+      zeroDteManaged.add(pos.id);
+      const live = await liveContractQuote(pos, 0.6);
+      if (!live) { logger.warn(`[QUANT-BOT] 0DTE ${pos.symbol}: no live quote — bracket not evaluated (never on a stale mark)`); continue; }
+      const entry = Number(pos.entryPrice);
+      const v = premiumManage({ entry, mark: live.mid, stop: pos.stopLoss != null ? Number(pos.stopLoss) : null, etMin }, sleeves);
+      if (v.action === 'hold') continue;
+      if (v.action === 'arm_breakeven') {
+        await storage.updatePaperPosition(pos.id, { stopLoss: entry } as any);
+        logger.info(`[QUANT-BOT] 0DTE ${pos.symbol}: ${v.reason}`);
+        continue;
+      }
+      const code = v.action === 'flatten' ? '0dte_flatten_1545' : v.action === 'target' ? 'premium_target' : v.action === 'breakeven_stop' ? 'breakeven_stop' : 'premium_stop';
+      await closePosition(pos.id, live.bid, `${code} ${exitAuditTag(live.q, new Date())}`);
+      const why = `${v.reason} · ${live.stamp}`;
+      await announceExit(pos, live.bid, why);
+      closed.push({ symbol: pos.symbol, reason: why });
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] 0DTE sleeve management failed:', err);
   }
 
   // 2b — settle every contract past expiry, in EVERY run the bot owns (retired
@@ -323,6 +417,55 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
     for (const sk of rec.skipped) logger.warn(`[QUANT-BOT] expiry not settled: ${sk.contract} — ${sk.reason}`);
   } catch (err) {
     logger.warn('[QUANT-BOT] expiry reconciliation failed:', err);
+  }
+
+  // 2c — stale-position hygiene (swing sleeve). A swing contract is held for the
+  //      idea's own hold window (docs/SETUP_LIFECYCLE.md windowFor) and, under
+  //      EXIT_POLICY=time_half, to half its horizon unless ≥ +0.5R. Past that it
+  //      is closed at the LIVE mid with exit_reason 'time_stop'. DKS/JNJ sat open
+  //      from Aug 28 because nothing applied a clock. No live quote → skip.
+  try {
+    const { readExitPolicy } = await import('@shared/exit-policy');
+    const policy = readExitPolicy(process.env);
+    const books = sleeves.timeStopRetired ? await botPortfolios() : [portfolio];
+    for (const book of books) {
+      for (const pos of (await getOpenPositions(book.id)) as any[]) {
+        if (pos.assetType !== 'option' || sleeveOfPosition(pos) !== 'swing') continue;
+        const idea: any = pos.tradeIdeaId ? await storage.getTradeIdeaById(pos.tradeIdeaId).catch(() => null) : null;
+        let liveUnderlying: number | null = null;
+        if (policy === 'time_half' && idea) {
+          try {
+            const { getRealtimeQuote } = await import('./realtime-pricing-service');
+            const q = await getRealtimeQuote(pos.symbol, 'stock' as any);
+            liveUnderlying = q && q.price > 0 && !q.proxy ? q.price : null;
+          } catch { /* judged without the R test */ }
+        }
+        const v = timeStopDue({
+          nowMs: Date.now(),
+          idea: idea ? {
+            direction: idea.direction, entryPrice: Number(idea.entryPrice), stopLoss: Number(idea.stopLoss), targetPrice: Number(idea.targetPrice),
+            assetType: idea.assetType, holdingPeriod: idea.holdingPeriod, tradeType: idea.tradeType, source: idea.source,
+            expiryDate: idea.expiryDate ?? pos.expiryDate, generatedAt: idea.timestamp ?? null, exitBy: idea.exitBy ?? null,
+          } : null,
+          entryTime: pos.entryTime ?? null,
+          direction: pos.direction === 'short' ? 'short' : 'long',
+          expiryDate: pos.expiryDate ?? null,
+          liveUnderlying,
+          policy,
+        });
+        if (!v.due) continue;
+        const live = await liveContractQuote(pos, 0.6);
+        if (!live) { logger.warn(`[QUANT-BOT] time stop due on ${pos.symbol} (${v.why}) — no live quote, not closed on a stale mark`); continue; }
+        // Time stops close at the LIVE MID (operator rule) — tagged so the fill
+        // audit classifies it as a mid, not a bid fill.
+        await closePosition(pos.id, live.mid, `time_stop [fill-mid mid=${live.mid.toFixed(4)} bid=${live.q.bid.toFixed(4)} ask=${live.q.ask.toFixed(4)} source=${live.q.source ?? 'unknown'} delayed=${!!live.q.delayed} observedAt=${new Date().toISOString()}]`);
+        const why = `time stop — ${v.why} · mid ${live.mid.toFixed(2)} (${live.stamp})${book.id !== portfolio.id ? ' · retired run' : ''}`;
+        await announceExit(pos, live.mid, why);
+        closed.push({ symbol: pos.symbol, reason: why });
+      }
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] time-stop hygiene failed:', err);
   }
 
   // Announce anything the board has newly published. Piggy-backs on the bot cycle
@@ -412,8 +555,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
       logger.info(describeGapExit(pos.symbol, signal));
       const mark = Number(pos.currentPrice ?? pos.entryPrice);
-      await closePosition(pos.id, mark, 'gap_magnet');
-      await announceExit(pos, mark, `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
+      const gx = await closeOptionPositionAtBid(pos.id, 'gap_magnet');
+      if (!gx.success) continue;
+      await announceExit(pos, Number(gx.position?.exitPrice ?? mark), `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
       closed.push({ symbol: pos.symbol, reason: `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%` });
       gapWatch.push({ symbol: pos.symbol, level: signal.gapLevel ?? 0 });
     }
@@ -477,11 +621,14 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       const pnlPct = cost > 0 ? (Number(pos.unrealizedPnL ?? 0) / cost) * 100 : 0;
       const pnlWord = pnlPct >= 0 ? `banked +${pnlPct.toFixed(0)}%` : `cut at ${pnlPct.toFixed(0)}%`;
 
+      // Board flip gated on the ONE grade: the opposite setup must be NEXUS grade B or better.
       const flip = byOppDir.get(`${pos.symbol}:${opposite}`);
-      if (flip && flip.convictionScore >= cfg.minConviction) {
-        await closePosition(pos.id, mark, 'thesis_flip');
-        const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (score ${flip.convictionScore}) — ${pnlWord}`;
-        await announceExit(pos, mark, why);
+      const flipGrade = flip ? gradePick(flip) : null;
+      if (flip && flipGrade && gradeAtLeast(flipGrade, 'B')) {
+        const fx0 = await closeOptionPositionAtBid(pos.id, 'thesis_flip');
+        if (!fx0.success) continue;
+        const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (NEXUS ${formatNexusGrade(flipGrade)}) — ${pnlWord}`;
+        await announceExit(pos, Number(fx0.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
         continue;
       }
@@ -495,10 +642,11 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
       // stronger claim than tape skew.)
       const fx = flowAgainst?.get(`${pos.symbol}:${opposite}`);
       if (fx && (pos.unrealizedPnL ?? 0) < 0) {
-        await closePosition(pos.id, mark, 'flow_reversal');
+        const fr = await closeOptionPositionAtBid(pos.id, 'flow_reversal');
+        if (!fr.success) continue;
         const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
         const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;
-        await announceExit(pos, mark, why);
+        await announceExit(pos, Number(fr.position?.exitPrice ?? mark), why);
         closed.push({ symbol: pos.symbol, reason: why });
       }
     }
@@ -506,9 +654,10 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
     logger.warn('[QUANT-BOT] thesis check failed:', err);
   }
 
-  // 3 — premium stop / target
+  // 3 — premium stop / target (0DTE-sleeve rows are bracketed in 2a instead —
+  //     the shared DTE-aware stop would cut them at −35% before the sleeve's −40%).
   try {
-    const exited = await checkStopsAndTargets(portfolio.id);
+    const exited = await checkStopsAndTargets(portfolio.id, { skipIds: zeroDteManaged });
     for (const p of exited ?? []) {
       const reason = (p as any).exitReason ?? 'stop/target';
       closed.push({ symbol: p.symbol, reason });
@@ -518,393 +667,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
     logger.warn('[QUANT-BOT] exit check failed:', err);
   }
 
-  // 2 — fill free slots with the best available signals
+  // 4 — entries: two sleeves, separate capacity (shared/bot-sleeves.ts).
   try {
-    const open = await getOpenPositions(portfolio.id);
-    const slots = Math.max(0, cfg.maxOpen - open.length);
-
-    if (slots > 0) {
-      const { getCachedConvictions } = await import('./convictions-engine');
-      const board = await getCachedConvictions({});
-      const heldSymbols = new Set(open.map((p) => p.symbol));
-
-      // ── Trade exactly what the board publishes, in the same order ────────────
-      //
-      // If the bot holds names the board isn't showing, the track record measures a
-      // different strategy than the one on screen and proves nothing about the signals.
-      // So: same list, same ranking, same rules the UI displays — plus the two gates the
-      // board already shows and the bot was ignoring.
-      const chaseGuard = (p: any) => {
-        // How far price has already travelled entry -> T1. The board renders this as
-        // "39% to T1". Entering there is the chase the desk warns about: the risk is the
-        // same but most of the reward is gone, so the R:R the signal advertises is a lie
-        // by the time we'd fill.
-        const live = p.currentPrice;
-        if (!live || !p.entryPrice || !p.targetPrice) return 0;
-        const span = p.direction === 'long' ? p.targetPrice - p.entryPrice : p.entryPrice - p.targetPrice;
-        const done = p.direction === 'long' ? live - p.entryPrice : p.entryPrice - live;
-        return span > 0 ? (done / span) * 100 : 0;
-      };
-
-      const triggered = (p: any) => {
-        // PENDING TRIGGER means price hasn't reached the entry yet. The board says so;
-        // buying anyway means taking a trade the signal hasn't actually called.
-        const live = p.currentPrice;
-        if (!live || !p.entryPrice) return false;
-        return p.direction === 'long' ? live >= p.entryPrice : live <= p.entryPrice;
-      };
-
-      const stoppedOut = (p: any) => {
-        const live = p.currentPrice;
-        if (!live || !p.stopLoss) return false;
-        return p.direction === 'long' ? live <= p.stopLoss : live >= p.stopLoss;
-      };
-
-      // THE DAY IS A FILTER TOO. The board grades setups; nothing graded the tape,
-      // so the bot would buy a conviction-30 call into a thin, negative-gamma OPEX
-      // session and lose on direction, vol and chop at once — none of which the
-      // setup's score knows about. Sitting in cash is a position, and this is the
-      // only place the bot can take it.
-      let tapeGate: { verdict: string; headline: string } | null = null;
-      try {
-        const { getTapeConditions } = await import('./tape-conditions');
-        const tape = await getTapeConditions();
-        tapeGate = { verdict: tape.verdict, headline: tape.headline };
-
-        if (tape.verdict === 'sit_out') {
-          logger.warn(`[QUANT-BOT] SIT OUT (tape ${tape.score}) — no entries this cycle. ${tape.headline}`);
-          tape.signals.filter((x) => x.points < 0).forEach((x) => logger.warn(`  ${x.label}: ${x.detail}`));
-          skipped += (board.picks ?? []).length;
-          // openCount is computed after this block, so count the book directly.
-          const held = await getOpenPositions(portfolio.id);
-          return {
-            ranAt, portfolioId: portfolio.id, opened, closed,
-            skipped, openCount: held.length, gapWatch,
-          };
-        }
-      } catch (err) {
-        // A missing tape read must not stop the bot trading — it just loses the gate.
-        logger.warn('[QUANT-BOT] tape read failed, proceeding without the gate:', err);
-      }
-
-      // A SELECTIVE tape used to raise the conviction floor 18 -> 26, which on a
-      // board scoring 30/25/14/12 admitted exactly one name — a paper ledger
-      // that exists to MEASURE signals was starving its own sample. Caution now
-      // costs dollars instead of data: the floor stays put and position risk is
-      // halved. Same respect for the tape read, twice the decided outcomes.
-      const minConviction = cfg.minConviction;
-      const riskFraction = tapeGate?.verdict === 'selective'
-        ? (cfg.riskPerTradePct / 100) / 2
-        : cfg.riskPerTradePct / 100;
-      if (tapeGate?.verdict === 'selective') {
-        logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade), floor unchanged at ${minConviction}`);
-      }
-
-      // LOSS RULES v1 (shared/loss-rules.ts, flags LOSS_RULE_*): every refusal
-      // below is written to the blocked-trade ledger with its reason (Missed · Bot).
-      const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip } = await import('./loss-rules');
-      const { LOSS_RULES_TAG } = await import('@shared/loss-rules');
-      const rules = lossRulesConfig();
-
-      const ranked = (board.picks ?? [])
-        .filter((p) => p.convictionScore >= minConviction)
-        .filter((p) => !heldSymbols.has(p.symbol))
-        .filter((p) => {
-          if (!triggered(p)) { skipped++; return false; }          // pending trigger (waiting, not refused)
-          if (stoppedOut(p)) { skipped++; noteBotSkip(p, 'stopped_out', 'price already through the stop — idea invalidated'); return false; }
-          if (chaseGuard(p) > cfg.maxProgressPct) { skipped++; noteBotSkip(p, 'chase', `${chaseGuard(p).toFixed(0)}% of the way to T1 already (limit ${cfg.maxProgressPct}%)`); return false; }
-          return true;
-        })
-        .sort((a, b) => b.convictionScore - a.convictionScore);
-
-      // Rules 1 + 2 run BEFORE a slot is assigned, so a refused name never
-      // occupies a slot a qualifying name could have filled.
-      const ideaCache = new Map<string, any>();
-      const loadIdea = async (id: string) => {
-        if (!ideaCache.has(id)) ideaCache.set(id, await storage.getTradeIdeaById(id).catch(() => null));
-        return ideaCache.get(id);
-      };
-      const confluenceOf = new Map<string, string[]>();
-      const candidates: typeof ranked = [];
-      for (const p of ranked) {
-        if (candidates.length >= slots) break;
-        const idea: any = await loadIdea(p.ideaId);
-        if (rules.botEntryWindow) {
-          const w = await botEntryWindowGate({ symbol: p.symbol, direction: p.direction, entryPrice: p.entryPrice, currentPrice: p.currentPrice }, idea);
-          if (!w.ok) { skipped++; noteBotSkip(p, w.code, w.reason); continue; }
-        }
-        if (rules.botConfluence) {
-          const c = await botConfluenceGate({ symbol: p.symbol, direction: p.direction, layers: p.layers as any, source: p.source }, idea);
-          if (!c.passed) {
-            skipped++;
-            noteBotSkip(p, 'confluence', c.reason);
-            logger.info(`[QUANT-BOT] skipped ${p.symbol}: ${c.reason}`);
-            continue;
-          }
-          confluenceOf.set(p.ideaId, c.families);
-        }
-        candidates.push(p);
-      }
-
-      for (const pick of candidates) {
-        const idea: any = await loadIdea(pick.ideaId);
-        if (!idea) { skipped++; continue; }
-
-        // Most signals are tagged assetType 'option', but the platform stores the
-        // UNDERLYING stock levels on them — the thesis is on the stock and the Contract
-        // Engine picks the vehicle separately. Paper-trading them as options would need
-        // live premium data, which we don't have (Tradier is unfunded/401). So the bot
-        // trades the underlying against those same levels: it measures the SIGNAL, which
-        // is the point, instead of failing to fill on a dead options feed.
-        // ── Fill an actual CONTRACT, not the underlying ──────────────────────
-        //
-        // Options are the product. Trading the underlying as a proxy measures whether the
-        // signal was directionally right, but not what the trade would have made — an idea
-        // that's +3% on the stock can be +90% or -100% on the contract. So option ideas
-        // fill on a real premium.
-        //
-        // Every option idea already carries a concrete contract (symbol / type / strike /
-        // expiry). A delayed chain is useful research data, but it is not an executable
-        // fill. New bot entries therefore require a non-delayed provider mark. Existing
-        // delayed paper positions remain visible for audit, but the ledger cannot create
-        // more false-precision entries while the realtime provider is unavailable.
-        let tradeable: any;
-
-        if (idea.assetType === 'option') {
-          const underlyingEntry = Number(idea.entryPrice ?? pick.entryPrice);
-          const underlyingStop = Number(idea.stopLoss ?? pick.stopLoss);
-          const underlyingT1 = Number(idea.targetPrice ?? pick.targetPrice);
-          const direction = idea.direction === 'short' || pick.direction === 'short' ? 'bearish' : 'bullish';
-          const directionValid = direction === 'bullish'
-            ? underlyingStop < underlyingEntry && underlyingT1 > underlyingEntry
-            : underlyingStop > underlyingEntry && underlyingT1 < underlyingEntry;
-          const underlyingRisk = Math.abs(underlyingEntry - underlyingStop);
-          const underlyingReward = Math.abs(underlyingT1 - underlyingEntry);
-          const underlyingRR = underlyingRisk > 0 ? underlyingReward / underlyingRisk : 0;
-
-          if (!directionValid || underlyingRR < cfg.minUnderlyingRR) {
-            skipped++;
-            noteBotSkip(pick, 'weak_plan', `invalid/weak underlying plan (R:R ${underlyingRR.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`);
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: invalid/weak underlying plan (R:R ${underlyingRR.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`);
-            continue;
-          }
-
-          const cash = Number(portfolio.cashBalance ?? 0);
-          const riskBudget = Math.min(cash * riskFraction, cfg.maxRiskDollars);
-          const maxDebit = Math.min(cash * cfg.maxDebitPct, cfg.maxDebitDollars, riskBudget / 0.5);
-          const isIndexScalp = idea.source === 'gex_scanner' &&
-            String(idea.dataSourceUsed ?? '').startsWith('GEX_index_scalp_');
-
-          // Index 0DTE is already contract-selected by the scalp engine. Keep
-          // that exact account-fit vehicle so Cockpit and the paper bot execute
-          // the same idea. Sending it through the swing selector again could
-          // silently replace a $0.75 call with a different strike/expiry.
-          if (isIndexScalp) {
-            const expiry = String(idea.expiryDate ?? '').slice(0, 10);
-            const today = easternDateKey();
-            const selectedPremium = Number(idea.entryPremium ?? 0);
-            const packageSignal = (Array.isArray(idea.qualitySignals) ? idea.qualitySignals : [])
-              .find((signal: string) => signal.startsWith('package_qty:'));
-            const packageQuantity = Math.max(1, Math.min(5, Number(String(packageSignal ?? '').split(':')[1]) || 1));
-            if (!idea.optionType || !idea.strikePrice || expiry !== today || !(selectedPremium >= 0.20)) {
-              skipped++;
-              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: invalid or stale index-0DTE contract`);
-              continue;
-            }
-
-            const { getOptionMark } = await import('./tradier-api');
-            const q = await getOptionMark({
-              underlying: idea.symbol,
-              optionType: idea.optionType,
-              strike: Number(idea.strikePrice),
-              expiryDate: expiry,
-            }).catch(() => null);
-            if (!q || !(q.bid > 0 && q.ask > 0)) {
-              skipped++;
-              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no executable quote for published 0DTE contract`);
-              continue;
-            }
-            const spreadPct = q.mid > 0 ? (q.ask - q.bid) / q.mid : Number.POSITIVE_INFINITY;
-            const totalDebit = q.ask * 100 * packageQuantity;
-            if (spreadPct > cfg.maxOptionSpreadPct || totalDebit > 200) {
-              skipped++;
-              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: 0DTE spread/debit gate failed (${(spreadPct * 100).toFixed(1)}%, $${totalDebit.toFixed(0)})`);
-              continue;
-            }
-            tradeable = {
-              ...idea,
-              catalyst: `[INDEX 0DTE · ${q.source}${q.delayed ? ' · delayed' : ''}] ${idea.catalyst ?? idea.analysis ?? ''}`,
-              assetType: 'option',
-              __maxContracts: packageQuantity,
-              currentPrice: q.ask,
-              entryPrice: q.ask,
-              targetPrice: Number((q.ask * 2).toFixed(2)),
-              stopLoss: Number((q.ask * 0.5).toFixed(2)),
-            };
-          } else {
-          const holding = String(idea.holdingPeriod ?? pick.holdingPeriod ?? '').toLowerCase();
-          const setup = holding.includes('day') ? 'scalp' : holding.includes('position') ? 'position' : 'swing';
-          const { selectContracts } = await import('./option-selection-engine');
-          const selection = await selectContracts({
-            symbol: idea.symbol,
-            direction,
-            setup,
-            entry: underlyingEntry,
-            stop: underlyingStop,
-            t1: underlyingT1,
-            holdingDays: Number((pick as any).horizonDays ?? idea.horizonDays ?? 0) || undefined,
-            // Loss rule 4: multi-day holds get 30–60 DTE (flag LOSS_RULE_DTE_FIT).
-            applyDteFit: true,
-            conviction: convictionDisplayPercent(pick.convictionScore ?? 0),
-            asOfSpot: Number(pick.currentPrice ?? 0) || undefined,
-            accountSize: cash,
-            riskBudgetDollars: riskBudget,
-            maxDebitDollars: maxDebit,
-            minRoiAtT1Pct: cfg.minContractRoiAtT1Pct,
-          });
-          // Limits are constraints, not grades: the engine only recommends a
-          // contract that fits riskBudget / maxDebit and is not F quality. A
-          // contract outside the limits is simply not chosen — never traded as
-          // an "F". The explicit re-check keeps that true if the engine changes.
-          const recommended = selection.recommendedTier
-            ? selection.picks.find((p) => p.tier === selection.recommendedTier)
-            : null;
-          const selected = recommended && recommended.fitsAccount && recommended.grade !== 'F'
-            ? recommended
-            : null;
-          if (!selected) {
-            skipped++;
-            noteBotSkip(pick, selection.dteGateNote?.startsWith('DTE fit') ? 'dte_fit' : 'no_contract', `${selection.dteGateNote ? `${selection.dteGateNote} — ` : ''}${selection.note ?? 'no contract clears reachability/account gates'}`);
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: ${selection.note ?? 'no contract clears reachability/account gates'}`);
-            continue;
-          }
-
-          const { getOptionMark } = await import('./tradier-api');
-          const q = await getOptionMark({
-            underlying: idea.symbol,
-            optionType: selected.optionType,
-            strike: selected.strike,
-            expiryDate: selected.expiry,
-          }).catch(() => null);
-
-          if (!q) {
-            skipped++;
-            noteBotSkip(pick, 'no_quote', 'no contract mark from any source');
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
-            continue;
-          }
-          const quoteMid = Number(q.mid ?? 0);
-          const quoteBid = Number(q.bid ?? 0);
-          const quoteAsk = Number(q.ask ?? 0);
-          const spreadPct = quoteMid > 0 ? (quoteAsk - quoteBid) / quoteMid : Number.POSITIVE_INFINITY;
-          if (!(quoteBid > 0 && quoteAsk > 0) || spreadPct > cfg.maxOptionSpreadPct) {
-            skipped++;
-            noteBotSkip(pick, 'non_executable', `non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
-            continue;
-          }
-          if (q.delayed && easternMinutes() < cfg.delayedFillNotBeforeEtMinutes) {
-            skipped++;
-            noteBotSkip(pick, 'delayed_quote', 'delayed option quote during opening-price discovery');
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: delayed option quote during opening-price discovery`);
-            continue;
-          }
-
-          // A long option crosses the spread. Filling at midpoint systematically
-          // overstates performance, especially in thin contracts; paper execution
-          // therefore pays the ask and records the delayed source explicitly.
-          const premium = quoteAsk;
-          // Premium-based management: a -50% premium stop and a +100% target are the
-          // desk-standard bracket for a directional long option, and they're expressed in
-          // the same units as the fill so P&L is coherent.
-          tradeable = {
-            ...idea,
-            catalyst: `[${selection.recommendedTier} · ${selected.grade} · mark: ${q.source}${q.delayed ? ' · delayed' : ''}] ${selected.rationale}`,
-            assetType: 'option',
-            optionType: selected.optionType,
-            strikePrice: selected.strike,
-            expiryDate: selected.expiry,
-            __maxContracts: selected.maxContracts ?? 1,
-            currentPrice: premium,
-            entryPrice: premium,
-            targetPrice: Number((premium * 2).toFixed(2)),
-            stopLoss: Number((premium * 0.5).toFixed(2)),
-          };
-          }
-        } else {
-          // OPTIONS ONLY. This used to fall back to buying the underlying as shares
-          // whenever an idea lacked a concrete contract, which is how UEC (134 shares,
-          // $1,494) and INTA (37 shares, $1,486) ended up as nearly a third of the
-          // account. Shares measure a different thing: an idea that is +3% on the
-          // stock can be +90% or -100% on the contract, so mixing the two makes the
-          // bot's record meaningless for the question it exists to answer.
-          //
-          // A signal with no contract is simply not tradeable by this bot. Skip it.
-          skipped++;
-          noteBotSkip(pick, 'not_option', 'idea has no option vehicle — the bot trades contracts only');
-          continue;
-        }
-
-        // Rule 5 — measurement: the fill carries the rule-set version and the
-        // evidence families that cleared it (paper_positions.entry_signals).
-        if (rules.botConfluence || rules.botEntryWindow || rules.dteFit) {
-          const fams = confluenceOf.get(pick.ideaId);
-          tradeable.qualitySignals = [
-            ...(Array.isArray(tradeable.qualitySignals) ? tradeable.qualitySignals : []),
-            LOSS_RULES_TAG,
-            ...(fams?.length ? [`confluence:${fams.join('+')}`] : []),
-          ];
-        }
-
-        const selectedMaxContracts = tradeable.assetType === 'option'
-          ? Math.max(1, Number((tradeable as any).__maxContracts ?? 1))
-          : undefined;
-        const effectiveRiskFraction = Math.min(riskFraction, cfg.maxRiskDollars / Math.max(1, Number(portfolio.cashBalance ?? 0)));
-        const res = await executeTradeIdea(portfolio.id, tradeable as any, {
-          riskFraction: effectiveRiskFraction,
-          maxQuantity: selectedMaxContracts,
-        });
-        if (res.success) {
-          opened.push({
-            symbol: pick.symbol,
-            reason: `${pick.convictionBand}-band ${pick.convictionScore} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)}`,
-          });
-
-          // Alert the entry. sendBotTradeEntryToDiscord has existed the whole time
-          // and nothing ever called it from here, so the bot has been trading
-          // silently — you only found out what it did by opening the page.
-          // Never let a notification failure roll back a real fill.
-          if (discordAlerts) try {
-            const { sendBotTradeEntryToDiscord } = await import('./discord-service');
-            await sendBotTradeEntryToDiscord({
-              symbol: pick.symbol,
-              assetType: 'option',
-              optionType: (tradeable as any).optionType ?? null,
-              strikePrice: (tradeable as any).strikePrice ?? null,
-              expiryDate: (tradeable as any).expiryDate ?? null,
-              entryPrice: Number((tradeable as any).entryPrice ?? 0),
-              quantity: Number(res.position?.quantity ?? 1),
-              targetPrice: pick.targetPrice ?? null,
-              stopLoss: pick.stopLoss ?? null,
-              // Bot entry grades use the same 0–100 confidence index the
-              // terminal displays, never the raw confluence-point total.
-              confidence: convictionDisplayPercent(pick.convictionScore ?? 0),
-              riskRewardRatio: pick.riskRewardRatio ?? null,
-              analysis: pick.thesis ?? null,
-              signals: (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean),
-              portfolio: 'Quant Bot',
-              source: 'quant-bot',
-            });
-          } catch (err: any) {
-            logger.warn(`[QUANT-BOT] entry alert failed for ${pick.symbol}: ${err?.message ?? err}`);
-          }
-        } else {
-          skipped++;
-          noteBotSkip(pick, 'no_fill', res.error ?? 'no fill');
-          logger.debug(`[QUANT-BOT] skipped ${pick.symbol}: ${res.error ?? 'no fill'}`);
-        }
-      }
-    }
+    await enterSleeves({ cfg, sleeves, portfolio, opened, tally });
   } catch (err) {
     logger.warn('[QUANT-BOT] entry pass failed:', err);
   }
@@ -918,7 +683,8 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   } catch (err) { logger.warn('[QUANT-BOT] value sync failed:', err); }
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
-  logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open`);
+  const skipSummary = tally.summary();
+  logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open · ${formatSkipSummary(skipSummary)}`);
   try {
     const { pulse } = await import('./system-pulse');
     if (opened.length || closed.length) {
@@ -942,8 +708,362 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
     }
   }
 
-  return { ranAt, portfolioId: portfolio.id, opened, closed, skipped, openCount, gapWatch };
+  return { ranAt, portfolioId: portfolio.id, opened, closed, skipped: skipSummary.total, openCount, gapWatch, skipSummary };
 }
+
+/** A LIVE two-sided quote for a held contract, or null (never a stale mark). */
+async function liveContractQuote(pos: any, maxSpreadPct: number): Promise<{ bid: number; ask: number; mid: number; stamp: string; q: import('./tradier-api').OptionMark } | null> {
+  if (!pos?.optionType || !pos?.strikePrice || !pos?.expiryDate) return null;
+  try {
+    const { getOptionMark } = await import('./tradier-api');
+    const q = await getOptionMark({ underlying: pos.symbol, optionType: pos.optionType, strike: Number(pos.strikePrice), expiryDate: String(pos.expiryDate).slice(0, 10) });
+    const v = executableQuote(q as any, { nowMs: Date.now(), maxSpreadPct });
+    if (!v.ok || !q) return null;
+    return { bid: q.bid, ask: q.ask, mid: (q.bid + q.ask) / 2, stamp: v.stamp ?? q.source, q };
+  } catch { return null; }
+}
+
+
+interface EnterCtx {
+  cfg: BotConfig;
+  sleeves: ReturnType<typeof readBotSleeveConfig>;
+  portfolio: any;
+  opened: BotRunResult['opened'];
+  tally: SkipTally;
+}
+
+/**
+ * The entry pass. Two sleeves, each with its own capacity; every refusal is
+ * tallied by reason. Kept gates: tape sit-out, loss rules 1 (confluence) and 2
+ * (entry window), BTC-proxy short discipline, one position per symbol, NO
+ * opposite directions on one symbol across every bot run, and fills only on an
+ * executable live quote (stamped into the fill).
+ */
+async function enterSleeves(ctx: EnterCtx): Promise<void> {
+  const { cfg, sleeves, portfolio, opened, tally } = ctx;
+  const nowMs = Date.now();
+  const open = await getOpenPositions(portfolio.id);
+  const held = { '0dte': 0, swing: 0 } as Record<BotSleeve, number>;
+  for (const p of open as any[]) held[sleeveOfPosition(p)]++;
+  tally.capacity = { '0dte': { held: held['0dte'], max: sleeves.zeroDteMax }, swing: { held: held.swing, max: sleeves.swingMax } };
+
+  // Every open position the bot holds in ANY run: one symbol, one side.
+  const sideBySymbol = new Map<string, Set<'long' | 'short'>>();
+  for (const book of await botPortfolios()) {
+    for (const p of (await getOpenPositions(book.id)) as any[]) {
+      const k = String(p.symbol).toUpperCase();
+      if (!sideBySymbol.has(k)) sideBySymbol.set(k, new Set());
+      sideBySymbol.get(k)!.add(underlyingSide(p));
+    }
+  }
+  const heldSymbols = new Set((open as any[]).map((p) => String(p.symbol).toUpperCase()));
+  // No same-day re-entry after a stop-out (any run).
+  const stoppedToday = new Set<string>();
+  for (const book of await botPortfolios()) {
+    try {
+      const rows = await storage.getPaperPositionsByPortfolio(book.id);
+      for (const s of stoppedOutToday(rows as any[], nowMs)) stoppedToday.add(s);
+    } catch { /* a book that cannot be read cannot block */ }
+  }
+  const sideConflict = (symbol: string, side: 'long' | 'short') => {
+    const s = sideBySymbol.get(symbol.toUpperCase());
+    return !!s && s.has(side === 'long' ? 'short' : 'long');
+  };
+  const noteFilled = (symbol: string, side: 'long' | 'short') => {
+    const k = symbol.toUpperCase();
+    heldSymbols.add(k);
+    if (!sideBySymbol.has(k)) sideBySymbol.set(k, new Set());
+    sideBySymbol.get(k)!.add(side);
+  };
+
+  // THE DAY IS A FILTER TOO (tape conditions). Sitting in cash is a position.
+  let tapeVerdict: string | null = null;
+  try {
+    const { getTapeConditions } = await import('./tape-conditions');
+    const tape = await getTapeConditions();
+    tapeVerdict = tape.verdict;
+    if (tape.verdict === 'sit_out') {
+      logger.warn(`[QUANT-BOT] SIT OUT (tape ${tape.score}) — no entries this cycle. ${tape.headline}`);
+      tape.signals.filter((x) => x.points < 0).forEach((x) => logger.warn(`  ${x.label}: ${x.detail}`));
+      tally.add('all', '—', 'tape_sit_out', tape.headline, 0);
+      return;
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] tape read failed, proceeding without the gate:', err);
+  }
+  // A selective tape halves dollars, never the sample.
+  const riskFraction = tapeVerdict === 'selective' ? (cfg.riskPerTradePct / 100) / 2 : cfg.riskPerTradePct / 100;
+  if (tapeVerdict === 'selective') logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade)`);
+
+  const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip } = await import('./loss-rules');
+  const { LOSS_RULES_TAG } = await import('@shared/loss-rules');
+  const rules = lossRulesConfig();
+  const { isBtcProxy, evaluateShortDiscipline } = await import('./short-discipline');
+  let btcChange: number | null | undefined;
+  const btcProxyBlock = async (symbol: string, side: 'long' | 'short'): Promise<string | null> => {
+    if (side !== 'short' || !isBtcProxy(symbol)) return null;
+    if (btcChange === undefined) {
+      try {
+        const { getRealtimeQuote } = await import('./realtime-pricing-service');
+        const q = await getRealtimeQuote('BTC', 'crypto' as any);
+        btcChange = q && Number.isFinite(q.changePercent) ? q.changePercent : null;
+      } catch { btcChange = null; }
+    }
+    const v = evaluateShortDiscipline({ symbol, direction: side, hasEventCatalyst: false, btcChangePercent: btcChange });
+    return v.allowed ? null : v.reason;
+  };
+  const refuse = (sleeve: BotSleeve, p: any, code: string, reason: string, rank: number, ledger = true) => {
+    tally.add(sleeve, String(p.symbol), code, reason, rank);
+    if (ledger) noteBotSkip(p, code, reason);
+  };
+
+  const { getOptionMark, optionMarkExecutionIssue } = await import('./tradier-api');
+  const cashNow = async () => Number((await storage.getPaperPortfolioById(portfolio.id))?.cashBalance ?? portfolio.cashBalance ?? 0);
+
+  // ── 0DTE / 1DTE sleeve ───────────────────────────────────────────────────
+  {
+    let slots = Math.max(0, sleeves.zeroDteMax - held['0dte']);
+    const etMin = etMinutesOf(nowMs);
+    const afternoon = etMin >= 13 * 60 + 30;
+    let rows: any[] = [];
+    try {
+      const { db } = await import('./db');
+      const { tradeIdeas } = await import('@shared/schema');
+      const { and, gte, eq, or, like, inArray, desc } = await import('drizzle-orm');
+      const dayStart = new Date(nowMs - 20 * 3_600_000).toISOString();
+      rows = await db.select().from(tradeIdeas).where(and(
+        gte(tradeIdeas.timestamp, dayStart),
+        eq(tradeIdeas.outcomeStatus, 'open' as any),
+        or(
+          like(tradeIdeas.dataSourceUsed, 'GEX_index_scalp_%'),
+          inArray(tradeIdeas.source, ['zero_dte_desk', 'zero_dte_flow', 'gex_magnet', 'index_scalp'] as any),
+        ),
+      )).orderBy(desc(tradeIdeas.timestamp)).limit(60) as any[];
+    } catch (err) {
+      logger.warn('[QUANT-BOT] 0DTE candidate read failed:', err);
+    }
+    const seen = new Set<string>();
+    let rank = 0;
+    for (const idea of rows) {
+      rank++;
+      const side: 'long' | 'short' = String(idea.direction).toLowerCase() === 'short' ? 'short' : 'long';
+      const key = `${String(idea.symbol).toUpperCase()}:${idea.optionType}:${idea.strikePrice}:${idea.expiryDate}`;
+      if (seen.has(key)) continue; // same contract re-published — one decision
+      seen.add(key);
+      const c = classifyZeroDteIdea(idea, nowMs, sleeves);
+      if (!c.ok) {
+        // Expired / not-today rows are history, not refusals worth a ledger line.
+        if (!['not_today', 'expired_contract', 'resolved', 'not_0dte_source'].includes(c.code)) refuse('0dte', idea, c.code, c.reason, rank, false);
+        continue;
+      }
+      if (!in0dteWindow(nowMs, sleeves)) { refuse('0dte', idea, 'outside_0dte_window', `0DTE sleeve enters ${sleeves.zeroDteWindows.map(([a, b]) => `${Math.floor(a / 60)}:${String(a % 60).padStart(2, '0')}–${Math.floor(b / 60)}:${String(b % 60).padStart(2, '0')}`).join(', ')} ET`, rank, false); continue; }
+      if (slots <= 0) { refuse('0dte', idea, 'sleeve_full', `0DTE sleeve full (${sleeves.zeroDteMax})`, rank, false); continue; }
+      if (heldSymbols.has(String(idea.symbol).toUpperCase())) { refuse('0dte', idea, 'already_held', 'one position per symbol', rank, false); continue; }
+      if (stoppedToday.has(String(idea.symbol).toUpperCase())) { refuse('0dte', idea, 'stopped_today', `${idea.symbol} was stopped out today — no same-day re-entry`, rank); continue; }
+      if (sideConflict(idea.symbol, side)) { refuse('0dte', idea, 'opposite_held', `already holding the opposite side of ${idea.symbol} — never both directions at once`, rank); continue; }
+      const btc = await btcProxyBlock(idea.symbol, side);
+      if (btc) { refuse('0dte', idea, 'btc_proxy', btc, rank); continue; }
+      // Loss rule 2 inside the morning window; the afternoon window is the operator's explicit BOT_0DTE_AFTERNOON opt-in.
+      if (rules.botEntryWindow && !afternoon) {
+        const w = await botEntryWindowGate({ symbol: idea.symbol, direction: side, entryPrice: Number(idea.entryPrice), currentPrice: null }, idea);
+        if (!w.ok) { refuse('0dte', idea, w.code, w.reason, rank); continue; }
+      }
+      if (rules.botConfluence) {
+        const cf = await botConfluenceGate({ symbol: idea.symbol, direction: side, layers: Array.isArray(idea.genScoringLayers) ? idea.genScoringLayers : undefined, source: idea.source }, idea);
+        if (!cf.passed) { refuse('0dte', idea, 'confluence', cf.reason, rank); continue; }
+      }
+      const q = await getOptionMark({ underlying: idea.symbol, optionType: idea.optionType, strike: Number(idea.strikePrice), expiryDate: String(idea.expiryDate).slice(0, 10) }).catch(() => null);
+      const qv = executableQuote(q as any, { nowMs, maxSpreadPct: cfg.maxOptionSpreadPct, delayedNotBeforeEt: cfg.zeroDteDelayedNotBeforeEtMinutes });
+      if (!qv.ok || !q) { refuse('0dte', idea, qv.code, qv.reason, rank); continue; }
+      const qi = entryQuoteIssue(q, cfg.zeroDteDelayedNotBeforeEtMinutes, optionMarkExecutionIssue);
+      if (qi) { refuse('0dte', idea, q.delayed ? 'delayed_quote' : 'stale_quote', qi, rank); continue; }
+      const zGrade = gradeIdeaRow(idea, nowMs);
+      const qty = zeroDteQuantity(q.ask, sleeves);
+      if (qty < 1) { refuse('0dte', idea, 'too_expensive', `one contract at $${q.ask.toFixed(2)} risks $${(q.ask * 100 * sleeves.premStopPct).toFixed(0)} at the −${Math.round(sleeves.premStopPct * 100)}% stop > $${sleeves.zeroDteRiskUsd} sleeve risk`, rank); continue; }
+      const cash = await cashNow();
+      const tradeable: any = {
+        ...idea,
+        assetType: 'option',
+        catalyst: `[0DTE SLEEVE · ${c.kind} · ${c.dte}DTE · NEXUS ${formatNexusGrade(zGrade)}] ${idea.catalyst ?? ''} ${entryAuditTag(q, new Date())}`,
+        currentPrice: q.ask,
+        entryPrice: q.ask,
+        stopLoss: Number((q.ask * (1 - sleeves.premStopPct)).toFixed(2)),
+        targetPrice: Number((q.ask * (1 + sleeves.premT2Pct)).toFixed(2)),
+        qualitySignals: [
+          ...(Array.isArray(idea.qualitySignals) ? idea.qualitySignals : []),
+          sleeveTag('0dte'), `zero_dte_kind:${c.kind}`, `quote:${qv.stamp}`, gradeComponentsTag(zGrade),
+          ...(rules.botConfluence || rules.botEntryWindow ? [LOSS_RULES_TAG] : []),
+        ],
+      };
+      const res = await executeTradeIdea(portfolio.id, tradeable, { riskFraction: Math.min(1, sleeves.zeroDteRiskUsd / Math.max(1, cash)), maxQuantity: qty });
+      if (!res.success) { refuse('0dte', idea, 'no_fill', res.error ?? 'no fill', rank); continue; }
+      slots--;
+      noteFilled(idea.symbol, side);
+      opened.push({ symbol: idea.symbol, reason: `0DTE sleeve · ${c.kind} ${c.dte}DTE ${idea.optionType} $${idea.strikePrice} x${res.position?.quantity ?? qty} @ $${q.ask.toFixed(2)} (${qv.stamp})` });
+      await announceEntry(idea.symbol, tradeable, res, null, idea.analysis ?? null, zGrade);
+    }
+  }
+
+  // ── Swing sleeve: NEXUS ideas by NEXUS grade (BOARD_SORT-independent) ────
+  {
+    let slots = Math.max(0, sleeves.swingMax - held.swing);
+    const { getCachedConvictions } = await import('./convictions-engine');
+    const { gradePick } = await import('@shared/nexus-grade');
+    const { publishMsOf } = await import('@shared/setup-lifecycle');
+    const board = await getCachedConvictions({});
+    const graded = (board.picks ?? [])
+      .filter((p: any) => !p.isBotHeld)
+      .map((p: any) => ({ p, ideaId: p.ideaId, grade: gradePick(p, nowMs), publishMs: publishMsOf(p) }));
+    const ordered = swingOrder(graded);
+
+    const chaseOf = (p: any) => {
+      const live = p.currentPrice;
+      if (!live || !p.entryPrice || !p.targetPrice) return 0;
+      const span = p.direction === 'long' ? p.targetPrice - p.entryPrice : p.entryPrice - p.targetPrice;
+      const done = p.direction === 'long' ? live - p.entryPrice : p.entryPrice - live;
+      return span > 0 ? (done / span) * 100 : 0;
+    };
+    const triggered = (p: any) => {
+      const live = p.currentPrice;
+      if (!live || !p.entryPrice) return false;
+      return p.direction === 'long' ? live >= p.entryPrice : live <= p.entryPrice;
+    };
+    const stoppedOut = (p: any) => {
+      const live = p.currentPrice;
+      if (!live || !p.stopLoss) return false;
+      return p.direction === 'long' ? live <= p.stopLoss : live >= p.stopLoss;
+    };
+
+    let rank = 0;
+    for (const { p: pick, grade } of ordered) {
+      rank++;
+      const side: 'long' | 'short' = pick.direction === 'short' ? 'short' : 'long';
+      const gtxt = `NEXUS ${formatNexusGrade(grade)}`;
+      // 0DTE-kind ideas belong to the other sleeve — not a refusal.
+      const zeroBound = (src: any, dsu: any, expiry: any, hp: any) => {
+        const kind = zeroDteKindOf({ source: src, dataSourceUsed: dsu ?? (src === 'gex_scanner' && /day/i.test(String(hp ?? '')) ? 'GEX_index_scalp_' : null) });
+        const dte = daysToExpiry(expiry, nowMs);
+        return !!kind && (dte == null || dte <= sleeves.zeroDteMaxDte);
+      };
+      if (zeroBound(pick.source, (pick as any).dataSourceUsed, pick.expiryDate, pick.holdingPeriod)) continue;
+      if (!isLiveGrade(grade) || grade.score < sleeves.swingMinGrade) { refuse('swing', pick, 'grade_below_min', `${gtxt} — needs live & ≥ ${sleeves.swingMinGrade} (${grade.factors[0].label})`, rank, false); continue; }
+      if (slots <= 0) { refuse('swing', pick, 'sleeve_full', `swing sleeve full (${sleeves.swingMax})`, rank, false); continue; }
+      if (heldSymbols.has(String(pick.symbol).toUpperCase())) { refuse('swing', pick, 'already_held', 'one position per symbol', rank, false); continue; }
+      if (stoppedToday.has(String(pick.symbol).toUpperCase())) { refuse('swing', pick, 'stopped_today', `${pick.symbol} was stopped out today — no same-day re-entry`, rank); continue; }
+      if (sideConflict(pick.symbol, side)) { refuse('swing', pick, 'opposite_held', `already holding the opposite side of ${pick.symbol} — never both directions at once`, rank); continue; }
+      if (!triggered(pick)) { refuse('swing', pick, 'pending_trigger', `live ${pick.currentPrice ?? '—'} has not traded through entry ${pick.entryPrice}`, rank, false); continue; }
+      if (stoppedOut(pick)) { refuse('swing', pick, 'stopped_out', 'price already through the stop — idea invalidated', rank); continue; }
+      const chase = chaseOf(pick);
+      if (chase > cfg.maxProgressPct) { refuse('swing', pick, 'chase', `${chase.toFixed(0)}% of the way to T1 already (limit ${cfg.maxProgressPct}%)`, rank); continue; }
+      const btc = await btcProxyBlock(pick.symbol, side);
+      if (btc) { refuse('swing', pick, 'btc_proxy', btc, rank); continue; }
+      const idea: any = await storage.getTradeIdeaById(pick.ideaId).catch(() => null);
+      if (!idea) { refuse('swing', pick, 'idea_missing', 'idea row not found', rank, false); continue; }
+      if (zeroBound(idea.source, idea.dataSourceUsed, idea.expiryDate, idea.holdingPeriod)) continue; // the 0DTE sleeve decides it
+      if (idea.assetType !== 'option') { refuse('swing', pick, 'not_option', 'idea has no option vehicle — the bot trades contracts only', rank); continue; }
+      if (rules.botEntryWindow) {
+        const w = await botEntryWindowGate({ symbol: pick.symbol, direction: side, entryPrice: pick.entryPrice, currentPrice: pick.currentPrice }, idea);
+        if (!w.ok) { refuse('swing', pick, w.code, w.reason, rank); continue; }
+      }
+      let families: string[] | undefined;
+      if (rules.botConfluence) {
+        const cf = await botConfluenceGate({ symbol: pick.symbol, direction: side, layers: pick.layers as any, source: pick.source }, idea);
+        if (!cf.passed) { refuse('swing', pick, 'confluence', cf.reason, rank); continue; }
+        families = cf.families;
+      }
+
+      const underlyingEntry = Number(idea.entryPrice ?? pick.entryPrice);
+      const underlyingStop = Number(idea.stopLoss ?? pick.stopLoss);
+      const underlyingT1 = Number(idea.targetPrice ?? pick.targetPrice);
+      const direction = side === 'short' ? 'bearish' : 'bullish';
+      const directionValid = direction === 'bullish'
+        ? underlyingStop < underlyingEntry && underlyingT1 > underlyingEntry
+        : underlyingStop > underlyingEntry && underlyingT1 < underlyingEntry;
+      const risk = Math.abs(underlyingEntry - underlyingStop);
+      const rr = risk > 0 ? Math.abs(underlyingT1 - underlyingEntry) / risk : 0;
+      if (!directionValid || rr < cfg.minUnderlyingRR) { refuse('swing', pick, 'weak_plan', `invalid/weak underlying plan (R:R ${rr.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`, rank); continue; }
+
+      const cash = await cashNow();
+      const riskBudget = Math.min(cash * riskFraction, sleeves.swingRiskUsd);
+      const maxDebit = Math.min(cash * cfg.maxDebitPct, sleeves.swingMaxDebitUsd, riskBudget / 0.5);
+      const holding = String(idea.holdingPeriod ?? pick.holdingPeriod ?? '').toLowerCase();
+      const setup = holding.includes('day') ? 'scalp' : holding.includes('position') ? 'position' : 'swing';
+      const { selectContracts } = await import('./option-selection-engine');
+      const selection = await selectContracts({
+        symbol: idea.symbol, direction, setup,
+        entry: underlyingEntry, stop: underlyingStop, t1: underlyingT1,
+        holdingDays: Number((pick as any).horizonDays ?? idea.horizonDays ?? 0) || undefined,
+        applyDteFit: true, // loss rule 4 (LOSS_RULE_DTE_FIT)
+        conviction: convictionDisplayPercent(pick.convictionScore ?? 0),
+        asOfSpot: Number(pick.currentPrice ?? 0) || undefined,
+        accountSize: cash, riskBudgetDollars: riskBudget, maxDebitDollars: maxDebit,
+        minRoiAtT1Pct: cfg.minContractRoiAtT1Pct,
+      });
+      const recommended = selection.recommendedTier ? selection.picks.find((x) => x.tier === selection.recommendedTier) : null;
+      const selected = recommended && recommended.fitsAccount && recommended.grade !== 'F' ? recommended : null;
+      if (!selected) {
+        refuse('swing', pick, selection.dteGateNote?.startsWith('DTE fit') ? 'dte_fit' : 'no_contract', `${selection.dteGateNote ? `${selection.dteGateNote} — ` : ''}${selection.note ?? 'no contract clears reachability/account gates'} (max debit $${maxDebit.toFixed(0)})`, rank);
+        continue;
+      }
+      const q = await getOptionMark({ underlying: idea.symbol, optionType: selected.optionType, strike: selected.strike, expiryDate: selected.expiry }).catch(() => null);
+      const qv = executableQuote(q as any, { nowMs, maxSpreadPct: cfg.maxOptionSpreadPct, delayedNotBeforeEt: cfg.delayedFillNotBeforeEtMinutes });
+      if (!qv.ok || !q) { refuse('swing', pick, qv.code, qv.reason, rank); continue; }
+      const qi = entryQuoteIssue(q, cfg.delayedFillNotBeforeEtMinutes, optionMarkExecutionIssue);
+      if (qi) { refuse('swing', pick, q.delayed ? 'delayed_quote' : 'stale_quote', qi, rank); continue; }
+      const premium = q.ask; // a long option crosses the spread
+      const tradeable: any = {
+        ...idea,
+        catalyst: `[SWING SLEEVE · ${gtxt} · ${selection.recommendedTier} · ${selected.grade}] ${selected.rationale} ${entryAuditTag(q, new Date())}`,
+        assetType: 'option',
+        optionType: selected.optionType, strikePrice: selected.strike, expiryDate: selected.expiry,
+        currentPrice: premium, entryPrice: premium,
+        targetPrice: Number((premium * 2).toFixed(2)),
+        stopLoss: Number((premium * 0.5).toFixed(2)),
+        qualitySignals: [
+          ...(Array.isArray(idea.qualitySignals) ? idea.qualitySignals : []),
+          sleeveTag('swing'), gradeComponentsTag(grade), `evidence_score:${pick.convictionScore}`, `quote:${qv.stamp}`,
+          ...(rules.botConfluence || rules.botEntryWindow || rules.dteFit ? [LOSS_RULES_TAG] : []),
+          ...(families?.length ? [`confluence:${families.join('+')}`] : []),
+        ],
+      };
+      const effectiveRisk = Math.min(riskFraction, sleeves.swingRiskUsd / Math.max(1, cash));
+      const res = await executeTradeIdea(portfolio.id, tradeable, { riskFraction: effectiveRisk, maxQuantity: Math.max(1, Number(selected.maxContracts ?? 1)) });
+      if (!res.success) { refuse('swing', pick, 'no_fill', res.error ?? 'no fill', rank); continue; }
+      slots--;
+      noteFilled(pick.symbol, side);
+      opened.push({ symbol: pick.symbol, reason: `swing sleeve · ${gtxt} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)} · ${qv.stamp}` });
+      await announceEntry(pick.symbol, tradeable, res, pick, pick.thesis ?? null, grade);
+    }
+  }
+}
+
+/** Discord entry alert — never rolls back a fill. */
+async function announceEntry(symbol: string, tradeable: any, res: any, pick: any | null, analysis: string | null, grade: NexusGrade | null = null): Promise<void> {
+  if (!discordAlerts) return;
+  try {
+    const { sendBotTradeEntryToDiscord } = await import('./discord-service');
+    await sendBotTradeEntryToDiscord({
+      symbol,
+      assetType: 'option',
+      optionType: tradeable.optionType ?? null,
+      strikePrice: tradeable.strikePrice ?? null,
+      expiryDate: tradeable.expiryDate ?? null,
+      entryPrice: Number(tradeable.entryPrice ?? 0),
+      quantity: Number(res.position?.quantity ?? 1),
+      targetPrice: pick?.targetPrice ?? tradeable.targetPrice ?? null,
+      stopLoss: pick?.stopLoss ?? tradeable.stopLoss ?? null,
+      nexusGrade: grade ? { letter: grade.letter, score: grade.score } : null,
+      riskRewardRatio: pick?.riskRewardRatio ?? null,
+      analysis,
+      signals: pick ? (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean) : [],
+      portfolio: 'Quant Bot',
+      source: 'quant-bot',
+    } as any);
+  } catch (err: any) {
+    logger.warn(`[QUANT-BOT] entry alert failed for ${symbol}: ${err?.message ?? err}`);
+  }
+}
+
 
 export interface BotOpenPositionView {
   [k: string]: any;
@@ -995,12 +1115,38 @@ export interface BotStatus {
   /** When marks were last refreshed by a read (re-pricing is throttled to 1/min). */
   repricedAt: string | null;
   lastCycle: BotCycleStamp | null;
+  /** Sleeve capacity in the active run (shared/bot-sleeves.ts). */
+  sleeves: Record<BotSleeve, { held: number; max: number; [k: string]: unknown }>;
 }
 
-export interface BotCycleStamp { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string }
+export interface BotCycleStamp {
+  at: string; origin: string; opened: number; closed: number; skipped: number; openCount: number; error?: string;
+  /** Which process ran it (pid + ROLE) — the web process reads the worker's stamp. */
+  pid?: number; role?: string;
+  /** Why candidates were refused (counts by reason + the best-ranked three). */
+  skipSummary?: SkipSummary;
+  openedList?: BotRunResult['opened'];
+}
+const BOT_CYCLE_SHARED = 'quant-bot-cycle';
 let lastCycle: BotCycleStamp | null = null;
 export function noteBotCycle(origin: string, r: BotRunResult | null, error?: string): void {
-  lastCycle = { at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, openCount: r?.openCount ?? 0, error };
+  lastCycle = {
+    at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, skipped: r?.skipped ?? 0, openCount: r?.openCount ?? 0, error,
+    pid: process.pid, role: processRole(), skipSummary: r?.skipSummary, openedList: r?.opened,
+  };
+  // The bot runs in the worker; the bot page is served by the web process.
+  void import('./lib/shared-state').then(({ writeSharedSync }) => writeSharedSync(BOT_CYCLE_SHARED, lastCycle)).catch(() => {});
+}
+/** The newest cycle stamp: this process's, or the worker's via shared state. */
+async function latestBotCycle(): Promise<BotCycleStamp | null> {
+  try {
+    const { readShared } = await import('./lib/shared-state');
+    const r = readShared<BotCycleStamp>(BOT_CYCLE_SHARED);
+    const shared = r?.data ?? null;
+    if (!lastCycle) return shared;
+    if (!shared) return lastCycle;
+    return Date.parse(shared.at) > Date.parse(lastCycle.at) ? shared : lastCycle;
+  } catch { return lastCycle; }
 }
 // One re-price at a time, at most once a minute. The status endpoint used to
 // re-price the whole book on EVERY read (2–33 s each on prod) and three
@@ -1093,6 +1239,15 @@ export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise
     runs: runStatus,
     config: cfg,
     repricedAt: repricedAt ? new Date(repricedAt).toISOString() : null,
-    lastCycle,
+    lastCycle: await latestBotCycle(),
+    sleeves: (() => {
+      const sc = readBotSleeveConfig(process.env);
+      const held = { '0dte': 0, swing: 0 } as Record<BotSleeve, number>;
+      for (const x of openAll) if (x.runId === portfolio.id) held[sleeveOfPosition(x as any)]++;
+      return {
+        '0dte': { held: held['0dte'], max: sc.zeroDteMax, riskUsd: sc.zeroDteRiskUsd, windows: sc.zeroDteWindows, flattenEt: sc.flattenEt },
+        swing: { held: held.swing, max: sc.swingMax, minGrade: sc.swingMinGrade, riskUsd: sc.swingRiskUsd, maxDebitUsd: sc.swingMaxDebitUsd },
+      };
+    })(),
   };
 }

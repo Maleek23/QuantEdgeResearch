@@ -32,7 +32,7 @@ export interface GeomInput {
   generatedAt?: string | null;
   convictionScore?: number | null;
   /** Derived from the signal's execution ledger, never inferred from spot. */
-  lifecycleState?: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
+  lifecycleState?: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'invalidated' | 'closed';
   /** Peak favourable price seen since entry, when the backend has tracked it. */
   extremePrice?: number | null;
 }
@@ -167,7 +167,7 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   const hitStop = long ? live <= i.stopLoss : live >= i.stopLoss;
   const nearStop = Math.abs(live - i.stopLoss) / risk <= 0.25;
   let status: SignalStatus = 'in_play';
-  if (hitStop) status = 'invalidated';
+  if (i.lifecycleState === 'invalidated' || hitStop) status = 'invalidated';
   else if (!triggered) status = 'pending_trigger';
   else if (progressPct >= 95) status = 'at_target';
   else if (nearStop) status = 'near_stop';

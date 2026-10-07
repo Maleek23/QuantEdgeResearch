@@ -143,7 +143,7 @@ export class WinRateService {
           idea.assetType === 'option' || idea.source === 'flow' || idea.source === 'lotto';
         if (!isOptionish) return true;
         // Keep only measurable option ideas (real captured contract P&L).
-        return typeof idea.optionPercentGain === 'number';
+        return this.isOptionMeasured(idea);
       });
       optionsExcluded = beforeFilter - filtered.length;
     }
@@ -185,7 +185,7 @@ export class WinRateService {
       },
       dataQuality: {
         totalTrades: originalCount,
-        tradesWithPnL: filtered.filter(i => i.percentGain !== null).length,
+        tradesWithPnL: filtered.filter(i => this.outcomePnl(i) != null).length,
         optionsExcluded,
         legacyExcluded,
       }
@@ -204,6 +204,7 @@ export class WinRateService {
   /** The P&L figure that defines this idea's outcome (contract for options, stock otherwise). */
   private static outcomePnl(idea: TradeIdea): number | null {
     if (this.isOptionMeasured(idea)) return idea.optionPercentGain!;
+    if (idea.assetType === 'option') return null;
     return idea.percentGain ?? null;
   }
 

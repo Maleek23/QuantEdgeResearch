@@ -139,6 +139,8 @@ function withAdminProtection<P extends object>(Component: ComponentType<P>) {
 const ProtectedTerminalShell = withBetaProtection(TerminalShell);
 /** DEV-only: the real terminal shell on fixture data (main.tsx installs the mocks) — /dev/gex-phone?tab=gex */
 const DevGexPhone = import.meta.env.DEV ? TerminalShell : null;
+/** DEV-only: the 0DTE desk on fixture data (main.tsx installs dev/zerodte-mocks) — /dev/zerodte?fx=live&mode=dark */
+const DevZeroDte = import.meta.env.DEV ? lazyWithRetry(() => import("@/dev/zerodte-harness"), "dev-zerodte") : null;
 const ProtectedResearchShell = withBetaProtection(ResearchShell);
 const ProtectedTodayPage = withBetaProtection(TodayPage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
@@ -215,6 +217,7 @@ function Router() {
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={ProtectedTerminalShell} />
         {DevGexPhone && <Route path="/dev/gex-phone" component={DevGexPhone} />}
+        {DevZeroDte && <Route path="/dev/zerodte" component={DevZeroDte} />}
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
@@ -378,7 +381,7 @@ function App() {
   // NexusFrame with the rest of the product so navigation never disappears.
   // (/nexus used to be listed here too, but it is a legacy redirect to /t —
   // the redirect renders before this branch could ever matter.)
-  const isFullBleedShell = locationPath === '/t' || (import.meta.env.DEV && locationPath === '/dev/gex-phone');
+  const isFullBleedShell = locationPath === '/t' || (import.meta.env.DEV && (locationPath === '/dev/gex-phone' || locationPath === '/dev/zerodte'));
 
   if (isFullBleedShell) {
     return (

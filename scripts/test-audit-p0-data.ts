@@ -53,14 +53,15 @@ ok(!noQuote.some((e) => ['trigger_confirmed', 'target_hit', 'danger_zone', 'inva
 
 // ── #8/#9 One conviction scale ───────────────────────────────────────────────
 ok(alertScore({ convictionScore: 27 }) === convictionDisplayPercent(27), 'alerts use the display scale');
-ok(convictionDisplayPercent(35) >= HIGH_CONVICTION_DISPLAY, 'a top raw score reaches the 90+ alert (it could not before)');
+ok(convictionDisplayPercent(35) >= HIGH_CONVICTION_DISPLAY, 'a top raw score reaches the top of the display scale');
+// The high alert is now "NEXUS grade A" (the one grade, shared/nexus-grade.ts), not a 90+ evidence score.
 store.clear();
-const fresh = { ...basePick, generatedAt: new Date().toISOString() };
-const hi = detectAlerts([{ ...fresh, ideaId: 'hi', convictionScore: 35 }], DEFAULT_ALERT_PREFS);
+const fresh = { ...basePick, generatedAt: new Date().toISOString(), calledAt: new Date().toISOString() };
+const hi = detectAlerts([{ ...fresh, ideaId: 'hi', convictionScore: 35, layers: [{ kind: 'technical', points: 10, label: 't', why: 'w' }] }], DEFAULT_ALERT_PREFS);
 const hiEv = hi.find((e) => e.type === 'high_conviction');
-ok(hiEv && /\/100/.test(hiEv.detail), 'default-armed 90+ alert fires and prints the display score');
-const lo = detectAlerts([{ ...fresh, ideaId: 'lo', convictionScore: 22 }], DEFAULT_ALERT_PREFS);
-ok(!lo.some((e) => e.type === 'high_conviction'), 'a mid score does not fire 90+');
+ok(hiEv && /NEXUS grade A/.test(hiEv.title) && /^A \d+/.test(hiEv.detail), 'default-armed grade-A alert fires and prints the grade');
+const lo = detectAlerts([{ ...fresh, ideaId: 'lo', convictionScore: 5 }], DEFAULT_ALERT_PREFS);
+ok(!lo.some((e) => e.type === 'high_conviction'), 'a weak setup does not fire grade A');
 
 // ── #20/#21 Catalyst rows ────────────────────────────────────────────────────
 const conf = normalizeCatalystRow({ symbol: 'nvda', direction: 'short', convictionScore: 25, events: [{ title: 'FDA', daysAway: 3 }] }, 'confluence');

@@ -267,6 +267,9 @@ t('a recorded exit premium above the contract maximum (call ≤ S, put ≤ K) is
   const s = src('server/performance-validation-service.ts');
   assert.match(s, /safeIntrinsic\(isCall \? 'call' : 'put', strike, underlyingExit\)/);
   assert.match(s, /exceedsOptionValue\(effective/);
+  // merged with the Codex expiry-settlement path: intrinsic only on a strike-scale settlement print; capped pass marks are withheld, not 'pass'
+  assert.match(s, /fillOnStrikeScale\(settlementSpot, strike\)/);
+  assert.match(s, /if \(effective == null\) \{\s*optionPremiumBasis = 'withheld'/);
   assert.match(src('research/repair-option-gains.ts'), /safeIntrinsic\(x\.option_type, k, und\)/);
 });
 t('service wiring: barrier option exits priced via the touch helper, stop gains logged', () => {

@@ -54,6 +54,14 @@ export interface PreMarketSnapshot {
   postMarketAt?: string | null;
   /** Yahoo's regular-session price (the close once the session ends). */
   regularMarketPrice?: number | null;
+  /** Today's regular-session open (first regular 1-minute bar), when the session has printed. */
+  sessionOpen?: number | null;
+  /** Regular-session VWAP from today's 1-minute bars (typical price × volume). */
+  vwap?: number | null;
+  /** Close of the regular 1-minute bar ~30 minutes before the last regular print. */
+  price30mAgo?: number | null;
+  /** Time of the last regular-session 1-minute bar (ISO). */
+  regularAt?: string | null;
 }
 
 interface CacheEntry {
@@ -128,6 +136,34 @@ async function fetchYahooMeta(symbol: string): Promise<any | null> {
         for (let i = ts.length - 1; i >= 0; i--) {
           if (ts[i] >= post.start && ts[i] < post.end && cl[i] != null && Number(cl[i]) > 0) {
             meta.__postLast = Number(cl[i]); meta.__postLastAt = ts[i] * 1000; break;
+          }
+        }
+      }
+      // Regular-session path from the same 1-minute bars (no extra request):
+      // session open, VWAP, the last regular print and the price ~30 min before
+      // it — the sector board's live pass reads "since open", "last 30m" and
+      // members above VWAP from these.
+      const reg = meta.currentTradingPeriod?.regular;
+      if (reg?.start && reg?.end) {
+        const qq = r?.indicators?.quote?.[0] || {};
+        const op: Array<number | null> = qq.open ?? []; const hi: Array<number | null> = qq.high ?? [];
+        const lo: Array<number | null> = qq.low ?? []; const vo: Array<number | null> = qq.volume ?? [];
+        let pv = 0; let vv = 0; let firstOpen: number | null = null; let lastI = -1;
+        for (let i = 0; i < ts.length; i++) {
+          if (ts[i] < reg.start || ts[i] >= reg.end) continue;
+          const c = Number(cl[i]);
+          if (!(c > 0)) continue;
+          if (firstOpen == null) firstOpen = Number(op[i]) > 0 ? Number(op[i]) : c;
+          const v = Number(vo[i]) || 0; const h = Number(hi[i]) || c; const l = Number(lo[i]) || c;
+          pv += ((h + l + c) / 3) * v; vv += v; lastI = i;
+        }
+        if (lastI >= 0) {
+          meta.__rthOpen = firstOpen; meta.__rthLastAt = ts[lastI] * 1000;
+          if (vv > 0) meta.__rthVwap = pv / vv;
+          const cut = ts[lastI] - 30 * 60;
+          for (let i = lastI; i >= 0; i--) {
+            if (ts[i] < reg.start) break;
+            if (ts[i] <= cut && Number(cl[i]) > 0) { meta.__rth30 = Number(cl[i]); break; }
           }
         }
       }
@@ -210,6 +246,10 @@ export function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreM
       ? ((meta.__postLast - regularPrice) / regularPrice) * 100 : null,
     postMarketAt: Number.isFinite(meta.__postLastAt) ? new Date(meta.__postLastAt).toISOString() : null,
     regularMarketPrice: Number.isFinite(regularPrice) && regularPrice > 0 ? regularPrice : null,
+    sessionOpen: Number(meta.__rthOpen) > 0 ? Number(meta.__rthOpen) : null,
+    vwap: Number(meta.__rthVwap) > 0 ? Number(meta.__rthVwap) : null,
+    price30mAgo: Number(meta.__rth30) > 0 ? Number(meta.__rth30) : null,
+    regularAt: Number.isFinite(meta.__rthLastAt) ? new Date(meta.__rthLastAt).toISOString() : null,
   };
 }
 /**

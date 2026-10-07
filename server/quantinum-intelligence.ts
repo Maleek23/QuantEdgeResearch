@@ -13,7 +13,7 @@
  * short gate verdict rides along so a bearish lean is always shown next to
  * whether the discipline rule would even allow acting on it.
  */
-import { convictionBandForScore, convictionLetterGrade } from '../shared/conviction-bands';
+import { gradePick, nexusGradeLine } from '../shared/nexus-grade';
 import { logger } from './logger';
 
 export interface QuantinumLayer {
@@ -269,13 +269,12 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     const pick: any = (board?.picks ?? []).find((p: any) => p.symbol === sym);
     if (pick) {
       const dirLong = pick.direction !== 'short';
-      // Points by the shared band (S/A/B/C) — v1 used private 40/25 cutoffs and printed
-      // pick.grade, a field ConvictionPick does not carry.
-      const band = convictionBandForScore(pick.convictionScore);
-      const pts = (band === 'S' ? 6 : band === 'A' ? 4 : 2) * (dirLong ? 1 : -1);
+      // Points by the ONE grade (shared/nexus-grade.ts) — the letter every surface shows.
+      const g = gradePick(pick);
+      const pts = (g.letter === 'A' ? 6 : g.letter === 'B' ? 4 : 2) * (dirLong ? 1 : -1);
       layers.push({
         kind: 'cockpit', label: 'Cockpit signal', points: pts,
-        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} at conviction ${pick.convictionScore} (band ${band} · ${convictionLetterGrade(pick.convictionScore)}) — the funnel's own live pick on this name`,
+        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} — ${nexusGradeLine(g)} — the funnel's own live pick on this name`,
         source: 'conviction board',
       });
     }

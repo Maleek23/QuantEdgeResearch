@@ -20,6 +20,7 @@ import {
   type JournalTrade, type Trader,
 } from '@shared/schema';
 import { OUTCOME_BASELINE_DATE } from '@shared/constants';
+import { auditBotOptionFill } from '@shared/bot-fill-verification';
 import {
   DESK_STOCK_NOTIONAL, assetOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
   type DeskIdea, type JournalWireRow,
@@ -176,6 +177,9 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
     if (closed && (p.realizedPnL == null || !Number.isFinite(p.realizedPnL))) { unpriced++; continue; }
     const pnl = closed ? r2(p.realizedPnL!) : null;
     const option = p.assetType === 'option';
+    const measurement = option
+      ? closed ? auditBotOptionFill(p) : { status: 'pending' as const, reason: 'open position — no realized outcome yet' }
+      : { status: 'not_applicable' as const, reason: 'not an option fill' };
     const thesis = option && p.direction === 'short' ? 'bearish thesis' : option ? 'bullish thesis' : null;
     const run = runOf.get(p.portfolioId);
     const marked = !closed && p.currentPrice != null && !!p.lastPriceUpdate;
@@ -186,6 +190,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       p.targetPrice != null || p.stopLoss != null ? `Plan: target ${p.targetPrice ?? '—'} · stop ${p.stopLoss ?? '—'}` : null,
       closed ? `Exit: ${p.exitReason ?? 'reason not recorded'}` : p.currentPrice != null
         ? `Open — last mark ${p.currentPrice} (${ago(p.lastPriceUpdate, now)}, not live)` : 'Open — no mark recorded yet',
+      option && closed ? `Fill: ${measurement.status === 'verified' ? 'verified fill' : 'unverified fill'} — ${measurement.reason}` : null,
     ].filter(Boolean).join('\n');
     rows.push({
       id: `bot:${p.id}`,
@@ -209,6 +214,8 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       grossPnL: pnl,
       status: closed ? 'closed' : 'open',
       outcome: outcomeOf(pnl),
+      measurementStatus: measurement.status,
+      measurementNote: measurement.reason,
       notes,
       emotion: null,
       setupType: (p.tradeIdeaId && sourceOf.get(p.tradeIdeaId)) || null,
@@ -244,8 +251,15 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
     riskRewardRatio: tradeIdeas.riskRewardRatio, optionType: tradeIdeas.optionType, strikePrice: tradeIdeas.strikePrice,
     expiryDate: tradeIdeas.expiryDate, entryPremium: tradeIdeas.entryPremium, exitPremium: tradeIdeas.exitPremium,
     optionPercentGain: tradeIdeas.optionPercentGain, exitPrice: tradeIdeas.exitPrice, percentGain: tradeIdeas.percentGain,
-    outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason, exitDate: tradeIdeas.exitDate,
+    outcomeStatus: tradeIdeas.outcomeStatus, outcomeNotes: tradeIdeas.outcomeNotes,
+    resolutionReason: tradeIdeas.resolutionReason, exitDate: tradeIdeas.exitDate,
     timestamp: tradeIdeas.timestamp, source: tradeIdeas.source, catalyst: tradeIdeas.catalyst, genConvictionBand: tradeIdeas.genConvictionBand,
+    genConvictionScore: tradeIdeas.genConvictionScore, genScoringLayers: tradeIdeas.genScoringLayers,
+    generationTimestamp: tradeIdeas.generationTimestamp, holdingPeriod: tradeIdeas.holdingPeriod, exitBy: tradeIdeas.exitBy,
+    // Only the plan snapshot + the logged grade — the full JSON is large and this reads every desk row.
+    convergenceSignalsJson: sql<unknown>`json_build_object('planSnapshot', (${tradeIdeas.convergenceSignalsJson})::jsonb -> 'planSnapshot')`,
+    nexusGradeAtPublish: sql<{ letter?: string; score?: number } | null>`(${tradeIdeas.convergenceSignalsJson})::jsonb -> 'nexusGradeAtPublish'`,
+    exitPremiumBasis: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-premium:(touch_bar|pass|withheld)\\]')`,
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
     exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-time:([a-z_]+)\\]')`,
     highestPriceReached: tradeIdeas.highestPriceReached, lowestPriceReached: tradeIdeas.lowestPriceReached,

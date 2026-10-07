@@ -198,3 +198,44 @@
   .sx-cadence{display:none}
 }
 @media (prefers-reduced-motion:reduce){.sx-line path:last-child{transition:none}}
+
+/* ── live layer (shared/sector-board-live.ts): pulse, flashes, rank moves, sparklines ── */
+.sx-pulse{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:3px;border:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 10.5px 'JetBrains Mono',monospace}
+.sx-pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--text-mute)}
+.sx-pulse.on{color:var(--text);border-color:color-mix(in srgb,var(--green) 45%,transparent)}
+.sx-pulse.on .sx-pulse-dot{background:var(--green);animation:sx-pulse 2s ease-out infinite}
+.sx-pulse.stale{border-color:color-mix(in srgb,var(--amber) 45%,transparent);color:var(--amber)}
+.sx-pulse.stale .sx-pulse-dot{background:var(--amber)}
+@keyframes sx-pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 60%,transparent)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.sx-flash-up{animation:sx-flash-up 1.4s ease-out}
+.sx-flash-dn{animation:sx-flash-dn 1.4s ease-out}
+@keyframes sx-flash-up{0%{background:color-mix(in srgb,var(--sx-climb) 32%,transparent)}100%{background:transparent}}
+@keyframes sx-flash-dn{0%{background:color-mix(in srgb,var(--sx-slide) 32%,transparent)}100%{background:transparent}}
+.sx-rmoves{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
+.sx-rmove{font:600 10.5px 'JetBrains Mono',monospace;white-space:nowrap}
+.sx-rmove small{font-size:9px;margin-left:1px;color:var(--text-mute)}
+.sx-spark{display:block;overflow:visible}
+.sx-spark path{stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+.sx-spark.up path{stroke:var(--sx-climb)}
+.sx-spark.up circle{fill:var(--sx-climb)}
+.sx-spark.dn path{stroke:var(--sx-slide)}
+.sx-spark.dn circle{fill:var(--sx-slide)}
+.sx-spark-zero{stroke:var(--nx-border-hi);stroke-dasharray:2 3}
+.sx-spark-open{stroke:var(--text-mute);stroke-width:1;opacity:.5}
+.sx-spark-empty{display:inline-block;min-width:84px;text-align:center}
+.sx-card-spark{margin:6px 0 2px}
+.sx-updn{font:600 11.5px 'JetBrains Mono',monospace;white-space:nowrap}
+.sx-updn small{color:var(--text-mute);font-weight:500}
+.sx-members em{font-style:normal;color:var(--amber)}
+.sx-unread-all{color:var(--amber)}
+.sx-unread{margin:4px 0 8px;font:500 11px 'JetBrains Mono',monospace;color:var(--amber);line-height:1.5}
+.sx-live-kpis{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 12px}
+.sx-live-kpis .sx-kpi{min-width:120px}
+.sx-kpi-spark{min-width:200px}
+.sx-axis-live{fill:var(--green)}
+.sx-today-dot{animation:sx-dot 2.4s ease-in-out infinite}
+@keyframes sx-dot{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){
+  .sx-pulse.on .sx-pulse-dot,.sx-today-dot,.sx-flash-up,.sx-flash-dn{animation:none}
+  .sx-table tbody tr,.sx-card{transition:none!important;transform:none!important}
+}

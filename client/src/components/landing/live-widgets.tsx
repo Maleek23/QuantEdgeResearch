@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useQuery } from '@tanstack/react-query';
-import { convictionDisplayPercent } from '@shared/conviction-display';
+import { gradeOfLoosePick, nexusGradeColor, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { useVisualMode } from '@/lib/visual-mode';
 
 /** Canvas can't read CSS variables: resolve `var(--x)` (or a hex) against an
@@ -36,6 +36,9 @@ export interface Pick {
   convictionScore?: number | null; publishedConvictionBand?: string | null; convictionBand?: string | null;
   currentPrice?: number | null;
   ideaId?: string | null;
+  /** read by the NEXUS grade (shared/nexus-grade.ts) */
+  calledAt?: string | null; generatedAt?: string | null; holdingPeriod?: string | null; assetType?: string | null;
+  source?: string | null; expiryDate?: string | null; exitBy?: string | null; layers?: Array<{ kind?: string | null; points?: number | null }> | null;
 }
 export interface ConvictionsPayload { generatedAt?: string; picks?: Pick[] }
 export interface CryptoPulse { assets?: { symbol: string; price: number; change24h?: number | null }[] }
@@ -198,10 +201,10 @@ export const CHECK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
 export function SigCard({ p, chart = true, href }: { p: Pick; chart?: boolean; href?: string }) {
   const { data } = useDaily(p.symbol, '1mo', '1d', chart);
   const bars = data?.data ?? [];
-  const band = (p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0);
+  // The one grade (shared/nexus-grade.ts); legacy evidence bands are not shown here.
+  const grade = gradeOfLoosePick(p as any);
   const dir = (p.direction ?? 'long').toLowerCase();
-  // Mode tokens, not literals: #fbbf24 / #facc15 were 1.6–1.8:1 as text on the light ground.
-  const bandColor = band === 'S' || band === 'B' ? 'var(--amber)' : band === 'A' ? 'var(--cyan)' : 'var(--text-dim)';
+  const bandColor = grade ? nexusGradeColor(grade.letter) : 'var(--text-dim)';
   const live = p.currentPrice; const entry = p.entryPrice;
   const pnl = live != null && entry ? ((live - entry) / entry) * (dir === 'short' ? -100 : 100) : null;
   const fmt = (v?: number | null) => v == null ? '—' : `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2)}`;
@@ -210,8 +213,8 @@ export function SigCard({ p, chart = true, href }: { p: Pick; chart?: boolean; h
       title={`Open ${p.symbol} selected on NEXUS`}>
       <div className="lsig-head">
         <div className="lsig-ticker">{p.symbol}</div>
-        <div className="lsig-band" style={{ background: `color-mix(in srgb, ${bandColor} 11%, transparent)`, color: bandColor, border: `1px solid color-mix(in srgb, ${bandColor} 30%, transparent)` }}>{band}</div>
-        <div className="lsig-ev">{typeof p.convictionScore === 'number' ? <><b>{convictionDisplayPercent(p.convictionScore)}</b>/100 evidence</> : <b>open position</b>}{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
+        {grade && <div className="lsig-band" title={nexusGradeTitle(grade)} style={{ background: `color-mix(in srgb, ${bandColor} 11%, transparent)`, color: bandColor, border: `1px solid color-mix(in srgb, ${bandColor} 30%, transparent)` }}>{grade.letter}</div>}
+        <div className="lsig-ev">{grade ? <><b>{formatNexusGrade(grade)}</b> {NEXUS_GRADE_LABEL}</> : typeof p.convictionScore === 'number' ? <b>grade unavailable</b> : <b>open position</b>}{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
       </div>
       <div className="lsig-type">
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>

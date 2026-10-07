@@ -33,7 +33,6 @@
 import { readShared, writeSharedSync } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
-import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
 import { getSpxPerSpy, type SpxRatio } from './spx-ratio';
 import { getIntradayStructure } from './zero-dte-structure';
@@ -677,12 +676,11 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   };
 
   try {
-    const created = await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
-    const { isDedupedResult } = await import('./lib/instrument-dedup');
-    if (isDedupedResult(created)) {
+    const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+    if (!(await persistPreparedTradeIdea(tradeIdea, { cooldownMs: 0, dedupWindowHours: 0.5, intradayContract: true }))) {
       // Same contract already open / published this session — no re-alert.
       recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
-      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not republished — existing idea ${(created as any)?.id}`);
+      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not published — a shared persistence gate blocked it`);
       return false;
     }
     recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
@@ -752,6 +750,8 @@ export interface IndexScalpResult {
   waits?: Record<string, string[]>;
   /** ISO — when this pass ran (a cached result is returned inside the min interval). */
   ranAt?: string;
+  /** ISO — fetchedAt of the GEX snapshot each symbol was evaluated on (null = no snapshot). The 0DTE desk's health line reads SPY. */
+  gexAt?: Record<string, string | null>;
 }
 
 function etMinutesNow(now = new Date()): number {
@@ -882,6 +882,7 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
   const spySnap = snaps.get('SPY');
   const { noteIndexCycle } = await import('./index-engine-health');
   noteIndexCycle('scan', spySnap ?? null);
+  const gexAt: Record<string, string | null> = Object.fromEntries(symbols.map((sym) => [sym, snaps.get(sym)?.fetchedAt ?? null]));
 
   // SPX is not SPY × 10. The ratio drifts enough to move a 0DTE suggestion by
   // several strikes (roughly 10.05). Live Yahoo ^GSPC ÷ SPY, else the last live
@@ -959,7 +960,7 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
     if (await persistScalp(idea, opts)) persisted++;
   }
 
-  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt };
+  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt, gexAt };
 }
 
 // ─── Intraday Scheduler ─────────────────────────────────────

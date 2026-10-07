@@ -16,7 +16,9 @@
  *   population  published ideas with timestamp >= OUTCOME_BASELINE_DATE,
  *               excluding excludeFromTraining and synthetic backfill rows
  *   win / loss  classifyOutcomeV2 (target, stop, or MEASURED close/expiry by P&L sign;
- *               unmeasured expiries, missed entries, unit-corrupted options = unresolved)
+ *               options require tagged execution exits or exact intrinsic settlement;
+ *               touch-bar/tracker-pass marks, unmeasured expiries, missed entries, and
+ *               unit-corrupted options = unresolved)
  *   winRate     reportableRate(wins, decided) — null under MIN_REPORTABLE_SAMPLE
  *   expectancy  mean realisedR over resolved ideas (R = P&L ÷ 50% premium risk)
  *   coverage    decided / total — shown beside the rate, never hidden

@@ -311,7 +311,7 @@ function botRules(c: BotBookInfo['config'], trades: JTrade[]): RuleRow[] {
   const hhmm = `${Math.floor(c.delayedFillNotBeforeEtMinutes / 60)}:${String(c.delayedFillNotBeforeEtMinutes % 60).padStart(2, '0')}`;
   const notMeasured = <span className="jr-mute">Not measurable here — refusals are logged, not stored</span>;
   return [
-    { rule: 'Conviction floor', value: `≥ ${c.minConviction} pts`, what: 'Only signals at or above this raw confluence score (bands: S ≥ 25 · A ≥ 19 · B ≥ 13).',
+    { rule: 'Entry selection', value: 'two sleeves', what: 'Since 2026-10-06 the raw confluence score is not an entry floor: 0DTE sleeve (index + mega-cap 0–2 DTE ideas, 09:35–11:30 ET) and swing sleeve (top NEXUS grade). Earlier fills passed the old floor of ' + c.minConviction + ' pts.',
       measured: <>Every fill passed it: n={closed.length} closed · {fmtPct(closed.length ? wins / closed.length : null)} win · expectancy <Pnl value={closed.length ? net / closed.length : null} /> <LowSample n={closed.length} /></> },
     { rule: 'Max open positions', value: String(c.maxOpen), what: 'Concurrent positions the bot will hold.',
       measured: <>Peak held at once: <b>{peak}</b> {peak > c.maxOpen ? <span className="jr-loss">(above the cap)</span> : <span className="jr-dim">(within)</span>} · n={trades.length} fills</> },

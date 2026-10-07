@@ -576,7 +576,7 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
   const cls = (row: LossRow, bars: Bar[]) => analyseTrade(row, { h1: bars, d1: null }, t0 + 400 * H);
 
   // Context parsing: desk notes → plan, exit category, conviction; option thesis from the contract.
-  const c = tradeContext(lrow({ notes: 'plan: entry 412.5 · target 430 · stop 405\nconviction band at publish: A\noutcome: expired (time)' }));
+  const c = tradeContext(lrow({ notes: 'plan: entry 412.5 · target 430 · stop 405\nNEXUS grade at publish: A 91 (actionability, unvalidated)\ndiagnostics (unvalidated): conviction band S\noutcome: expired (time)' }));
   assert.deepEqual([c.planEntry, c.target, c.stop, c.exitCat, c.conviction], [412.5, 430, 405, 'expired', 'A']);
   assert.equal(tradeContext(lrow({ assetType: 'option', optionType: 'put', direction: 'long' })).thesis, 'short', 'a bought put is short the underlying');
   assert.equal(tradeContext(lrow({ notes: 'Exit: stop loss hit' })).exitCat, 'stop', 'bot exit reason');

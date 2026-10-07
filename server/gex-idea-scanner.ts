@@ -402,9 +402,8 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
   if (snapStamp) tradeIdea.convergenceSignalsJson = { ...(tradeIdea.convergenceSignalsJson ?? {}), levelSnap: snapStamp };
 
   try {
-    const created = await storage.createTradeIdea(tradeIdea as any);
-    const { isDedupedResult } = await import("./lib/instrument-dedup");
-    if (isDedupedResult(created)) return false;
+    const { persistPreparedTradeIdea } = await import("./trade-idea-ingestion");
+    if (!(await persistPreparedTradeIdea(tradeIdea))) return false;
     const label = tradeIdea.assetType === "option"
       ? `${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} exp ${tradeIdea.expiryDate}`
       : `stock ${c.direction}`;

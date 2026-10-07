@@ -23,6 +23,7 @@
  * Chrome (topbar/tape/bottombar) belongs to the terminal shell — this renders
  * the mock's main area only, exactly like NexusBoard.
  */
+import { gradeOfLoosePick, formatNexusGrade } from '@/components/canon/nexus-grade';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
@@ -319,7 +320,7 @@ export function ChartLabChartPane() {
           <div className={`chart-badge${pick ? ' has-signal' : ''}`}>
             <span className="dot" />
             {pick
-              ? `${pick.convictionBand} · ${pick.convictionScore > 0 ? '+' : ''}${pick.convictionScore} evidence`
+              ? (() => { const g = gradeOfLoosePick(pick as any); return g ? `NEXUS grade ${formatNexusGrade(g)}` : 'published signal'; })()
               : 'no published signal'}
           </div>
         </div>

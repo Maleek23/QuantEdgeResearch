@@ -11,6 +11,7 @@
  * State lives in localStorage so an alert fires once, not on every poll, and survives a
  * reload. Quiet hours and per-type toggles are respected before anything is emitted.
  */
+import { gradePick, formatNexusGrade, NEXUS_GRADE_CAVEAT, type NexusGrade } from '@shared/nexus-grade';
 import type { ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalStatus } from '@/lib/oracle/signal-geometry';
 import { liveMark } from '@shared/live-mark';
@@ -57,6 +58,7 @@ export interface AlertPrefs {
   quietHours: { on: boolean; start: number; end: number }; // local hours, 0–23
   /** only alert on tickers in the watchlist */
   watchlistOnly: boolean;
+  /** Minimum NEXUS grade score (0–100) to alert on; 0 = everything. (Key kept for stored prefs.) */
   minConviction: number;
 }
 
@@ -67,7 +69,7 @@ export const ALERT_LABELS: Record<AlertType, string> = {
   danger_zone:       'Danger zone',
   invalidated:       'Invalidation',
   rating_jump:       'Rating moved',
-  high_conviction:   'High conviction (90+)',
+  high_conviction:   'NEXUS grade A',
 };
 
 export const DEFAULT_ALERT_PREFS: AlertPrefs = {
@@ -88,8 +90,8 @@ const STATE_KEY = 'qe-alert-state-v2';
 const FEED_KEY  = 'qe-alert-feed-v1';
 const MAX_FEED  = 60;
 
-/** status is null when the idea has never been seen with a live quote. score is on the display scale. */
-interface Seen { status: SignalStatus | null; score: number; at: number }
+/** status is null when the idea has never been seen with a live quote. score = NEXUS grade score; letter = its letter (older stored state lacks it). */
+interface Seen { status: SignalStatus | null; score: number; letter?: string; at: number }
 
 function read<T>(key: string, fallback: T): T {
   try { const r = localStorage.getItem(key); return r ? { ...fallback, ...JSON.parse(r) } : fallback; }
@@ -127,9 +129,10 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
   const out: AlertEvent[] = [];
   const quiet = inQuietHours(prefs);
 
+  let gradeNow: NexusGrade | null = null;
   const push = (type: AlertType, p: ConvictionPick, title: string, detail: string, tone: AlertEvent['tone']) => {
     if (!prefs.enabled[type]) return;
-    if (alertScore(p) < prefs.minConviction) return;
+    if ((gradeNow?.score ?? 0) < prefs.minConviction) return;
     out.push({ id: `${p.ideaId}:${type}:${now}`, type, symbol: p.symbol, ideaId: p.ideaId, title, detail, tone, at: now });
   };
 
@@ -147,8 +150,10 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
       // trigger/target/danger alerts could never fire.
       lifecycleState: p.lifecycleState,
     });
-    const score = alertScore(p);
     const prev = seen[p.ideaId];
+    // The ONE grade (shared/nexus-grade.ts) on the live price.
+    const grade = gradePick({ ...p, currentPrice: live }, now);
+    gradeNow = grade;
 
     if (!prev) {
       // First sighting. Only announce it as NEW if the engine just generated it —
@@ -157,10 +162,10 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
       if (ageMs < 2 * 3600_000) {
         const rr = p.riskRewardRatio ?? g?.rr;
         push('new_signal', p, `${p.symbol} — new ${p.direction === 'long' ? 'long' : 'short'}`,
-          `${p.convictionBand}-band${rr != null ? ` · R:R 1:${rr.toFixed(1)}` : ''}`, 'info');
+          `NEXUS grade ${formatNexusGrade(grade)}${rr != null ? ` · R:R 1:${rr.toFixed(1)}` : ''}`, 'info');
       }
-      if (score >= HIGH_CONVICTION_DISPLAY) {
-        push('high_conviction', p, `${p.symbol} — high conviction`, `Score ${score}/100`, 'good');
+      if (grade.letter === 'A') {
+        push('high_conviction', p, `${p.symbol} — NEXUS grade A`, `${formatNexusGrade(grade)} · ${NEXUS_GRADE_CAVEAT}`, 'good');
       }
     } else {
       // status transitions — the events worth interrupting for (live quote only)
@@ -180,18 +185,19 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
           push('invalidated', p, `${p.symbol} — invalidated`, `Stop ${p.stopLoss} taken out`, 'bad');
         }
       }
-      // rating moves — only when the change is material (display points)
-      const delta = score - prev.score;
-      if (Math.abs(delta) >= RATING_JUMP_DISPLAY) {
-        push('rating_jump', p, `${p.symbol} — rating ${delta > 0 ? 'up' : 'down'} ${Math.abs(delta)}`,
-          `Now ${score}/100 (${p.convictionBand}-band)`, delta > 0 ? 'good' : 'bad');
+      // grade moves — on a LETTER change only: the score drifts as the window
+      // runs down, and a points threshold would fire on that decay.
+      if (prev.letter && prev.letter !== grade.letter) {
+        const up = grade.letter < prev.letter;
+        push('rating_jump', p, `${p.symbol} — NEXUS grade ${prev.letter} → ${grade.letter}`,
+          `Now ${formatNexusGrade(grade)}`, up ? 'good' : 'bad');
       }
-      if (prev.score < HIGH_CONVICTION_DISPLAY && score >= HIGH_CONVICTION_DISPLAY) {
-        push('high_conviction', p, `${p.symbol} — high conviction`, `Score ${score}/100`, 'good');
+      if (prev.letter && prev.letter !== 'A' && grade.letter === 'A') {
+        push('high_conviction', p, `${p.symbol} — NEXUS grade A`, `${formatNexusGrade(grade)} · ${NEXUS_GRADE_CAVEAT}`, 'good');
       }
     }
 
-    seen[p.ideaId] = { status: g ? g.status : (prev?.status ?? null), score, at: now };
+    seen[p.ideaId] = { status: g ? g.status : (prev?.status ?? null), score: grade.score, letter: grade.letter, at: now };
   }
 
   // prune ideas we no longer track
