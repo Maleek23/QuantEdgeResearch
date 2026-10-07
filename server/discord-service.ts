@@ -7,6 +7,7 @@ import { getLetterGrade as canonicalLetterGrade } from './grading';
 import { isOptionsMarketOpen } from './paper-trading-service';
 import { formatInTimeZone } from 'date-fns-tz';
 import { createHash } from 'node:crypto';
+import { isLabsWebhook, labsIdeaWebhook, lifecycleEnabled, normalizeWebhookUrl } from './discord-lifecycle';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
@@ -19,6 +20,12 @@ const DISCORD_WINDOW_MS = 10 * 60 * 1000;
 const DISCORD_MAX_PER_WINDOW = Math.max(1, Number(process.env.DISCORD_MAX_PER_10_MIN ?? 6));
 const DISCORD_MIN_INTERVAL_MS = Math.max(0, Number(process.env.DISCORD_MIN_INTERVAL_MS ?? 4_000));
 const DISCORD_DUPLICATE_TTL_MS = 6 * 60 * 60 * 1000;
+// Labs lane (lifecycle cards / replies, server/discord-lifecycle.ts): the channel
+// is ours and every message is one idea event, so it gets Discord's own pace
+// (~30/min/channel) bounded at 30 per 10 min, 1 s apart. Anything over that is
+// QUEUED by the lifecycle outbox (204 here = held, never dropped) and batched.
+const LABS_MAX_PER_WINDOW = Math.max(1, Number(process.env.DISCORD_LABS_MAX_PER_10_MIN ?? 30));
+const LABS_MIN_INTERVAL_MS = Math.max(0, Number(process.env.DISCORD_LABS_MIN_INTERVAL_MS ?? 1_000));
 const webhookTraffic = new Map<string, { sentAt: number[]; signatures: Map<string, number> }>();
 
 function messageSignature(init?: RequestInit): string | null {
@@ -62,23 +69,43 @@ export function withDiscordDisclaimer(init?: RequestInit): RequestInit | undefin
   }
 }
 
-export async function postDiscordWebhook(webhookUrl: string, rawInit?: RequestInit): Promise<Response> {
+/**
+ * QuantEdge Labs guard (2026-10-07): the five Labs webhooks (#nexus-trade-ideas,
+ * #0dte-ideas, #swing-ideas, #sector-rotation, #quantinum-bot) take lifecycle
+ * cards only — server/discord-lifecycle.ts posts them with lane 'labs'. Any other
+ * publisher (flow / whale / market movers / premarket / batch summaries …) whose
+ * legacy env happens to hold a Labs URL is suppressed here, so generic spam can
+ * never reach those channels whatever the env says.
+ *
+ * Edits (PATCH a card) are not new messages: they skip the rate and duplicate
+ * gates. Rate / duplicate state is keyed by the webhook itself (query and
+ * /messages/… stripped), so ?wait=true does not open a second allowance.
+ */
+export async function postDiscordWebhook(webhookUrl: string, rawInit?: RequestInit, opts?: { lane?: 'labs' }): Promise<Response> {
+  if (opts?.lane !== 'labs' && isLabsWebhook(webhookUrl)) {
+    logger.warn('[DISCORD] Labs channel takes lifecycle cards only — non-lifecycle post suppressed');
+    return new Response(null, { status: 204 });
+  }
   const init = withDiscordDisclaimer(rawInit);
+  if (String(init?.method ?? 'POST').toUpperCase() === 'PATCH') return fetch(webhookUrl, init);
+  const trafficKey = normalizeWebhookUrl(webhookUrl);
   const now = Date.now();
-  const state = webhookTraffic.get(webhookUrl) ?? { sentAt: [], signatures: new Map<string, number>() };
+  const state = webhookTraffic.get(trafficKey) ?? { sentAt: [], signatures: new Map<string, number>() };
   state.sentAt = state.sentAt.filter((at) => now - at < DISCORD_WINDOW_MS);
   for (const [signature, at] of state.signatures) if (now - at >= DISCORD_DUPLICATE_TTL_MS) state.signatures.delete(signature);
   const signature = messageSignature(init);
 
   if (signature && state.signatures.has(signature)) {
     logger.info('[DISCORD] duplicate suppressed at webhook boundary');
-    webhookTraffic.set(webhookUrl, state);
+    webhookTraffic.set(trafficKey, state);
     return new Response(null, { status: 204 });
   }
   const lastSent = state.sentAt.at(-1) ?? 0;
-  if (state.sentAt.length >= DISCORD_MAX_PER_WINDOW || now - lastSent < DISCORD_MIN_INTERVAL_MS) {
-    logger.warn(`[DISCORD] rate gate suppressed send (${state.sentAt.length}/${DISCORD_MAX_PER_WINDOW} in 10m)`);
-    webhookTraffic.set(webhookUrl, state);
+  const maxPer = opts?.lane === 'labs' ? LABS_MAX_PER_WINDOW : DISCORD_MAX_PER_WINDOW;
+  const minGap = opts?.lane === 'labs' ? LABS_MIN_INTERVAL_MS : DISCORD_MIN_INTERVAL_MS;
+  if (state.sentAt.length >= maxPer || now - lastSent < minGap) {
+    logger.warn(`[DISCORD] rate gate held send (${state.sentAt.length}/${maxPer} in 10m${now - lastSent < minGap ? `, <${minGap}ms since last` : ''})${opts?.lane === 'labs' ? ' — lifecycle outbox will retry' : ''}`);
+    webhookTraffic.set(trafficKey, state);
     return new Response(null, { status: 204 });
   }
 
@@ -86,7 +113,7 @@ export async function postDiscordWebhook(webhookUrl: string, rawInit?: RequestIn
   if (response.ok) {
     state.sentAt.push(now);
     if (signature) state.signatures.set(signature, now);
-    webhookTraffic.set(webhookUrl, state);
+    webhookTraffic.set(trafficKey, state);
   }
   return response;
 }
@@ -610,34 +637,15 @@ export function markTradeIdeaShared(idea: TradeIdea): void {
 }
 
 /**
- * QuantEdge Labs Discord (operator's own server, 2026-10-07). When set, these
- * take precedence over the legacy channel routing below:
+ * QuantEdge Labs Discord (operator's own server, 2026-10-07). Routing lives in
+ * server/discord-lifecycle.ts (ideaChannel / labsIdeaWebhook):
  *   DISCORD_WEBHOOK_0DTE_IDEAS  — index / SPX / 0–1 DTE ideas and index scalps (#0dte-ideas)
  *   DISCORD_WEBHOOK_ROTATION_IDEAS — sector_rotation / sector_ignition / leaders ideas (#sector-rotation)
  *   DISCORD_WEBHOOK_SWING_IDEAS — swing / position ideas (#swing-ideas)
  *   DISCORD_WEBHOOK_NEXUS_IDEAS — every other NEXUS trade idea (#nexus-trade-ideas)
+ * An idea routed there is never posted directly: it becomes (or already is) a
+ * lifecycle card — publish once, edited on trigger / exit — keyed by its id.
  */
-function isZeroDteIdea(idea: TradeIdea): boolean {
-  const src = String((idea as any).source || '');
-  if (['orb_scanner', 'spx_session', 'index_scalp', 'index-scalp', 'zero_dte_desk', 'zero_dte_flow'].includes(src)) return true;
-  const exp = (idea as any).expiryDate;
-  if (String(idea.assetType || '') === 'option' && exp) {
-    const et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
-    const days = (Date.parse(String(exp).slice(0, 10)) - Date.parse(et)) / 86_400_000;
-    if (Number.isFinite(days) && days <= 1) return true;
-  }
-  return ['SPX', 'SPXW'].includes(String(idea.symbol));
-}
-function labsIdeaWebhook(idea: TradeIdea): string | undefined {
-  const env = process.env;
-  if (isZeroDteIdea(idea) && env.DISCORD_WEBHOOK_0DTE_IDEAS) return env.DISCORD_WEBHOOK_0DTE_IDEAS;
-  const src = String((idea as any).source || '');
-  if (['sector_rotation', 'sector_ignition', 'leaders'].includes(src) && env.DISCORD_WEBHOOK_ROTATION_IDEAS) return env.DISCORD_WEBHOOK_ROTATION_IDEAS;
-  const hold = String((idea as any).holdingPeriod || '').toLowerCase();
-  if ((hold === 'swing' || hold === 'position') && env.DISCORD_WEBHOOK_SWING_IDEAS) return env.DISCORD_WEBHOOK_SWING_IDEAS;
-  return env.DISCORD_WEBHOOK_NEXUS_IDEAS || undefined;
-}
-
 export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<{ sent: boolean; reason?: string }> {
   if (DISCORD_DISABLED) return { sent: false, reason: 'Discord disabled' };
 
@@ -663,10 +671,17 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
     (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
 
-  const labs = labsIdeaWebhook(idea);
+  const labs = labsIdeaWebhook(idea as any);
   if (labs) {
-    webhookUrl = labs;
-  } else if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
+    // Labs channels: one card per idea (server/discord-lifecycle.ts) — never a free post.
+    if (!lifecycleEnabled()) return { sent: false, reason: 'Labs channels post lifecycle cards only (DISCORD_LIFECYCLE=off)' };
+    if (!(idea as any).id) return { sent: false, reason: 'Labs channels post lifecycle cards only — this idea has no id' };
+    const { onIdeaPublished } = await import('./discord-lifecycle');
+    const r = await onIdeaPublished(idea as any, { grade: nexusGrade ? { letter: nexusGrade.letter, score: nexusGrade.score } : undefined });
+    if (r === 'queued') markTradeIdeaSent(idea.symbol, direction, assetType, optionType, strikePrice);
+    return r === 'queued' ? { sent: true } : { sent: false, reason: `lifecycle card: ${r}` };
+  }
+  if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
     // Oracle is the published research stream. Keep it separate from generic
     // options traffic so a reader can distinguish a called signal from a bot fill.
     webhookUrl = process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS;
@@ -730,8 +745,8 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
  * SPX/0DTE → SPX, else QUANTFLOOR). Returns undefined if none configured.
  */
 function resolveTradeWebhook(idea: TradeIdea): string | undefined {
-  const labs = labsIdeaWebhook(idea);
-  if (labs) return labs;
+  // Labs channels are lifecycle-card only (server/discord-lifecycle.ts): a manual
+  // card image goes to the legacy channel for its asset type, never to Labs.
   const assetTypeStr = String(idea.assetType || 'stock');
   const ideaSource = (idea as any).source || '';
 
@@ -2001,8 +2016,9 @@ export async function sendIndexScalpToDiscord(
     return { sent: false, payload, reason: 'dry_run' };
   }
 
+  // #0dte-ideas is NOT in this chain: the scalp is a persisted idea, so its
+  // lifecycle card (server/discord-lifecycle.ts) is what reaches the Labs channel.
   const webhookUrl =
-    process.env.DISCORD_WEBHOOK_0DTE_IDEAS ||
     process.env.DISCORD_WEBHOOK_SPX ||
     process.env.DISCORD_WEBHOOK_LOTTO ||
     process.env.DISCORD_WEBHOOK_OPTIONSTRADES ||

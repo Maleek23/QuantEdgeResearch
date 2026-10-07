@@ -15612,6 +15612,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Flag QUANTINUM_AI=admin (default) | all | off; quota + spend cap inside.
   { const { registerQuantinumAiRoutes } = await import('./quantinum-ai-routes'); registerQuantinumAiRoutes(app, requireBetaAccess, requireAdminJWT); }
 
+  // ── QUANTEDGE LABS DISCORD — lifecycle cards, per-channel on/off (admin) ──
+  // server/discord-lifecycle.ts. Master switch is env DISCORD_LIFECYCLE (default on).
+  app.get('/api/admin/discord-lifecycle', requireAdminJWT, async (_req, res) => {
+    try { res.json((await import('./discord-lifecycle')).lifecycleStatus()); }
+    catch (e: any) { res.status(500).json({ error: e?.message ?? 'status failed' }); }
+  });
+  app.put('/api/admin/discord-lifecycle/channel', requireAdminJWT, async (req, res) => {
+    try {
+      const m = await import('./discord-lifecycle');
+      const ch = String(req.body?.channel ?? '') as import('./discord-lifecycle').LabsChannel;
+      if (!m.LABS_CHANNEL_KEYS.includes(ch)) return res.status(400).json({ error: `channel must be one of ${m.LABS_CHANNEL_KEYS.join(', ')}` });
+      if (typeof req.body?.on !== 'boolean') return res.status(400).json({ error: 'on must be true or false' });
+      m.setChannelEnabled(ch, req.body.on);
+      logger.info(`[DISCORD-LIFECYCLE] admin set ${ch} ${req.body.on ? 'ON' : 'OFF'}`);
+      res.json(m.lifecycleStatus());
+    } catch (e: any) { res.status(500).json({ error: e?.message ?? 'update failed' }); }
+  });
+
   // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
   // The universal search's brain: layer-by-layer evidence with signed points,
   // the same disclosure standards as the cockpit, for a name nobody listed.

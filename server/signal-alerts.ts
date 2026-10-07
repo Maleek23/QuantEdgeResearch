@@ -101,9 +101,24 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
     _sent.add(key);
 
     try {
-      const { sendTradeIdeaToDiscord } = await import('./discord-service');
       // The ONE grade travels with the alert; Discord shows it and gates on it.
       const g = gradePick(p as any);
+      // QuantEdge Labs: the pick IS a published idea — it gets its lifecycle card
+      // (one card per idea id, edited on trigger / exit), routed by its real
+      // source / holding period. Already carded at publish → 'duplicate', no repost.
+      const lifecycle = await import('./discord-lifecycle');
+      const asIdea = {
+        id: p.ideaId ?? null, symbol: p.symbol, direction: p.direction, assetType: p.assetType ?? (p.optionType ? 'option' : 'stock'),
+        source: p.source ?? null, holdingPeriod: p.holdingPeriod ?? null, optionType: p.optionType ?? null, strikePrice: p.strikePrice ?? null,
+        expiryDate: p.expiryDate ?? null, entryPrice: p.entryPrice, targetPrice: p.targetPrice, stopLoss: p.stopLoss,
+        entryPremium: p.entryPremium ?? null, analysis: p.thesis ?? null, timestamp: p.calledAt ?? p.generatedAt ?? null,
+      };
+      if (p.ideaId && lifecycle.lifecycleEnabled() && lifecycle.labsIdeaWebhook(asIdea)) {
+        const r = await lifecycle.onIdeaPublished(asIdea, { grade: { letter: g.letter, score: g.score } });
+        if (r === 'queued') sentCount++;
+        continue;
+      }
+      const { sendTradeIdeaToDiscord } = await import('./discord-service');
       await sendTradeIdeaToDiscord({
         symbol: p.symbol,
         direction: p.direction,
