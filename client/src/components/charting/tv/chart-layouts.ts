@@ -14,7 +14,7 @@ export const LAYOUTS_KEY = 'qe-chart-layouts-v1';
 export const MAX_LAYOUTS = 12;
 
 /** The settings a layout carries (not the watchlist panel, not bookkeeping). */
-export const LAYOUT_KEYS = ['tf', 'range', 'extended', 'gex', 'dp', 'flow', 'ma', 'ema', 'vwap', 'type', 'walls', 'scale', 'magnet', 'fullVolume'] as const;
+export const LAYOUT_KEYS = ['tf', 'range', 'extended', 'gex', 'dp', 'flow', 'ma', 'ema', 'vwap', 'type', 'walls', 'scale', 'magnet', 'fullVolume', 'keyLevels'] as const;
 export type LayoutKey = (typeof LAYOUT_KEYS)[number];
 export type LayoutPrefs = Partial<Pick<ChartPrefs, LayoutKey>>;
 

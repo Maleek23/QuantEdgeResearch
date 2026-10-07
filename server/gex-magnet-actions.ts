@@ -10,8 +10,8 @@
  *      through postDiscordWebhook's own rate gate.
  *   3. IDEAS: the same bar, written through storage.createTradeIdea — the exact
  *      entry point gex_scanner ideas use, so the shared validation gate and the
- *      spine dedup apply unchanged. source='gex_magnet'. The ingest gate, the
- *      convictions engine and storage validation are NOT touched here.
+ *      spine dedup apply unchanged. source='gex_magnet'. It persists through
+ *      the prepared-plan ingestion gate and centralized storage validation.
  *
  * Nothing here claims an edge: the score is an ordering (server/gex-magnet.ts),
  * and every alert/idea says so.
@@ -93,7 +93,6 @@ async function sendDiscord(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
 
 async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   if (!s.expiry) return false;
-  const { storage } = await import('./storage');
   const long = s.side === 'call';
   const entry = r.spot;
   const target = s.strike;
@@ -101,8 +100,9 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
   // INTO the strike"; losing half that distance means the pull is not there.
   const rawStop = long ? entry - (target - entry) / 2 : entry + (entry - target) / 2;
   // Hold label from the contract's DTE and the shared 1.25× ATR swing floor —
-  // this path writes through storage.createTradeIdea and bypassed the
-  // ingestion gate (SR 11-7 v6 F-7/F-8). Same helper as gex_scanner.
+  // this path bypassed the ingestion gate (SR 11-7 v6 F-7/F-8). Same helper as
+  // gex_scanner; persistPreparedTradeIdea then applies the shared cross-source,
+  // loss-cooldown and dedup gates (its ATR floor is a no-op on a floored stop).
   const { optionPublishPlan } = await import('./lib/option-publish-plan');
   const plan = await optionPublishPlan({
     symbol: s.symbol, direction: long ? 'long' : 'short', entry, stop: rawStop, target,
@@ -144,8 +144,8 @@ async function emitIdea(s: MagnetSetup, r: GexRankRow): Promise<boolean> {
     ].filter(Boolean),
   };
   try {
-    await storage.createTradeIdea(idea as any);
-    return true;
+    const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+    return await persistPreparedTradeIdea(idea);
   } catch (e: any) {
     logger.warn(`[GEX-MAGNET] idea rejected ${s.symbol} ${s.strike}${long ? 'C' : 'P'}: ${e?.message}`);
     return false;

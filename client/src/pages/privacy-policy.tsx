@@ -87,7 +87,9 @@ export default function PrivacyPolicy() {
         </Item>
         <Item label="Preferences and watchlist">
           Settings you choose — account size, risk per trade, budgets, time zone, display options, alert toggles, a
-          Discord webhook URL if you add one — and the tickers on your watchlist.
+          Discord webhook URL if you add one — and the tickers on your watchlist. Your watchlist is private. It
+          appears on the public shared watchlist page (/w) only if you ask us to list it, and only as tickers, grades
+          and the platform&rsquo;s own thesis — never your notes.
         </Item>
         <Item label="Your trading journal">
           Trades you enter or import (symbol, prices, size, times, P&amp;L), your notes, emotion and mistake tags, ratings

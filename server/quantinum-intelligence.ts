@@ -13,7 +13,7 @@
  * short gate verdict rides along so a bearish lean is always shown next to
  * whether the discipline rule would even allow acting on it.
  */
-import { convictionBandForScore, convictionLetterGrade } from '../shared/conviction-bands';
+import { gradePick, nexusGradeLine } from '../shared/nexus-grade';
 import { logger } from './logger';
 
 export interface QuantinumLayer {
@@ -30,7 +30,7 @@ export interface QuantinumDossier {
   asOf: string;
   price: { last: number | null; changePercent: number | null; source: string | null; asOf: string | null; session: string | null; stale: boolean };
   /** Canonical dealer levels (server/gex-snapshot-service → options-exposures), same numbers as the GEX page. */
-  gex: { spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null; regime: string | null; netGexSign: string; asOf: string } | null;
+  gex: { spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null; /** which book the walls are from (shared/gex-wall-basis.ts) */ wallBasis?: string; regime: string | null; netGexSign: string; asOf: string } | null;
   /**
    * Raw vs Δ-adjusted vs flow-signed dealer gamma — regime and key levels under
    * each (docs/GAMMA_RAW_VS_ADJUSTED.md). Context layer, 0 points: no replay has
@@ -269,13 +269,12 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     const pick: any = (board?.picks ?? []).find((p: any) => p.symbol === sym);
     if (pick) {
       const dirLong = pick.direction !== 'short';
-      // Points by the shared band (S/A/B/C) — v1 used private 40/25 cutoffs and printed
-      // pick.grade, a field ConvictionPick does not carry.
-      const band = convictionBandForScore(pick.convictionScore);
-      const pts = (band === 'S' ? 6 : band === 'A' ? 4 : 2) * (dirLong ? 1 : -1);
+      // Points by the ONE grade (shared/nexus-grade.ts) — the letter every surface shows.
+      const g = gradePick(pick);
+      const pts = (g.letter === 'A' ? 6 : g.letter === 'B' ? 4 : 2) * (dirLong ? 1 : -1);
       layers.push({
         kind: 'cockpit', label: 'Cockpit signal', points: pts,
-        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} at conviction ${pick.convictionScore} (band ${band} · ${convictionLetterGrade(pick.convictionScore)}) — the funnel's own live pick on this name`,
+        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} — ${nexusGradeLine(g)} — the funnel's own live pick on this name`,
         source: 'conviction board',
       });
     }
@@ -302,11 +301,14 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     const { getGexSnapshot } = await import('./gex-snapshot-service');
     const g = await getGexSnapshot(sym);
     if (g) {
-      gex = { spot: g.spot, callWall: g.callWall, putWall: g.putWall, zeroGamma: g.flipPoint, regime: g.regime, netGexSign: g.netGexSign, asOf: g.fetchedAt };
+      // Same wall basis as the ticker page / Today / NEXUS (shared/gex-wall-basis.ts),
+      // stamped with the chain's own read time, not this response's.
+      const w = g.walls ?? { callWall: g.callWall, putWall: g.putWall, flip: g.flipPoint, basisShort: 'all exp.', basisLabel: 'all expiries' };
+      gex = { spot: g.spot, callWall: w.callWall, putWall: w.putWall, zeroGamma: w.flip, wallBasis: w.basisLabel, regime: g.regime, netGexSign: g.netGexSign, asOf: g.chainFetchedAt ?? g.fetchedAt };
       const fmt = (v: number | null) => (v == null ? 'n/a' : v.toFixed(2));
       layers.push({
         kind: 'gex' as any, label: 'Dealer positioning', points: 0,
-        why: `${g.regime ?? 'unknown'} · put wall ${fmt(g.putWall)} · zero-gamma ${fmt(g.flipPoint)} · call wall ${fmt(g.callWall)} (context, not scored)`,
+        why: `${g.regime ?? 'unknown'} · put wall ${fmt(w.putWall)} · zero-gamma ${fmt(w.flip)} · call wall ${fmt(w.callWall)} — ${w.basisShort} (context, not scored)`,
         source: 'options exposure engine',
       });
       if (g.gammaCompare) {

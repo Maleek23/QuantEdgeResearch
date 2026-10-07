@@ -29,7 +29,9 @@ import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/ora
 import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
+import { stripConflictingTargetClaims } from "@shared/plan-narrative";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
+import { gradePick, gradeComponents, gradeComponentsTag, type NexusGrade } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -66,6 +68,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
     reasons: ["Market context is refreshing — no live regime adjustment applied"],
     spyData: null,
     vixLevel: null,
+    regimeUnavailable: true,
     timestamp: new Date(),
   };
 }
@@ -151,6 +154,12 @@ export interface ConvictionPick {
   source: string;
   /** Live price at response time — what P&L / progress are measured against. */
   currentPrice?: number | null;
+  /**
+   * True only when currentPrice came from a live quote this build; false when it
+   * is the idea's carried/stored price. Consumers (NEXUS Live cell, alert
+   * geometry) must not treat a carried price as the market (audit 2026-10-01 #7).
+   */
+  priceIsLive?: boolean;
   /** A published plan is not an executed position. Derived from the durable audit. */
   lifecycleState: OracleLifecycleState;
   /** When the idea was published (exact ISO). */
@@ -162,6 +171,8 @@ export interface ConvictionPick {
   entryValidUntil?: string | null;
   /** Server board position (0 = top) — set only when BOARD_SORT is not 'score'. */
   boardRank?: number;
+  /** NEXUS grade (shared/nexus-grade.ts) at build time — set only when BOARD_SORT=grade. Unvalidated. */
+  nexusGrade?: NexusGrade;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -175,6 +186,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: the fields above are engine defaults, not a measured market. */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -2086,7 +2099,9 @@ function deriveViewSync(base: ConvictionsResponse, m: BuildConvictionsOptions, w
     picks = picks.map((p) => {
       if (!weekly.has(String(p.symbol).toUpperCase())) return p;
       const convictionScore = Math.max(0, Math.min(100, p.convictionScore + 3));
-      return { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
+      const next = { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
+      // A stamped grade must follow the score it was built from.
+      return p.nexusGrade ? { ...next, nexusGrade: gradePick(next) } : next;
     });
     if (m.weeklyOnly) picks = picks.filter((p) => weekly.has(String(p.symbol).toUpperCase()));
     const mode = base.boardSort ?? "score";
@@ -2846,7 +2861,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         idea.genConvictionBand === "B" || idea.genConvictionBand === "C"
           ? idea.genConvictionBand
           : null,
-      thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+      thesis: stripConflictingTargetClaims(
+        idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
+        Number(idea.targetPrice),
+      ),
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
       generatedAt: idea.generationTimestamp ?? idea.timestamp,
@@ -2854,6 +2872,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // The live price was fetched for revalidation and then never serialised, so every
       // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
       currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
+      priceIsLive: (liveQuotes.get(idea.symbol)?.price ?? 0) > 0 && !liveQuotes.get(idea.symbol)?.stale,
       lifecycleState: readOracleExecutionAudit(idea.convergenceSignalsJson)?.state ?? "pending_trigger",
       // Exact call and trigger times (operator: "we need the EXACT time these are called").
       calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
@@ -3009,14 +3028,35 @@ bandFor(p.convictionScore);
   }
   const deconflicted = Array.from(horizonWinners.values());
 
-  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record stops ranking
+  // Final sort + minScore floor + limit. BOARD_SORT=recency|engine_record|grade stops ranking
   // by the evidence score, which did not rank outcomes on the honest record
   // (docs/SCORE_V2_STUDY.md); unset keeps the score order.
   const boardSort = readBoardSort(process.env);
+  if (boardSort === "grade") {
+    // Build-time read (the board's own price); the client re-grades on its live quote.
+    const gradedAt = Date.now();
+    for (const p of deconflicted) p.nexusGrade = gradePick(p, gradedAt);
+  }
   const ordered: ConvictionPick[] = boardSort === "score"
     ? deconflicted.sort((a, b) => b.convictionScore - a.convictionScore)
     : orderBoard(deconflicted, boardSort);
   const filtered = ordered.filter((p) => p.convictionScore >= minScore).slice(0, limit);
+
+  // 🧪 NEXUS grade components at first surfacing — logged once per idea
+  // (convergenceSignalsJson.nexusGradeAtPublish, never overwritten) so the g2
+  // weights can be validated out of sample (research/grade-audit.ts).
+  async function logGradeAtPublish(p: ConvictionPick): Promise<void> {
+    try {
+      const g = gradePick(p);
+      const rec = gradeComponents(g);
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      await db.execute(sql`update trade_ideas
+        set convergence_signals_json = coalesce(convergence_signals_json, '{}'::jsonb) || jsonb_build_object('nexusGradeAtPublish', ${JSON.stringify(rec)}::jsonb)
+        where id = ${p.ideaId} and not (coalesce(convergence_signals_json, '{}'::jsonb) ? 'nexusGradeAtPublish')`);
+      logger.info(`[NEXUS-GRADE] ${p.symbol} ${p.ideaId} ${gradeComponentsTag(g)}`);
+    } catch { /* telemetry only */ }
+  }
 
   // 🧪 Persist the scoring breakdown for the surfaced picks so resolved ideas can
   // be attributed back to the layers that fired (grade-calibration + reweighting).
@@ -3034,7 +3074,7 @@ bandFor(p.convictionScore);
               genScoringLayers: p.layers.map((l) => ({ kind: l.kind, points: l.points, why: l.why })),
               engineVersion: process.env.GIT_SHA || process.env.RAILWAY_GIT_COMMIT_SHA || 'local-unversioned',
               generationTimestamp: p.generatedAt || new Date().toISOString(),
-            } as any)
+            } as any).then(() => logGradeAtPublish(p))
             : Promise.resolve(),
         ),
       );
@@ -3052,6 +3092,7 @@ bandFor(p.convictionScore);
       score: marketCtx.score,
       vixLevel: marketCtx.vixLevel,
       reasons: marketCtx.reasons,
+      ...(marketCtx.regimeUnavailable ? { regimeUnavailable: true } : {}),
     },
     breadth: breadthResponse,
     geopolitical: geo,

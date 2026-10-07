@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { publishGateFor, calendarDte } from '../server/lib/publish-gates';
+import { capturePlanSnapshot, readPlanSnapshot, freezePlanFields, touchesPlan } from '../shared/plan-snapshot';
 const at = (iso: string) => Date.parse(iso);
 // 2026-09-30 is a Wednesday; EDT = UTC-4.
 const opt = { source: 'gex_scanner', assetType: 'option', expiryDate: '2026-10-16' };
@@ -16,4 +17,19 @@ assert.match(String(publishGateFor(ms, at('2026-09-30T14:00:00Z'))), /suspended/
 assert.equal(publishGateFor({ ...ms, expiryDate: '2026-11-20' }, at('2026-09-30T14:00:00Z')), null, '51 DTE allowed');
 assert.equal(publishGateFor({ ...ms, expiryDate: '2026-10-02' }, at('2026-09-30T14:00:00Z')), null, '2 DTE allowed');
 assert.equal(publishGateFor(ms, at('2026-09-30T14:00:00Z'), { MARKET_SCANNER_SWING_OPTIONS: 'on' }), null, 'env re-enables');
-console.log('publish gates: 13 checks passed');
+// Plan snapshot: levels freeze at publish; a contract unknown at publish may be attached once.
+{
+  const snap = readPlanSnapshot(capturePlanSnapshot({}, { direction: 'long', entryPrice: 100, targetPrice: 110, stopLoss: 95, entryPremium: null, optionType: null, strikePrice: null, expiryDate: null }))!;
+  assert.ok(snap && snap.riskRewardRatio === 2, 'snapshot captured with R:R');
+  const a = freezePlanFields({ stopLoss: 90, targetPrice: 130 } as any, snap);
+  assert.equal(a.fields.stopLoss, 95, 'published stop cannot move');
+  assert.equal(a.fields.targetPrice, 110, 'published target cannot move');
+  const b = freezePlanFields({ assetType: 'option', optionType: 'call', strikePrice: 105, expiryDate: '2026-10-16', entryPremium: 2.1 } as any, snap);
+  assert.equal(b.fields.strikePrice, 105, 'backfilled contract is accepted');
+  assert.equal(b.snapshot.optionType, 'call', 'backfilled contract enters the snapshot');
+  const c = freezePlanFields({ strikePrice: 120 } as any, b.snapshot);
+  assert.equal(c.fields.strikePrice, 105, 'published contract stays frozen');
+  assert.equal(touchesPlan({ outcomeStatus: 'hit_stop', exitPrice: 1 }), false, 'outcome updates skip the plan read');
+  assert.equal(touchesPlan({ stopLoss: 1 }), true);
+}
+console.log('publish gates: 21 checks passed');

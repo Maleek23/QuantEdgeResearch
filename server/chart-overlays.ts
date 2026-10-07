@@ -28,6 +28,7 @@ import { logger } from './logger';
 import { marketDateET } from '@shared/market-day';
 import { BoundedCache } from './lib/bounded-cache';
 import { runHeavy } from './lib/heavy-job-gate';
+import { canonicalChartSymbol, indexInfo, indexEtfRatio, optionRootsFor } from '@shared/index-symbols';
 
 // Env-tunable: every recorded ticker re-pulls its full option chain every 5 min
 // (SPY ≈ 8k contracts, 11 requests) — the 2 GB box can't carry many (2026-09-30).
@@ -247,29 +248,41 @@ const DP_TTL_MS = 30 * 60_000;
 const DP_WINDOW_DAYS = 28;
 const INDEX_ETFS = new Set(['SPY', 'QQQ', 'IWM', 'DIA']);
 
+/** Last index/ETF ratio used for dark-pool levels (peekDarkPoolLevels reuses it). */
+const lastIndexRatio = new Map<string, { ratio: number; basis: 'live' | 'regular-close'; at: number }>();
+
+function scaleDpRead(read: DarkPoolRead, sym: string, etfSym: string, k: { ratio: number; basis: string }): DarkPoolRead {
+  return {
+    ...read,
+    source: `${read.source} · ${etfSym} prints × ${sym}/${etfSym} ${k.ratio.toFixed(4)} (${k.basis === 'live' ? 'live ratio' : 'ratio of regular closes'}; ${sym} has no prints of its own)`,
+    levels: read.levels.map((l) => ({ ...l, price: Math.round(l.price * k.ratio * 100) / 100 })),
+  };
+}
+
 async function darkPoolFor(sym: string): Promise<{ read: DarkPoolRead | null; stale: boolean; reason?: string }> {
-  if (sym === 'SPX') {
-    // SPX has no prints of its own; SPY's dark-pool levels are carried over at
-    // the live SPX/SPY ratio and labelled as such (operator 2026-09-30).
-    const spy = await darkPoolFor('SPY');
-    if (!spy.read) return { read: null, stale: spy.stale, reason: spy.reason ?? 'SPY dark-pool read unavailable' };
-    let k: number | null = null;
+  const idx = indexInfo(sym);
+  if (idx?.volumeProxy) {
+    // A cash index has no prints of its own; the ETF's dark-pool levels are
+    // carried over at the index/ETF ratio and labelled as such (operator
+    // 2026-09-30). Ratio: both prices within 2 min of each other (live), else
+    // the two regular closes — never a 16:00 index close against an 18:00
+    // after-hours ETF print.
+    const etfSym = idx.volumeProxy;
+    const etfRead = await darkPoolFor(etfSym);
+    if (!etfRead.read) return { read: null, stale: etfRead.stale, reason: etfRead.reason ?? `${etfSym} dark-pool read unavailable` };
+    let k: { ratio: number; basis: 'live' | 'regular-close' } | null = null;
     try {
-      const { getRealtimeQuote } = await import('./realtime-pricing-service');
-      const [a, b]: any[] = await Promise.all([getRealtimeQuote('SPX', 'stock'), getRealtimeQuote('SPY', 'stock')]);
-      const x = Number(a?.price) / Number(b?.price);
-      if (Number.isFinite(x) && x > 5 && x < 15) k = x;
+      const { yahooQuote } = await import('./yahoo-client');
+      const [a, b] = await Promise.all([yahooQuote(sym), yahooQuote(etfSym)]);
+      k = indexEtfRatio(sym,
+        a ? { price: a.price, at: a.at, regularClose: a.regularMarketPrice } : null,
+        b ? { price: b.price, at: b.at, regularClose: b.regularMarketPrice } : null);
     } catch { /* ratio unavailable */ }
-    if (k == null) return { read: null, stale: false, reason: 'SPX/SPY ratio unavailable — see SPY for dark-pool levels' };
-    return {
-      stale: spy.stale,
-      read: {
-        ...spy.read,
-        source: `${spy.read.source} · SPY levels × live SPX/SPY ${k.toFixed(4)} (SPX has no prints of its own)`,
-        levels: spy.read.levels.map((l) => ({ ...l, price: Math.round(l.price * k! * 100) / 100 })),
-      },
-    };
+    if (k == null) return { read: null, stale: false, reason: `${sym}/${etfSym} ratio unavailable — see ${etfSym} for dark-pool levels` };
+    lastIndexRatio.set(sym, { ...k, at: Date.now() });
+    return { stale: etfRead.stale, read: scaleDpRead(etfRead.read, sym, etfSym, k) };
   }
+  if (idx) return { read: null, stale: false, reason: `${sym} is an index with no ETF proxy — it has no dark-pool prints` };
   const hit = dpCache.get(sym) ?? loadDpDisk(sym);
   if (hit && Date.now() - hit.at < DP_TTL_MS) return { read: hit, stale: false };
   const bf = await import('./bullflow-service');
@@ -318,12 +331,21 @@ async function darkPoolFor(sym: string): Promise<{ read: DarkPoolRead | null; st
 
 /**
  * Read-only: the cached dark-pool level read for `sym` (memory, else the disk
- * copy), or null. Never calls Bullflow. SPX is not mapped here (that needs a
- * live SPX/SPY ratio) — callers get null for SPX.
+ * copy), or null. Never calls Bullflow or a quote. A cash index (SPX/NDX/RUT)
+ * gets its ETF's cached read × the ratio the chart overlay last used (≤ 1 day);
+ * null until the overlay has computed one.
  */
 export function peekDarkPoolLevels(sym: string): { at: number; source: string; levels: Array<{ price: number; notional: number; prints: number }> } | null {
-  const s = sym.toUpperCase();
-  if (s === 'SPX') return null;
+  const s = canonicalChartSymbol(sym);
+  const idx = indexInfo(s);
+  if (idx) {
+    // Index: the ETF's cached read × the ratio the overlay last used (≤ 1 day old).
+    const k = lastIndexRatio.get(s);
+    const etf = idx.volumeProxy ? dpCache.peek(idx.volumeProxy) ?? loadDpDisk(idx.volumeProxy) : undefined;
+    if (!k || !etf || Date.now() - k.at > 86_400_000) return null;
+    const scaled = scaleDpRead(etf, s, idx.volumeProxy!, k);
+    return { at: etf.at, source: scaled.source, levels: scaled.levels.map((l) => ({ price: l.price, notional: l.notional, prints: l.prints })) };
+  }
   const r = dpCache.peek(s) ?? loadDpDisk(s);
   return r ? { at: r.at, source: r.source, levels: r.levels.map((l) => ({ price: l.price, notional: l.notional, prints: l.prints })) } : null;
 }
@@ -352,7 +374,8 @@ async function printsForDate(date: string): Promise<any[]> {
 /* ────────────────────────────── the payload ────────────────────────────── */
 
 export async function buildChartOverlays(symbolRaw: string, range: string, spotHint?: number | null) {
-  const sym = safeSym(symbolRaw);
+  // SPXW / $SPX / ^GSPC chart (and record, and read flow for) SPX.
+  const sym = safeSym(canonicalChartSymbol(symbolRaw));
   const now = Date.now();
   lastViewed.set(sym, now);
   if (readsSharedState()) {
@@ -431,7 +454,8 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
 
   // ── flow
   const bf = await import('./bullflow-service');
-  const roots = sym === 'SPX' ? new Set(['SPX', 'SPXW']) : new Set([sym]);
+  // OCC roots: SPX → SPX + SPXW (monthlies + weeklies/0DTE), NDX → NDX + NDXP, …
+  const roots = new Set(optionRootsFor(sym));
   const since = new Date(`${sinceDate}T00:00:00-05:00`).getTime();
   const seen = new Map<string, any>();
   const pool = [...bf.getBullflowPrints().prints];
@@ -476,6 +500,11 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
     } : null,
     gexTimeline: {
       unit: 'USD net GEX per strike (snapshot top-20 by |GEX|)',
+      // Orbs are the whole book the chain read covers, not the near-dated one —
+      // the 0–7d walls come from the dealer map (byDte.next7) and say so.
+      expiryScope: indexInfo(sym)
+        ? `all expiries in the ${sym} chain read (${optionRootsFor(sym).join('+')}; CBOE index chains ≤60 DTE) — not the 0–7d book`
+        : 'all expiries in the chain read — not the 0–7d book',
       sampleEveryMin: SAMPLE_EVERY_MS / 60_000,
       recordingSince: firstAt ? new Date(firstAt).toISOString() : null,
       asOf: lastAt ? new Date(lastAt).toISOString() : null,

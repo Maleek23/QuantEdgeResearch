@@ -83,9 +83,11 @@ export interface ConvictionPick {
 
   /** Added dynamically by the API at response time when available. */
   currentPrice?: number;
+  /** True when currentPrice is a live quote, false when it is the carried stored price. */
+  priceIsLive?: boolean;
 
   /** A plan becomes live only after a trigger or recorded execution. */
-  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
+  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'invalidated' | 'closed';
   /** Exact publish time (ISO). */
   calledAt?: string | null;
   /** Exact time price traded through the trigger (ISO). */
@@ -94,11 +96,16 @@ export interface ConvictionPick {
   exitBy?: string | null;
   entryValidUntil?: string | null;
 
-  /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record. */
+  /** Server board position (0 = top), present only when BOARD_SORT is recency / engine_record / grade. */
   boardRank?: number;
+  /** NEXUS grade at board build (BOARD_SORT=grade only; shared/nexus-grade.ts). The client re-grades on the live lifecycle. Unvalidated. */
+  nexusGrade?: import('@shared/nexus-grade').NexusGrade;
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
+
+  /** SPXW mirror of an open SPY 0–2 DTE option idea (display only; tracked as the SPY idea). */
+  spxMirror?: import('@shared/spx-mirror').SpxMirror;
 }
 
 export interface ConvictionsResponse {
@@ -110,6 +117,8 @@ export interface ConvictionsResponse {
     score: number;
     vixLevel: number | null;
     reasons: string[];
+    /** No SPY read: regime/score are engine defaults, not a measured market — show "unavailable". */
+    regimeUnavailable?: boolean;
   };
   breadth: {
     regime: string;
@@ -125,7 +134,7 @@ export interface ConvictionsResponse {
   totalCandidatesScanned: number;
   picks: ConvictionPick[];
   /** Board order chosen by env BOARD_SORT; absent = evidence score (shared/board-sort.ts). */
-  boardSort?: 'score' | 'recency' | 'engine_record';
+  boardSort?: 'score' | 'recency' | 'engine_record' | 'grade';
 }
 
 // ─── Tier mapping: band + direction → MOMO-style tier word + tone ───────────
@@ -202,7 +211,7 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
  */
 export const CONVICTIONS_QUERY_KEY = ['/api/convictions', 'nexus-prototype'] as const;
 export function isLiveBookPick(p: { isBotHeld?: boolean | null; lifecycleState?: string | null; convictionScore?: number | null }): boolean {
-  return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'closed';
+  return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'invalidated' && p.lifecycleState !== 'closed';
 }
 
 /** "Sep 30 · 10:42:13 AM ET" — exact, always Eastern. */

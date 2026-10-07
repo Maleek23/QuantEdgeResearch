@@ -109,7 +109,7 @@ const DIFFERENT: Array<[string, string]> = [
 // answers as FAQPage JSON-LD on `/`, so the visible text and the schema match.
 const FAQ: [string, React.ReactNode][] = LANDING_FAQ.map(({ id, q, a }) => [q,
   id === 'cost'
-    ? <>QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>
+    ? <>QuantEdge is an invite-only beta. There is a Free plan with delayed data and limits; Advanced unlocks full access, still on delayed data with its age shown on every tile. Licensed real-time data is the Pro plan, coming soon — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>
     : id === 'invite'
       ? <>{a.replace(/ Join the waitlist on the sign-up page\.$/, ' ')}<Link href="/signup">Join the waitlist on the sign-up page.</Link></>
       : a]);
@@ -168,7 +168,7 @@ function RecordBand() {
             <div><dt>Hit stop</dt><dd className="down">{stops}</dd></div>
           </dl>
         ) : <p className="lp-record-empty">{loading ? 'Loading ideas…' : 'No delayed ideas to show yet.'}</p>}
-        {ideas.length > 0 && <p className="lp-record-fine">The most recent delayed ideas only — a window, not a win rate. The rest are still open, expired or closed flat.</p>}
+        {ideas.length > 0 && <p className="lp-record-fine">The three most recent ideas published at least 24h ago, in order, whatever their outcome — a window, not a win rate.</p>}
         <p className="lp-record-age">Checked · {fmtAgo(data?.ideas.asOf, now)}</p>
         <button type="button" className="lp-link" onClick={() => showShowcaseTab('nexus')}>See each idea with its timestamp {ARROW}</button>
       </article>
@@ -184,7 +184,7 @@ function PlanCard({ plan, yearly, current, onUpgrade, busy }: { plan: PricingPla
   const save = yearly ? annualSavingsPct(plan) : null;
   return (
     <article className={`lp-plan${plan.highlighted ? ' pop' : ''}${plan.comingSoon ? ' soon' : ''}`} aria-labelledby={`plan-${plan.id}`}>
-      {plan.highlighted && <span className="lp-plan-flag">Most popular · beta</span>}
+      {plan.highlighted && <span className="lp-plan-flag">Recommended · beta</span>}
       {plan.comingSoon && <span className="lp-plan-flag soon">Coming soon</span>}
       <h3 className="lp-plan-name" id={`plan-${plan.id}`}>{plan.name}</h3>
       <p className="lp-plan-desc">{plan.blurb}</p>
@@ -246,7 +246,7 @@ function Pricing() {
         <div className="lp-head">
           <p className="lp-eyebrow">Pricing · early-access beta</p>
           <h2 className="lp-h2" id="lp-pricing-title">Start free. Upgrade when the data earns it.</h2>
-          <p className="lp-lede">Beta pricing is locked in for early members. Features still in development say “soon”.</p>
+          <p className="lp-lede">Beta pricing. Features still in development say “soon”.</p>
         </div>
         <div className="lp-bill" role="group" aria-label="Billing period">
           <button type="button" aria-pressed={!yearly} className={!yearly ? 'on' : ''} onClick={() => setYearly(false)}>Monthly</button>

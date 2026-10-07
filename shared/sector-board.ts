@@ -530,6 +530,8 @@ export interface OvernightMover { symbol: string; movePct: number; kind: 'premar
 export interface IdeaRef { id: string; symbol: string; direction: Side; source: string | null; at: string | null; tag: 'with' | 'against' | 'neutral' }
 export interface SectorRow {
   id: string; label: string; etf: string | null; thematic: boolean; memberCount: number; membersRead: number;
+  /** Members not read on the newest session, each with the reason (never a silent "—"). */
+  unread?: Array<{ symbol: string; reason: string }>;
   rank: number | null; rankThen: number | null; rankDelta: number | null; composite: number | null;
   r1: number | null; r3: number | null; r10: number | null; r20: number | null;
   breadth: number | null; highsPct: number | null; lowsPct: number | null;
@@ -559,6 +561,8 @@ export interface BoardSnapshot {
   dataAsOf: Record<string, string | null>;
   notes: string[];
   compute: { ms: number; rssBeforeMb: number; rssAfterMb: number; heapDeltaMb: number; symbols: number };
+  /** Per-run member coverage: members with bars, members read on the newest session, and why the rest were not. */
+  coverage?: { members: number; withBars: number; readNow: number; reasons: Record<string, number> };
   cadence: string;
   status: 'measuring';
 }

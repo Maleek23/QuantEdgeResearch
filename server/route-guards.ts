@@ -77,6 +77,12 @@ export const ROUTE_GUARDS: GuardRule[] = [
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/chart-analysis\/(send-to-trade-desk|send-to-discord|discord)$/ },
   { level: 'operator', methods: WRITE, pattern: /^\/api\/annual-watchlist(\/.*)?$/ },
   { level: 'operator', methods: ['POST'], pattern: /^\/api\/watchlist\/batch-add$/ },
+  // Manual "Share to Discord" from the trade-audit page (audit 2026-10-01 P0 #2).
+  { level: 'operator', methods: ['POST'], pattern: /^\/api\/trade-ideas\/[^/]+\/(share-discord|share-discord-card)$/ },
+
+  // "Validate All": resolves open ideas — operator only, live quotes, dry run by
+  // default (audit 2026-10-01 P0 #1; server/performance-validate-live.ts).
+  { level: 'operator', methods: ['POST'], pattern: /^\/api\/performance\/validate$/ },
 
   // ── Global (not per-user) AI chat: one shared history for every caller ──
   { level: 'operator', methods: ANY, pattern: /^\/api\/ai\/chat(\/history)?$/ },

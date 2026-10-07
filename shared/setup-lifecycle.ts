@@ -233,7 +233,7 @@ export function setupLifecycle(p: LifecycleInput, nowMs: number = Date.now()): L
   const px = p.currentPrice != null && Number.isFinite(Number(p.currentPrice)) && Number(p.currentPrice) > 0 ? Number(p.currentPrice) : null;
 
   // ── RESOLVED ──
-  if (p.lifecycleState === 'closed') return out('resolved', 'plan closed');
+  if (p.lifecycleState === 'closed' || p.lifecycleState === 'invalidated') return out('resolved', p.lifecycleState === 'invalidated' ? 'invalidated before trigger' : 'plan closed');
   if (px != null && Number.isFinite(stop) && stop > 0 && (long ? px <= stop : px >= stop)) {
     return out('resolved', `live ${px.toFixed(2)} is through the ${stop.toFixed(2)} stop — the outcome tracker records the result`);
   }

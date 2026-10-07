@@ -6,7 +6,7 @@
  * PAGE MODES (operator decision 2026-09-29) — how much of the layout the
  * viewer may change:
  *
- *   workspace  GEX and FLOW only. The full dashboard chrome: named dashboards,
+ *   workspace  GEX, FLOW and (since 2026-10-01) NEXUS. The full dashboard chrome: named dashboards,
  *              Add tool (a CURATED catalogue — `catalog` below — never the
  *              whole registry), drag / resize, Auto-arrange, Clear, Restore
  *              default. Layouts persist per user (use-dashboards.ts).
@@ -112,6 +112,13 @@ export interface PageSpec {
    * (natural height — Today's hero map and best idea are the page's point).
    */
   natural?: string[];
+  /**
+   * WORKSPACE: the toolbar's tool menu is a SHOW / HIDE picker (one instance
+   * per tool, a check = on the board) instead of an add-only menu (NEXUS).
+   */
+  toggles?: boolean;
+  /** WORKSPACE: the default may run past one screen (VIEW_ROWS) — the rest scrolls below the fold. */
+  tall?: boolean;
   /** PAGE mode: keep bordered panels (Crypto). Every other page is flat. */
   framed?: boolean;
 }
@@ -133,6 +140,12 @@ const FLOW_CONTEXT = ['flow-context'];
 const GEX_CONTEXT = ['gex-levels', 'gex-regime', 'squeeze-radar'];
 
 export const GEX_CATALOG: ToolCatalog = { categories: ['GEX'], tools: [...CHART_TOOLS, 'chart-levels', ...FLOW_CONTEXT] };
+/** NEXUS: its own tools only (the board, its detail and the reads that frame an idea). */
+export const NEXUS_CATALOG: ToolCatalog = {
+  categories: [],
+  tools: ['nexus-tracked', 'nexus-rotation', 'nexus-board', 'nexus-detail', 'nexus-context', 'nexus-sector-ignition', 'nexus-positions',
+    'nexus-developing', 'nexus-trader-calls', 'nexus-0dte', 'nexus-horizon', 'nexus-classic', 'stock-chart'],
+};
 export const FLOW_CATALOG: ToolCatalog = { categories: ['Options', 'Dark Pool'], tools: [...CHART_TOOLS, ...GEX_CONTEXT] };
 
 /** Is this tool in the workspace's catalogue? (A non-workspace page offers nothing.) */
@@ -166,7 +179,19 @@ export const PAGES: Record<PageId, PageSpec> = {
       fill: { 'gex-matrix': 'auto', 'gex-dealer-map': '60vh', 'stock-chart': 'min(56vh, 480px)', 'gex-profile': '320px', 'gex-hub': '80vh' },
     },
   },
-  nexus: { ...spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), columns: ['nexus-board', 'nexus-detail', 'nexus-context'] },
+  nexus: {
+    ...spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], ['nexus-board', 'nexus-detail'], 'workspace'),
+    // A fresh namespace: NEXUS was a fixed page, so any `nexus:` row saved in
+    // the grid era before that is stale and must not shadow the new default.
+    storagePrefix: 'nexusws:', lsKey: 'qe-dash-nexusws-v1', lsActive: 'qe-dash-nexusws-active',
+    catalog: NEXUS_CATALOG,
+    toggles: true,
+    tall: true,
+    // Phone: a fixed reading order (no drag); the Tools menu still hides / shows.
+    phone: {
+      first: ['nexus-tracked', 'nexus-board', 'nexus-detail', 'nexus-rotation', 'nexus-context', 'nexus-positions', 'nexus-developing', 'nexus-trader-calls', 'nexus-sector-ignition', 'nexus-0dte'],
+    },
+  },
   chart: { ...spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart'], 'simple'), simple: { tool: 'stock-chart' } }, // ONE chart: watchlist is opt-in in the chart's Add menu
   crypto: { ...spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), fill: ['crypto-chart'], framed: true },
   catalyst: spec('catalyst', 'CATALYST', CATALYST_DEFAULTS, ['Catalyst', 'Ideas'], CATALYST_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
@@ -190,7 +215,7 @@ export function skeletonTiles(page: PageId): Array<[number, number, number, numb
 if (import.meta.env?.DEV) {
   for (const p of Object.values(PAGES)) {
     for (const d of p.defaults) {
-      const issues = tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h })));
+      const issues = tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h })), { tall: p.tall });
       if (issues.length) console.warn(`[dashboard] ${p.id}:${d.id} default does not tile:`, issues);
     }
     if (p.mode === 'simple' && !p.simple) console.warn(`[dashboard] ${p.id} is mode 'simple' without a simple spec`);

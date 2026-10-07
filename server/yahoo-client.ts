@@ -16,6 +16,7 @@
 import { logger } from './logger';
 import { rateLimited, cachedFetch } from './provider-cache';
 import { dayChangeFromIntradayChart, type QuoteSession } from '../shared/price-change';
+import { canonicalChartSymbol } from '../shared/index-symbols';
 
 const HOSTS = ['query2', 'query1'] as const;
 
@@ -40,22 +41,25 @@ let _throttled429Until = 0;
  */
 const YAHOO_INDEX_SYMBOLS: Record<string, string> = {
   SPX: '^GSPC',
+  // SPXW (weeklies/0DTE) and NDXP settle on the cash index: chart the index.
+  SPXW: '^GSPC',
   GSPC: '^GSPC',
   VIX: '^VIX',
   VIX9D: '^VIX9D',
   VIX3M: '^VIX3M',
   VVIX: '^VVIX',
   NDX: '^NDX',
+  NDXP: '^NDX',
   RUT: '^RUT',
   DJI: '^DJI',
 };
 
 /** Provider-boundary symbol for Yahoo's chart API ("SPX" → "^GSPC"). Idempotent. */
 export function toYahooSymbol(symbol: string): string {
-  let s = String(symbol ?? '').trim();
-  try { s = decodeURIComponent(s); } catch { /* already plain */ }
-  const upper = s.toUpperCase();
-  return YAHOO_INDEX_SYMBOLS[upper] ?? upper;
+  // "$SPX", "SPX.X", "^GSPC", "SPXW" → SPX first (shared/index-symbols.ts), then
+  // the caret name. A raw "$SPX" used to reach Yahoo verbatim and 404.
+  const canon = canonicalChartSymbol(symbol);
+  return YAHOO_INDEX_SYMBOLS[canon] ?? canon;
 }
 
 /**
@@ -131,17 +135,19 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
   const dc = dayChangeFromIntradayChart(res);
   if (!dc) return null;
   const m = res.meta;
-  const volumes: unknown[] = res.indicators?.quote?.[0]?.volume ?? [];
-  let vi = volumes.length - 1;
-  while (vi >= 0 && (volumes[vi] == null || !Number.isFinite(Number(volumes[vi])))) vi--;
-  const lastVol = vi >= 0 ? Number(volumes[vi]) : NaN;
+  // Session volume, not the last 1-minute bar's. This used to return the newest
+  // bar's volume, so every "Volume" stat (and its ×20d-average ratio) showed one
+  // minute of trading as the day's. regularMarketVolume is the regular session's
+  // cumulative volume; before today's open it is still YESTERDAY's, so it is
+  // reported as 0 ("not reported yet") rather than passed off as today's.
+  const sessionVolume = sessionVolumeFromMeta(m);
   return {
     symbol: symbol.toUpperCase(),
     price: dc.price,
     previousClose: dc.previousClose,
     change: dc.change,
     changePercent: dc.changePercent,
-    volume: Number.isFinite(lastVol) ? lastVol : Number(m.regularMarketVolume ?? 0),
+    volume: sessionVolume,
     // Preserve the market's timestamp. Consumer UI uses this to distinguish a
     // fresh print from a fresh HTTP response that happened to contain old data.
     // No bar (an index before the open): the print is regularMarketTime, never
@@ -151,6 +157,16 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
     regularMarketPrice: dc.regularMarketPrice,
     regularChangePercent: dc.regularChangePercent,
   };
+}
+
+/** Current regular session's cumulative volume from chart meta; 0 before the open or when absent. */
+export function sessionVolumeFromMeta(m: any): number {
+  const v = Number(m?.regularMarketVolume);
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  const rmt = Number(m?.regularMarketTime);
+  const regStart = Number(m?.currentTradingPeriod?.regular?.start);
+  if (Number.isFinite(rmt) && Number.isFinite(regStart) && rmt < regStart) return 0;
+  return v;
 }
 
 /** Are we currently in a back-off window? Surfaced so the UI can say "stale". */

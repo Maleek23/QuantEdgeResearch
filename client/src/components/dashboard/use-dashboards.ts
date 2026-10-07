@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { TOOL_BY_ID } from './registry';
-import { COLS, ROW_H, clampTool, uid, type Dashboard, type PlacedTool } from './layout';
+import { COLLAPSED_H, COLS, ROW_H, clampTool, uid, type Dashboard, type PlacedTool } from './layout';
 import type { DefaultLayout } from './tool-def';
 import type { PageSpec } from './pages';
 
@@ -45,15 +45,18 @@ function sanitize(tools: any[]): PlacedTool[] {
     .filter((w) => w && TOOL_BY_ID.has(w.type) && w.visible !== false)
     .map((w) => {
       const def = TOOL_BY_ID.get(w.type)!;
-      return clampTool({
+      // collapsed tile: header only; config.collapsedH (or `c`) is the height it expands back to
+      const c = Number(w.config?.collapsedH ?? w.c) || 0;
+      const t = clampTool({
         i: String(w.id ?? w.i ?? uid()), type: w.type,
         x: Number(w.x) || 0, y: Number(w.y) || 0,
-        w: Number(w.width ?? w.w) || def.defaultSize.w, h: Number(w.height ?? w.h) || def.defaultSize.h,
-      }, def.minSize.w, def.minSize.h);
+        w: Number(w.width ?? w.w) || def.defaultSize.w, h: c > 0 ? COLLAPSED_H : Number(w.height ?? w.h) || def.defaultSize.h,
+      }, def.minSize.w, c > 0 ? COLLAPSED_H : def.minSize.h);
+      return c > 0 ? { ...t, c: Math.max(def.minSize.h, Math.round(c)) } : t;
     });
 }
 
-const toWidgets = (d: Dashboard) => d.tools.map((x) => ({ id: x.i, type: x.type, x: x.x, y: x.y, width: x.w, height: x.h, visible: true }));
+const toWidgets = (d: Dashboard) => d.tools.map((x) => ({ id: x.i, type: x.type, x: x.x, y: x.y, width: x.w, height: x.h, visible: true, ...(x.c ? { config: { collapsedH: x.c } } : {}) }));
 
 /** Defaults first (customised or pristine), then the user's own dashboards. */
 function withDefaults(spec: PageSpec, saved: PageDashboard[]): PageDashboard[] {

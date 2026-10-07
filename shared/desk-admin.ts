@@ -53,18 +53,26 @@ export function canManageDesk(access: DeskAccess, slug: string): boolean {
 }
 
 // ─── Bot config ──────────────────────────────────────────────
+//
+// A desk bot runs the platform bot's two-sleeve engine (shared/bot-sleeves.ts):
+// a 0DTE/1DTE sleeve and a swing sleeve graded by NEXUS grade. The desk picks
+// capacity, dollars and its own filters; everything else is platform-set.
 
 export type DeskUniverse = 'board' | 'watchlist';
 
 /** What a desk admin may change about their own bot. Everything else is platform-set. */
 export interface DeskBotConfig {
-  /** Raw conviction floor (confluence points). */
-  minConviction: number;
-  maxOpen: number;
-  riskPerTradePct: number;
-  maxRiskDollars: number;
-  maxDebitDollars: number;
-  /** Chase guard: refuse a signal already this far entry → T1. */
+  /** 0DTE / 1DTE sleeve capacity (0 = sleeve off). */
+  zeroDteMax: number;
+  /** Fixed premium risk per 0DTE trade, $. */
+  zeroDteRiskUsd: number;
+  /** Swing sleeve capacity (0 = sleeve off). */
+  swingMax: number;
+  swingRiskUsd: number;
+  swingMaxDebitUsd: number;
+  /** Minimum NEXUS grade score for a swing entry (65 = C). */
+  swingMinGrade: number;
+  /** Chase guard: refuse a swing signal already this far entry → T1. */
   maxProgressPct: number;
   minUnderlyingRR: number;
   minContractRoiAtT1Pct: number;
@@ -72,72 +80,78 @@ export interface DeskBotConfig {
   minStopWidthPct: number;
   allowLongs: boolean;
   allowShorts: boolean;
-  /** Index 0DTE scalps (SPX/SPY/QQQ contracts the scalp engine picked). */
-  allowIndex0dte: boolean;
-  /** 'board' = every published pick; 'watchlist' = only names on the desk's own watchlist. */
+  /** 'board' = every published idea; 'watchlist' = only names on the desk's own watchlist. */
   universe: DeskUniverse;
   blockedSymbols: string[];
-  /** New entries only inside this New York window (minutes after midnight). Exits always run. */
+  /** New entries only inside this New York window (minutes after midnight), on top of the sleeve windows. Exits always run. */
   entryStartEt: number;
   entryEndEt: number;
 }
 
-type NumKey = 'minConviction' | 'maxOpen' | 'riskPerTradePct' | 'maxRiskDollars' | 'maxDebitDollars' | 'maxProgressPct'
-  | 'minUnderlyingRR' | 'minContractRoiAtT1Pct' | 'minStopWidthPct' | 'entryStartEt' | 'entryEndEt';
+type NumKey = 'zeroDteMax' | 'zeroDteRiskUsd' | 'swingMax' | 'swingRiskUsd' | 'swingMaxDebitUsd' | 'swingMinGrade'
+  | 'maxProgressPct' | 'minUnderlyingRR' | 'minContractRoiAtT1Pct' | 'minStopWidthPct' | 'entryStartEt' | 'entryEndEt';
+const INT_KEYS = new Set<NumKey>(['zeroDteMax', 'swingMax', 'swingMinGrade', 'entryStartEt', 'entryEndEt']);
 
 /**
- * Platform caps. Each range is inclusive. The direction of every bound keeps a
- * desk bot at least as strict as the platform bot: floors (conviction, R:R,
- * contract ROI, stop width, entry start) can only go up; ceilings (risk, debit,
- * positions, chase, entry end) can only come down.
+ * Platform caps (inclusive). The direction of every bound keeps a desk bot at
+ * least as strict as the platform bot's defaults: floors (grade, R:R, contract
+ * ROI, stop width, entry start) only go up; ceilings (capacity, dollars, chase,
+ * entry end) only come down. deskSleeveConfig() also never lets a desk be looser
+ * than the platform bot's CURRENT env config.
  */
 export const DESK_BOT_CAPS: Record<NumKey, { min: number; max: number; step: number; label: string; unit?: string }> = {
-  minConviction:        { min: 18,  max: 40,  step: 1,    label: 'Minimum conviction (points)' },
-  maxOpen:              { min: 1,   max: 5,   step: 1,    label: 'Max open positions' },
-  riskPerTradePct:      { min: 0.25, max: 2,  step: 0.25, label: 'Risk per trade', unit: '%' },
-  maxRiskDollars:       { min: 25,  max: 250, step: 5,    label: 'Max managed loss per trade', unit: '$' },
-  maxDebitDollars:      { min: 25,  max: 300, step: 5,    label: 'Max debit per trade', unit: '$' },
-  maxProgressPct:       { min: 5,   max: 35,  step: 1,    label: 'Chase guard (max % of the way to T1)', unit: '%' },
-  minUnderlyingRR:      { min: 1,   max: 5,   step: 0.1,  label: 'Minimum reward:risk on the underlying' },
-  minContractRoiAtT1Pct:{ min: 30,  max: 300, step: 5,    label: 'Minimum contract return at T1', unit: '%' },
-  minStopWidthPct:      { min: 0.5, max: 15,  step: 0.1,  label: 'Minimum stop width (underlying)', unit: '%' },
-  entryStartEt:         { min: 9 * 60 + 34, max: 15 * 60 + 30, step: 1, label: 'Entries from (ET)' },
-  entryEndEt:           { min: 9 * 60 + 49, max: 15 * 60 + 54, step: 1, label: 'Entries until (ET)' },
+  zeroDteMax:           { min: 0,   max: 3,    step: 1,   label: '0DTE sleeve: max open' },
+  zeroDteRiskUsd:       { min: 25,  max: 150,  step: 5,   label: '0DTE sleeve: risk per trade', unit: '$' },
+  swingMax:             { min: 0,   max: 4,    step: 1,   label: 'Swing sleeve: max open' },
+  swingRiskUsd:         { min: 50,  max: 500,  step: 10,  label: 'Swing sleeve: risk per trade', unit: '$' },
+  swingMaxDebitUsd:     { min: 100, max: 1500, step: 50,  label: 'Swing sleeve: max debit per trade', unit: '$' },
+  swingMinGrade:        { min: 65,  max: 95,   step: 1,   label: 'Swing sleeve: minimum NEXUS grade' },
+  maxProgressPct:       { min: 5,   max: 35,   step: 1,   label: 'Chase guard (max % of the way to T1)', unit: '%' },
+  minUnderlyingRR:      { min: 1,   max: 5,    step: 0.1, label: 'Minimum reward:risk on the underlying' },
+  minContractRoiAtT1Pct:{ min: 30,  max: 300,  step: 5,   label: 'Minimum contract return at T1', unit: '%' },
+  minStopWidthPct:      { min: 0.5, max: 15,   step: 0.1, label: 'Minimum stop width (underlying)', unit: '%' },
+  entryStartEt:         { min: 9 * 60 + 31, max: 15 * 60 + 30, step: 1, label: 'Entries from (ET)' },
+  entryEndEt:           { min: 9 * 60 + 46, max: 15 * 60 + 54, step: 1, label: 'Entries until (ET)' },
 };
 export const DESK_BOT_MAX_BLOCKED = 50;
 /** Every desk bot starts with a fresh 100K paper book, the size the platform bot trades. */
 export const DESK_BOT_STARTING_CAPITAL = 100_000;
 const SYMBOL_RE = /^[A-Z][A-Z0-9.\-]{0,11}$/;
 
-/** The platform bot's config fields a desk default is cloned from. */
+/** The platform bot's fields a desk default is cloned from (BotConfig + BotSleeveConfig). */
 export interface PlatformBotConfigLike {
-  minConviction: number; maxOpen: number; riskPerTradePct: number; maxRiskDollars: number; maxDebitDollars: number;
   maxProgressPct: number; minUnderlyingRR: number; minContractRoiAtT1Pct: number;
+}
+export interface PlatformSleevesLike {
+  zeroDteMax: number; zeroDteRiskUsd: number; swingMax: number; swingRiskUsd: number; swingMaxDebitUsd: number; swingMinGrade: number;
+  zeroDteWindows: Array<[number, number]>;
 }
 
 const clampTo = (k: NumKey, v: number) => Math.min(DESK_BOT_CAPS[k].max, Math.max(DESK_BOT_CAPS[k].min, v));
 
 /** "Replica but fresh": the platform bot's current rules, clamped into the desk caps. */
-export function defaultDeskBotConfig(base: PlatformBotConfigLike): DeskBotConfig {
+export function defaultDeskBotConfig(base: PlatformBotConfigLike, sleeves: PlatformSleevesLike): DeskBotConfig {
   return {
-    minConviction: clampTo('minConviction', base.minConviction),
-    maxOpen: clampTo('maxOpen', base.maxOpen),
-    riskPerTradePct: clampTo('riskPerTradePct', base.riskPerTradePct),
-    maxRiskDollars: clampTo('maxRiskDollars', base.maxRiskDollars),
-    maxDebitDollars: clampTo('maxDebitDollars', base.maxDebitDollars),
+    zeroDteMax: clampTo('zeroDteMax', sleeves.zeroDteMax),
+    zeroDteRiskUsd: clampTo('zeroDteRiskUsd', sleeves.zeroDteRiskUsd),
+    swingMax: clampTo('swingMax', sleeves.swingMax),
+    swingRiskUsd: clampTo('swingRiskUsd', sleeves.swingRiskUsd),
+    swingMaxDebitUsd: clampTo('swingMaxDebitUsd', sleeves.swingMaxDebitUsd),
+    swingMinGrade: clampTo('swingMinGrade', sleeves.swingMinGrade),
     maxProgressPct: clampTo('maxProgressPct', base.maxProgressPct),
     minUnderlyingRR: clampTo('minUnderlyingRR', base.minUnderlyingRR),
     minContractRoiAtT1Pct: clampTo('minContractRoiAtT1Pct', base.minContractRoiAtT1Pct),
     minStopWidthPct: DESK_BOT_CAPS.minStopWidthPct.min,
     allowLongs: true,
     allowShorts: true,
-    allowIndex0dte: true,
     universe: 'board',
     blockedSymbols: [],
     entryStartEt: DESK_BOT_CAPS.entryStartEt.min,
     entryEndEt: DESK_BOT_CAPS.entryEndEt.max,
   };
 }
+
+const BOOL_KEYS = ['allowLongs', 'allowShorts'] as const;
 
 /**
  * Validate a PATCH from the desk portal. Unknown keys and out-of-cap values are
@@ -148,7 +162,7 @@ export function parseDeskBotPatch(input: unknown, current: DeskBotConfig): { ok:
   const b = input as Record<string, unknown>;
   const errors: string[] = [];
   const next: DeskBotConfig = { ...current, blockedSymbols: [...current.blockedSymbols] };
-  const allowed = new Set<string>([...Object.keys(DESK_BOT_CAPS), 'allowLongs', 'allowShorts', 'allowIndex0dte', 'universe', 'blockedSymbols']);
+  const allowed = new Set<string>([...Object.keys(DESK_BOT_CAPS), ...BOOL_KEYS, 'universe', 'blockedSymbols']);
   for (const k of Object.keys(b)) if (!allowed.has(k)) errors.push(`${k}: not a setting you can change`);
 
   for (const k of Object.keys(DESK_BOT_CAPS) as NumKey[]) {
@@ -157,9 +171,9 @@ export function parseDeskBotPatch(input: unknown, current: DeskBotConfig): { ok:
     const cap = DESK_BOT_CAPS[k];
     if (typeof v !== 'number' || !Number.isFinite(v)) { errors.push(`${k}: must be a number`); continue; }
     if (v < cap.min || v > cap.max) { errors.push(`${k}: ${cap.label} must be between ${cap.min} and ${cap.max}`); continue; }
-    (next as unknown as Record<string, number>)[k] = (k === 'maxOpen' || k === 'entryStartEt' || k === 'entryEndEt' || k === 'minConviction') ? Math.round(v) : v;
+    (next as unknown as Record<string, number>)[k] = INT_KEYS.has(k) ? Math.round(v) : v;
   }
-  for (const k of ['allowLongs', 'allowShorts', 'allowIndex0dte'] as const) {
+  for (const k of BOOL_KEYS) {
     if (b[k] === undefined) continue;
     if (typeof b[k] !== 'boolean') { errors.push(`${k}: must be true or false`); continue; }
     next[k] = b[k] as boolean;
@@ -179,6 +193,7 @@ export function parseDeskBotPatch(input: unknown, current: DeskBotConfig): { ok:
     }
   }
   if (!next.allowLongs && !next.allowShorts) errors.push('Allow longs, shorts or both — a bot with neither never trades');
+  if (next.zeroDteMax === 0 && next.swingMax === 0) errors.push('Turn on at least one sleeve — a bot with no capacity never trades (switch the bot off instead)');
   if (next.entryEndEt - next.entryStartEt < 15) errors.push('The entry window must be at least 15 minutes long');
   if (errors.length) return { ok: false, errors };
   const changed = (Object.keys(next) as (keyof DeskBotConfig)[]).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(current[k]));
@@ -189,15 +204,15 @@ export function parseDeskBotPatch(input: unknown, current: DeskBotConfig): { ok:
  * A stored config read back: fill missing keys from the default and pull every
  * value inside today's caps (caps can tighten after a row was written).
  */
-export function normalizeStoredDeskConfig(stored: unknown, base: PlatformBotConfigLike): DeskBotConfig {
-  const d = defaultDeskBotConfig(base);
+export function normalizeStoredDeskConfig(stored: unknown, base: PlatformBotConfigLike, sleeves: PlatformSleevesLike): DeskBotConfig {
+  const d = defaultDeskBotConfig(base, sleeves);
   const s = (stored && typeof stored === 'object' ? stored : {}) as Partial<DeskBotConfig>;
   const out: DeskBotConfig = { ...d };
   for (const k of Object.keys(DESK_BOT_CAPS) as NumKey[]) {
     const v = (s as Record<string, unknown>)[k];
     if (typeof v === 'number' && Number.isFinite(v)) (out as unknown as Record<string, number>)[k] = clampTo(k, v);
   }
-  for (const k of ['allowLongs', 'allowShorts', 'allowIndex0dte'] as const) if (typeof s[k] === 'boolean') out[k] = s[k] as boolean;
+  for (const k of BOOL_KEYS) if (typeof s[k] === 'boolean') out[k] = s[k] as boolean;
   if (s.universe === 'board' || s.universe === 'watchlist') out.universe = s.universe;
   if (Array.isArray(s.blockedSymbols)) out.blockedSymbols = s.blockedSymbols.filter((x): x is string => typeof x === 'string' && SYMBOL_RE.test(x)).slice(0, DESK_BOT_MAX_BLOCKED);
   if (!out.allowLongs && !out.allowShorts) out.allowLongs = true;
@@ -205,18 +220,33 @@ export function normalizeStoredDeskConfig(stored: unknown, base: PlatformBotConf
   return out;
 }
 
-/** The engine config a desk bot cycle runs with: desk choices + platform-fixed fields. */
-export function deskEngineConfig<T extends PlatformBotConfigLike & { startingCapital: number }>(desk: DeskBotConfig, platform: T): T {
+/**
+ * The sleeve config a desk bot runs with: the platform's current sleeves with the
+ * desk's choices applied — never looser than the platform (ceilings take the min,
+ * floors the max). Retired-run time stops are the platform bot's alone.
+ */
+export function deskSleeveConfig<S extends PlatformSleevesLike & { timeStopRetired: boolean }>(desk: DeskBotConfig, platform: S): S {
   return {
     ...platform,
-    minConviction: desk.minConviction,
-    maxOpen: desk.maxOpen,
-    riskPerTradePct: desk.riskPerTradePct,
-    maxRiskDollars: desk.maxRiskDollars,
-    maxDebitDollars: desk.maxDebitDollars,
-    maxProgressPct: desk.maxProgressPct,
-    minUnderlyingRR: desk.minUnderlyingRR,
-    minContractRoiAtT1Pct: desk.minContractRoiAtT1Pct,
+    zeroDteMax: Math.min(desk.zeroDteMax, platform.zeroDteMax),
+    zeroDteRiskUsd: Math.min(desk.zeroDteRiskUsd, platform.zeroDteRiskUsd),
+    swingMax: Math.min(desk.swingMax, platform.swingMax),
+    swingRiskUsd: Math.min(desk.swingRiskUsd, platform.swingRiskUsd),
+    swingMaxDebitUsd: Math.min(desk.swingMaxDebitUsd, platform.swingMaxDebitUsd),
+    swingMinGrade: Math.max(desk.swingMinGrade, platform.swingMinGrade),
+    timeStopRetired: false,
+  };
+}
+
+/** The engine config a desk bot cycle runs with: desk choices + platform-fixed fields (spread, debit %, quote rules). */
+export function deskEngineConfig<T extends PlatformBotConfigLike & { startingCapital: number; maxRiskDollars: number; maxDebitDollars: number }>(desk: DeskBotConfig, platform: T): T {
+  return {
+    ...platform,
+    maxProgressPct: Math.min(desk.maxProgressPct, platform.maxProgressPct),
+    minUnderlyingRR: Math.max(desk.minUnderlyingRR, platform.minUnderlyingRR),
+    minContractRoiAtT1Pct: Math.max(desk.minContractRoiAtT1Pct, platform.minContractRoiAtT1Pct),
+    maxRiskDollars: Math.min(desk.swingRiskUsd, platform.maxRiskDollars),
+    maxDebitDollars: Math.min(desk.swingMaxDebitUsd, platform.maxDebitDollars),
     startingCapital: DESK_BOT_STARTING_CAPITAL,
   };
 }
@@ -227,27 +257,28 @@ export interface DeskPickLike {
   entryPrice?: number | null;
   stopLoss?: number | null;
 }
-export interface DeskIdeaLike { source?: string | null; dataSourceUsed?: string | null; entryPrice?: number | null; stopLoss?: number | null }
+export interface DeskIdeaLike { source?: string | null; dataSourceUsed?: string | null; entryPrice?: number | null; stopLoss?: number | null; assetType?: string | null }
 
 /**
  * The desk's own entry rules, applied on top of — never instead of — every
- * platform gate (publish gates, loss rules, tape gate, spread/quote checks).
+ * platform gate (sleeve windows and capacity, publish gates, loss rules, tape,
+ * BTC-proxy shorts, one-side-per-symbol, executable-quote checks).
  */
 export function deskEntryCheck(cfg: DeskBotConfig, pick: DeskPickLike, idea: DeskIdeaLike | null, ctx: { etMinutes: number; watchlist: ReadonlySet<string> }): { ok: true } | { ok: false; code: string; reason: string } {
   const sym = String(pick.symbol || '').toUpperCase();
   if (ctx.etMinutes < cfg.entryStartEt || ctx.etMinutes > cfg.entryEndEt) {
     return { ok: false, code: 'desk_window', reason: `outside the desk entry window (${fmtEt(cfg.entryStartEt)}–${fmtEt(cfg.entryEndEt)} ET)` };
   }
-  const short = pick.direction === 'short';
+  const short = String(pick.direction ?? '').toLowerCase() === 'short';
   if (short && !cfg.allowShorts) return { ok: false, code: 'desk_no_shorts', reason: 'shorts are off for this desk' };
   if (!short && !cfg.allowLongs) return { ok: false, code: 'desk_no_longs', reason: 'longs are off for this desk' };
-  const isIndexScalp = idea?.source === 'gex_scanner' && String(idea?.dataSourceUsed ?? '').startsWith('GEX_index_scalp_');
-  if (isIndexScalp && !cfg.allowIndex0dte) return { ok: false, code: 'desk_no_0dte', reason: 'index 0DTE is off for this desk' };
   if (cfg.blockedSymbols.includes(sym)) return { ok: false, code: 'desk_blocked', reason: `${sym} is on the desk's block list` };
   if (cfg.universe === 'watchlist' && !ctx.watchlist.has(sym)) return { ok: false, code: 'desk_universe', reason: `${sym} is not on the desk watchlist` };
+  // Stop width is measured on the UNDERLYING plan. Contract-level (premium) stops — the 0DTE sleeve's — are not comparable.
   const entry = Number(idea?.entryPrice ?? pick.entryPrice);
   const stop = Number(idea?.stopLoss ?? pick.stopLoss);
-  if (!isIndexScalp && Number.isFinite(entry) && Number.isFinite(stop) && entry > 0) {
+  const underlyingPlan = !idea || idea.assetType !== 'option' || !String(idea.dataSourceUsed ?? '').startsWith('GEX_index_scalp_');
+  if (underlyingPlan && Number.isFinite(entry) && Number.isFinite(stop) && entry > 0 && stop > 0) {
     const widthPct = (Math.abs(entry - stop) / entry) * 100;
     if (widthPct < cfg.minStopWidthPct) {
       return { ok: false, code: 'desk_stop_width', reason: `stop ${widthPct.toFixed(2)}% from entry is tighter than the desk minimum ${cfg.minStopWidthPct}%` };

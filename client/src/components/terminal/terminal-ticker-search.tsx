@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { canonicalChartSymbol } from '@shared/index-symbols';
 
 interface SearchResult {
   symbol: string;
@@ -58,7 +59,8 @@ export function TerminalTickerSearch({
   }, []);
 
   const select = (result: SearchResult) => {
-    onSelect({ ...result, symbol: result.symbol.toUpperCase() });
+    // $SPX / ^GSPC / SPXW → SPX: the switcher hands every chart the one canonical name.
+    onSelect({ ...result, symbol: canonicalChartSymbol(result.symbol) });
     setQuery('');
     setOpen(false);
   };

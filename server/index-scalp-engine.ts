@@ -33,15 +33,15 @@
 import { readShared, writeSharedSync } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
-import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
-import { fetchYahooFinancePrice } from './market-api';
+import { getSpxPerSpy, type SpxRatio } from './spx-ratio';
 import { getIntradayStructure } from './zero-dte-structure';
 import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type ZeroDtePolicy, type ZeroDteBucketInput } from './zero-dte-policies';
+import { evaluateOpenDrive, inOpenDriveWindow, openDriveOrBars, openDriveEnabled, OPEN_DRIVE_PROVENANCE, OPEN_DRIVE_PREMIUM, OPEN_DRIVE_POLICY } from './open-drive-core';
 
 // ─── Types ──────────────────────────────────────────────────
 
-export type ScalpSetup = 'flip_bounce' | 'wall_fade' | 'wall_break' | 'power_hour';
+export type ScalpSetup = 'flip_bounce' | 'wall_fade' | 'wall_break' | 'power_hour' | 'open_drive';
 
 export interface IndexScalpIdea {
   symbol: string;             // Trade vehicle: SPX, SPY, QQQ
@@ -65,7 +65,7 @@ export interface IndexScalpIdea {
   putWall: number | null;
   regime: string;
   // Structure-gated policy provenance (server/zero-dte-policies.ts)
-  policy?: ZeroDtePolicy;
+  policy?: ZeroDtePolicy | typeof OPEN_DRIVE_POLICY;
   evidence?: string[];
   /** ISO — hard time stop (15:55 ET). */
   exitBy?: string;
@@ -621,9 +621,10 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   const dteLabel = dteDays <= 0 ? '0DTE' : `${dteDays}DTE`;
   const setupLabel = idea.policy === 'A_neg_gamma_continuation' ? 'A · −γ continuation'
     : idea.policy === 'B_pos_gamma_wall_fade' ? (idea.isPowerHour ? 'B · +γ power-hour pin' : 'B · +γ wall fade')
+    : idea.policy === OPEN_DRIVE_POLICY ? 'OD · open drive (measuring)'
     : idea.setup.replace('_', ' ');
   const evidenceText = idea.evidence?.length ? ` Evidence: ${idea.evidence.join(' | ')}.` : '';
-  const provenanceText = idea.policy ? ` ${ZERO_DTE_PROVENANCE}` : '';
+  const provenanceText = idea.policy === OPEN_DRIVE_POLICY ? ` ${OPEN_DRIVE_PROVENANCE}` : idea.policy ? ` ${ZERO_DTE_PROVENANCE}` : '';
   const timeStopText = ` Hard time stop ${TIME_STOP_ET} ET — flat before the close whatever the P&L.${dteDays > 0 ? ` (No same-day expiry fit the account gate; the ${contract.expiry} contract is held intraday only.)` : ''}`;
 
   const tradeIdea = {
@@ -670,6 +671,10 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
       idea.isPowerHour ? 'power_hour' : '',
       idea.policy ? `policy:${idea.policy}` : '',
       idea.policy ? 'validated:false' : '',
+      idea.policy === OPEN_DRIVE_POLICY ? 'status:measuring' : '',
+      idea.policy === OPEN_DRIVE_POLICY ? `prem_stop:${OPEN_DRIVE_PREMIUM.stopPct}` : '',
+      idea.policy === OPEN_DRIVE_POLICY ? `prem_t1:+${OPEN_DRIVE_PREMIUM.t1Pct}` : '',
+      idea.policy === OPEN_DRIVE_POLICY ? `prem_t2:+${OPEN_DRIVE_PREMIUM.t2Pct}` : '',
       idea.evidence?.some((e) => e.includes('0DTE-only levels')) ? 'levels:0dte_walls' : '',
       `time_stop:${TIME_STOP_ET}ET`,
       `contract_dte:${dteDays}`,
@@ -677,15 +682,15 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   };
 
   try {
-    const created = await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
-    const { isDedupedResult } = await import('./lib/instrument-dedup');
-    if (isDedupedResult(created)) {
+    const { persistPreparedTradeIdea } = await import('./trade-idea-ingestion');
+    if (!(await persistPreparedTradeIdea(tradeIdea, { cooldownMs: 0, dedupWindowHours: 0.5, intradayContract: true }))) {
       // Same contract already open / published this session — no re-alert.
       recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
-      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not republished — existing idea ${(created as any)?.id}`);
+      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not published — a shared persistence gate blocked it`);
       return false;
     }
     recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
+    if (idea.policy === OPEN_DRIVE_POLICY) (await import('./open-drive')).noteOpenDriveFired(idea.underlying);
     logger.info(
       `[INDEX-SCALP] ✅ ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} @ $${contract.entryPremium.toFixed(2)} | ${idea.setup} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,
     );
@@ -752,6 +757,8 @@ export interface IndexScalpResult {
   waits?: Record<string, string[]>;
   /** ISO — when this pass ran (a cached result is returned inside the min interval). */
   ranAt?: string;
+  /** ISO — fetchedAt of the GEX snapshot each symbol was evaluated on (null = no snapshot). The 0DTE desk's health line reads SPY. */
+  gexAt?: Record<string, string | null>;
 }
 
 function etMinutesNow(now = new Date()): number {
@@ -782,8 +789,16 @@ async function eventBlockNow(etMin: number): Promise<string | null> {
 async function zeroDteBucketFor(sym: string, spot: number, nowMs: number): Promise<ZeroDteBucketInput | null> {
   if (!zeroDteWallsEnabled()) return null;
   try {
-    const { getAlpacaOptionsChain, alpacaToTradierShape } = await import('./alpaca-options');
-    const chain = await getAlpacaOptionsChain(sym);
+    const { getAlpacaOptionsChain, peekAlpacaOptionsChain, alpacaToTradierShape, withAlpacaPriority } = await import('./alpaca-options');
+    // The chain the snapshot was just computed from (up to 5 min old — OI and the
+    // 0DTE strike map do not change faster than the snapshot does). Only a cold
+    // cache pays for a fetch, and then in the priority lane with a bounded wait:
+    // 2026-10-01 this was a second unbounded cold SPY chain per pass.
+    const chain = peekAlpacaOptionsChain(sym, 5 * 60_000)
+      ?? await Promise.race([
+        withAlpacaPriority(() => getAlpacaOptionsChain(sym)),
+        new Promise<null>((r) => { setTimeout(() => r(null), 15_000).unref?.(); }),
+      ]);
     if (!chain?.contracts.length) return null;
     const { pickDeskExpiry, expiryBucketLevels, etDateKey } = await import('./zero-dte-desk-core');
     const ex = pickDeskExpiry(chain.expirations, etDateKey(nowMs));
@@ -810,6 +825,8 @@ const INDEX_SHARED = 'index-0dte-last';
 let inflightScan: Promise<IndexScalpResult> | null = null;
 let lastScan: { at: number; result: IndexScalpResult } | null = null;
 const MIN_SCAN_INTERVAL_MS = 60_000;
+/** Per-symbol wait for an index GEX snapshot inside a scan (was the service default 12 s). */
+const INDEX_SNAPSHOT_TIMEOUT_MS = 25_000;
 
 /**
  * Run the index 0DTE scanner.
@@ -845,8 +862,10 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
   const symbols = Object.keys(INDEX_MAP); // SPY, QQQ, IWM
   const etMin = etMinutesNow();
   const waits: Record<string, string[]> = {};
-  if (etMin < 585 || etMin > 945) {
-    for (const s of symbols) waits[s] = ['outside 09:45–15:45 ET entry window'];
+  // 09:31–09:44 ET: the open-drive policy (server/open-drive-core.ts); 09:45 onward A/B unchanged.
+  const openDrive = etMin < 585 && openDriveEnabled() && inOpenDriveWindow(etMin);
+  if ((etMin < 585 && !openDrive) || etMin > 945) {
+    for (const s of symbols) waits[s] = [etMin < 585 && openDriveEnabled() && etMin < 571 ? 'before 09:31 ET — open drive starts 09:31, A/B at 09:45' : 'outside 09:45–15:45 ET entry window'];
     // 15:45–15:55: the A/B policies are closed, but the SPX fast-move causes (server/spx-fast-moves.ts,
     // SPX_FAST_MOVES=true) may still fire — ONLY those, and only what their replay policy allows.
     if (etMin > 945 && etMin <= 955) {
@@ -861,27 +880,77 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
     return { session, scanned: 0, ideas: [], persisted: 0, waits, ranAt };
   }
 
-  const [snaps, eventBlock] = await Promise.all([getGexSnapshotBatch(symbols), eventBlockNow(etMin)]);
+  // Index chains go through Alpaca's PRIORITY request lane with a 25 s wait (a
+  // late result is still cached — gex-snapshot-service). 2026-10-01 they queued
+  // FIFO behind every other job's chain requests and timed out at 12 s each pass.
+  const { withAlpacaPriority } = await import('./alpaca-options');
+  const [snaps, eventBlock] = await Promise.all([
+    withAlpacaPriority(() => getGexSnapshotBatch(symbols, { concurrency: 1, timeoutMs: INDEX_SNAPSHOT_TIMEOUT_MS })),
+    eventBlockNow(etMin),
+  ]);
+  const spySnap = snaps.get('SPY');
+  const { noteIndexCycle } = await import('./index-engine-health');
+  noteIndexCycle('scan', spySnap ?? null);
+  const gexAt: Record<string, string | null> = Object.fromEntries(symbols.map((sym) => [sym, snaps.get(sym)?.fetchedAt ?? null]));
 
   // SPX is not SPY × 10. The ratio drifts enough to move a 0DTE suggestion by
-  // several strikes (today it was roughly 10.056). Resolve the live cash-index
-  // ratio once per scan before translating SPY GEX levels into SPX levels.
-  const spySnap = snaps.get('SPY');
+  // several strikes (roughly 10.05). Live Yahoo ^GSPC ÷ SPY, else the last live
+  // ratio (labelled with its age), else NO translation — SPY setups then publish
+  // on SPY in SPY units (server/spx-ratio.ts). Never a flat ×10.
+  let spxRatio: SpxRatio | null = null;
   if (spySnap && spySnap.spot > 0) {
-    try {
-      const spxCash = await fetchYahooFinancePrice('%5EGSPC');
-      if (spxCash?.currentPrice && spxCash.currentPrice > 1_000) {
-        INDEX_MAP.SPY.multiplier = spxCash.currentPrice / spySnap.spot;
-      } else {
-        logger.warn('[INDEX-SCALP] SPX cash quote unavailable — using fallback SPY×10 translation');
-      }
-    } catch {
-      logger.warn('[INDEX-SCALP] SPX cash quote failed — using fallback SPY×10 translation');
-    }
+    spxRatio = await getSpxPerSpy({ price: spySnap.spot, atMs: Date.parse(spySnap.fetchedAt) });
+    if (spxRatio) INDEX_MAP.SPY.multiplier = spxRatio.ratio;
   }
 
   const ideas: IndexScalpIdea[] = [];
   const now = Date.now();
+  if (openDrive) {
+    const od = await import('./open-drive');
+    for (const sym of symbols) {
+      const snap = snaps.get(sym) ?? null;
+      if (eventBlock) { waits[sym] = [`event gate: ${eventBlock}`]; continue; }
+      const bars = await od.getOneMinuteSession(sym, now);
+      if (!bars?.rth.length) { waits[sym] = ['open drive: no 1-minute bars yet']; continue; }
+      const st = await getIntradayStructure(sym);
+      const zeroDte = snap ? await zeroDteBucketFor(sym, snap.spot, now) : null;
+      const verdict = evaluateOpenDrive({
+        symbol: sym, rth: bars.rth, pre: bars.pre, pdc: st?.pdc ?? null,
+        gex: snap ? { sign: snap.netGexSign, zeroGamma: snap.flipPoint, callWall: snap.callWall, putWall: snap.putWall, zeroDte, fetchedAt: snap.fetchedAt } : null,
+        nowMs: now, etMin, firedToday: od.openDriveFiredToday(now), orBars: openDriveOrBars(),
+      });
+      if (!verdict.setup) { waits[sym] = verdict.wait; continue; }
+      const v = verdict.setup;
+      const config = INDEX_MAP[sym];
+      const toSpx = config.spx && spxRatio != null;
+      const scale = toSpx ? spxRatio!.ratio : 1;
+      ideas.push({
+        symbol: toSpx ? 'SPX' : sym,
+        underlying: sym,
+        setup: 'open_drive',
+        direction: v.direction,
+        bias: v.direction === 'long' ? 'calls' : 'puts',
+        spotPrice: v.entry * scale,
+        suggestedStrike: roundStrike(v.entry * scale, config.strikeInterval),
+        expiryDate: getTodayExpiry(),
+        premiumRange: 'live chain',
+        target: v.target * scale,
+        stop: v.stop * scale,
+        riskRewardRatio: +v.rr.toFixed(2),
+        confidence: 60, // rank placeholder — the policy is unvalidated (measuring)
+        thesis: `${sym} open drive ${v.direction} — held break of the opening range ${v.orLow.toFixed(2)}–${v.orHigh.toFixed(2)}, stop $${v.stop.toFixed(2)} (other side of the OR) or premium ${OPEN_DRIVE_PREMIUM.stopPct}%, target ${v.targetName} $${v.target.toFixed(2)} (${v.rr.toFixed(2)}R on ${sym}); premium targets +${OPEN_DRIVE_PREMIUM.t1Pct}% / +${OPEN_DRIVE_PREMIUM.t2Pct}%.${toSpx ? ` SPX levels translated from SPY with ${spxRatio!.label}.` : config.spx ? ' No live SPX/SPY ratio on record — published on SPY in SPY units (not translated to SPX).' : ''}`,
+        isPowerHour: false,
+        gammaFlip: snap?.flipPoint ?? null,
+        callWall: snap?.callWall ?? null,
+        putWall: snap?.putWall ?? null,
+        regime: snap ? (snap.regime ?? snap.netGexSign) : 'unknown',
+        policy: OPEN_DRIVE_POLICY,
+        evidence: v.evidence,
+        exitBy: timeStopIso(now),
+        entryValidUntil: new Date(now + 5 * 60_000).toISOString(),
+      });
+    }
+  } else
   for (const sym of symbols) {
     const snap = snaps.get(sym);
     if (!snap) { waits[sym] = ['no GEX snapshot (chain fetch failed or timed out)']; continue; }
@@ -895,8 +964,9 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
     if (!verdict.setup) { waits[sym] = verdict.wait; continue; }
     const v = verdict.setup;
     const config = INDEX_MAP[sym];
-    const scale = config.spx ? config.multiplier : 1;
-    const tradeSym = config.spx ? 'SPX' : sym;
+    const toSpx = config.spx && spxRatio != null;
+    const scale = toSpx ? spxRatio!.ratio : 1;
+    const tradeSym = toSpx ? 'SPX' : sym;
     const bias: 'calls' | 'puts' = v.direction === 'long' ? 'calls' : 'puts';
     ideas.push({
       symbol: tradeSym,
@@ -913,7 +983,7 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
       riskRewardRatio: +v.rr.toFixed(2),
       // A rank placeholder, not a probability — the policy is unvalidated.
       confidence: 65,
-      thesis: `${v.powerHour ? '⚡ ' : ''}${sym} ${v.direction === 'long' ? 'long' : 'short'} — trigger ${v.trigger.name} $${v.trigger.price.toFixed(2)}, target ${v.targetLevel.name} $${v.targetLevel.price.toFixed(2)}, stop $${v.stop.toFixed(2)} (${v.rr.toFixed(2)}R on ${sym}).`,
+      thesis: `${v.powerHour ? '⚡ ' : ''}${sym} ${v.direction === 'long' ? 'long' : 'short'} — trigger ${v.trigger.name} $${v.trigger.price.toFixed(2)}, target ${v.targetLevel.name} $${v.targetLevel.price.toFixed(2)}, stop $${v.stop.toFixed(2)} (${v.rr.toFixed(2)}R on ${sym}).${toSpx ? ` SPX levels translated from SPY with ${spxRatio!.label}.` : config.spx ? ' No live SPX/SPY ratio on record — published on SPY in SPY units (not translated to SPX).' : ''}`,
       isPowerHour: v.powerHour,
       gammaFlip: snap.flipPoint,
       callWall: snap.callWall,
@@ -942,10 +1012,19 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
 
   let persisted = 0;
   for (const idea of ideas) {
+    if (idea.policy === OPEN_DRIVE_POLICY) {
+      // Daily caps re-checked per publish: two symbols firing in one pass must not exceed 2/day.
+      const { openDriveFiredToday, OPEN_DRIVE_CAPS } = await import('./open-drive');
+      const f = openDriveFiredToday();
+      if (f.total >= OPEN_DRIVE_CAPS.total || (f.bySymbol[idea.underlying] ?? 0) >= OPEN_DRIVE_CAPS.perSymbol) {
+        waits[idea.underlying] = [`open drive: daily cap reached (${OPEN_DRIVE_CAPS.perSymbol}/symbol, ${OPEN_DRIVE_CAPS.total} total)`];
+        continue;
+      }
+    }
     if (await persistScalp(idea, opts)) persisted++;
   }
 
-  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt };
+  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt, gexAt };
 }
 
 // ─── Intraday Scheduler ─────────────────────────────────────

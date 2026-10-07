@@ -69,6 +69,10 @@ async function platformConfig() {
   const { DEFAULT_BOT_CONFIG } = await import('./quant-bot');
   return DEFAULT_BOT_CONFIG;
 }
+async function platformSleeves() {
+  const { readBotSleeveConfig } = await import('@shared/bot-sleeves');
+  return readBotSleeveConfig(process.env);
+}
 
 export interface DeskBotState { slug: string; enabled: boolean; enabledAt: string | null; config: DeskBotConfig; updatedAt: string | null; updatedBy: string | null; exists: boolean }
 
@@ -76,12 +80,13 @@ export async function readDeskBot(slug: string): Promise<DeskBotState> {
   const { db } = await import('./db');
   const { deskBots } = await import('@shared/schema');
   const base = await platformConfig();
+  const sleeves = await platformSleeves();
   try {
     const [row] = await db.select().from(deskBots).where(eq(deskBots.traderSlug, slug)).limit(1);
-    if (!row) return { slug, enabled: false, enabledAt: null, config: defaultDeskBotConfig(base), updatedAt: null, updatedBy: null, exists: false };
+    if (!row) return { slug, enabled: false, enabledAt: null, config: defaultDeskBotConfig(base, sleeves), updatedAt: null, updatedBy: null, exists: false };
     return {
       slug, enabled: row.enabled, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
-      config: normalizeStoredDeskConfig(row.config, base), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      config: normalizeStoredDeskConfig(row.config, base, sleeves), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
       updatedBy: row.updatedBy ?? null, exists: true,
     };
   } catch (e) {
@@ -112,8 +117,9 @@ export async function setDeskBotEnabled(slug: string, enabled: boolean, actorId:
       const [{ n }] = await db.select({ n: count() }).from(deskBots).where(and(eq(deskBots.enabled, true), ne(deskBots.traderSlug, slug)));
       if (Number(n) >= max) return { ok: false, status: 409, error: `The platform runs at most ${max} desk bot${max === 1 ? '' : 's'} at once and that many are on. Ask Malik to free a slot.` };
       const base = await platformConfig();
+      const sleeves = await platformSleeves();
       const current = await readDeskBot(slug);
-      await db.insert(deskBots).values({ traderSlug: slug, config: current.config ?? defaultDeskBotConfig(base), enabled: true, enabledAt: new Date(), updatedBy: actorId })
+      await db.insert(deskBots).values({ traderSlug: slug, config: current.config ?? defaultDeskBotConfig(base, sleeves), enabled: true, enabledAt: new Date(), updatedBy: actorId })
         .onConflictDoUpdate({ target: deskBots.traderSlug, set: { enabled: true, enabledAt: new Date(), updatedBy: actorId, updatedAt: new Date() } });
     } else {
       await db.update(deskBots).set({ enabled: false, updatedBy: actorId, updatedAt: new Date() }).where(eq(deskBots.traderSlug, slug));
@@ -129,11 +135,12 @@ export async function listDeskBots(): Promise<DeskBotState[]> {
   const { db } = await import('./db');
   const { deskBots } = await import('@shared/schema');
   const base = await platformConfig();
+  const sleeves = await platformSleeves();
   try {
     const rows = await db.select().from(deskBots).orderBy(asc(deskBots.traderSlug));
     return rows.map((row) => ({
       slug: row.traderSlug, enabled: row.enabled, enabledAt: row.enabledAt ? new Date(row.enabledAt).toISOString() : null,
-      config: normalizeStoredDeskConfig(row.config, base), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      config: normalizeStoredDeskConfig(row.config, base, sleeves), updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
       updatedBy: row.updatedBy ?? null, exists: true,
     }));
   } catch (e) {
@@ -160,7 +167,9 @@ function etMinutesNow(d = new Date()): number {
 /** The BotOwner a desk bot runs as — its own book plus its own entry rules. */
 export async function deskOwner(trader: Pick<Trader, 'id' | 'slug' | 'name'>, cfg: DeskBotConfig) {
   const watchlist = cfg.universe === 'watchlist' ? await deskWatchlist(trader.id) : new Set<string>();
+  const { deskSleeveConfig } = await import('@shared/desk-admin');
   return {
+    sleeves: deskSleeveConfig(cfg, await platformSleeves()),
     userId: deskBotOwnerId(trader.slug),
     portfolioName: deskBotPortfolioName(trader.name),
     label: `Desk bot ${trader.slug}`,
@@ -206,7 +215,7 @@ export async function deskBotStatus(trader: Pick<Trader, 'id' | 'slug' | 'name'>
   const { findDeskBotPortfolio, deskBotLastCycle } = await import('./quant-bot');
   const owner = { userId: deskBotOwnerId(trader.slug), portfolioName: deskBotPortfolioName(trader.name), label: trader.slug, primary: false };
   const pf: any = await findDeskBotPortfolio(owner);
-  const base = { setUp: !!state, enabled: state?.enabled ?? false, lastCycle: deskBotLastCycle(trader.slug), startingCapital: DESK_BOT_STARTING_CAPITAL };
+  const base = { setUp: !!state, enabled: state?.enabled ?? false, lastCycle: await deskBotLastCycle(trader.slug), startingCapital: DESK_BOT_STARTING_CAPITAL };
   if (!pf?.id) return { ...base, portfolio: null, cash: null, totalValue: null, realizedPnL: 0, unrealizedPnL: null, open: [], closed: [], wins: 0, losses: 0 };
   const { db } = await import('./db');
   const { paperPositions } = await import('@shared/schema');

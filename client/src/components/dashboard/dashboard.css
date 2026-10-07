@@ -564,44 +564,46 @@ html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){bor
   .flowdash.dash-gex[data-view=dashboard]>.fd-bar{order:2;margin:16px 0 0}
   .flowdash.dash-gex[data-view=dashboard]>.fd-scroller{order:1}
   .flowdash .gxp-page{margin:0 -16px;display:flex;flex-direction:column}
-  .flowdash .gxp-head{padding:6px 16px 8px;border-bottom:1px solid var(--nx-border)}
-  .flowdash .gxp-head-row{display:flex;align-items:center;gap:8px;min-height:44px}
-  .flowdash .gxp-ticker>button{min-height:44px}
-  .flowdash .gxp-metric{margin-left:auto}
-  .flowdash .gxp-metric button{min-height:44px;min-width:48px;font-size:12px}
-  .flowdash .gxp-gview-row{display:flex;align-items:center;gap:10px;margin-top:6px}
-  .flowdash .gxp-gview button{min-height:44px;min-width:64px;font-size:12px}
-  .flowdash .gxp-gview-note{font-size:12px;color:var(--text-dim)}
-  .flowdash .gxp-horizon{margin-left:auto;min-height:44px;padding:0 10px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 13px var(--fd-mono);cursor:pointer}
+  /* ONE header row at every phone width: ticker · price/age · GEX|VEX · horizon · settings */
+  .flowdash .gxp-head{padding:6px 10px;border-bottom:1px solid var(--nx-border)}
+  .flowdash .gxp-head-row{display:flex;align-items:center;gap:4px;min-height:44px;min-width:0}
+  .flowdash .gxp-head-row>*{flex:none}
+  .flowdash .gxp-ticker>button{min-height:44px;padding-left:8px;padding-right:4px;gap:2px}
+  .flowdash .gxp-quote{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.1;white-space:nowrap;overflow:hidden}
+  .flowdash .gxp-px{font:700 16px/1.15 var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis}
+  .flowdash .gxp-snap{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;white-space:nowrap;font:500 11px var(--fd-mono);color:var(--text-mute)}
+  .flowdash .gxp-snap .qp-stamp{text-transform:none;font-size:11px;flex:none}
+  .flowdash .gxp-chg{min-width:0;overflow:hidden;text-overflow:ellipsis;font:600 11px var(--fd-mono);font-variant-numeric:tabular-nums}
+  .flowdash .gxp-metric button{min-height:44px;padding:0 4px;font-size:12px}
+  .flowdash .gxp-horizon{-webkit-appearance:none;appearance:none;height:44px;width:70px;padding:0 15px 0 6px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a94a6' stroke-width='1.6'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right 5px center!important;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 12px var(--fd-mono);cursor:pointer}
   .flowdash .gxp-horizon:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px}
-  .flowdash .gxp-levels-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 13px Inter,system-ui,sans-serif;cursor:pointer}
-  .flowdash .gxp-quote{display:flex;align-items:baseline;gap:10px;min-width:0;white-space:nowrap}
-  .flowdash .gxp-px{font:700 24px/1.1 var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums}
-  .flowdash .gxp-chg{font:600 14px var(--fd-mono);font-variant-numeric:tabular-nums}
-  .flowdash .gxp-snap .qp-stamp{text-transform:none}
-  .flowdash .gxp-snap{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:500 12px var(--fd-mono);color:var(--text-mute);letter-spacing:.02em}
-  .flowdash .gxp-tag{font-size:12px;align-self:center}
+  .flowdash .gxp-levels-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);cursor:pointer}
+  .flowdash .gxp-levels-btn:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px}
+  .flowdash .gxp-dot-on{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--cyan-bright,#6aa8ff)}
+  .flowdash .gxp-gview button{min-height:40px;min-width:56px;font-size:12px}
   .flowdash .gx-ref,.flowdash .gx-ps-spotlbl,.flowdash .gx-spot-tag{font-size:12px}
-  .flowdash .gxp-snap .qp-stamp{align-self:center}
+  /* settings sheet controls (Raw/Δ-adj · strikes) above the levels summary */
+  .flowdash .gxp-sheet-ctl{display:flex;flex-direction:column;gap:8px;padding:0 0 10px;margin-bottom:8px;border-bottom:1px solid var(--nx-border)}
+  .flowdash .gxp-sheet-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font:600 12px var(--fd-mono);color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
 
   .flowdash .gxp-scroll{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:var(--gx-zero,#0b0f16)}
   .flowdash .gxp-scroll:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:-2px}
   .flowdash table.gxp-table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:var(--fd-mono);font-variant-numeric:tabular-nums}
-  .flowdash .gxp-table col.gxp-col-k{width:62px}
-  .flowdash .gxp-table thead th{position:sticky;top:0;z-index:3;height:34px;padding:0 2px;background:var(--bg-2,#0e1117);border-bottom:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 13px var(--fd-mono);letter-spacing:.06em;text-align:center;white-space:nowrap}
-  .flowdash .gxp-table th.gxp-k{position:sticky;left:0;z-index:2;padding:0 6px;background:var(--bg-2,#0e1117);border-right:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 13px var(--fd-mono);text-align:left;white-space:nowrap}
+  .flowdash .gxp-table col.gxp-col-k{width:var(--gxp-kcol,54px)}
+  .flowdash .gxp-table thead th{position:sticky;top:0;z-index:3;height:32px;padding:0 1px;background:var(--bg-2,#0e1117);border-bottom:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 12px var(--fd-mono);letter-spacing:.02em;text-align:center;white-space:nowrap;overflow:hidden}
+  .flowdash .gxp-table th.gxp-k{position:sticky;left:0;z-index:2;padding:0 4px;background:var(--bg-2,#0e1117);border-right:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 13px var(--fd-mono);text-align:left;white-space:nowrap}
   .flowdash .gxp-table thead th.gxp-k{z-index:4}
-  .flowdash .gxp-table tbody tr{height:38px}
+  .flowdash .gxp-table tbody tr{height:var(--gxp-row,38px)}
   .flowdash .gxp-table tbody td{padding:0;border-bottom:1px solid color-mix(in srgb,var(--gx-zero,#0b0f16) 70%,#000)}
   .flowdash .gxp-table tbody th{border-bottom:1px solid var(--nx-border)}
-  .flowdash .gxp-cell{position:static;display:block;width:100%;height:37px;min-height:0!important;min-width:0!important;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--text-dim);font:700 15px var(--fd-mono);font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;overflow:hidden;cursor:pointer}
+  .flowdash .gxp-cell{position:static;display:block;width:100%;height:calc(var(--gxp-row,38px) - 1px);min-height:0!important;min-width:0!important;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--text-dim);font:700 var(--gxp-font,15px) var(--fd-mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;overflow:hidden;cursor:pointer}
   .flowdash .gxp-cell.gxp-top{box-shadow:inset 0 0 0 2px var(--gxp-ring,var(--text))}
   .flowdash .gxp-cell.gxp-king{background:var(--gx-king,#facc15)!important;color:#0b0f16!important;box-shadow:inset 0 0 0 2px #0b0f16}
   .flowdash .gxp-cell:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:-3px}
   .flowdash .gxp-table tr.spot th.gxp-k{padding:0 2px}
   .flowdash .gxp-spot{display:inline-block;padding:2px 4px;border-radius:4px;background:var(--cyan-bright,#6aa8ff);color:#07121f;font:700 12px var(--fd-mono);letter-spacing:-.02em}
-  .flowdash .gxp-table tfoot td,.flowdash .gxp-table tfoot th{position:sticky;bottom:0;z-index:3;height:34px;background:var(--bg-2,#0e1117);border-top:1px solid var(--nx-border-hi);font:700 14px var(--fd-mono);text-align:center;white-space:nowrap}
-  .flowdash .gxp-table tfoot th.gxp-k{z-index:4;color:var(--text-mute);font-size:12px;text-align:left}
+  .flowdash .gxp-table tfoot td,.flowdash .gxp-table tfoot th{position:sticky;bottom:0;z-index:3;height:32px;background:var(--bg-2,#0e1117);border-top:1px solid var(--nx-border-hi);font:700 var(--gxp-font,14px) var(--fd-mono);letter-spacing:-.02em;text-align:center;white-space:nowrap;overflow:hidden}
+  .flowdash .gxp-table tfoot th.gxp-k{z-index:4;color:var(--text-mute);font-size:11px;letter-spacing:0;text-align:left}
 
   .flowdash .gxp-bar{display:flex;align-items:center;gap:10px;padding:6px 16px;border-top:1px solid var(--nx-border)}
   .flowdash .gxp-chips{display:flex;gap:6px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
@@ -621,3 +623,34 @@ html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){bor
 }
 /* light mode: the accent is a deep blue there — white ink on the spot tag / active page (AA) */
 html[data-mode=light] .flowdash .gxp-spot,html[data-mode=light] .flowdash .gxp-pager button.on{color:#fff}
+/* GEX on a tablet (768–1199px, the 12-col grid at its narrowest): the desktop
+   9–10.5px labels become 11px so nothing on the page is below the readable floor */
+@media (min-width:768px) and (max-width:1199px){
+  .flowdash.dash-gex .fd-sym,.flowdash.dash-gex .gx-sub-head,.flowdash.dash-gex .gx-nodes span,
+  .flowdash.dash-gex .gx-hero-basis,.flowdash.dash-gex .gx-stats span,.flowdash.dash-gex .fd-foot,
+  .flowdash.dash-gex .gx-spot-tag,.flowdash.dash-gex .of-seg button,.flowdash.dash-gex .fd-cue,
+  .flowdash.dash-gex .gx-actions span,.flowdash.dash-gex .gx-actions p{font-size:11px}
+}
+
+/* ── show / hide picker + collapsible tiles (NEXUS workspace, PageSpec.toggles) ── */
+.flowdash .fd-pick-n{font:600 10px var(--fd-mono);opacity:.8;margin-left:2px}
+.flowdash .fd-pick-item{justify-content:flex-start}
+.flowdash .fd-pick-box{display:inline-grid!important;place-items:center;width:15px;height:15px;flex:none;border:1px solid var(--nx-border-hi);border-radius:3px;color:var(--cyan)}
+.flowdash .fd-pick-item.on .fd-pick-box{border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent)}
+.flowdash .fd-pick-item:not(.on) .fd-pick-title{color:var(--text-dim)}
+.flowdash .fd-tool.fd-collapsed .fd-tool-head{border-bottom:0;height:100%;align-items:center}
+.flowdash .fd-collapse{margin-left:auto}
+.flowdash .fd-collapse + .fd-icon-btn{margin-left:0}
+
+/* ── workspace scroll mode (use-workspace-mode.ts) ──
+   No scroll traps: a tool's inner scroller hands the wheel / touch scroll to
+   the page at its top and bottom, in both modes. */
+.flowdash .fd-tile .fd-tile-scroller,.flowdash .fd-tile .of-scroll,.flowdash .fd-tile .fd-scroll{overscroll-behavior:auto}
+.flowdash .fd-seg{display:inline-flex}
+.flowdash .fd-seg .fd-btn{border-radius:0}
+.flowdash .fd-seg .fd-btn:first-child{border-radius:5px 0 0 5px}
+.flowdash .fd-seg .fd-btn:last-child{border-radius:0 5px 5px 0;margin-left:-1px}
+.flowdash .fd-seg .fd-btn.on{background:color-mix(in srgb,var(--cyan) 18%,var(--panel-2));color:var(--text);border-color:color-mix(in srgb,var(--cyan) 50%,transparent);position:relative}
+/* PAGE mode: a tile not clicked into passes the wheel to the page (dashboard.tsx onWheel); the engaged one is outlined */
+.flowdash.ws-page .fd-tile.ws-engaged .fd-tool{box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 45%,transparent)}
+.flowdash .fd-expand{font-weight:700}

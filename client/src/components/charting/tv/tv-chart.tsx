@@ -30,7 +30,9 @@ import { useCandles, chartPalette, TF_CONFIG, type Level } from '@/components/ch
 import { useChartPrefs, setChartPref, type ChartType, type RangeKey, type TfKey } from '@/components/charting/chart-prefs';
 import {
   overlaysSupported, useInView, useLiveLast, useDealerMap, useChartOverlays, etClock, etInfo, fmtUsd, ageOf,
+  useLevelMap, pickKeyLevels, dealerWallLines,
 } from '@/components/charting/chart-layers';
+import { canonicalChartSymbol, indexInfo } from '@shared/index-symbols';
 import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
@@ -105,7 +107,9 @@ export function TvChart({
   onOpenLab,
   onOpenChartPage,
 }: QEChartProps) {
-  const symbol = rawSymbol.toUpperCase();
+  // $SPX / ^GSPC / SPXW → SPX (shared/index-symbols.ts): one name for bars, layers and drawings.
+  const symbol = canonicalChartSymbol(rawSymbol);
+  const idx = indexInfo(symbol);
   const prefs = useChartPrefs();
   const set = setChartPref;
   const { user } = useAuth();
@@ -162,16 +166,18 @@ export function TvChart({
   const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
   const dealerAsOf = dealerQ.data ? (dealerQ.data.cached ? dealerQ.data.cachedAt : dealerQ.data.generatedAt) ?? null : null;
   const dealerSource = snap?.source ?? dealerQ.data?.optionsSource ?? 'chain';
+  // 0–7d walls first (byDte.next7); all-expiry walls dashed + labelled "all"
+  // where they differ — SPX's all-expiry walls sit on far round strikes.
+  const walls = useMemo(() => dealerWallLines(snap as Parameters<typeof dealerWallLines>[0]), [snap]);
+  const levelQ = useLevelMap(symbol, prefs.keyLevels, inView);
+  const keyLevels = useMemo(() => (prefs.keyLevels ? pickKeyLevels(levelQ.data) : []), [prefs.keyLevels, levelQ.data]);
   const allLevels = useMemo(() => {
-    if (!prefs.walls || !snap) return levels;
-    const rows: (Level & { dashed?: boolean })[] = [];
-    if (snap.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor' });
-    if (snap.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor' });
-    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor' });
+    const rows: (Level & { dashed?: boolean })[] = [...(prefs.walls ? walls.rows : []), ...keyLevels.map(({ source: _s, ...l }) => l)];
+    if (!rows.length) return levels;
     // A caller may already pass the walls (research page): one line per price.
     const fresh = rows.filter((r) => !levels.some((l) => Math.abs(l.price - r.price) < 1e-6));
     return fresh.length ? [...levels, ...fresh] : levels;
-  }, [prefs.walls, snap, zeroGamma, levels]);
+  }, [prefs.walls, walls, keyLevels, levels]);
 
   /* ── expected move: 1σ one-session move from 20-day realized vol ── */
   const { data: daily } = useCandles(symbol, '1D', inView);
@@ -437,17 +443,20 @@ export function TvChart({
     <>
       {prefs.walls && layersOk && legendRow('walls', 'Walls · 0γ', snap ? (
         <>
-          <span style={{ color: tk.call }}>CW {snap.callWall != null ? snap.callWall.toFixed(2) : '—'}</span>
-          <span style={{ color: tk.put }}>PW {snap.putWall != null ? snap.putWall.toFixed(2) : '—'}</span>
-          <span style={{ color: tk.dp }}>0γ {zeroGamma != null ? zeroGamma.toFixed(2) : '—'}</span>
-          <span className="tv-dim">{dealerSource} · {ageOf(dealerAsOf, now)} old</span>
+          {walls.rows.filter((r) => !r.dashed).map((r) => (
+            <span key={r.label} style={{ color: r.color === 'call' ? tk.call : r.color === 'put' ? tk.put : tk.dp }}>
+              {r.label.startsWith('CALL') ? 'CW' : r.label.startsWith('PUT') ? 'PW' : '0γ'} {r.price.toFixed(2)}
+            </span>
+          ))}
+          {zeroGamma == null && <span style={{ color: tk.dp }}>0γ —</span>}
+          <span className="tv-dim">{walls.basis} · {dealerSource} · {ageOf(dealerAsOf, now)} old</span>
         </>
       ) : <span className="tv-dim">{dealerPending ? 'reading the chain…' : dealerQ.isError ? 'dealer map unavailable' : '—'}</span>, () => set('walls', false))}
       {prefs.gex !== 'off' && layersOk && legendRow('gex', prefs.gex === 'bubbles' ? 'GEX orbs' : 'GEX lines', gexRead ? (
         <>
           <span>Net <b style={{ color: gexRead.net >= 0 ? tk.pos : tk.neg }}>{fmtUsd(gexRead.net, true)}</b></span>
           {gexRead.top.slice(0, 3).map((s) => <span key={s.strike}>{s.strike.toFixed(2)} <b style={{ color: s.gex >= 0 ? tk.pos : tk.neg }}>{fmtUsd(s.gex, true)}</b></span>)}
-          <span className="tv-dim">{cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source}</span>
+          <span className="tv-dim" title={ov?.gexTimeline.expiryScope}>{cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source} · all expiries</span>
         </>
       ) : <span className="tv-dim">{ovLoading ? 'loading…' : ovError ? 'overlay feed unavailable' : 'no GEX snapshot for this symbol yet'}</span>, () => set('gex', 'off'))}
       {orbStatus && (
@@ -467,6 +476,16 @@ export function TvChart({
       {prefs.ma && legendRow('ma', 'MA', <><span style={{ color: 'var(--tv-accent)' }}>20</span><span style={{ color: 'var(--tv-caution)' }}>50</span></>, () => set('ma', false))}
       {prefs.ema && legendRow('ema', 'EMA', <><span style={{ color: 'var(--tv-info)' }}>9</span><span style={{ color: 'var(--tv-marker)' }}>21</span></>, () => set('ema', false))}
       {prefs.vwap && legendRow('vwap', 'VWAP', intraday ? <span style={{ color: 'var(--tv-text)' }}>session · ET</span> : <span className="tv-dim">intraday timeframes only</span>, () => set('vwap', false))}
+      {prefs.keyLevels && legendRow('keylv', 'Key levels', keyLevels.length
+        ? <span className="tv-dim" title={keyLevels.map((l) => `${l.label} ${l.price.toFixed(2)} — ${l.source}`).join('\n')}>{keyLevels.map((l) => l.label).join(' · ')}{levelQ.data?.asOf ? ` · ${ageOf(levelQ.data.asOf, now)} old` : ''}</span>
+        : <span className="tv-dim">{levelQ.isLoading ? 'loading…' : levelQ.isError ? 'level map unavailable' : 'none computed yet'}</span>, () => set('keyLevels', false))}
+      {idx && series?.meta?.volume && prefs.fullVolume && legendRow('idxvol', 'Volume', <span className="tv-dim">{series.meta.volume.note}</span>)}
+      {idx && intraday && extended && series?.meta?.extended && legendRow('idxeth', 'ETH proxy', (
+        <span className="tv-dim" title={`${series.meta.extended.note}\n${series.meta.extended.basis}`}>
+          {series.meta.extended.count ? `${series.meta.extended.source}${series.meta.extended.lastAt ? ` · last ${ageOf(series.meta.extended.lastAt, now)} ago` : ''}` : series.meta.extended.note}
+        </span>
+      ), () => set('extended', false))}
+      {idx?.ownExtendedSession && intraday && series?.meta?.session?.note && legendRow('idxsess', 'Session', <span className="tv-dim">{series.meta.session.note}</span>)}
       {cmpOn && legendRow('cmp', `vs ${cmpSym}`, <span className="tv-dim">{cmpQ.isError ? `no history for ${cmpSym}` : cmpQ.isLoading ? 'loading…' : '% from the first visible bar'}</span>, () => setCmpSym(null))}
       {expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized</span></span>)}
       {candlesError && <div className="tv-leg-row tv-warn">Price history unavailable for {symbol} {tfLabel}</div>}
@@ -510,6 +529,7 @@ export function TvChart({
       <div className="tv-mhead">Indicators</div>
       {menuRow(prefs.fullVolume, (v) => set('fullVolume', v), 'Volume', null)}
       {menuRow(prefs.vwap, (v) => set('vwap', v), 'VWAP (session)', intraday ? 'resets each ET session' : 'intraday timeframes only')}
+      {menuRow(prefs.keyLevels, (v) => set('keyLevels', v), 'Key levels', idx?.extendedProxy ? 'PDH/PDL/PDC · ORB 15m · overnight H/L (ES-based)' : 'PDH/PDL/PDC · ORB 15m · pre-market H/L')}
       {menuRow(prefs.ema, (v) => set('ema', v), 'EMA 9 / 21', null)}
       {menuRow(prefs.ma, (v) => set('ma', v), 'MA 20 / 50', null)}
       <div className="tv-mhead">Compare</div>
@@ -716,6 +736,9 @@ export function TvChart({
             intraday={intraday}
             history={histBars}
             extended={extended}
+            extBars={series?.extBars}
+            volumeLabel={series?.meta?.volume?.proxy ? `Vol · ${series.meta.volume.source}` : idx ? 'Vol · none (index)' : undefined}
+            proxyLabel={idx?.extendedProxy ? `${idx.extendedProxy} proxy` : undefined}
             cutoff={cutoff}
             liveOn={liveOn}
             range={range}

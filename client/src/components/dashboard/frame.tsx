@@ -12,7 +12,7 @@
  *   useToolInstance()  this placement's id — namespace per-instance settings
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { GripVertical, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 import { useStockContext } from '@/contexts/stock-context';
 import { ageLabel } from './tools/flow/tape';
 import type { ToolDef } from './tool-def';
@@ -188,10 +188,13 @@ export function PhoneMeta({ def, report, now }: { def: ToolDef; report: ToolRepo
 }
 
 export function ToolFrame({
-  def, onRemove, dragHandle, resizeHandle, children, compact, symbol, grip = true,
+  def, onRemove, onCollapse, collapsed = false, dragHandle, resizeHandle, children, compact, symbol, grip = true,
 }: {
   def: ToolDef;
   onRemove?: () => void;
+  /** workspace tiles that may fold to their header (NEXUS) */
+  onCollapse?: () => void;
+  collapsed?: boolean;
   dragHandle?: ReactNode;
   /** false on a fixed page: no grip glyph, since the tile cannot move */
   grip?: boolean;
@@ -207,9 +210,11 @@ export function ToolFrame({
   const phone = usePhone();
   // GEX workspace (operator 2026-10-01: "it needs to fit to screen"): ONE header
   // row — title · symbol · source + age chip · (i) holding what / units / backing.
-  const oneRow = useDashboard().page === 'gex';
+  // NEXUS workspace (2026-10-01) wears the same one-row head: the strips on top stay thin.
+  const page = useDashboard().page;
+  const oneRow = page === 'gex' || page === 'nexus';
   return (
-    <section className={`fd-tool${oneRow ? ' fd-one-row' : ''}`} aria-label={def.title} data-tool={def.id}>
+    <section className={`fd-tool${oneRow ? ' fd-one-row' : ''}${collapsed ? ' fd-collapsed' : ''}`} aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">
         {dragHandle ?? (grip ? <span className="fd-grip-ph" aria-hidden><GripVertical size={12} /></span> : null)}
         <div className="fd-tool-titles">
@@ -219,15 +224,23 @@ export function ToolFrame({
             <PhoneMeta def={def} report={report} now={now} />
           </div>
         </div>
+        {onCollapse && (
+          <button type="button" className="fd-icon-btn fd-collapse" onClick={onCollapse} aria-expanded={!collapsed}
+            aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${def.title}`} title={collapsed ? 'Expand tool' : 'Collapse to its header'}>
+            {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+          </button>
+        )}
         {onRemove && (
           <button type="button" className="fd-icon-btn" onClick={onRemove} aria-label={`Remove ${def.title}`} title="Remove tool">
             <X size={13} />
           </button>
         )}
       </header>
-      <div className="fd-tool-body">
-        <ReportCtx.Provider value={setReport}>{children}</ReportCtx.Provider>
-      </div>
+      {!collapsed && (
+        <div className="fd-tool-body">
+          <ReportCtx.Provider value={setReport}>{children}</ReportCtx.Provider>
+        </div>
+      )}
       {resizeHandle}
     </section>
   );

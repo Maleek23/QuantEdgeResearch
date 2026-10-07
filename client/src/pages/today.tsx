@@ -27,7 +27,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { regimeFromLegacy } from '@shared/gex-regime';
-import { convictionDisplayPercent } from '@shared/conviction-display';
+import { gradeOfLoosePick, formatNexusGrade, nexusGradeTitle, NEXUS_GRADE_CAVEAT } from '@/components/canon/nexus-grade';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
 import { Clamp, InfoSheet, QuoteFreshChip } from '@/components/ui/qe-phone';
@@ -348,7 +348,7 @@ export default function TodayPage() {
                 <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
               </div>
               <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-                {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+                {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
                   <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
                 ))}
               </div>
@@ -391,7 +391,7 @@ export default function TodayPage() {
                     <Link href={nexusIdeaHref(p)} className="t-signal t-signal-link" key={p.ideaId} title={`Open ${p.symbol} selected on NEXUS`}>
                       <span className="ticker">{p.symbol}</span>
                       <span className={`t-sig-dir ${p.direction === 'short' ? 'bear' : 'bull'}`}>{p.direction === 'short' ? '▼ short' : '▲ long'}</span>
-                      <span className="dir">{convictionDisplayPercent(p.convictionScore ?? 0)}</span>
+                      {(() => { const g = gradeOfLoosePick(p as any); return <span className="dir" title={g ? nexusGradeTitle(g) : undefined}>{g ? formatNexusGrade(g) : '—'}</span>; })()}
                     </Link>
                   ))}
                   <div className="t-row"><span className="k">Long / Short</span><span className="v"><span style={{ color: 'var(--green)' }}>{longs}</span> / <span style={{ color: 'var(--red)' }}>{ideas.length - longs}</span></span></div>
@@ -435,7 +435,7 @@ export default function TodayPage() {
                   <Link href={play ? `/r/${symbol}` : `/r/${symbol}?tab=chart`} className={`td-index-row${play ? ' live' : ''}`} key={symbol}>
                     <div><strong>{symbol}</strong><small>{play ? `${play.setup?.replaceAll('_', ' ') ?? 'index setup'}${play.isPowerHour ? ' · power hour' : ''}` : indexDesk.isLoading ? 'reading…' : 'monitoring levels'}</small></div>
                     <span className={play?.direction === 'short' ? 'down' : play ? 'up' : ''}>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
-                    <b title="The scanner's own raw confidence at publish — not the NEXUS evidence grade">{play?.confidence != null ? `scanner ${Math.round(play.confidence)}` : '—'}</b>
+                    <b title="Index 0DTE desk call. Its scanner confidence is a legacy score and is not shown; the published idea carries the NEXUS grade on the board.">{play ? '0DTE call' : '—'}</b>
                     <em>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'No active call'}</em>
                   </Link>
                 );
@@ -472,9 +472,14 @@ export default function TodayPage() {
               <div className="lstat-sub">{longs} long · {ideas.length - longs} short</div>
             </div>
             <div className="stat-item reveal tl-dup-phone">
-              <div className="lstat-val">{best ? convictionDisplayPercent(best.convictionScore ?? 0) : '—'}<span className="tl-of">/100</span></div>
-              <div className="lstat-label">Top evidence score</div>
-              <div className="lstat-sub">{best ? `${best.symbol} · ${best.direction}` : 'waiting for the board'}</div>
+              {(() => {
+                const top = ideas.map((p) => ({ p, g: gradeOfLoosePick(p as any) })).filter((x) => x.g).sort((a, b) => b.g!.score - a.g!.score)[0];
+                return <>
+                  <div className="lstat-val" title={top?.g ? nexusGradeTitle(top.g) : undefined}>{top?.g ? formatNexusGrade(top.g) : '—'}<span className="tl-of">/100</span></div>
+                  <div className="lstat-label">Top NEXUS grade</div>
+                  <div className="lstat-sub">{top ? `${top.p.symbol} · ${top.p.direction} · ${NEXUS_GRADE_CAVEAT}` : 'waiting for the board'}</div>
+                </>;
+              })()}
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{o?.winRate != null ? `${o.winRate.toFixed(0)}%` : '—'}</div>
@@ -596,10 +601,11 @@ export default function TodayPage() {
             <div className="feature-visual reveal">
               <div className="rot-map">
                 <RotQuad sectors={sectors} />
-                <div className="rot-label tl">Leading</div>
-                <div className="rot-label tr">Improving</div>
-                <div className="rot-label bl">Weakening</div>
-                <div className="rot-label br">Lagging</div>
+                {/* Matches the plot: x = relative strength (right = stronger), y = momentum (up = rising). */}
+                <div className="rot-label tl">Improving</div>
+                <div className="rot-label tr">Leading</div>
+                <div className="rot-label bl">Lagging</div>
+                <div className="rot-label br">Weakening</div>
                 <div className="rot-axis x">x · rel strength →</div>
                 <div className="rot-axis y">y · momentum →</div>
               </div>

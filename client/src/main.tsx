@@ -48,12 +48,25 @@ function BootArm() {
   return null;
 }
 
-createRoot(document.getElementById("root")!).render(
+const mount = () => createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BootArm />
     <App />
   </ErrorBoundary>
 );
+// DEV-only phone harness (/dev/gex-phone): fixture API, no server or DB. The
+// whole branch (and its chunk) is dropped from production builds.
+if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/gex-phone")) {
+  import("./dev/gex-phone-mocks").then((m) => { m.installGexPhoneMocks(); mount(); });
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/zerodte")) {
+  // DEV-only 0DTE desk harness: fixture API + pinned clock (dev/zerodte-mocks.ts).
+  import("./dev/zerodte-mocks").then((m) => { m.installZeroDteMocks(); mount(); });
+} else if (import.meta.env.DEV && window.location.pathname.startsWith("/dev/nexus-workspace")) {
+  // DEV-only NEXUS workspace harness (/dev/nexus-workspace): fixture book, no server or DB
+  import("./dev/nexus-workspace-mocks").then((m) => { m.installNexusWorkspaceMocks(); mount(); });
+} else {
+  mount();
+}
 
 // PWA installability — the SW is a pure passthrough (no caching; a trading
 // terminal must never serve stale bundles). Registered post-load, best-effort.

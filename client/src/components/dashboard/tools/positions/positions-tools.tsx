@@ -21,7 +21,7 @@ import './positions-tools.css';
 const SORTS: { id: PositionSort; label: string }[] = [
   { id: 'pnl', label: 'P&L' }, { id: 'days', label: 'Days' }, { id: 'expiry', label: 'DTE' },
 ];
-const signed = (v: number, suffix = '') => `${v >= 0 ? '+' : ''}${v}${suffix}`;
+const signed = (v: number | null, suffix = '') => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v}${suffix}`);
 
 /** shared feed + frame report + loading / error / empty gate */
 function usePositions(): { data?: PositionsResponse; gate: ReactNode | null } {
@@ -57,19 +57,20 @@ export function PositionsPnlTool() {
   const { data, gate } = usePositions();
   if (gate) return gate;
   const s = data!.summary;
-  const up = s.totalPnLPct >= 0;
-  const wr = s.total ? Math.round((s.winners / s.total) * 100) : 0;
+  const up = (s.totalPnLPct ?? 0) >= 0;
+  const markedN = s.marked ?? s.total;
+  const wr = markedN ? Math.round((s.winners / markedN) * 100) : 0;
   return (
     <div className="fd-scroll ph-kpis">
       <div className="ph-hero">
-        <span className="ph-lbl">Net open P&L</span>
-        <b className={up ? 'up' : 'down'}>{signed(s.totalPnLPct, '%')}</b>
-        <span className="ph-sub">{fmtUsd(s.totalPnLAbs, { signed: true })} absolute</span>
+        <span className="ph-lbl" title={s.pnlBasis ?? undefined}>Net open P&L · avg</span>
+        <b className={s.totalPnLPct == null ? '' : up ? 'up' : 'down'}>{signed(s.totalPnLPct, '%')}</b>
+        <span className="ph-sub">{s.totalPnLAbs == null ? '—' : fmtUsd(s.totalPnLAbs, { signed: true })} per unit{s.unmarked ? ` · ${s.unmarked} unmarked` : ''}</span>
       </div>
       <div className="ph-kpi"><span className="ph-lbl">Positions</span><b>{s.total}</b></div>
       <div className="ph-kpi" title="Share of open positions currently in profit — open marks, not decided outcomes.">
         <span className="ph-lbl">In profit</span>
-        <b className={wr >= 50 ? 'up' : 'warn'}>{s.total ? `${wr}%` : '—'}</b>
+        <b className={wr >= 50 ? 'up' : 'warn'}>{markedN ? `${wr}%` : '—'}</b>
         <span className="ph-sub">{s.winners}W · {s.losers}L open</span>
       </div>
       <div className="ph-kpi"><span className="ph-lbl">Hot</span><b className="up">{s.hotCount}</b></div>

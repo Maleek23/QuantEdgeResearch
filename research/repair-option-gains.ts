@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { db } from '../server/db';
 import { sql } from 'drizzle-orm';
+import { safeIntrinsic } from '../shared/option-value-bounds';
 
 /**
  * Re-derive option_percent_gain for resolved rows whose recorded exit premium
@@ -37,9 +38,10 @@ const APPLY = process.argv.includes('--apply');
     const quoted = x.exit_premium != null ? Number(x.exit_premium) : null;
     if (!Number.isFinite(k) || !Number.isFinite(und) || !(paid > 0)) continue;
 
-    const isCall = String(x.option_type ?? '').toLowerCase().startsWith('c');
-    const intrinsic = isCall ? Math.max(0, und - k) : Math.max(0, k - und);
-    if (quoted == null || intrinsic <= quoted + 0.01) continue;
+    // Only when the exit is on the strike's scale: a premium-space exit_price
+    // made "intrinsic" ≈ strike (shared/option-value-bounds.ts).
+    const intrinsic = safeIntrinsic(x.option_type, k, und);
+    if (intrinsic == null || quoted == null || intrinsic <= quoted + 0.01) continue;
 
     const newPct = Math.round(((intrinsic - paid) / paid) * 100 * 100) / 100;
     fixes.push({ ...x, intrinsic, newPct });

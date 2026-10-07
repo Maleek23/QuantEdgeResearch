@@ -125,7 +125,7 @@ export default function NexusPrototype() {
         {contextOpen && <>
           <motion.button aria-label="Close context" className="nxp-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setContextOpen(false)} />
           <motion.aside className="nxp-context" initial={reduceMotion ? false : { x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }}>
-            <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div><button onClick={() => setContextOpen(false)}><X size={17} /></button></div>
+            <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regimeUnavailable ? 'Unavailable' : market?.regime ?? 'Unavailable'}</h2></div><button onClick={() => setContextOpen(false)}><X size={17} /></button></div>
             <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} />
           </motion.aside>
         </>}
