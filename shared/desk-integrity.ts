@@ -32,6 +32,8 @@ export const DESK_BUG_CLASSES = {
   outcome_rewritten_post_hoc: 'outcome rewritten after the fact by a contract-path audit script (reported trades, not NBBO)',
   bar_mismatch: 'independent bar recomputation disagrees with the recorded P&L',
   bar_unverifiable: 'no market data was found to recompute this trade',
+  illiquid_contract: 'published as an option although its liquidity-gate snapshot failed (OI / volume / two-sided / spread / mid — shared/option-liquidity.ts) — recorded fills on a contract that does not trade are untrustworthy',
+  liquidity_unverified: 'option published with liquidity unverified (no chain answered; OPT_LIQUIDITY_UNVERIFIED=allow)',
 } as const;
 
 export type DeskBugClass = keyof typeof DESK_BUG_CLASSES;
@@ -54,6 +56,8 @@ export interface DeskIntegrityInput {
   outcomeStatus: string | null;
   dataSourceUsed?: string | null;
   sessionContext?: string | null;
+  /** convergenceSignalsJson.contractLiquidity — the publish-time liquidity-gate result (absent before the gate). */
+  contractLiquidity?: { ok?: boolean; action?: string | null; failures?: string[] } | null;
 }
 
 /** Minimum fillable premium. */
@@ -83,6 +87,9 @@ export function deskIntegrityFlags(i: DeskIntegrityInput): DeskIntegrityFlag[] {
   if (String(i.dataSourceUsed ?? '') === 'yahoo-opr-trades') add('outcome_rewritten_post_hoc', 'caveat', 'contract-path audit rewrite');
 
   if (i.assetType === 'option') {
+    const liq = i.contractLiquidity;
+    if (liq && liq.action === 'unverified') add('liquidity_unverified', 'caveat', 'no chain at publish');
+    else if (liq && liq.ok === false) add('illiquid_contract', 'fail', (liq.failures ?? []).join('; ') || 'liquidity gate failed');
     const strike = i.strikePrice;
     const side = optionSideOf(i.optionType);
     if (isOptionScaleIncoherent(i)) {

@@ -40,7 +40,7 @@ async function loadAlpaca(symbol: string, dteMax: number): Promise<LoadedChain |
   const rows: EngineChainRow[] = chain.contracts.map((c) => ({
     occ: c.occ, type: c.type, strike: c.strike, expiry: c.expiration,
     bid: c.bid, ask: c.ask, delta: c.delta, gamma: c.gamma, theta: c.theta, vega: c.vega, iv: c.iv,
-    openInterest: c.openInterest, volume: c.volume,
+    openInterest: c.openInterest, volume: c.volume, prevVolume: c.prevVolume ?? null,
     greekSource: c.greekSource, quoteTime: c.quoteTime,
   }));
   return {

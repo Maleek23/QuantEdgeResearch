@@ -64,6 +64,8 @@ export interface AlpacaOptionContract {
   iv: number | null;
   /** Today's volume (dailyBar.v) — 0 when no bar yet. */
   volume: number;
+  /** Prior session's volume (prevDailyBar.v) — null when Alpaca sent no prior bar. */
+  prevVolume?: number | null;
   bid: number | null;
   ask: number | null;
   last: number | null;
@@ -347,6 +349,7 @@ export async function getAlpacaOptionsChain(
         gamma: num(s?.greeks?.gamma), delta: num(s?.greeks?.delta), vega: num(s?.greeks?.vega), theta: num(s?.greeks?.theta),
         iv: iv && iv > 0 ? iv : null,
         volume: num(s?.dailyBar?.v) ?? 0,
+        prevVolume: num(s?.prevDailyBar?.v),
         bid: num(s?.latestQuote?.bp), ask: num(s?.latestQuote?.ap), last: num(s?.latestTrade?.p),
         lastTime: s?.latestTrade?.t ?? null,
         quoteTime: s?.latestQuote?.t ?? null,
@@ -496,6 +499,7 @@ export function alpacaToTradierShape(chain: AlpacaChain, expiration?: string): a
       expiration_date: c.expiration,
       open_interest: c.openInterest ?? 0,
       volume: c.volume,
+      prev_day_volume: c.prevVolume ?? undefined,
       bid: c.bid ?? 0,
       ask: c.ask ?? 0,
       last: c.last ?? 0,

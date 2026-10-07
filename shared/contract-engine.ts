@@ -65,6 +65,7 @@
  * two-sided quote) or a disclosed model on the chain's own IV.
  */
 import { normCdf } from './gex-math';
+import { checkContractLiquidity, readLiquidityConfig, type LiquidityConfig } from './option-liquidity';
 
 // ─── Presets ────────────────────────────────────────────────────────────
 
@@ -138,6 +139,8 @@ export interface EngineChainRow {
   iv: number | null;
   openInterest: number | null; // null = unknown on this feed
   volume: number | null;
+  /** Prior session's volume when the feed reports it — liquidity basis before 10:00 ET. */
+  prevVolume?: number | null;
   greekSource?: string;
   quoteTime?: string | null;
 }
@@ -468,6 +471,8 @@ export function rankContracts(input: {
   now?: number;
   withinCap?: number;
   outsideCap?: number;
+  /** Liquidity rule override (tests); defaults to the env-configured rule. */
+  liquidity?: LiquidityConfig;
 }): ContractEngineResult {
   const { symbol, spot, thesis, limits, source } = input;
   const now = input.now ?? Date.now();
@@ -485,11 +490,18 @@ export function rankContracts(input: {
 
   const thesisN: ContractEngineThesis = { ...thesis, holdingDays: thesis.holdingDays ?? 3 };
   let inWindowRows = 0;
+  let illiquid = 0;
+  const liq: LiquidityConfig = input.liquidity ?? readLiquidityConfig();
   const all: Evaluated[] = [];
   for (const r of typeRows) {
     const dte = dteOf(r.expiry, now);
     if (dte > 800) continue;
     if (dte >= limits.dteMin && dte <= limits.dteMax) inWindowRows++;
+    // Liquidity gate (shared/option-liquidity.ts): an illiquid contract is never ranked.
+    if (liq.enabled && !checkContractLiquidity(
+      { symbol, openInterest: r.openInterest, volume: r.volume, prevVolume: r.prevVolume ?? null, bid: r.bid, ask: r.ask, dte },
+      { nowMs: now, cfg: liq },
+    ).ok) { illiquid++; continue; }
     const e = evaluate(r, spot, thesisN, limits, atmIvByExpiry, now);
     if ('reject' in e) continue;
     all.push(e);
@@ -525,7 +537,7 @@ export function rankContracts(input: {
     } else if (inWindowRows === 0) {
       emptyReason = `No ${symbol} expiry falls inside ${windowLabel}.`;
     } else if (tradeable.length === 0) {
-      emptyReason = `${inWindowRows} ${kind} are listed inside ${windowLabel}, but none has a two-sided quote with a spread under ${Math.round(MAX_SPREAD_TRADEABLE * 100)}% and a usable delta (${MIN_ABS_DELTA}–${MAX_ABS_DELTA}).`;
+      emptyReason = `${inWindowRows} ${kind} are listed inside ${windowLabel}, but none has a two-sided quote with a spread under ${Math.round(MAX_SPREAD_TRADEABLE * 100)}% and a usable delta (${MIN_ABS_DELTA}–${MAX_ABS_DELTA})${illiquid ? `; ${illiquid} failed the liquidity gate (OI/volume/spread/mid) — no liquid contract` : ''}.`;
     } else {
       const debitOnly = outside.filter((e) => e.violations.every((v) => v.rule === 'max_debit'));
       const lossOnly = outside.filter((e) => e.violations.every((v) => v.rule === 'max_loss'));

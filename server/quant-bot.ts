@@ -21,6 +21,7 @@ import {
   type BotSleeve, type BotSleeveConfig, type SkipSummary,
 } from '@shared/bot-sleeves';
 import { gradePick, gradeIdeaRow, gradeComponentsTag, formatNexusGrade, gradeAtLeast, type NexusGrade } from '@shared/nexus-grade';
+import { botContractLiquidity } from './lib/liquidity-gate';
 import {
   readBotStopConfig, widenStop, optionPremiumStop, sizeForRisk, underlyingStopCrossed, ustopTag, parseUstopTag,
   zeroDteGrace, openingRange, type BotStopConfig, type Side,
@@ -1071,6 +1072,9 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       if (!qv.ok || !q) { refuse('0dte', idea, qv.code, qv.reason, rank); continue; }
       const qi = entryQuoteIssue(q, cfg.zeroDteDelayedNotBeforeEtMinutes, optionMarkExecutionIssue);
       if (qi) { refuse('0dte', idea, q.delayed ? 'delayed_quote' : 'stale_quote', qi, rank); continue; }
+      // Liquidity gate (shared/option-liquidity.ts): never open a contract that does not trade.
+      const lq0 = await botContractLiquidity({ symbol: idea.symbol, optionType: idea.optionType, strike: Number(idea.strikePrice), expiry: String(idea.expiryDate).slice(0, 10) });
+      if (!lq0.ok) { refuse('0dte', idea, lq0.code, lq0.reason, rank); continue; }
       const zGrade = gradeIdeaRow(idea, nowMs);
       const qty = zeroDteQuantity(q.ask, sleeves);
       if (qty < 1) { refuse('0dte', idea, 'too_expensive', `one contract at $${q.ask.toFixed(2)} risks $${(q.ask * 100 * sleeves.premStopPct).toFixed(0)} at the −${Math.round(sleeves.premStopPct * 100)}% stop > $${sleeves.zeroDteRiskUsd} sleeve risk`, rank); continue; }
@@ -1224,6 +1228,9 @@ async function enterSleeves(ctx: EnterCtx): Promise<void> {
       if (!qv.ok || !q) { refuse('swing', pick, qv.code, qv.reason, rank); continue; }
       const qi = entryQuoteIssue(q, cfg.delayedFillNotBeforeEtMinutes, optionMarkExecutionIssue);
       if (qi) { refuse('swing', pick, q.delayed ? 'delayed_quote' : 'stale_quote', qi, rank); continue; }
+      // Liquidity gate: the picker already filtered on it — its fresh snapshot is reused, else re-read.
+      const lqS = await botContractLiquidity({ symbol: idea.symbol, optionType: selected.optionType, strike: selected.strike, expiry: selected.expiry }, { snapshot: selected.liquidity ?? null });
+      if (!lqS.ok) { refuse('swing', pick, lqS.code, lqS.reason, rank); continue; }
       const premium = q.ask; // a long option crosses the spread
       // Premium stop: legacy −50%, or (wide stops) the delta-implied premium at the wide
       // underlying stop — sized so the dollar risk stays at the sleeve budget.

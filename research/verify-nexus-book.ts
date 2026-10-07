@@ -68,6 +68,7 @@ import { OUTCOME_BASELINE_DATE } from '../shared/constants';
 import { mapDeskIdea, type DeskIdea, type JournalWireRow } from '../server/journal-row-maps';
 import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, type DeskIntegrityFlag } from '../shared/desk-integrity';
 import { optionSideOf } from '../shared/option-value-bounds';
+import { liquidityGateResult, liquidityBugClass } from '../shared/option-liquidity';
 import {
   attemptsText, expirySettlement, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
   unverifiableIds, type ChainDeps, type ChainResult, type HttpResult, type MassiveEndpoint,
@@ -100,6 +101,8 @@ const SCRIPT_BUG_CLASSES = {
   entry_premium_not_traded: 'the recorded entry premium is outside every print of the contract around publication',
   entry_premium_at_publish_not_trigger: 'entry premium captured at publication, but the trade only triggered later at a different premium',
   expiry_settlement: 'expiry exit does not match settlement (16:00 ET close / intrinsic)',
+  illiquid_contract_suspected: 'no contract print within 30m of the recorded entry/exit AND the idea carries no passing liquidity-gate snapshot (published before the gate, or the gate failed) — the contract most likely did not trade; recorded fills untrustworthy',
+  liquidity_unrecorded: 'option idea carries no liquidity-gate snapshot (convergenceSignalsJson.contractLiquidity) — published before the gate (2026-10-07) or bypassed it',
   unexplained: 'recomputed P&L differs beyond tolerance; no single class explains it — see evidence',
 } as const;
 
@@ -262,6 +265,8 @@ const rth = (b: Bar) => { const m = et(b.t).min; return m >= 570 && m < 960; };
 interface IdeaRow extends DeskIdea {
   targetPrice: number | null; stopLoss: number | null; outcomeNotes: string | null; exitBy: string | null; holdingPeriod: string | null;
   triggerObservedAt: string | null; triggerObservedPrice: number | null; realizedPnLColumn: number | null; status: string | null;
+  /** Publish-time liquidity-gate snapshot (shared/option-liquidity.ts); null before the gate. */
+  contractLiquidity: { ok?: boolean; action?: string | null; failures?: string[]; oi?: number | null; vol?: number | null; spreadPct?: number | null; source?: string; asOf?: string } | null;
 }
 async function loadBook(): Promise<IdeaRow[]> {
   const client = new pg.Client({
@@ -280,7 +285,8 @@ async function loadBook(): Promise<IdeaRow[]> {
              substring(outcome_notes from '\\[exit-time:([a-z_]+)\\]') AS exit_time_source,
              convergence_signals_json->'executionAudit'->>'state' AS execution_state,
              convergence_signals_json->'executionAudit'->>'triggerObservedAt' AS trigger_observed_at,
-             convergence_signals_json->'executionAudit'->>'triggerObservedPrice' AS trigger_observed_price
+             convergence_signals_json->'executionAudit'->>'triggerObservedPrice' AS trigger_observed_price,
+             convergence_signals_json->'contractLiquidity' AS contract_liquidity
       FROM trade_ideas
       WHERE timestamp >= $1 AND status <> 'draft' AND (exclude_from_training = false OR exclude_from_training IS NULL)
       ORDER BY timestamp`, [SINCE]);
@@ -295,6 +301,7 @@ async function loadBook(): Promise<IdeaRow[]> {
       dataSourceUsed: x.data_source_used, sessionContext: x.session_context, outcomeNotes: x.outcome_notes, exitBy: x.exit_by,
       holdingPeriod: x.holding_period, triggerObservedAt: x.trigger_observed_at, triggerObservedPrice: num(x.trigger_observed_price),
       realizedPnLColumn: num(x.realized_pnl), status: x.status,
+      contractLiquidity: x.contract_liquidity && typeof x.contract_liquidity === 'object' ? x.contract_liquidity : null,
     }));
   } finally {
     await client.query('ROLLBACK').catch(() => {});
@@ -525,7 +532,7 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
 }
 
 // ─── main ────────────────────────────────────────────────────
-const OVERRIDING = new Set(['premium_scale_ladder', 'synthetic_or_retroactive', 'impossible_exit_premium', 'impossible_entry_premium', 'fill_off_strike_scale']);
+const OVERRIDING = new Set(['premium_scale_ladder', 'synthetic_or_retroactive', 'impossible_exit_premium', 'impossible_entry_premium', 'fill_off_strike_scale', 'illiquid_contract']);
 
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set (set -a && . ./.env && set +a)');
@@ -584,6 +591,7 @@ async function main() {
         exitPremiumTag: (i.outcomeNotes ?? '').match(/\[exit-premium:[a-z_]+\][^\n]*/)?.[0] ?? null,
         recordedUnderlyingExit: i.exitPrice, recordedPercentGain: i.percentGain, recordedOptionPercentGain: i.optionPercentGain,
         plan: { entry: i.entryPrice, target: i.targetPrice, stop: i.stopLoss }, dataSourceUsed: i.dataSourceUsed,
+        liquidityGate: liquidityGateResult(i), contractLiquidity: i.contractLiquidity,
       } as Record<string, unknown>,
     };
     let r: TradeResult;
@@ -597,6 +605,7 @@ async function main() {
     // A failed integrity check that makes the OUTCOME itself invalid wins over a price match.
     const over = integrity.find((f) => f.severity === 'fail' && OVERRIDING.has(f.code));
     if (over) { r.verdict = 'MISMATCH'; r.reason = `${over.code}: ${over.detail}; bars: ${r.bugClass ?? 'match'} — ${r.reason}`; r.bugClass = over.code; }
+    else r.bugClass = liquidityBugClass(i, r.verdict, r.bugClass, r.reason);
     results.push(r);
     if (n % 10 === 0 || n === closed.length) console.log(`  ${n}/${closed.length} · net calls ${netCalls} · cache hits ${cacheHits}`);
   }
@@ -653,6 +662,7 @@ async function main() {
     unverifiableByReason: Object.fromEntries(unv.reduce((m, r) => m.set(r.reason.replace(/[0-9T:.\-Z]{10,}/g, '…').slice(0, 80), (m.get(r.reason.replace(/[0-9T:.\-Z]{10,}/g, '…').slice(0, 80)) ?? 0) + 1), new Map<string, number>())),
     byEngine: group((r) => r.source ?? 'unknown'),
     byAsset: group((r) => r.assetType),
+    byLiquidityGate: group((r) => String(r.evidence.liquidityGate ?? 'n/a')),
     byDay: group((r) => r.exitDayET ?? 'unknown'),
     notScoredByBook: Object.fromEntries(notScored),
     tolerance: TOL,

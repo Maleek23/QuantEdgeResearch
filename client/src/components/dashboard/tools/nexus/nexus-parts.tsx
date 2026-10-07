@@ -34,6 +34,7 @@ import { boardLivePrice, liveMark } from '@shared/live-mark';
 import { boardOrder, type SetupLife } from '@/lib/setup-lifecycle';
 import { etDay } from '@shared/setup-lifecycle';
 import { stripConflictingTargetClaims } from '@shared/plan-narrative';
+import type { ContractLiquiditySnapshot } from '@shared/option-liquidity';
 import { gradeFromLife, gradePick, whyRankedHere, whyThisGrade, nexusGradeCaveat, formatNexusGrade, type NexusGrade } from '@shared/nexus-grade';
 import { nexusGradeTitle, LegacyScoreDiagnostics, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
@@ -404,6 +405,27 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
 }
 
 /* ── selected setup detail: head, chart, levels, tabs ── */
+/** NEXUS detail "contract liquidity": the publish-time liquidity-gate snapshot (shared/option-liquidity.ts). */
+export function ContractLiquidityBlock({ snap }: { snap: ContractLiquiditySnapshot }) {
+  const verdict = snap.action === 'underlying_only' ? 'No liquid contract — underlying-only'
+    : snap.action === 'stepped' ? `Stepped to a liquid strike${snap.steppedFrom ? ` (from ${snap.steppedFrom})` : ''}`
+    : snap.action === 'unverified' ? 'Liquidity unverified (no chain)'
+    : snap.ok ? 'Passed the liquidity gate' : 'Failed the liquidity gate';
+  const vol = snap.vol == null ? '—' : `${snap.vol.toLocaleString()}${snap.volBasis === 'prior_day' ? ' (prior day)' : snap.volBasis === 'today_prior_unavailable' ? ' (today; prior-day n/a)' : ''}`;
+  const quote = snap.bid != null && snap.ask != null ? `${money(snap.bid)} / ${money(snap.ask)}` : '— / —';
+  return (
+    <div className={`nxp-spx-expression ${snap.ok ? 'live' : ''}`} title={`Rule ${snap.rule}: OI ≥ ${snap.minOi}, volume ≥ ${snap.minVol}, two-sided, spread ≤ 10% of mid (≤ $0.05 under $0.50), mid ≥ $0.10. Recorded at publish — not live.`}>
+      <span>Contract liquidity</span>
+      <strong>{verdict}</strong>
+      {snap.contract && <small>{snap.contract}</small>}
+      <small>OI {snap.oi != null ? snap.oi.toLocaleString() : '—'} · vol {vol}</small>
+      <small>bid/ask {quote} · spread {snap.spreadPct != null ? `${(snap.spreadPct * 100).toFixed(1)}%` : '—'}</small>
+      {snap.failures.length > 0 && <small>{snap.failures.join(' · ')}</small>}
+      <small>{snap.source} · as of {fmtExactET(snap.asOf) ?? snap.asOf}</small>
+    </div>
+  );
+}
+
 export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, life, now, chartHeight = 238 }: {
   selected: ConvictionPick;
   /** the SPX chain answer (only rendered when the selected setup is SPY) */
@@ -530,6 +552,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
           <aside className="nxp-execution">
             <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? (offHoursContract ? 'Underlying plan · suggested contract' : 'Option-backed') : selected.assetType}</small></div>
             <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span>{offHoursContract && <span title="Called outside the regular session: option ideas are not published after the close, so the plan is on the underlying and this contract is a suggestion whose premium is read at the next open, not at the call.">Suggested contract — priced at next open</span>}</div></div>
+            {selected.contractLiquidity && <ContractLiquidityBlock snap={selected.contractLiquidity} />}
             {selected.spxMirror && <SpxMirrorBlock mirror={selected.spxMirror} />}
             {selected.symbol === 'SPY' && !selected.spxMirror && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
             <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>

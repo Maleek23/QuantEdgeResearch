@@ -212,7 +212,8 @@ t('selection engine: opt-in callers get 30–60 DTE for a swing; pickers keep th
   const exp = (days: number) => new Date(Date.now() + days * 86_400_000 + 3_600_000).toISOString().slice(0, 10);
   const row = (days: number, strike: number, delta: number): RawChainOption => ({
     symbol: `T${days}C${strike}`, option_type: 'call', strike, expiration_date: exp(days), bid: 2.0, ask: 2.1,
-    open_interest: 500, volume: 50, greeks: { delta, gamma: 0.02, theta: -0.05, vega: 0.1, mid_iv: 0.35 },
+    open_interest: 500, volume: 150, // liquid under shared/option-liquidity.ts (OI ≥ 500, vol ≥ 100)
+    greeks: { delta, gamma: 0.02, theta: -0.05, vega: 0.1, mid_iv: 0.35 },
   });
   const chain = [10, 20, 45, 90].flatMap((d) => [row(d, 100, 0.52), row(d, 105, 0.32), row(d, 95, 0.68)]);
   const thesis = { symbol: 'TST', direction: 'bullish' as const, setup: 'swing' as const, expiryTier: 'WEEKLY' as const, entry: 100, stop: 96, t1: 106, conviction: 80 };
