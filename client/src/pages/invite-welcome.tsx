@@ -15,11 +15,9 @@ export default function InviteWelcome() {
   }, [search]);
 
   const handleAcceptInvite = () => {
-    if (inviteCode) {
-      navigate(`/join-beta?code=${encodeURIComponent(inviteCode)}`);
-    } else {
-      navigate("/join-beta");
-    }
+    // Beta flow 2026-10-07: invite email → /invite?code= → /signup?code= (the one
+    // sign-up form: code prefilled, Free plan unless the invite carries a tier).
+    navigate(inviteCode ? `/signup?code=${encodeURIComponent(inviteCode)}` : "/signup");
   };
 
   const features = [

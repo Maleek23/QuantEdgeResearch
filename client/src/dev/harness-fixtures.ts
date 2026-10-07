@@ -212,6 +212,8 @@ function mockShowcase() {
       { symbol: 'STZ', date: '2026-10-06', estimate: null },
     ] },
     bot: { asOf: iso(0), data: { closed: 18, open: 4, wins: 9, winRate: null, minSample: 30, netRealizedPnL: 412, avgWinPct: null, avgLossPct: null, profitFactor: null, since: '2026-09-24', runLabel: 'Run 3 · 100K · Sep 24–', startingCapital: 100000 } },
+    // Fixture: bar-verified NEXUS record strip (shared/landing-record.ts shape) — invented numbers.
+    record: { asOf: iso(5 * 3_600_000), data: { verifiedClosed: 41, wins: 17, winRate: 17 / 41, minSample: 30, checkedOnly: 22, unverified: 9, from: '2026-08-27T15:00:00Z', to: '2026-10-06T19:30:00Z', ledgerAsOf: iso(5 * 3_600_000) } },
   };
 }
 
@@ -478,14 +480,33 @@ const mockAdminAnalytics = () => ({ totalUsers: 42, activeUsers24h: 11, totalPag
 export const HARNESS_USER = { id: 'audit-user', email: 'audit@example.test', firstName: 'Audit', hasBetaAccess: true, isAdmin: false, subscriptionTier: 'pro' };
 
 export interface HarnessAnswer { status: number; body: unknown }
-export interface HarnessOptions { signedOut?: boolean; admin?: boolean }
+export interface HarnessOptions { signedOut?: boolean; admin?: boolean; tier?: 'free' | 'advanced' | 'pro' }
+
+/**
+ * Routes the server refuses a Free account (routes.ts requireTier → server/tier-gate.ts,
+ * features false in TIER_CONFIG.free). Under ?harness-tier=free they answer the same
+ * 403 body tierGateDecision() sends, so the UI's upgrade states can be checked.
+ */
+const FREE_REFUSED: Array<[RegExp, string, 'Advanced' | 'Pro']> = [
+  [/^\/api\/catalysts\/(upcoming|symbol\/)/, 'canAccessCatalystScoring', 'Advanced'],
+  [/^\/api\/sec-filings\//, 'canAccessSECFilings', 'Advanced'],
+  [/^\/api\/gov-contracts\//, 'canAccessGovContracts', 'Advanced'],
+  [/^\/api\/loss-analysis/, 'canAccessLossAnalysis', 'Advanced'],
+  [/^\/api\/performance\/(symbol-leaderboard|time-of-day-heatmap|engine-trends|drawdown-analysis)/, 'canAccessPerformance', 'Advanced'],
+  [/^\/api\/futures/, 'canTradeFutures', 'Pro'],
+];
 
 /** Answer one /api request with a fixture, or a 404 that names the missing fixture. */
 export function harnessApi(pathname: string, search: URLSearchParams, opts: HarnessOptions = {}): HarnessAnswer {
   const p = pathname; const url = { searchParams: search };
   const json = (status: number, body: unknown): HarnessAnswer => ({ status, body });
-  const user = opts.admin ? { ...HARNESS_USER, isAdmin: true, role: 'admin' } : HARNESS_USER;
+  const base = opts.tier ? { ...HARNESS_USER, subscriptionTier: opts.tier } : HARNESS_USER;
+  const user = opts.admin ? { ...base, isAdmin: true, role: 'admin' } : base;
   if (p === '/api/auth/me' || p === '/api/auth/user') return opts.signedOut ? json(401, { error: 'test harness: signed out' }) : json(200, user);
+  if (opts.tier === 'free' && !opts.admin) {
+    const hit = FREE_REFUSED.find(([re]) => re.test(p));
+    if (hit) return json(403, { message: `This feature requires ${hit[2]} tier or higher`, currentTier: 'Free', requiredFeature: hit[1], upgradeUrl: '/?section=pricing' });
+  }
   if (p === '/api/premarket/gappers') return json(200, mockGappers());
   const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
   if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));

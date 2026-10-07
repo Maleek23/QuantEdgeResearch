@@ -128,6 +128,8 @@ export default function SettingsPage() {
           ))}
           <a href="/guide/QuantEdge-How-To-Use.pdf" download data-testid="link-guide-pdf">User guide (PDF)</a>
           {isAdmin && <Link href="/admin" className="st-jump-admin"><ShieldCheck aria-hidden size={13} /> Admin hub</Link>}
+          {/* Signed-in users are redirected off `/`; ?preview=landing (App.tsx SmartLanding) shows the public page. */}
+          {isAdmin && <Link href="/?preview=landing" className="st-jump-admin" data-testid="link-view-landing">View landing</Link>}
         </nav>
       </LuxPageHeader>
 

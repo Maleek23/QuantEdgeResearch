@@ -2,28 +2,33 @@
  * LANDING — what a first-time visitor expects, in the order they expect it
  * (home-page pass 2026-09-30, docs/HOME_AUDIT_2026-09-30.md):
  *
- *   hero       what it is + who it's for, Join the beta / See it live / Discord,
- *              and the product itself: the live panels (components/landing/
- *              live-showcase.tsx — real data from GET /api/public/showcase and
- *              the live price bus, every number with its source and age)
- *              + the product mockup above them (desktop GEX + phone NEXUS, sample data)
- *   features   what you get: NEXUS, FLOW, GEX, 0DTE desk, Journal, Quantinum Bot
- *   gallery    one capture per desk (sample data, lazy webp, snap carousel on phones)
- *   different  transparency as the differentiator: timestamps, public record,
- *              loss rules, MEASURING labels
+ * Beta-readiness pass 2026-10-07 (docs/TERRA_TRADE_STUDY_2026-10-07.md, top items):
+ * a tighter hero, five sections instead of eight, no static screenshots.
+ *
+ *   hero       what it is in two lines, Join the beta / See it live, a muted scope
+ *              line (Discord as a text link), then the product itself: the live
+ *              panels (components/landing/live-showcase.tsx — real data from GET
+ *              /api/public/showcase + the live price bus; labelled SAMPLE data
+ *              until the live read lands, never "—" or "Loading")
+ *   desks      one tab rail (NEXUS · 0DTE · Flow · GEX · Sectors · Quantinum Bot ·
+ *              Journal) + one framed clip slot (components/landing/desk-tour.tsx)
+ *   different  transparency as the differentiator, as a numbered /01–/04 list
  *   record     the public record band — the same live payload (bot n, win rate
  *              only at n ≥ minSample, delayed idea outcomes), stamped with its age
- *   pricing    shared/pricing.ts (/pricing redirects here as /?section=pricing)
- *   community  Discord — only when VITE_DISCORD_INVITE_URL is a real invite
- *   FAQ · CTA · footer (legal, disclaimer, founder)
+ *   pricing    shared/pricing.ts (/pricing redirects here as /?section=pricing);
+ *              checkout is off, so paid plans route to the waitlist
+ *   FAQ · CTA (Discord + a one-line price whisper) · footer
  *
  * Copy: docs/POSITIONING.md (no "AI-powered", no user counts or testimonials,
  * a win rate always with its n). Phone first: 16px gutters, ≥ 44px targets.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import '@/styles/nexus.css';
 import LiveShowcase, { useShowcase, showShowcaseTab } from '@/components/landing/live-showcase';
+import DeskTour from '@/components/landing/desk-tour';
+import { RecordStrip, Findings, DataSources, Toolbox, AmbientGrid, useScrollReveal } from '@/components/landing/landing-proof';
+import '@/styles/landing-beta.css';
 import { CHECKOUT_LIVE, PLANS, annualSavingsPct, type PricingPlan } from '@shared/pricing';
 import { LANDING_FAQ } from '@shared/landing-faq';
 import { SEOHead } from '@/components/seo-head';
@@ -44,63 +49,10 @@ const DISCORD_ICON = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.4 18.4 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.4C.6 9-.3 13.6.1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7ZM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z" /></svg>
 );
 
-/** What you get — one block per module (names: docs/POSITIONING.md). */
-const FEATURES: Array<{ tag: string; title: string; line: string; points: string[]; href: string; open: string }> = [
-  { tag: 'NEXUS', title: 'The trading desk', line: 'Every setup ranked by the evidence behind it, with entry, stop and target printed.',
-    points: ['Quantinum’s read on any ticker, layer by layer', 'Each idea graded automatically after it’s published'], href: '/t', open: 'Open NEXUS' },
-  { tag: 'FLOW', title: 'Options flow', line: 'Prints, sweeps and blocks, top tickers and dark-pool levels.',
-    points: ['Flow by strike and expiry', 'Source and age on every tile'], href: '/t?tab=flow', open: 'Open FLOW' },
-  { tag: 'GEX', title: 'Dealer positioning', line: 'Where dealers are pinned: GEX and VEX by strike and expiry.',
-    points: ['Call wall, put wall, zero-γ and the regime', 'Squeeze radar (measuring)'], href: '/t?tab=gex', open: 'Open GEX' },
-  { tag: '0DTE', title: 'The index session desk', line: 'SPX/SPY levels, the dealer map and same-day flow in one view.',
-    points: ['Data age shown on every number', 'Context, not an exchange-speed feed'], href: '/t?nx=0dte', open: 'Open the 0DTE desk' },
-  { tag: 'JOURNAL', title: 'Your trading journal', line: 'Import your broker CSV or log trades by hand, then see what works.',
-    points: ['Insights, loss analysis and playbooks', 'Scored the same way as Quantinum Bot'], href: '/t?tab=journal', open: 'Open Journal' },
-  { tag: 'QUANTINUM BOT', title: 'The paper-trading bot', line: 'Trades NEXUS’s published ideas on paper, with real contract marks.',
-    points: ['A public ledger of every simulated fill', 'No real money — paper only'], href: '/t?tab=bot', open: 'Open Quantinum Bot' },
-];
-
-/** Product gallery — real captures with SAMPLE data (labelled), one per feature block. */
-const GALLERY: Array<{ src: string; url: string; tag: string; caption: string; alt: string }> = [
-  { src: '/screenshots/qe-nexus.webp', url: 'quantedgelabs.net/t', tag: 'NEXUS',
-    caption: 'Every setup ranked by its evidence — entry, stop and target printed.',
-    alt: 'NEXUS, the trading desk: ranked setups on the left, the selected setup’s chart and plan in the middle, the macro context on the right, shown with sample data.' },
-  { src: '/screenshots/qe-flow.webp', url: 'quantedgelabs.net/t?tab=flow', tag: 'FLOW',
-    caption: 'Prints, sweeps and blocks, filterable, each with its source and age.',
-    alt: 'FLOW, the options-flow tape: premium tide, sweep share and a table of prints by ticker, strike and expiry, shown with sample data.' },
-  { src: '/screenshots/qe-gex-matrix.webp', url: 'quantedgelabs.net/t?tab=gex', tag: 'GEX',
-    caption: 'Dealer gamma by strike and expiry — call wall, put wall, zero-γ.',
-    alt: 'The GEX strike-by-expiry matrix with the call wall, put wall and zero-gamma marked, shown with sample data.' },
-  { src: '/screenshots/qe-chart.webp', url: 'quantedgelabs.net/t?tab=chart', tag: 'CHART',
-    caption: 'Price with the dealer levels drawn on it, plus drawing tools.',
-    alt: 'The chart workspace: SPY candles with gamma levels and a drawing toolbar, shown with sample data.' },
-  { src: '/screenshots/qe-journal.webp', url: 'quantedgelabs.net/t?tab=journal', tag: 'JOURNAL',
-    caption: 'Your own book: P&L, edge by setup and what to stop doing.',
-    alt: 'The trading journal dashboard: net P&L, win rate, profit factor, a cumulative P&L curve and an edge score, shown with sample data.' },
-  { src: '/screenshots/qe-quantinum.webp', url: 'quantedgelabs.net/r/SPY', tag: 'QUANTINUM',
-    caption: 'Quantinum’s read on any ticker — every engine, one page.',
-    alt: 'The ticker page for SPY: key stats, the dealer map for the week and a price chart, shown with sample data.' },
-];
-
-/** A browser frame around a capture. Lazy by default; `eager` only for the hero (LCP). */
-function Frame({ src, w, h, alt, url, eager }: { src: string; w: number; h: number; alt: string; url: string; eager?: boolean }) {
-  return (
-    <figure className="lp-frame">
-      <div className="lp-frame-bar" aria-hidden="true">
-        <span className="lp-dots"><i /><i /><i /></span>
-        <span className="lp-url">{url}</span>
-      </div>
-      <img src={src} width={w} height={h} alt={alt} decoding="async" loading={eager ? 'eager' : 'lazy'}
-        {...(eager ? { fetchpriority: 'high' } : {})} />
-      <span className="lp-tag">Sample data</span>
-    </figure>
-  );
-}
-
 /** How it's different — transparency is the product (each item is real behaviour, not a promise). */
 const DIFFERENT: Array<[string, string]> = [
   ['Calls carry their timestamp', 'Every NEXUS idea is stamped with its publish time (ET), entry, stop and target before the move — you can check it against the tape.'],
-  ['A public record, honest baseline', 'Ideas are graded on their own levels, not cherry-picked. Win rates travel with their sample size and stay hidden below 30 closed trades.'],
+  ['A public record, honest baseline', 'Ideas are graded on their own levels, not cherry-picked. Public win rates travel with their sample size and stay hidden below 30 closed trades.'],
   ['Loss rules, written down', 'Rules added after studying our own losses — two independent signals to enter, a morning entry window, a target cap and a time stop — with the rule-set version stamped on every new idea and paper fill, so before and after can be compared.'],
   ['MEASURING means unproven', 'A new model ships with a MEASURING label until its forward record earns it. Delayed data says delayed; nothing stale is shown as live.'],
 ];
@@ -114,6 +66,13 @@ const FAQ: [string, React.ReactNode][] = LANDING_FAQ.map(({ id, q, a }) => [q,
       ? <>{a.replace(/ Join the waitlist on the sign-up page\.$/, ' ')}<Link href="/signup">Join the waitlist on the sign-up page.</Link></>
       : a]);
 
+/** One muted line of prices under the closing CTA (study pattern J) — read from shared/pricing.ts. */
+const PRICE_WHISPER = [
+  ...PLANS.map((p) => (p.monthly === 0 ? p.name : `${p.name} $${p.monthly}/mo${p.comingSoon ? ' (coming soon)' : ''}`)),
+  ...(CHECKOUT_LIVE ? [] : ['paid plans not on sale during the beta']),
+  'educational, not advice',
+].join(' · ');
+
 function DiscordButton({ className = 'btn btn-ghost btn-lg', label = 'Join Discord' }: { className?: string; label?: string }) {
   if (!DISCORD_INVITE_URL) return null;
   return (
@@ -124,7 +83,7 @@ function DiscordButton({ className = 'btn btn-ghost btn-lg', label = 'Join Disco
 }
 
 function fmtAgo(iso: string | null | undefined, now: number) {
-  if (!iso) return 'no data yet';
+  if (!iso) return 'waiting for the first read';
   const s = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
@@ -151,10 +110,10 @@ function RecordBand() {
         {bot ? (
           <dl className="lp-record-stats">
             <div><dt>Closed trades</dt><dd>{bot.closed}</dd></div>
-            <div><dt>Win rate</dt><dd>{bot.winRate != null ? `${Math.round(bot.winRate * 100)}% · n=${bot.closed}` : '—'}</dd></div>
+            <div><dt>Win rate</dt><dd>{bot.winRate != null ? `${Math.round(bot.winRate * 100)}% · n=${bot.closed}` : `n<${bot.minSample}`}</dd></div>
             <div><dt>Open now</dt><dd>{bot.open}</dd></div>
           </dl>
-        ) : <p className="lp-record-empty">{loading ? 'Loading the ledger…' : 'The bot ledger is unavailable right now.'}</p>}
+        ) : <p className="lp-record-empty">{loading ? 'Reading the ledger…' : 'The ledger didn’t load just now — it refreshes every 15 seconds.'}</p>}
         {bot && bot.winRate == null && <p className="lp-record-fine">Win rate appears at n ≥ {bot.minSample} closed trades (n = {bot.closed}) — smaller samples mislead.</p>}
         <p className="lp-record-age">Ledger · {fmtAgo(data?.bot.asOf, now)}</p>
         <button type="button" className="lp-link" onClick={() => showShowcaseTab('bot')}>See the paper record {ARROW}</button>
@@ -167,7 +126,7 @@ function RecordBand() {
             <div><dt>Hit target</dt><dd className="up">{hits}</dd></div>
             <div><dt>Hit stop</dt><dd className="down">{stops}</dd></div>
           </dl>
-        ) : <p className="lp-record-empty">{loading ? 'Loading ideas…' : 'No delayed ideas to show yet.'}</p>}
+        ) : <p className="lp-record-empty">{loading ? 'Reading the ideas…' : data?.ideas.asOf ? 'No ideas old enough to show yet — they appear 24h after publishing.' : 'The delayed ideas didn’t load just now — they refresh every 15 seconds.'}</p>}
         {ideas.length > 0 && <p className="lp-record-fine">The three most recent ideas published at least 24h ago, in order, whatever their outcome — a window, not a win rate.</p>}
         <p className="lp-record-age">Checked · {fmtAgo(data?.ideas.asOf, now)}</p>
         <button type="button" className="lp-link" onClick={() => showShowcaseTab('nexus')}>See each idea with its timestamp {ARROW}</button>
@@ -189,7 +148,8 @@ function PlanCard({ plan, yearly, current, onUpgrade, busy }: { plan: PricingPla
       <h3 className="lp-plan-name" id={`plan-${plan.id}`}>{plan.name}</h3>
       <p className="lp-plan-desc">{plan.blurb}</p>
       <p className="lp-plan-price"><b>{price}</b><span>{period}</span></p>
-      <p className="lp-plan-save">{save ? `Save ${save}% vs monthly` : ' '}{plan.founder && !free ? ` · founder $${yearly ? plan.founder.annual : plan.founder.monthly}${yearly ? '/year' : '/mo'} for ${plan.founder.lockMonths} months` : ''}</p>
+      {/* No founder / lock-in promise while checkout is off and prices are proposed (platform audit #120). */}
+      <p className="lp-plan-save">{save ? `Save ${save}% vs monthly` : ' '}{!free && !CHECKOUT_LIVE ? `${save ? ' · ' : ''}proposed price · not on sale yet` : ''}</p>
       <ul className="lp-plan-feats">
         {plan.features.filter((f) => f.included).map((f) => (
           <li key={f.label}><span className="ic">{CHECK}</span><span>{f.label}{f.soon ? ' · soon' : ''}</span></li>
@@ -199,9 +159,10 @@ function PlanCard({ plan, yearly, current, onUpgrade, busy }: { plan: PricingPla
         {current ? (
           <button type="button" className="btn btn-ghost btn-lg" disabled>Current plan</button>
         ) : free ? (
-          <Link href="/signup" className="btn btn-ghost btn-lg">{plan.cta.label}</Link>
+          // Free needs an invite while the beta is invite-only; /signup offers code or waitlist (audit #121).
+          <Link href="/signup" className="btn btn-ghost btn-lg">Join the beta</Link>
         ) : plan.comingSoon || amount == null || !CHECKOUT_LIVE ? (
-          <Link href="/signup?waitlist=1" className="btn btn-ghost btn-lg">{plan.comingSoon ? plan.cta.label : 'Join the beta · free during beta'}</Link>
+          <Link href="/signup?waitlist=1" className="btn btn-ghost btn-lg">Join the waitlist</Link>
         ) : (
           <button type="button" className="btn btn-primary btn-lg" onClick={onUpgrade} disabled={busy}>
             {busy ? 'Opening checkout…' : plan.cta.label}
@@ -244,9 +205,11 @@ function Pricing() {
     <section id="pricing" className="lp-pricing lp-sec" aria-labelledby="lp-pricing-title">
       <div className="container">
         <div className="lp-head">
-          <p className="lp-eyebrow">Pricing · early-access beta</p>
+          <p className="lp-eyebrow">Pricing · invite-only beta</p>
           <h2 className="lp-h2" id="lp-pricing-title">Start free. Upgrade when the data earns it.</h2>
-          <p className="lp-lede">Beta pricing. Features still in development say “soon”.</p>
+          <p className="lp-lede">{CHECKOUT_LIVE
+            ? 'Features still in development say “soon”.'
+            : 'Beta members start on Free. Paid plans aren’t on sale yet — the prices below are proposed, and the waitlist hears first when they open. Features still in development say “soon”.'}</p>
         </div>
         <div className="lp-bill" role="group" aria-label="Billing period">
           <button type="button" aria-pressed={!yearly} className={!yearly ? 'on' : ''} onClick={() => setYearly(false)}>Monthly</button>
@@ -266,6 +229,8 @@ function Pricing() {
 
 export default function LandingNexus() {
   const isLight = useTheme().theme === 'nexus-light';
+  const rootRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(rootRef);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const go = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -282,7 +247,7 @@ export default function LandingNexus() {
   }, []);
 
   return (
-    <div className={`landing nexus-vars lp${isLight ? ' light' : ''}`}>
+    <div className={`landing nexus-vars lp${isLight ? ' light' : ''}`} ref={rootRef}>
       <SEOHead pageKey="landing" />
       <a href="#main" className="lp-skip">Skip to content</a>
       {/* NAV */}
@@ -293,7 +258,7 @@ export default function LandingNexus() {
             <span className="brand-name">QUANTEDGE</span>
           </Link>
           <div className="lnav-links">
-            <a className="lnav-link" href="#sec-product" onClick={go('sec-product')}>Product</a>
+            <a className="lnav-link" href="#sec-desks" onClick={go('sec-desks')}>Product</a>
             <a className="lnav-link" href="#sec-record" onClick={go('sec-record')}>Track record</a>
             <a className="lnav-link" href="#pricing" onClick={go('pricing')}>Pricing</a>
             <a className="lnav-link" href="#sec-faq" onClick={go('sec-faq')}>FAQ</a>
@@ -308,75 +273,43 @@ export default function LandingNexus() {
       <main id="main">
         {/* HERO — what it is, who it's for, the two actions, then the product itself */}
         <header className="lp-hero" id="sec-product">
+          <AmbientGrid />
           <div className="container">
             <div className="lp-hero-copy">
-              <p className="lp-eyebrow">See the positioning · Rank the setup · Prove the record</p>
               <h1 className="lp-h1">The trading research terminal for <span className="grad">stocks, options and crypto</span></h1>
-              <p className="lp-sub">For self-directed traders who want dealer positioning, options flow and ranked setups in one place — every number with its source, its age and its record.</p>
+              <p className="lp-sub">Dealer positioning, options flow and evidence-ranked setups in one place — every number with its source, its age and its record.</p>
               <div className="lp-ctas">
                 <Link href="/signup" className="btn btn-primary btn-lg">Join the beta {ARROW}</Link>
                 <a href="#sec-live" className="btn btn-ghost btn-lg" onClick={go('sec-live')}>See it live</a>
-                <DiscordButton />
               </div>
-              <p className="lp-hero-note">Invite-only beta · free plan on delayed data · not investment advice</p>
+              <p className="lp-hero-note">
+                Invite-only beta · Free plan on delayed data · educational, not advice
+                {DISCORD_INVITE_URL && <> · <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">Discord<span className="sr-only"> (opens in a new tab)</span></a></>}
+              </p>
+              <RecordStrip onMore={go('sec-record')} />
             </div>
-            {/* The product mockup (restored 2026-09-30): desktop GEX + phone NEXUS, overlapping */}
-            <div className="lp-hero-stage">
-              <Frame eager src="/screenshots/qe-gex.webp" w={1600} h={1000} url="quantedgelabs.net/t?tab=gex"
-                alt="The QuantEdge GEX workspace on a desktop: a strike-by-expiry gamma matrix, key levels with call wall, put wall and zero-gamma, and the dealer regime, shown with sample data." />
-              <figure className="lp-phone">
-                <img src="/screenshots/qe-nexus-phone.webp" width={600} height={1301} decoding="async" loading="eager"
-                  alt="NEXUS, the QuantEdge trading desk, on a phone: setups ranked by confidence, shown with sample data." />
-              </figure>
-            </div>
+            {/* The product itself is the hero visual: the live panels (sample data until the live read lands). */}
             <div className="lp-hero-live" id="sec-live">
-              <p className="lp-live-cap"><span className="sc-live-dot" aria-hidden="true" /> Live from today’s market — real data, each number with its source and age</p>
+              <p className="lp-live-cap">Today’s market, with each number’s source and age</p>
               <LiveShowcase />
             </div>
           </div>
         </header>
 
-        {/* WHAT YOU GET */}
-        <section id="sec-features" className="lp-sec" aria-labelledby="lp-features-title">
-          <div className="container">
-            <div className="lp-head">
-              <p className="lp-eyebrow">What you get</p>
-              <h2 className="lp-h2" id="lp-features-title">One terminal, six desks.</h2>
-            </div>
-            <div className="lp-feats">
-              {FEATURES.map((f) => (
-                <article key={f.tag} className="lp-feat">
-                  <p className="lp-feat-tag">{f.tag}</p>
-                  <h3 className="lp-feat-title">{f.title}</h3>
-                  <p className="lp-feat-line">{f.line}</p>
-                  <ul className="lp-feat-points">{f.points.map((p) => <li key={p}>{p}</li>)}</ul>
-                  <Link href={f.href} className="lp-link">{f.open} {ARROW}</Link>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* GALLERY — one capture per desk; a snap carousel on phones */}
-        <section id="sec-gallery" className="lp-sec lp-gallery-sec" aria-labelledby="lp-gallery-title">
+        {/* DESKS — one tab rail + one framed clip (replaces the 6-card grid and the screenshot gallery) */}
+        <section id="sec-desks" className="lp-sec" aria-labelledby="lp-desks-title">
           <div className="container">
             <div className="lp-head">
               <p className="lp-eyebrow">Inside the terminal</p>
-              <h2 className="lp-h2" id="lp-gallery-title">Every desk, as you’ll use it.</h2>
-              <p className="lp-lede">Screens from the product with sample data — the live panels above show today’s real numbers.</p>
+              <h2 className="lp-h2" id="lp-desks-title">Seven desks, one terminal.</h2>
             </div>
-            <ul className="lp-gallery" aria-label="Product screenshots">
-              {GALLERY.map((g) => (
-                <li key={g.tag} className="lp-gallery-item">
-                  <Frame src={g.src} w={1600} h={1000} url={g.url} alt={g.alt} />
-                  <p className="lp-gallery-cap"><b>{g.tag}</b> {g.caption}</p>
-                </li>
-              ))}
-            </ul>
+            <DeskTour />
+            <h3 className="lp-subhead">Also in the terminal</h3>
+            <Toolbox />
           </div>
         </section>
 
-        {/* HOW IT'S DIFFERENT */}
+        {/* HOW IT'S DIFFERENT — a numbered list, not more cards */}
         <section id="sec-different" className="lp-sec" aria-labelledby="lp-diff-title">
           <div className="container">
             <div className="lp-head">
@@ -384,14 +317,16 @@ export default function LandingNexus() {
               <h2 className="lp-h2" id="lp-diff-title">It shows its work — including the misses.</h2>
               <p className="lp-lede">Most trading tools promise certainty. QuantEdge measures itself in public and tells you what it doesn’t know yet.</p>
             </div>
-            <div className="lp-diff">
-              {DIFFERENT.map(([t, d]) => (
-                <article key={t} className="lp-diff-item">
-                  <h3>{t}</h3>
-                  <p>{d}</p>
-                </article>
+            <Findings />
+            <h3 className="lp-subhead">Kept honest by design</h3>
+            <ol className="lp-index">
+              {DIFFERENT.map(([t, d], i) => (
+                <li key={t}>
+                  <span className="n" aria-hidden="true">/{String(i + 1).padStart(2, '0')}</span>
+                  <div><h4>{t}</h4><p>{d}</p></div>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
@@ -405,26 +340,12 @@ export default function LandingNexus() {
             </div>
             <RecordBand />
             <p className="lp-record-more">Members see the full record by conviction band in the <Link href="/t?tab=journal">Journal · Track record</Link>.</p>
+            <h3 className="lp-subhead" id="sec-sources">Where every number comes from</h3>
+            <DataSources />
           </div>
         </section>
 
         <Pricing />
-
-        {/* COMMUNITY — only with a real invite link */}
-        {DISCORD_INVITE_URL && (
-          <section id="sec-community" className="lp-sec" aria-labelledby="lp-community-title">
-            <div className="container">
-              <div className="lp-community">
-                <div>
-                  <p className="lp-eyebrow">Community</p>
-                  <h2 className="lp-h2" id="lp-community-title">Join {DISCORD_SERVER_NAME} on Discord</h2>
-                  <p className="lp-lede">Talk through the day’s setups with other members, ask how a number is computed, and hear about changes first. Free to join.</p>
-                </div>
-                <DiscordButton className="btn btn-primary btn-lg" label="Join the community" />
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* FAQ */}
         <section id="sec-faq" className="lp-faq lp-sec" aria-labelledby="lp-faq-title">
@@ -455,11 +376,12 @@ export default function LandingNexus() {
           <div className="container">
             <div className="cta-box">
               <h2 className="cta-title">Trade the evidence, <span className="grad">not the headline.</span></h2>
-              <p className="cta-sub">Read the positioning, rank the setup on NEXUS and keep the record — on one terminal.</p>
+              <p className="cta-sub">Read the positioning, rank the setup on NEXUS and keep the record — on one terminal.{DISCORD_INVITE_URL ? ` Talk it through with other members in ${DISCORD_SERVER_NAME} on Discord.` : ''}</p>
               <div className="cta-actions">
                 <Link href="/signup" className="btn btn-primary btn-lg">Join the beta {ARROW}</Link>
-                <DiscordButton label="Join the community" />
+                <DiscordButton label="Join the Discord" />
               </div>
+              <p className="lp-whisper">{PRICE_WHISPER}</p>
             </div>
           </div>
         </section>

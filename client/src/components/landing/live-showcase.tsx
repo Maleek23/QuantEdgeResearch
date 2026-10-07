@@ -5,7 +5,12 @@
  * plus the app's live price bus (/ws/prices, anonymous) for SPY / QQQ / BTC.
  * Nothing is interpolated: a number changes only when a real print or a real
  * poll changes it (and flashes like the app); between prints only the age
- * stamps advance, once a second. A section with no data says so.
+ * stamps advance, once a second.
+ *
+ * Never empty (beta-readiness 2026-10-07): until the live read arrives — or when
+ * a live section is empty or the feed is down — that section renders the
+ * labelled SAMPLE from showcase-sample.ts (SAMPLE badge, "Sample data" instead
+ * of an age, no source, no live dot) and swaps to live the moment it lands.
  *
  * Panels: Today · NEXUS (delayed ≥ 24 h) · GEX · Crypto · Catalysts ·
  * Quantinum Bot · Journal (the bot's paper book). One horizontal scroll-snap
@@ -14,6 +19,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
+import { sampleShowcase } from './showcase-sample';
+import type { PublicRecord } from '@shared/landing-record';
 
 type Section<T> = { data: T | null; asOf: string | null; error?: string };
 type Quote = { symbol: string; price: number; changePct: number | null; source: string; asOf: string; delayed?: boolean };
@@ -35,6 +42,8 @@ export type ShowcaseBot = {
 export type Showcase = {
   builtAt: string; quotes: Section<Quote[]>; gex: Section<Gex>; ideas: Section<Idea[]>;
   crypto: Section<Mover[]>; catalysts: Section<Catalyst[]>; bot: Section<ShowcaseBot>;
+  /** Bar-verified NEXUS record (shared/landing-record.ts). Never sampled — absent on older servers. */
+  record?: Section<PublicRecord>;
 };
 
 const POLL_MS = 15_000;
@@ -154,8 +163,10 @@ function useLiveTicks(active: boolean) {
 }
 
 // ── atoms ────────────────────────────────────────────────────────────────
-function Age({ iso, now, prefix }: { iso: string | null | undefined; now: number; prefix?: string }) {
-  if (!iso) return <span className="sc-age">no data yet</span>;
+/** Age stamp — or, for a SAMPLE section, the plain label (a sample has no age and no source). */
+function Age({ iso, now, prefix, sample }: { iso: string | null | undefined; now: number; prefix?: string; sample?: string | false }) {
+  if (sample) return <span className="sc-age sample">{sample}</span>;
+  if (!iso) return <span className="sc-age">Waiting for the first read</span>;
   const ms = now - new Date(iso).getTime();
   return <span className={`sc-age${ms > 15 * 60_000 ? ' old' : ''}`}>{prefix ? `${prefix} · ` : ''}{fmtAge(ms)}</span>;
 }
@@ -165,12 +176,8 @@ function Px({ value, sym, className = '' }: { value: number | null | undefined; 
   return <span className={`sc-px ${className}${flash ? ` flash-${flash}` : ''}`}>{value == null ? '—' : fmtPx(value, sym)}</span>;
 }
 
-function Skel({ rows = 3 }: { rows?: number }) {
-  return (
-    <div className="sc-skel" aria-hidden="true">
-      {Array.from({ length: rows }, (_, i) => <i key={i} />)}
-    </div>
-  );
+function SampleBadge({ on }: { on: boolean }) {
+  return on ? <span className="sc-badge sample" title="Illustrative numbers — replaced by the live read when it arrives">Sample</span> : null;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
@@ -223,10 +230,19 @@ function GexBars({ g }: { g: Gex }) {
 }
 
 // ── panels ──────────────────────────────────────────────────────────────
-type PanelProps = { d: Showcase | null; now: number; quotes: Record<string, Quote & { live?: boolean }>; loading: boolean };
+type SectionKey = 'quotes' | 'gex' | 'ideas' | 'crypto' | 'catalysts' | 'bot';
+type LiveQuote = Quote & { live?: boolean; sample?: boolean };
+type PanelProps = {
+  /** Live where a live section has data; the labelled sample everywhere else. Never null. */
+  d: Showcase; now: number; quotes: Record<string, LiveQuote>;
+  /** Which sections are showing the sample. */
+  sample: Record<SectionKey, boolean>;
+  /** What a sample section says in place of its age. */
+  sampleNote: string;
+};
 
-function TodayPanel({ d, now, quotes, loading }: PanelProps) {
-  const g = d?.gex.data;
+function TodayPanel({ d, now, quotes, sample, sampleNote }: PanelProps) {
+  const g = d.gex.data;
   const reg = g?.regime ? REGIME[g.regime] : null;
   return (
     <>
@@ -235,16 +251,16 @@ function TodayPanel({ d, now, quotes, loading }: PanelProps) {
           const q = quotes[s];
           return (
             <div className="sc-quote" key={s}>
-              <div className="sc-quote-top"><b>{s}</b>{q?.live && <span className="sc-live-dot" title="Live stream" />}</div>
+              <div className="sc-quote-top"><b>{s}</b>{q?.live && <span className="sc-live-dot" title="Live stream" />}<SampleBadge on={!!q?.sample} /></div>
               <Px value={q?.price} sym={s} className="big" />
               <span className={`sc-chg ${q?.changePct == null ? '' : q.changePct >= 0 ? 'up' : 'down'}`}>{fmtPct(q?.changePct)}</span>
-              <Age iso={q?.asOf} now={now} prefix={q?.source} />
+              <Age iso={q?.asOf} now={now} prefix={q?.source} sample={q?.sample ? 'Sample' : false} />
             </div>
           );
         })}
       </div>
       <div className="sc-read">
-        <h4>SPY dealer map</h4>
+        <h4>SPY dealer map <SampleBadge on={sample.gex} /></h4>
         {g ? (
           <>
             <p className="sc-read-line"><b>{reg?.[0] ?? 'Regime unknown'}</b>{reg ? ` — ${reg[1]}` : ''}{g.zeroGamma != null ? ` Spot is ${g.spot >= g.zeroGamma ? 'above' : 'below'} zero γ.` : ''}</p>
@@ -253,50 +269,49 @@ function TodayPanel({ d, now, quotes, loading }: PanelProps) {
               <div><dt>Zero γ</dt><dd className="a">{g.zeroGamma != null ? fmtPx(g.zeroGamma) : '—'}</dd></div>
               <div><dt>Put wall</dt><dd className="r">{g.putWall ?? '—'}</dd></div>
             </dl>
-            <Age iso={d?.gex.asOf} now={now} prefix={`GEX${g.wallBasisLabel ? ` · walls ${g.wallBasisLabel}` : ''}${g.source ? ` · ${g.source}` : ''}${g.delayedFeed ? ' · delayed chain' : ''}`} />
+            <Age iso={d.gex.asOf} now={now} sample={sample.gex && sampleNote}
+              prefix={`GEX${g.wallBasisLabel ? ` · walls ${g.wallBasisLabel}` : ''}${g.source ? ` · ${g.source}` : ''}${g.delayedFeed ? ' · delayed chain' : ''}`} />
           </>
-        ) : loading ? <Skel /> : <Empty>SPY dealer levels are computing — they appear here once the options chain is read.</Empty>}
+        ) : <Empty>SPY dealer levels appear here once the options chain is read.</Empty>}
       </div>
       <PanelFoot href="/today" label="Today" />
     </>
   );
 }
 
-function NexusPanel({ d, now, loading }: PanelProps) {
-  const ideas = d?.ideas.data ?? [];
+function NexusPanel({ d, now, sample, sampleNote }: PanelProps) {
+  const ideas = d.ideas.data ?? [];
   return (
     <>
-      <p className="sc-note"><span className="sc-badge">Delayed 24h</span> Members see today’s ideas live. These were published at least a day ago. Outcomes are measured from each idea’s published entry — model results, not trades anyone placed, before fees and slippage.</p>
-      {ideas.length ? (
-        <ul className="sc-list">
-          {ideas.map((i) => {
-            const o = i.outcome ? OUTCOME[i.outcome] : null;
-            return (
-              <li key={`${i.symbol}-${i.publishedAt}`} className="sc-idea">
-                <b className="sym">{i.symbol}</b>
-                <span className={`side ${i.side === 'short' ? 'down' : 'up'}`}>{i.side === 'short' ? 'SHORT' : 'LONG'}</span>
-                <span className="band" title="Conviction band at publish">{i.band ? `Band ${i.band}` : 'Unbanded'}</span>
-                <time className="when" dateTime={i.publishedAt} title="Published">{fmtStamp(i.publishedAt)}</time>
-                <span className={`out ${o ? o[1] : 'open'}`}>{o ? `${o[0]}${i.percentGain != null ? ` ${fmtPct(i.percentGain, 1)}` : ''}` : 'Still open'}</span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : loading ? <Skel /> : <Empty>No delayed ideas to show yet.</Empty>}
-      <Age iso={d?.ideas.asOf} now={now} prefix="Checked" />
+      <p className="sc-note"><SampleBadge on={sample.ideas} /><span className="sc-badge">Delayed 24h</span> Members see today’s ideas live. These were published at least a day ago. Outcomes are measured from each idea’s published entry — model results, not trades anyone placed, before fees and slippage.</p>
+      <ul className="sc-list">
+        {ideas.map((i) => {
+          const o = i.outcome ? OUTCOME[i.outcome] : null;
+          return (
+            <li key={`${i.symbol}-${i.publishedAt}`} className="sc-idea">
+              <b className="sym">{i.symbol}</b>
+              <span className={`side ${i.side === 'short' ? 'down' : 'up'}`}>{i.side === 'short' ? 'SHORT' : 'LONG'}</span>
+              <span className="band" title="Conviction band at publish">{i.band ? `Band ${i.band}` : 'Unbanded'}</span>
+              <time className="when" dateTime={i.publishedAt} title="Published">{fmtStamp(i.publishedAt)}</time>
+              <span className={`out ${o ? o[1] : 'open'}`}>{o ? `${o[0]}${i.percentGain != null ? ` ${fmtPct(i.percentGain, 1)}` : ''}` : 'Still open'}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <Age iso={d.ideas.asOf} now={now} prefix="Checked" sample={sample.ideas && sampleNote} />
       <PanelFoot href="/t" label="NEXUS" />
     </>
   );
 }
 
-function GexPanel({ d, now, loading }: PanelProps) {
-  const g = d?.gex.data;
+function GexPanel({ d, now, sample, sampleNote }: PanelProps) {
+  const g = d.gex.data;
   return (
     <>
       {g ? (
         <>
           <div className="sc-gex-head">
-            <div><span className="lbl">SPY spot</span><Px value={g.spot} className="big" /></div>
+            <div><span className="lbl">SPY spot <SampleBadge on={sample.gex} /></span><Px value={g.spot} className="big" /></div>
             <div><span className="lbl">Net GEX</span><span className="sc-px big">{g.netGexB != null ? `${g.netGexB >= 0 ? '+' : ''}${g.netGexB.toFixed(2)}B` : '—'}</span></div>
             <div><span className="lbl">Regime</span><span className="sc-px">{g.regime ? REGIME[g.regime]?.[0] ?? g.regime : '—'}</span></div>
           </div>
@@ -306,98 +321,95 @@ function GexPanel({ d, now, loading }: PanelProps) {
             <span><i className="a" />Zero γ {g.zeroGamma != null ? fmtPx(g.zeroGamma) : '—'}</span>
             <span><i className="r" />Put wall {g.putWall ?? '—'}</span>
           </div>
-          <Age iso={d?.gex.asOf} now={now} prefix={`${g.wallBasisLabel ? `walls ${g.wallBasisLabel} · ` : ''}${g.source ?? 'chain'}${g.delayedFeed ? ' · delayed chain' : ''}`} />
+          <Age iso={d.gex.asOf} now={now} sample={sample.gex && sampleNote}
+            prefix={`${g.wallBasisLabel ? `walls ${g.wallBasisLabel} · ` : ''}${g.source ?? 'chain'}${g.delayedFeed ? ' · delayed chain' : ''}`} />
         </>
-      ) : loading ? <Skel /> : <Empty>The SPY gamma profile is computing — it appears here once the options chain is read.</Empty>}
+      ) : <Empty>The SPY gamma profile appears here once the options chain is read.</Empty>}
       <PanelFoot href="/t?tab=gex" label="GEX" />
     </>
   );
 }
 
-function CryptoPanel({ d, now, quotes, loading }: PanelProps) {
-  const movers = d?.crypto.data ?? [];
+function CryptoPanel({ d, now, quotes, sample, sampleNote }: PanelProps) {
+  const movers = d.crypto.data ?? [];
   const btc = quotes.BTC;
   return (
     <>
-      <p className="sc-note">Crypto trades 24/7 — these move on weekends too.</p>
-      {movers.length ? (
-        <ul className="sc-list">
-          {movers.map((m) => (
-            <li key={m.symbol} className="sc-row">
-              <b className="sym">{m.symbol}</b><span className="name">{m.name}</span>
-              <Px value={m.symbol === 'BTC' && btc ? btc.price : m.price} sym={m.symbol} />
-              <span className={`sc-chg ${m.change24h >= 0 ? 'up' : 'down'}`}>{fmtPct(m.change24h)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : loading ? <Skel /> : <Empty>Crypto movers unavailable right now.</Empty>}
-      <Age iso={d?.crypto.asOf} now={now} prefix="24h change" />
+      <p className="sc-note"><SampleBadge on={sample.crypto} />Crypto trades 24/7 — these move on weekends too.</p>
+      <ul className="sc-list">
+        {movers.map((m) => (
+          <li key={m.symbol} className="sc-row">
+            <b className="sym">{m.symbol}</b><span className="name">{m.name}</span>
+            <Px value={m.symbol === 'BTC' && btc && !btc.sample && !sample.crypto ? btc.price : m.price} sym={m.symbol} />
+            <span className={`sc-chg ${m.change24h >= 0 ? 'up' : 'down'}`}>{fmtPct(m.change24h)}</span>
+          </li>
+        ))}
+      </ul>
+      <Age iso={d.crypto.asOf} now={now} prefix="24h change" sample={sample.crypto && sampleNote} />
       <PanelFoot href="/t?tab=crypto" label="Crypto" />
     </>
   );
 }
 
-function CatalystsPanel({ d, now, loading }: PanelProps) {
-  const cats = d?.catalysts.data ?? [];
+function CatalystsPanel({ d, now, sample, sampleNote }: PanelProps) {
+  const cats = d.catalysts.data ?? [];
   return (
     <>
-      <p className="sc-note">Next scheduled earnings from the watched list.</p>
-      {cats.length ? (
-        <ul className="sc-list">
-          {cats.map((c) => (
-            <li key={`${c.symbol}-${c.date}`} className="sc-row">
-              <span className="sc-date">{fmtDate(c.date)}</span>
-              <b className="sym">{c.symbol}</b>
-              <span className="name">Earnings</span>
-              <span className="est">{c.estimate ? `EPS est. ${c.estimate}` : 'No estimate'}</span>
-            </li>
-          ))}
-        </ul>
-      ) : loading ? <Skel /> : <Empty>No upcoming earnings in the calendar right now.</Empty>}
-      <Age iso={d?.catalysts.asOf} now={now} prefix="Calendar" />
+      <p className="sc-note"><SampleBadge on={sample.catalysts} />Next scheduled earnings from the watched list.</p>
+      <ul className="sc-list">
+        {cats.map((c) => (
+          <li key={`${c.symbol}-${c.date}`} className="sc-row">
+            <span className="sc-date">{fmtDate(c.date)}</span>
+            <b className="sym">{c.symbol}</b>
+            <span className="name">Earnings</span>
+            <span className="est">{c.estimate ? `EPS est. ${c.estimate}` : 'No estimate'}</span>
+          </li>
+        ))}
+      </ul>
+      <Age iso={d.catalysts.asOf} now={now} prefix="Calendar" sample={sample.catalysts && sampleNote} />
       <PanelFoot href="/t?tab=catalyst" label="Catalysts" />
     </>
   );
 }
 
-function BotPanel({ d, now, loading }: PanelProps) {
-  const b = d?.bot.data;
+function BotPanel({ d, now, sample, sampleNote }: PanelProps) {
+  const b = d.bot.data;
   return (
     <>
-      <p className="sc-note">Quantinum Bot trades NEXUS’s published ideas on paper. No real money. Simulated results have limits (fills are modelled) and past performance does not guarantee future results.</p>
-      {b ? (
+      <p className="sc-note"><SampleBadge on={sample.bot} />Quantinum Bot trades NEXUS’s published ideas on paper. No real money. Simulated results have limits (fills are modelled) and past performance does not guarantee future results.</p>
+      {b && (
         <>
           <dl className="sc-stats">
             <div><dt>Closed trades</dt><dd>{b.closed}</dd></div>
-            <div><dt>Win rate</dt><dd>{b.winRate != null ? `${(b.winRate * 100).toFixed(0)}%` : '—'}</dd></div>
+            <div><dt>Win rate</dt><dd>{b.winRate != null ? `${(b.winRate * 100).toFixed(0)}%` : `n<${b.minSample}`}</dd></div>
             <div><dt>Open now</dt><dd>{b.open}</dd></div>
             <div><dt>Since</dt><dd>{b.since ? fmtDate(b.since) : '—'}</dd></div>
           </dl>
           {b.winRate == null && <p className="sc-fine">Win rate is shown once the run has {b.minSample} closed trades (n = {b.closed}) — smaller samples mislead.</p>}
           {b.runLabel && <p className="sc-fine">{b.runLabel}</p>}
         </>
-      ) : loading ? <Skel /> : <Empty>The bot record is unavailable right now.</Empty>}
-      <Age iso={d?.bot.asOf} now={now} prefix="Ledger" />
+      )}
+      <Age iso={d.bot.asOf} now={now} prefix="Ledger" sample={sample.bot && sampleNote} />
       <PanelFoot href="/t?tab=bot" label="Quantinum Bot" />
     </>
   );
 }
 
-function JournalPanel({ d, now, loading }: PanelProps) {
-  const b = d?.bot.data;
+function JournalPanel({ d, now, sample, sampleNote }: PanelProps) {
+  const b = d.bot.data;
   return (
     <>
-      <p className="sc-note"><span className="sc-badge">Demo</span> This is the Quantinum Bot’s paper book — your journal measures your own trades the same way.</p>
-      {b ? (
+      <p className="sc-note"><SampleBadge on={sample.bot} /><span className="sc-badge">Demo</span> This is the Quantinum Bot’s paper book — your journal measures your own trades the same way.</p>
+      {b && (
         <dl className="sc-stats">
           <div><dt>Paper net P&amp;L</dt><dd className={b.netRealizedPnL >= 0 ? 'up' : 'down'}>{fmtUsd(b.netRealizedPnL)}</dd></div>
           <div><dt>Closed / open</dt><dd>{b.closed} / {b.open}</dd></div>
-          <div><dt>Avg win · loss</dt><dd>{b.avgWinPct != null ? `${fmtPct(b.avgWinPct, 1)} · ${fmtPct(b.avgLossPct, 1)}` : '—'}</dd></div>
-          <div><dt>Profit factor</dt><dd>{b.profitFactor != null ? b.profitFactor.toFixed(2) : '—'}</dd></div>
+          <div><dt>Avg win · loss</dt><dd>{b.avgWinPct != null ? `${fmtPct(b.avgWinPct, 1)} · ${fmtPct(b.avgLossPct, 1)}` : `n<${b.minSample}`}</dd></div>
+          <div><dt>Profit factor</dt><dd>{b.profitFactor != null ? b.profitFactor.toFixed(2) : `n<${b.minSample}`}</dd></div>
         </dl>
-      ) : loading ? <Skel /> : <Empty>The bot book is unavailable right now.</Empty>}
+      )}
       {b && b.closed < b.minSample && <p className="sc-fine">Ratios appear at n ≥ {b.minSample} closed trades (n = {b.closed}).</p>}
-      <Age iso={d?.bot.asOf} now={now} prefix="Paper book" />
+      <Age iso={d.bot.asOf} now={now} prefix="Paper book" sample={sample.bot && sampleNote} />
       <PanelFoot href="/t?tab=journal" label="Journal" />
     </>
   );
@@ -412,6 +424,12 @@ const PANELS: Array<{ id: string; label: string; title: string; url: string; C: 
   { id: 'bot', label: 'Quantinum Bot', title: 'The paper record, sample size attached', url: 'quantedgelabs.net/t?tab=bot', C: BotPanel },
   { id: 'journal', label: 'Journal', title: 'A book measured honestly', url: 'quantedgelabs.net/t?tab=journal', C: JournalPanel },
 ];
+
+/** The section has something to draw (an empty list counts as nothing — show the sample, not a blank). */
+function hasData(s: Section<unknown> | undefined): boolean {
+  if (!s || s.data == null) return false;
+  return !Array.isArray(s.data) || s.data.length > 0;
+}
 
 export default function LiveShowcase() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -430,20 +448,42 @@ export default function LiveShowcase() {
   const { data, failed } = useShowcase(visible);
   const ticks = useLiveTicks(visible);
   const now = useNow(visible);
+  const sampleData = useMemo(() => sampleShowcase(), []);
 
-  // A live print replaces the polled quote only when it is newer.
+  // Live where a live section has data, the labelled sample everywhere else.
+  const { view, sample } = useMemo(() => {
+    const keys: SectionKey[] = ['quotes', 'gex', 'ideas', 'crypto', 'catalysts', 'bot'];
+    const s = {} as Record<SectionKey, boolean>;
+    const v: Showcase = { ...sampleData, builtAt: data?.builtAt ?? sampleData.builtAt };
+    for (const k of keys) {
+      const live = data?.[k] as Section<unknown> | undefined;
+      s[k] = !hasData(live);
+      if (!s[k]) (v as Record<SectionKey, unknown>)[k] = live;
+    }
+    return { view: v, sample: s };
+  }, [data, sampleData]);
+
+  // A live print replaces the polled quote only when it is newer; a symbol with neither shows its sample.
   const quotes = useMemo(() => {
-    const out: Record<string, Quote & { live?: boolean }> = {};
-    for (const q of data?.quotes.data ?? []) out[q.symbol] = q;
+    const out: Record<string, LiveQuote> = {};
+    if (!sample.quotes) for (const q of view.quotes.data ?? []) out[q.symbol] = q;
     for (const s of LIVE_SYMBOLS) {
       const t = ticks[s];
       const q = out[s];
       if (t && (!q || t.ts > new Date(q.asOf).getTime())) {
         out[s] = { symbol: s, price: t.price, changePct: q?.changePct ?? null, source: t.source, asOf: new Date(t.ts).toISOString(), live: t.live };
       }
+      if (!out[s]) {
+        const sq = sampleData.quotes.data?.find((x) => x.symbol === s);
+        if (sq) out[s] = { ...sq, sample: true };
+      }
     }
     return out;
-  }, [data, ticks]);
+  }, [view, sample.quotes, ticks, sampleData]);
+
+  const anySample = Object.values(sample).some(Boolean) || LIVE_SYMBOLS.some((s) => quotes[s]?.sample);
+  const allSample = !data;
+  const sampleNote = failed ? 'Sample data · live feed unavailable' : 'Sample data · live read loading';
 
   const goTo = (i: number) => {
     const track = trackRef.current;
@@ -488,8 +528,12 @@ export default function LiveShowcase() {
           <span className="lp-dots" aria-hidden="true"><i /><i /><i /></span>
           <span className="lp-url">{PANELS[active].url}</span>
           <span className="sc-status" aria-live="polite">
-            {/* "Live" only while the poll is succeeding — a failed refresh never keeps the badge on (audit item 8). */}
-            {failed ? (data ? 'Refresh failed · showing the last read' : 'Live data unavailable') : data ? <><span className="sc-live-dot" />Live data</> : 'Loading live data…'}
+            {/* "Live" only while the poll is succeeding — a failed refresh never keeps the badge on (audit item 8);
+                sample data is always named as such. */}
+            {allSample
+              ? (failed ? 'Sample data · live feed unavailable' : 'Sample data · loading live…')
+              : failed ? 'Refresh failed · showing the last read'
+                : <><span className="sc-live-dot" />{anySample ? 'Live · some panels sample' : 'Live data'}</>}
           </span>
         </div>
         <div className="sc-track" ref={trackRef} onScroll={onScroll}>
@@ -497,7 +541,7 @@ export default function LiveShowcase() {
             <section key={id} className="sc-panel" id={`sc-panel-${id}`} role="tabpanel" aria-labelledby={`sc-tab-${id}`}
               aria-hidden={active !== i} {...(active !== i ? { inert: '' as any } : {})}>
               <h3 className="sc-title">{title}</h3>
-              <C d={data} now={now} quotes={quotes} loading={!data && !failed} />
+              <C d={view} now={now} quotes={quotes} sample={sample} sampleNote={sampleNote} />
             </section>
           ))}
         </div>
@@ -505,7 +549,7 @@ export default function LiveShowcase() {
       <div className="sc-dots" aria-hidden="true">
         {PANELS.map((p, i) => <i key={p.id} className={active === i ? 'on' : ''} />)}
       </div>
-      <p className="sc-disclaimer">Real data from the same feeds the terminal uses. Quotes may be delayed outside market hours; every number shows its source and age. Not investment advice.</p>
+      <p className="sc-disclaimer">Real data from the same feeds the terminal uses, with its source and age; anything marked Sample is illustrative and is replaced by the live read when it arrives. Quotes may be delayed outside market hours. Not investment advice.</p>
     </div>
   );
 }

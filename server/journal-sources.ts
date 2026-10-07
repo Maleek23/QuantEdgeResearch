@@ -28,7 +28,7 @@ import {
 import { loadDeskVerifyLedger } from './desk-verify-ledger';
 import {
   journalKindOf, traderOwnerId, traderSlugOf,
-  type JournalKey, type JournalSourceMeta,
+  type JournalKey, type JournalSourceMeta, type DeskVerificationMeta,
 } from '@shared/journal-sources';
 
 // ─── Who is asking ───────────────────────────────────────────
@@ -304,6 +304,16 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
       verification,
     },
   };
+}
+
+/**
+ * The NEXUS ideas book as the default journal reads it (unverified rows split off),
+ * for the public landing's verified record strip (server/public-showcase.ts).
+ * Read-only; the caller summarises it with shared/landing-record.ts.
+ */
+export async function loadNexusBookForPublicRecord(): Promise<{ rows: JournalWireRow[]; verification: DeskVerificationMeta | undefined }> {
+  const { rows, meta } = await loadDesk(false);
+  return { rows, verification: meta.verification };
 }
 
 // ─── Loader ──────────────────────────────────────────────────

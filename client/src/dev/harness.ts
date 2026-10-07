@@ -12,6 +12,7 @@
  * URL with ?harness=1 switches it on; ?harness=0 switches it off. Options:
  *   ?harness-admin=1   the fixture user is an admin (admin hub)
  *   ?harness-out=1     /api/auth/me answers 401 (sign-in gates)
+ *   ?harness-tier=free the fixture user is on that tier (free | advanced | pro); Free gets the server's 403s
  *
  * While on, window.fetch answers every same-origin /api/* request from
  * harness-fixtures.ts (unknown GETs → 404 naming the missing fixture; writes →
@@ -30,14 +31,18 @@ export function harnessWanted(): boolean {
   const q = new URLSearchParams(location.search);
   if (q.get('harness') === '0') { write(KEY, null); return false; }
   if (q.get('harness') === '1' || location.pathname === '/__harness') write(KEY, '1');
-  if (location.pathname === '/__harness') { write(KEY + '-admin', null); write(KEY + '-out', null); }
+  if (location.pathname === '/__harness') { write(KEY + '-admin', null); write(KEY + '-out', null); write(KEY + '-tier', null); }
   if (q.has('harness-admin')) write(KEY + '-admin', q.get('harness-admin') === '1' ? '1' : null);
   if (q.has('harness-out')) write(KEY + '-out', q.get('harness-out') === '1' ? '1' : null);
+  if (q.has('harness-tier')) write(KEY + '-tier', /^(free|advanced|pro)$/.test(q.get('harness-tier') ?? '') ? q.get('harness-tier') : null);
   return read(KEY) === '1';
 }
 
 export function installHarness() {
-  const opts = (): HarnessOptions => ({ admin: read(KEY + '-admin') === '1', signedOut: read(KEY + '-out') === '1' });
+  const opts = (): HarnessOptions => ({
+    admin: read(KEY + '-admin') === '1', signedOut: read(KEY + '-out') === '1',
+    tier: (read(KEY + '-tier') as HarnessOptions['tier']) ?? undefined,
+  });
   // The "N new updates" toast is a once-per-device notice; under the harness it only hides the page.
   try { if (!localStorage.getItem('qe_changelog_seen')) localStorage.setItem('qe_changelog_seen', getMostRecentId()); } catch { /* storage off */ }
   const real = window.fetch.bind(window);

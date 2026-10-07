@@ -18,6 +18,7 @@
  * arrays and are what the react-query cache patches are built from.
  */
 
+import { CHECKOUT_LIVE } from '../../../shared/pricing';
 export const UNDO_WINDOW_MS = 6_000;
 
 export interface OptimisticSpec<R> {
@@ -167,6 +168,23 @@ export function inverseOf<T extends Record<string, unknown>>(prev: T, patch: Par
 }
 
 /**
+ * The plan-gate sentence for a Free account (403 with upgradeUrl from server/tier-gate.ts).
+ * Honest while checkout is off: paid plans aren't on sale during the beta.
+ */
+export function planGateMessage(serverMessage?: string | null): string {
+  const plan = /\b(Advanced|Pro)\b/.exec(serverMessage ?? '')?.[1] ?? 'a paid';
+  return CHECKOUT_LIVE
+    ? `This is part of the ${plan} plan. You’re on Free — see Pricing to upgrade.`
+    : `This is part of the ${plan} plan. Your beta account is on Free, and paid plans aren’t on sale yet — see Pricing to join the waitlist.`;
+}
+
+/** True when an error is a tier refusal (403 carrying upgradeUrl). */
+export function isPlanGate(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /^403: /.test(msg) && /"upgradeUrl"/.test(msg);
+}
+
+/**
  * "401: {"error":"…"}" → "…" — the reason a server gave, for a toast.
  * Never a raw status code or an HTML error page (docs/UX_COPY_GUIDE.md §U4):
  * a reason the server wrote wins; otherwise a plain sentence for the status.
@@ -180,6 +198,8 @@ export function reasonOf(err: unknown): string {
   const [, status, body] = m;
   try {
     const j = JSON.parse(body);
+    // A tier refusal (server/tier-gate.ts) — say what plan it is and what to do, not "requires X tier".
+    if (status === '403' && j?.upgradeUrl) return planGateMessage(j?.message);
     const r = j?.error || j?.message;
     if (r) return String(r);
   } catch { /* not JSON */ }

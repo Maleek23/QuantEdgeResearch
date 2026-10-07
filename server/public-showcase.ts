@@ -19,7 +19,12 @@
  *   catalysts  next earnings from the high-attention calendar.
  *   bot        Quantinum Bot record, model-record style: n closed, win rate only
  *              when n ≥ 30, since date. Journal = the bot's book stats.
+ *   record     the landing's record strip: the NEXUS ideas book, BAR-VERIFIED
+ *              rows only (shared/landing-record.ts) — never the recorded total.
+ *              Reads every desk row, so it refreshes at most every 10 min in the
+ *              background; its asOf is the verification ledger's time.
  */
+import { summarizeVerifiedBook, type PublicRecord } from '../shared/landing-record';
 import { pickWalls } from '../shared/gex-wall-basis';
 import { and, desc, eq, gte, lte, isNotNull } from 'drizzle-orm';
 import { OUTCOME_BASELINE_DATE } from '../shared/constants';
@@ -57,6 +62,7 @@ export interface Showcase {
   crypto: Section<ShowcaseMover[]>;
   catalysts: Section<ShowcaseCatalyst[]>;
   bot: Section<ShowcaseBot>;
+  record: Section<PublicRecord>;
 }
 
 function withTimeout<T>(p: Promise<T>, ms = SECTION_TIMEOUT_MS): Promise<T> {
@@ -242,6 +248,32 @@ async function buildBot(): Promise<ShowcaseBot> {
   };
 }
 
+const RECORD_REFRESH_MS = 600_000;
+let recordCache: { data: PublicRecord; at: number } | null = null;
+let recordInflight: Promise<void> | null = null;
+function refreshRecord(): Promise<void> {
+  if (recordInflight) return recordInflight;
+  recordInflight = (async () => {
+    const { loadNexusBookForPublicRecord } = await import('./journal-sources');
+    const { rows, verification } = await loadNexusBookForPublicRecord();
+    recordCache = {
+      data: summarizeVerifiedBook(rows, { unverified: verification?.unverified.count ?? 0, ledgerAsOf: verification?.ledger?.asOf ?? null, minSample: MIN_SAMPLE }),
+      at: Date.now(),
+    };
+  })().catch((err) => { logger.warn('[showcase] record refresh failed', { err: err instanceof Error ? err.message : String(err) }); })
+    .finally(() => { recordInflight = null; });
+  return recordInflight;
+}
+async function buildRecord(): Promise<Section<PublicRecord>> {
+  if (!recordCache || Date.now() - recordCache.at > RECORD_REFRESH_MS) {
+    const p = refreshRecord();
+    if (!recordCache) await withTimeout(p, 10_000).catch(() => undefined);
+  }
+  if (!recordCache) return { data: null, asOf: null, error: 'record not computed yet' };
+  // The record is as old as its verification ledger, not as old as this read.
+  return { data: recordCache.data, asOf: recordCache.data.ledgerAsOf ?? new Date(recordCache.at).toISOString() };
+}
+
 let cached: { value: Showcase; at: number } | null = null;
 let inflight: Promise<Showcase> | null = null;
 
@@ -249,15 +281,16 @@ export async function getPublicShowcase(): Promise<Showcase> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.value;
   if (inflight) return inflight;
   inflight = (async () => {
-    const [quotes, gex, ideas, crypto, catalysts, bot] = await Promise.all([
+    const [quotes, gex, ideas, crypto, catalysts, bot, record] = await Promise.all([
       section('quotes', buildQuotes),
       buildGex(),
       section('ideas', buildIdeas),
       section('crypto', buildCrypto),
       section('catalysts', buildCatalysts),
       section('bot', buildBot),
+      buildRecord(),
     ]);
-    const value: Showcase = { builtAt: new Date().toISOString(), quotes, gex, ideas, crypto, catalysts, bot };
+    const value: Showcase = { builtAt: new Date().toISOString(), quotes, gex, ideas, crypto, catalysts, bot, record };
     cached = { value, at: Date.now() };
     return value;
   })().finally(() => { inflight = null; });
