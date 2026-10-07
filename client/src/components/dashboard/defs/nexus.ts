@@ -71,7 +71,7 @@ export const NEXUS_TOOLS: ToolDef[] = [
   },
   {
     id: 'nexus-0dte', category: 'Ideas', title: '0DTE Desk',
-    what: 'SPX · MSTR · META · BE · TSLA (ZERO_DTE_WATCH): 0DTE ideas first (WATCH → TRIGGERED → IN PLAY → DONE, exact contract, live premium, trigger / stop / targets / exit-by), then the session clock and what the engine looks for, same-day expected move, single-expiry GEX walls / zero-γ / max-γ, VWAP + opening range, flow tide on the expiry, engine state in plain words; 2–4 day swings (T1 ≤ 1σ); this engine\'s record with n (LOW N < 20).',
+    what: "What can I trade right now: live / armed 0DTE trade cards (contract, entry mid, stop / T1 / T2 on premium and underlying, live contract mark and underlying with source + age, progress to T1, time left, grade, Details → Setup Detail), today's results (✓ T1 / ✕ stop / time exit), then folded sections — forming setups, SPX levels, names in play + any-ticker lookup, flow ignition, sniper, walls, sector ignition, 2–4 day swings, record.",
     units: 'price $, % of spot, R multiple, premium $', source: '0DTE desk', backing: 'ZeroDteDesk (components/zerodte/zero-dte-desk.tsx) ← GET /api/zero-dte/desk (server/zero-dte-desk.ts)',
     defaultSize: { w: 12, h: 16 }, minSize: { w: 4, h: 8 }, Component: lazyTool(zeroDte, 'ZeroDteTool'),
   },

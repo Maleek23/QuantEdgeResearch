@@ -37,6 +37,15 @@ const SPOTS: Record<string, { spot: number; chg: number; sector: string }> = {
   COIN: { spot: 342.6, chg: -3.1, sector: 'Financials' },
   TLT: { spot: 89.4, chg: -0.3, sector: 'Bonds' },
 };
+/** "Resolved today" (shared/nexus-resolved.ts): the TSLA 380P that hit T1 at 10:05 stays on the board. */
+function resolvedToday() {
+  const r = (o: Record<string, unknown>) => ({ assetType: 'option', source: 'zero_dte_flow', optionType: 'put', expiryDate: iso(0).slice(0, 10), targetPrice: null, stopLoss: null, entryPremium: null, exitPremium: null, percentGain: null, optionPercentGain: null, resolutionReason: null, ...o });
+  return { asOf: iso(0), ideas: [
+    r({ ideaId: 'rv-1', symbol: 'TSLA', direction: 'short', strikePrice: 380, entryPrice: 384.2, exitPrice: 381.1, entryPremium: 1.12, exitPremium: 1.71, optionPercentGain: 52.7, outcomeStatus: 'hit_target', resolutionReason: 'auto_target_hit', timestamp: iso(48 * MIN), exitDate: iso(22 * MIN) }),
+    r({ ideaId: 'rv-2', symbol: 'AMD', direction: 'long', source: 'zero_dte_desk', optionType: 'call', strikePrice: 165, entryPrice: 164.4, exitPrice: 163.6, optionPercentGain: -40, outcomeStatus: 'hit_stop', resolutionReason: 'auto_stop_hit', timestamp: iso(70 * MIN), exitDate: iso(35 * MIN) }),
+    r({ ideaId: 'rv-3', symbol: 'JPM', direction: 'long', source: 'quant', assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null, entryPrice: 300.1, exitPrice: 300.6, percentGain: 0.17, outcomeStatus: 'expired', resolutionReason: 'auto_time_stop', timestamp: iso(5 * HOUR), exitDate: iso(10 * MIN) }),
+  ] };
+}
 const spotOf = (s: string) => SPOTS[s] ?? { spot: 100, chg: 0.2, sector: 'Other' };
 
 type Dir = 'long' | 'short';
@@ -54,7 +63,7 @@ const SETUPS: Array<[string, Dir, number, 'S' | 'A' | 'B' | 'C', string, string,
   ['META', 'long', 70, 'B', 'weekly', 'pending_trigger', 27 * 60],
 ];
 
-function pick(n: number, [symbol, direction, score, band, source, state, ago]: (typeof SETUPS)[number]) {
+export function pick(n: number, [symbol, direction, score, band, source, state, ago]: (typeof SETUPS)[number]) {
   const { spot, sector } = spotOf(symbol);
   const long = direction === 'long';
   const entry = +(spot * (long ? 1.004 : 0.996)).toFixed(2);
@@ -195,6 +204,8 @@ function history(sym: string, interval: string) {
   return { symbol: sym, range: '6mo', data: rows };
 }
 
+/** Exported for /dev/zerodte (its Details sheet reuses the NEXUS Setup Detail). */
+export function nexusMockRoute(path: string): unknown | undefined { return route(path); }
 function route(path: string): unknown | undefined {
   const [p, q = ''] = path.split('?');
   const qs = new URLSearchParams(q);
@@ -206,6 +217,7 @@ function route(path: string): unknown | undefined {
   if (p === '/api/patterns/scan') return patterns();
   if (p === '/api/sector-ignition') return ignition(qs.get('horizon') ?? 'daily');
   if (p === '/api/nexus/tracked') return tracked();
+  if (p === '/api/nexus/resolved-today') return resolvedToday();
   if ((m = p.match(/^\/api\/levels\/([^/]+)$/))) return levels(decodeURIComponent(m[1]).toUpperCase());
   if (p === '/api/bullflow/net-premium-batch') return flowBatch(qs.get('symbols') ?? '');
   if ((m = p.match(/^\/api\/quotes\/batch\/(.+)$/))) return quotes(decodeURIComponent(m[1]));
