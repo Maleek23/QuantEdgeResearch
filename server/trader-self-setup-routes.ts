@@ -116,7 +116,13 @@ export function registerTraderSelfSetupRoutes(
       !book ? 'unknown' : (await blockOf(d, book, cfg)) ?? (code.length < 1 || code.length > 128 ? 'bad_passcode' : null);
     let ok = false;
     if (why) await burn(d, code.slice(0, 128));
-    else ok = await d.verifyPasscode(code, book!.passcodeHash!).catch(() => false);
+    else {
+      // Forgiving of how a passcode gets typed on a phone: surrounding spaces, a pasted
+      // "name=" prefix from the passcode sheet, and an auto-capitalised first letter.
+      const raw = code.trim().replace(new RegExp(`^${name}\\s*[=:]\\s*`, 'i'), '');
+      const tries = Array.from(new Set([code, raw, raw.charAt(0).toLowerCase() + raw.slice(1)])).filter((x) => x.length > 0 && x.length <= 128);
+      for (const t of tries) { if (await d.verifyPasscode(t, book!.passcodeHash!).catch(() => false)) { ok = true; break; } }
+    }
     if (!ok) {
       const lockedNow = tracker.fail(name, d.now());
       appendAdminAudit({

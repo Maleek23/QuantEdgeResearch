@@ -33,6 +33,7 @@ export default function TraderSetup() {
   const [step, setStep] = useState<Step>("name");
   const [slug, setSlug] = useState("");
   const [passcode, setPasscode] = useState("");
+  const [showCode, setShowCode] = useState(false);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -137,8 +138,14 @@ export default function TraderSetup() {
             <form onSubmit={verify} className="space-y-4" data-testid="form-trader-setup-passcode">
               <div className="space-y-2">
                 <Label htmlFor="trader-passcode">Book passcode</Label>
-                <Input id="trader-passcode" type="password" autoComplete="off" value={passcode} onChange={(e) => setPasscode(e.target.value)}
-                  required maxLength={128} disabled={busy} autoFocus data-testid="input-trader-passcode" />
+                <div className="relative">
+                  <Input id="trader-passcode" type={showCode ? "text" : "password"} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                    value={passcode} onChange={(e) => setPasscode(e.target.value)}
+                    required maxLength={128} disabled={busy} autoFocus className="pr-16" data-testid="input-trader-passcode" />
+                  <button type="button" onClick={() => setShowCode((v) => !v)} className="absolute inset-y-0 right-0 min-w-11 px-3 text-xs text-muted-foreground hover:text-foreground"
+                    aria-label={showCode ? "Hide passcode" : "Show passcode"} data-testid="button-trader-passcode-show">{showCode ? "Hide" : "Show"}</button>
+                </div>
+                <p className="text-xs text-muted-foreground">Type it exactly as sent, including the underscore and capitals.</p>
               </div>
               <Button type="submit" className="w-full" disabled={busy || !passcode} data-testid="button-trader-setup-verify">
                 {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Checking…</> : "Continue"}
