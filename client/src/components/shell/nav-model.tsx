@@ -9,7 +9,7 @@
  */
 import {
   Activity, Bell, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart,
-  Grid3X3, HelpCircle, Layers, LineChart, Radar, SlidersHorizontal, Sparkles, TrendingUp, Wallet, Home,
+  Grid3X3, HelpCircle, Layers, Radar, SlidersHorizontal, Sparkles, TrendingUp, Wallet, Home,
 } from 'lucide-react';
 
 export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'sectors' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
@@ -52,7 +52,6 @@ export const MOBILE_MORE: Tab[] = ['sectors', 'leaps', 'crypto', 'catalyst', 'bo
 export interface PageLink { href: string; label: string; short: string; icon: typeof Radar }
 export const PAGES: PageLink[] = [
   { href: '/today',       label: 'Today',       short: 'TODAY',  icon: Home },
-  { href: '/swings',      label: 'Swings & LEAPS', short: 'SWINGS', icon: LineChart },
 ];
 export const UTILITY_PAGES: PageLink[] = [
   { href: '/alerts',   label: 'Alerts',   short: 'ALERTS',   icon: Bell },

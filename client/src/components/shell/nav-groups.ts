@@ -61,7 +61,6 @@ export const TAB_TITLE: Record<Tab, string> = { ...TAB_SHORT, oracle: 'NEXUS · 
 const PAGE_SHORT: Record<string, string> = { '/how-to': 'Guide' };
 const PAGE_HINT: Record<string, string> = {
   '/today': 'Morning brief — dealer map and best ideas',
-  '/swings': 'Monthly swings & LEAPS — beaten-down quality names (research, not advice)',
   '/alerts': 'Price and idea alerts',
   '/how-to': 'How to use QuantEdge',
   '/updates': 'Shipped and in progress',
@@ -72,7 +71,7 @@ export const pageShort = (p: PageLink) => PAGE_SHORT[p.href] ?? p.label;
 /** Group captions — short, drawn as hairlines when the rail is collapsed. */
 export const NAV_GROUPS: Array<{ id: string; label: string; tabs?: Tab[]; pages?: string[] }> = [
   { id: 'start', label: 'Start', pages: ['/today'] },
-  { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'], pages: ['/swings'] },
+  { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'] },
   { id: 'research', label: 'Research', tabs: ['chart', 'sectors', 'leaps', 'crypto', 'catalyst'] },
   { id: 'manage', label: 'Manage', tabs: ['bot', 'positions', 'journal'] },
 ];

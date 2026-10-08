@@ -8,11 +8,13 @@
  * budget / min-grade filters live in per-page dashboard state so the card
  * list and the grade distribution's "N shown" agree across tiles.
  */
-import type { ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { LeapsNexus, useLeapTracker, type LeapsSection } from '@/components/hunt/leaps-nexus';
 import { useDashState, useToolReport } from '../../frame';
 import './leaps-tools.css';
+
+const SwingsScreener = lazy(() => import('@/pages/swings'));
 
 function useLeaps() {
   const q = useLeapTracker();
@@ -64,5 +66,19 @@ export function LeapsGradesTool() {
 /* ════════════ LEAPS (classic, all-in-one) ════════════ */
 export function LeapsClassicTool() {
   useLeaps();
-  return <Section />;
+  const [view, setView] = useState<'board' | 'screener'>(() => {
+    try { return (localStorage.getItem('leaps.view') as 'board' | 'screener') || 'board'; } catch { return 'board'; }
+  });
+  const pick = (v: 'board' | 'screener') => { setView(v); try { localStorage.setItem('leaps.view', v); } catch { /* private mode */ } };
+  return (
+    <div className="leaps-fused">
+      <div className="leaps-fused-tabs" role="tablist" aria-label="LEAPS views">
+        <button type="button" role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'on' : ''} onClick={() => pick('board')} data-testid="leaps-view-board">LEAPS board</button>
+        <button type="button" role="tab" aria-selected={view === 'screener'} className={view === 'screener' ? 'on' : ''} onClick={() => pick('screener')} data-testid="leaps-view-screener">Beaten-down screener · swings &amp; LEAPS</button>
+      </div>
+      {view === 'board'
+        ? <Section />
+        : <Suspense fallback={<QELoading label="Loading screener…" />}><SwingsScreener /></Suspense>}
+    </div>
+  );
 }
