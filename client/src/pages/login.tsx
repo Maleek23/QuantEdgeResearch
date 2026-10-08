@@ -399,13 +399,6 @@ export default function Login() {
                 {loginMutation.isPending ? "Signing in..." : "Sign in"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                <Link href="/trader-setup">
-                  <span className="hover:text-foreground underline-offset-2 hover:underline transition-colors" data-testid="link-trader-setup">
-                    Trader? Set up your account
-                  </span>
-                </Link>
-              </p>
             </form>
           </Form>
           )}
