@@ -2,7 +2,7 @@
    Gain = --green (mint), loss = --red (vermilion), neutral = --amber. */
 .flowdash .ph-kpis{display:grid;grid-template-columns:minmax(150px,1.6fr) repeat(4,minmax(80px,1fr));gap:1px;background:var(--nx-border);align-content:start}
 .flowdash .ph-kpis>div{display:flex;flex-direction:column;gap:2px;padding:7px 10px;background:var(--panel-solid);min-width:0}
-.flowdash .ph-lbl{font:600 9.5px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
+.flowdash .ph-lbl{font:600 10px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
 .flowdash .ph-kpis b{font:700 16px var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums}
 .flowdash .ph-hero b{font-size:22px}
 .flowdash .ph-kpis b.up{color:var(--green)}
@@ -11,7 +11,7 @@
 .flowdash .ph-sub{font:500 10px var(--fd-mono);color:var(--text-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .flowdash .ph-controls{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
-.flowdash .ph-note{font:500 9.5px var(--fd-mono);color:var(--text-mute)}
+.flowdash .ph-note{font:500 10px var(--fd-mono);color:var(--text-mute)}
 .flowdash .ph-heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
 .flowdash .ph-heat-grid .p-3{padding:8px}
 .flowdash .ph-heat-grid .text-xl{font-size:16px;line-height:1.3}

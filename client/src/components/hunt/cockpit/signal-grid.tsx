@@ -145,7 +145,7 @@ export function SignalGrid({
                 footRight={p.optionDte != null ? `${p.optionDte}d` : 'no contract'}
               >
                 {/* STATE — the live reading, which the static levels cannot give. */}
-                <div className="mb-3 flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wider">
+                <div className="mb-3 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider">
                   <span
                     className="rounded-[2px] px-1.5 py-0.5"
                     style={{
@@ -168,14 +168,14 @@ export function SignalGrid({
                     curve. */}
                 {/* QUICK ACTIONS — interaction reveals measured data: the Bot?
                     verdict runs the bot's own rules for THIS symbol right now. */}
-                <div className="mb-2 flex items-center gap-1.5 font-mono text-[9px]" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-2 flex items-center gap-1.5 font-mono text-[10px]" onClick={(e) => e.stopPropagation()}>
                   {([['Workup', () => openWorkup(p.symbol)], [wl.isWatched(p.symbol) ? 'Watching ★' : 'Watch', () => void toggleWatch(p.symbol)], ['Bot?', () => setVerdicts((vv) => ({ ...vv, [p.ideaId]: vv[p.ideaId] ? '' : botVerdict(p, live?.get(p.symbol) ?? p.currentPrice ?? p.entryPrice ?? 0, pending) }))]] as const).map(([label, fn]) => (
                     <button key={label as string} onClick={fn as () => void}
                       className="rounded-[3px] border border-border/60 px-1.5 py-0.5 uppercase tracking-wider text-muted-foreground transition-colors hover:border-[color:var(--brand-cyan)] hover:text-foreground">
                       {label}
                     </button>
                   ))}
-                  {verdicts[p.ideaId] && <span className="ml-1 normal-case tracking-normal text-[9px] text-[color:var(--brand-gold)]">{verdicts[p.ideaId]}</span>}
+                  {verdicts[p.ideaId] && <span className="ml-1 normal-case tracking-normal text-[10px] text-[color:var(--brand-gold)]">{verdicts[p.ideaId]}</span>}
                 </div>
                 <div className="mb-3 h-9 overflow-hidden rounded-[3px] bg-black/20">
                   <Sparkline symbol={p.symbol} tone={p.direction === 'long' ? 'bull' : 'bear'} width="100%" height={36} />
@@ -183,7 +183,7 @@ export function SignalGrid({
 
                 {/* progress entry → T1, with drawdown shown against it */}
                 <div>
-                  <div className="mb-1 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                  <div className="mb-1 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                     <span>{g.progressPct.toFixed(0)}% to T1</span>
                     {g.drawdownPct > 0 && (
                       <span style={{ color: 'var(--trade-bearish)' }}>{g.drawdownPct.toFixed(1)}% DD</span>
@@ -212,7 +212,7 @@ export function SignalGrid({
                       }))}
                     />
                     <p className={cn(
-                      'mt-1.5 font-mono text-[9px]',
+                      'mt-1.5 font-mono text-[10px]',
                       against.length ? 'text-[color:var(--trade-bearish)]' : 'text-muted-foreground',
                     )}>
                       {against.length

@@ -131,9 +131,9 @@ export function LiveStatsBar() {
   return (
     <div className="flex items-center gap-4 text-xs">
       <div className="flex items-center gap-1.5" data-testid="stat-bots">
-        <Bot className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
+        <Bot className="h-3.5 w-3.5 text-[var(--blue,#60a5fa)]" />
         <span className="text-muted-foreground">Quantinum Bot:</span>
-        <span className="text-[var(--trade-bullish)] font-medium" title={`${activeBots} active bot job(s)`}>{activeBots > 0 ? 'running' : 'idle'}</span>
+        <span className="text-[var(--blue,#60a5fa)] font-medium" title={`${activeBots} active bot job(s)`}>{activeBots > 0 ? 'running' : 'idle'}</span>
       </div>
       
       <div className="h-3 w-px bg-muted" />

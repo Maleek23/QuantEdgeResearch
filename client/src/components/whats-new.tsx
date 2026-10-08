@@ -182,7 +182,7 @@ export function WhatsNewDrawer() {
       <div className="p-3 space-y-4">
         {grouped.map(([date, entries]) => (
           <div key={date}>
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-2 px-1">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2 px-1">
               {formatDate(date)}
             </div>
             <div className="space-y-2">
@@ -212,7 +212,7 @@ export function WhatsNewDrawer() {
             </div>
           </div>
         ))}
-        <div className="text-center text-[9px] font-mono text-muted-foreground pt-2 border-t border-border/30">
+        <div className="text-center text-[10px] font-mono text-muted-foreground pt-2 border-t border-border/30">
           That's it for now. Check back when the cyan badge lights up.
         </div>
       </div>

@@ -445,7 +445,7 @@ export default function PerformancePage() {
         </div>
         <button
           type="button"
-          className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+          className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => setShowAdvanced(!showAdvanced)}
         >
           {showAdvanced ? "HIDE" : "SHOW"}

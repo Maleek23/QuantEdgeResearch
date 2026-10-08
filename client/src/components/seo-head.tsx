@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { SITE_URL } from '@shared/site';
 import { DEFAULT_SEO, generateSEO, type SEOMetadata } from "@/lib/seo";
 
 interface SEOHeadProps {
@@ -61,10 +62,10 @@ export function SEOHead({
   });
 
   useEffect(() => {
-    const pageCanonical = seo.canonical || `https://quantedgelabs.net${window.location.pathname === "/" ? "/" : window.location.pathname.replace(/\/$/, "")}`;
+    const pageCanonical = seo.canonical || `${SITE_URL}${window.location.pathname === "/" ? "/" : window.location.pathname.replace(/\/$/, "")}`;
     const socialImage = seo.ogImage?.startsWith("http")
       ? seo.ogImage
-      : `https://quantedgelabs.net${seo.ogImage || "/og-image.png"}`;
+      : `${SITE_URL}${seo.ogImage || "/og-image.png"}`;
 
     document.title = seo.title;
 

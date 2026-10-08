@@ -12,6 +12,7 @@
  * here is market data and nothing is presented as such.
  */
 import { GAMMA_METRIC_DEFS, levelsFor, diffLevels, overlapCount } from '../../../shared/gex-adjusted';
+import { adminHarnessApi } from './admin-fixtures';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rng(seed: number) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
@@ -507,6 +508,8 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
     const hit = FREE_REFUSED.find(([re]) => re.test(p));
     if (hit) return json(403, { message: `This feature requires ${hit[2]} tier or higher`, currentTier: 'Free', requiredFeature: hit[1], upgradeUrl: '/?section=pricing' });
   }
+  // Admin hub fixtures (dev/admin-fixtures.ts) — only for ?harness-admin=1, so member pages stay member pages.
+  if (opts.admin && p !== '/api/admin/check-auth') { const a = adminHarnessApi(p, search); if (a) return a; }
   if (p === '/api/premarket/gappers') return json(200, mockGappers());
   const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
   if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));
@@ -568,6 +571,11 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   if (p === '/api/journal/balance') return json(200, { balance: null, source: 'test_harness_fixture' });
   if (p === '/api/journal/sources') return json(200, { sources: [], isAdmin: false, capabilities: { discordBot: false, brokerKeys: false, serverAlpaca: false } });
   if (p === '/api/account/deletion-request') return json(200, { pending: false });
+  // A finished intake profile so the "Complete your profile" sheet and first-run tours stay out of page reviews.
+  if (p === '/api/onboarding/me') return json(200, {
+    profile: { name: 'Audit', experience: '3plus', markets: ['stocks', 'options'], accountSize: '1to5k', goal: 'ideas', source: 'discord', consentEmails: false, ackNotAdvice: true, submittedAt: ago(30 * 864e5) },
+    progress: { tours: { today: ago(864e5), nexus: ago(864e5), '0dte': ago(864e5), gex: ago(864e5), flow: ago(864e5), journal: ago(864e5) }, checklist: {}, showTips: false, checklistHidden: true, profileSheetDismissedAt: null, updatedAt: ago(864e5) },
+  });
   if (p === '/api/csrf-token') return json(200, { csrfToken: 'test-harness-fixture' });
   if (p === '/api/tracking/pageview') return json(200, { ok: true });
   if (p === '/api/preferences' || /^\/api\/user\/[^/]+\/preferences$/.test(p)) return json(200, { layoutDensity: 'comfortable', sidebarCollapsed: false, dashboardPreset: 'default', favoritePages: [], theme: 'dark', compactMode: false });

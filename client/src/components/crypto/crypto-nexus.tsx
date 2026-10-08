@@ -137,7 +137,7 @@ function MiniChart({ closes, color }: { closes?: { timestamp: number; close: num
     ctx.beginPath(); ctx.arc(w - 1, lastY, 3, 0, Math.PI * 2); ctx.fill();
   }, [closes, color]);
   if (!closes || closes.length < 2) {
-    return <div className="mini-chart" style={{ display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>NO SERIES</div>;
+    return <div className="mini-chart" style={{ display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>NO SERIES</div>;
   }
   return <div className="mini-chart"><canvas ref={ref} /></div>;
 }
@@ -410,7 +410,7 @@ export function CryptoProxyGate() {
     <section className="border-y border-border/45 px-4 py-4 md:px-6" aria-label="Crypto proxy promotion gate">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--brand-cyan)]">Nexus promotion gate</div>
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--brand-cyan)]">Nexus promotion gate</div>
           <h2 className="mt-1 text-sm font-semibold text-foreground">Which proxies can become trade ideas now</h2>
           <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">The coin move only opens the search. A proxy needs its own bullish options tape and a measured chart invalidation before the publisher may send it to Nexus.</p>
         </div>
@@ -423,9 +423,9 @@ export function CryptoProxyGate() {
           {(proxyTrace?.rows ?? []).map((row) => (
             <button key={`${row.underlying}-${row.symbol}`} type="button" onClick={() => openWorkup(row.symbol)} className="grid cursor-pointer grid-cols-[58px_64px_1fr_auto] items-center gap-2 rounded border border-border/45 bg-background/20 px-3 py-2 text-left transition-colors hover:border-[var(--brand-cyan)]/50 hover:bg-foreground/[0.025]">
               <span className="font-mono text-[11px] font-bold text-foreground">{row.symbol}</span>
-              <span className="font-mono text-[9px] text-muted-foreground">{row.underlying} {row.underlying7d == null ? '—' : `${row.underlying7d >= 0 ? '+' : ''}${(row.underlying7d * 100).toFixed(1)}%`}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{row.underlying} {row.underlying7d == null ? '—' : `${row.underlying7d >= 0 ? '+' : ''}${(row.underlying7d * 100).toFixed(1)}%`}</span>
               <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={row.reason}>{row.reason}</span>
-              <span className="rounded border px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider" style={{ color: row.eligible ? 'var(--green)' : row.tapeGatePassed ? 'var(--amber)' : 'var(--text-mute)', borderColor: row.eligible ? 'color-mix(in srgb,var(--green) 35%,transparent)' : 'var(--nx-border)' }}>{row.eligible ? 'QUALIFIED' : row.tapeGatePassed ? 'NEEDS LEVEL' : 'WATCH'}</span>
+              <span className="rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: row.eligible ? 'var(--green)' : row.tapeGatePassed ? 'var(--amber)' : 'var(--text-mute)', borderColor: row.eligible ? 'color-mix(in srgb,var(--green) 35%,transparent)' : 'var(--nx-border)' }}>{row.eligible ? 'QUALIFIED' : row.tapeGatePassed ? 'NEEDS LEVEL' : 'WATCH'}</span>
             </button>
           ))}
           {!proxyTrace?.rows?.length && <div className="font-mono text-[10px] text-muted-foreground">Reading the crypto transmission gates…</div>}
@@ -547,7 +547,7 @@ export function CryptoCorrelation() {
     <div className="correlation">
       <div className="correlation-head">
         <div className="correlation-label">Proxy correlation · ~30d</div>
-        <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
+        <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
       </div>
       <div className="correlation-list">
         {CORR_BTC.map((s) => <CorrRow key={s} sym={s} underlying={btc} />)}
@@ -565,7 +565,7 @@ export function CryptoSentiment() {
       <div className="correlation-head">
         <div className="correlation-label">Crypto Fear &amp; Greed</div>
         {sentiment?.fearGreed && (
-          <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
+          <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
         )}
       </div>
       {sentiment?.fearGreed ? (() => {
@@ -580,7 +580,7 @@ export function CryptoSentiment() {
             <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--green), var(--amber) 50%, var(--red))', opacity: 0.9 }}>
               <div style={{ position: 'absolute', top: -3, left: `calc(${Math.min(100, Math.max(0, fg.value))}% - 2px)`, width: 4, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.6)' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>
               <span>fear</span><span>greed</span>
             </div>
           </div>

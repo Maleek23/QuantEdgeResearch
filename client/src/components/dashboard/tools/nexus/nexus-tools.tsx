@@ -94,6 +94,18 @@ function useSelect() {
  * detail then says the selection left the book). Mounted by the board and the
  * detail tool; the module-level `applied` key makes it run once per target.
  */
+function scrollPhoneDetailIntoView() {
+  if (typeof window === 'undefined' || !window.matchMedia?.('(max-width: 767px)').matches) return;
+  let tries = 0;
+  // The detail tile mounts after the selection lands; poll briefly for it.
+  const tick = () => {
+    const el = document.querySelector('[data-tool="nexus-detail"]');
+    if (el) { el.scrollIntoView({ block: 'start' }); return; }
+    if (++tries < 20) window.setTimeout(tick, 150);
+  };
+  window.setTimeout(tick, 120);
+}
+
 function useApplyUrlSelection(all: ConvictionPick[], loaded: boolean) {
   const search = useSearch();
   const [, setSel] = useNexusSelection();
@@ -111,6 +123,9 @@ function useApplyUrlSelection(all: ConvictionPick[], loaded: boolean) {
       setSel({ kind: 'setup', id: pick.ideaId });
       setFocus(pick.symbol);
       window.requestAnimationFrame(() => document.querySelector('.nxd-board .selected')?.scrollIntoView({ block: 'nearest' }));
+      // Phone: the detail is a section further down the one-column page — a deep
+      // link opens it, not just the row (audit 2026-10-07 #11).
+      scrollPhoneDetailIntoView();
     } else {
       if (t.ideaId) setSel({ kind: 'setup', id: t.ideaId }); // detail: "selection left the book · showing top setup"
       if (t.symbol) setFocus(t.symbol);

@@ -659,7 +659,7 @@ html.light,
   border: 1px solid var(--lx-line);
   border-radius: 4px;
   color: var(--lx-mute);
-  font: 600 9.5px/1.2 var(--lx-font-ui);
+  font: 600 10px/1.2 var(--lx-font-ui);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

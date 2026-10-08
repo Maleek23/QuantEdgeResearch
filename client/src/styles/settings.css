@@ -92,8 +92,8 @@
 .st-prev-bar i { width: 26px; height: 3px; border-radius: 2px; opacity: .7; }
 .st-prev-body { flex: 1; display: grid; grid-template-columns: 1fr 1.2fr; gap: 4px; padding: 5px; }
 .st-prev-card { border: 1px solid; border-radius: 4px; padding: 3px 4px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-.st-prev-card b { font: 700 9px var(--lx-font-display); }
-.st-prev-card em { font: 600 8px var(--lx-font-data); font-style: normal; }
+.st-prev-card b { font: 700 10px var(--lx-font-display); }
+.st-prev-card em { font: 600 10px var(--lx-font-data); font-style: normal; }
 .st-prev-chart { border-radius: 4px; display: flex; align-items: flex-end; gap: 2px; padding: 3px; }
 .st-prev-chart span { flex: 1; border-radius: 1px; }
 .st-prev-text { display: flex; gap: 4px; padding: 0 5px 5px; }

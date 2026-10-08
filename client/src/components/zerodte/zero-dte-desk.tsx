@@ -18,6 +18,7 @@
  * Reads GET /api/zero-dte/desk, /api/zero-dte/flow, /api/zero-dte/sniper once a minute.
  * Integrity: every number is either live (stamped) or labelled as a past value.
  */
+import { Term } from '@/components/onboarding/term';
 import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { reasonOf } from '@/lib/optimistic';
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
@@ -119,7 +120,7 @@ function ZdHeader({ phase, indexEngine }: { phase: Phase; indexEngine: DeskPaylo
         {b.next ? <>{b.next} in <strong className="zd-mono">{fmtCountdown(b.secondsLeft)}</strong></> : 'No session'}
       </div>
       <span className={`zd-engine zd-engine-${h.tone}`} title={`Index engine (SPY gamma → SPX ideas): ${h.text}`} aria-label={`Index engine ${h.tone === 'ok' ? 'healthy' : h.tone === 'warn' ? 'lagging' : h.tone === 'blind' ? 'blind' : 'idle'}: ${h.text}`}>
-        <i aria-hidden /> Index engine {h.tone === 'ok' ? 'OK' : h.tone === 'warn' ? 'lagging' : h.tone === 'blind' ? 'blind' : 'idle'}
+        <i aria-hidden /> <Term k="engine-blind">Index engine</Term> {h.tone === 'ok' ? 'OK' : h.tone === 'warn' ? 'lagging' : h.tone === 'blind' ? 'blind' : 'idle'}
       </span>
       <p className="zd-head-sub">{sub}</p>
     </header>

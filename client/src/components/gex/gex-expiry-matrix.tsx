@@ -88,7 +88,7 @@ export function GEXExpiryMatrix({
               onClick={() => setInternalMode(m)}
               aria-pressed={mode === m}
               className={cn(
-                'px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-widest rounded border transition-colors',
+                'px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-widest rounded border transition-colors',
                 mode === m ? 'border-[var(--brand-cyan)]/40 text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10' : 'border-border/30 text-muted-foreground hover:text-foreground',
               )}
               title={m === 'gex' ? 'GEX — $ dealers trade per 1% spot move' : 'VEX — $ dealers trade per 1 IV point'}
@@ -98,7 +98,7 @@ export function GEXExpiryMatrix({
           ))}
           {(!visibleExpiries || visibleExpiries.length === 0) && (
             <>
-              <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground ml-2 mr-1">DTE</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground ml-2 mr-1">DTE</span>
               {PRESETS.map((p) => {
                 const count = expiryInfo.filter((e) => e.dte >= p.range[0] && e.dte <= p.range[1]).length;
                 const empty = count === 0;
@@ -111,7 +111,7 @@ export function GEXExpiryMatrix({
                     aria-pressed={preset === p.id}
                     title={empty ? 'No expiries in this range' : `${count} ${count === 1 ? 'expiry' : 'expiries'}`}
                     className={cn(
-                      'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded border transition-colors',
+                      'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded border transition-colors',
                       empty && 'opacity-30 cursor-not-allowed',
                       !empty && preset === p.id
                         ? 'border-[var(--brand-cyan)]/40 text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10'
@@ -129,14 +129,14 @@ export function GEXExpiryMatrix({
                   if (v) { setPreset('single'); setSingleExpiry(v); } else { setPreset('all'); setSingleExpiry(null); }
                 }}
                 aria-label="Pick a single expiry"
-                className="px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded border bg-transparent border-border/30 text-muted-foreground hover:text-foreground cursor-pointer"
+                className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded border bg-transparent border-border/30 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 <option value="">PICK DATE…</option>
                 {expiryInfo.map((e) => (
                   <option key={e.label} value={e.label} className="bg-[var(--surface-raised)] text-foreground">{e.label} ({e.dte}d)</option>
                 ))}
               </select>
-              <span className="text-[9px] font-mono text-muted-foreground ml-auto">
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">
                 {columns.length} of {expiryInfo.length} expiries
                 {expiryInfo.length > 0 && ` · max ${expiryInfo[expiryInfo.length - 1].label} (${expiryInfo[expiryInfo.length - 1].dte}d)`}
               </span>

@@ -30,6 +30,7 @@ import {
 } from './today-model';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
+import { LEVEL_COLORS } from '@/components/gex/gex-colors';
 
 const WRAP = 'landing today-l td-tool';
 
@@ -119,7 +120,7 @@ export function TodayWeekMapTool() {
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
             {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
-              <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
+              <div key={k}><span>{k}</span><b className={cls} style={{ color: cls === "mag" ? LEVEL_COLORS.magnet : cls === "up" ? LEVEL_COLORS.callWall : LEVEL_COLORS.putWall }}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>
         </div>

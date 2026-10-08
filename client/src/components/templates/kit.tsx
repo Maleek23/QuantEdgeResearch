@@ -247,7 +247,7 @@ export function KeyValue({
 }) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
         {k}
       </span>
       <span
@@ -682,7 +682,7 @@ export function BandScale({
         />
       </div>
 
-      <div className="mt-1.5 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-[0.12em]">
+      <div className="mt-1.5 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.12em]">
         <span className="flex gap-2">
           {sorted.map((b, i) => (
             <span

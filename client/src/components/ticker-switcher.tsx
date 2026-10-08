@@ -161,7 +161,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
         )}
         <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
         {/* keyboard hint: not on phones (no ⌘K there) */}
-        <span className="hidden md:inline text-[9px] font-mono text-muted-foreground ml-1">⌘K</span>
+        <span className="hidden md:inline text-[10px] font-mono text-muted-foreground ml-1">⌘K</span>
       </button>
 
       {open && (
@@ -199,7 +199,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
                 jump to an arbitrary symbol. */}
             {searchQuery && (
               <div>
-                <div className="flex items-center justify-between px-1 mb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center justify-between px-1 mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                   <span>Universal results</span>
                   <span>{searchingUniverse ? 'searching…' : `${universalResults.length} found`}</span>
                 </div>
@@ -241,7 +241,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
 
             {/* Sector groups */}
             <div className="space-y-3 pt-1 border-t border-border/30">
-              <div className="flex items-center gap-1.5 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+              <div className="flex items-center gap-1.5 px-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 <Layers className="w-3 h-3" />
                 Sectors
               </div>
@@ -272,7 +272,7 @@ function Group({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 px-1 mb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+      <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
         {icon}
         {label}
       </div>

@@ -39,14 +39,16 @@ export default function TraderSetup() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     let live = true;
+    setLoadError(null); setNames(null);
     fetch("/api/auth/trader-setup/names", { credentials: "include" })
       .then(async (r) => { if (!r.ok) throw new Error(r.status === 429 ? "Too many requests — wait a few minutes." : "Couldn't load the list."); return r.json(); })
       .then((j: { open: boolean; names: Name[] }) => { if (live) { setOpen(j.open); setNames(j.names); } })
       .catch((e) => { if (live) setLoadError((e as Error).message); });
     return () => { live = false; };
-  }, []);
+  }, [reloadKey]);
 
   const picked = names?.find((n) => n.slug === slug) ?? null;
 
@@ -99,14 +101,14 @@ export default function TraderSetup() {
           </div>
           <CardTitle role="heading" aria-level={1}>{title}</CardTitle>
           <CardDescription>{sub}</CardDescription>
-          {step !== "name" && <p className="text-xs text-muted-foreground" aria-label="Progress">Step {step === "passcode" ? 2 : 3} of 3</p>}
+          <p className="text-xs text-muted-foreground" aria-label="Progress">Step {step === "name" ? 1 : step === "passcode" ? 2 : 3} of 3</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && <p role="alert" className="text-sm text-[var(--trade-bearish)]" data-testid="text-trader-setup-error">{error}</p>}
 
           {step === "name" && (
             <>
-              {loadError && <p role="alert" className="text-sm text-[var(--trade-bearish)]">{loadError}</p>}
+              {loadError && <div role="alert" className="text-sm text-center space-y-2"><p>{loadError}</p><button type="button" className="min-h-[44px] px-4 rounded border border-border" onClick={() => setReloadKey((k) => k + 1)} data-testid="button-trader-setup-retry">Retry</button></div>}
               {!loadError && names === null && <p className="text-sm text-muted-foreground text-center"><Loader2 className="inline h-4 w-4 mr-2 animate-spin" />Loading…</p>}
               {names && !open && <p className="text-sm text-muted-foreground text-center" data-testid="text-trader-setup-off">Self-setup is turned off. Ask the operator for a setup link.</p>}
               {names && open && !names.length && (

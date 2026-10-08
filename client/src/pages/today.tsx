@@ -50,6 +50,7 @@ import {
 } from '@/components/dashboard/tools/today/today-model';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
+import { LEVEL_COLORS } from '@/components/gex/gex-colors';
 
 /**
  * PROVE before you ACT: an idea's own audit trail (entry evidence, snapshots,
@@ -264,9 +265,14 @@ export default function TodayPage() {
   // The max-|γ| strike is a magnet only when its net gamma is positive; put-dominated it is a pivot.
   const magnetIsPut = (snap?.levels?.find((l) => l.strike === magnet)?.gex ?? 0) < 0;
   const sigma = wp.data?.expectedMove;
-  const spy = book.quote('SPY');
+  // ONE SPY source for Market Pulse AND the tape (audit 2026-10-07 #13): the tape's
+  // batch quote (same react-query key), the book's quote only when the batch has no SPY.
+  const idxQ = useQuotes(TAPE_INDEX);
+  const tapeSpy = idxQ.data?.SPY;
+  const bookSpy = book.quote('SPY');
+  const spy: (TickerQuote & { lastPrice?: number }) | typeof bookSpy = tapeSpy ?? bookSpy;
   // Live SPY only — the model's start price is publish-time and never shown as "now".
-  const spyPx = spy?.price ?? spy?.lastPrice;
+  const spyPx = tapeSpy?.price ?? bookSpy?.price ?? bookSpy?.lastPrice;
   const refPx = spyPx ?? wp.data?.spotPrice;
   const spyFlash = useTickFlash(spyPx);
   const spyBars = spyIntra.data?.data ?? [];
@@ -286,7 +292,6 @@ export default function TodayPage() {
   }, [sectors]);
   // Index levels lead the tape, each with its own freshness chip — SPX outside RTH
   // or behind CBOE's 15-minute delay is a labelled proxy, never passed off as live.
-  const idxQ = useQuotes(TAPE_INDEX);
   const tape = useMemo(() => {
     const rows: TapeRow[] = [];
     TAPE_INDEX.forEach((s) => {
@@ -351,7 +356,7 @@ export default function TodayPage() {
               </div>
               <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
                 {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, `call wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'up'], ['Floor', snap?.putWall, `put wall ${snap?.wallBasis?.basisShort ?? ''}`.trim(), 'dn']] as const).map(([k, v, sub, cls]) => (
-                  <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
+                  <div key={k}><span>{k}</span><b className={cls} style={{ color: cls === "mag" ? LEVEL_COLORS.magnet : cls === "up" ? LEVEL_COLORS.callWall : LEVEL_COLORS.putWall }}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
                 ))}
               </div>
               <div className="tl-band-foot">

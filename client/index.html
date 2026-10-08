@@ -208,11 +208,22 @@
 
         var track = loader.querySelector('.qe-boot-track');
         if (track) track.style.display = 'none';
-        loader.querySelector('p').style.wordBreak = 'break-all';
-        loader.querySelector('p').innerHTML =
-          '<span style="color:#ef4444;font-size:14px">App failed to load</span><br><br>' +
-          '<span style="color:#64748b;font-size:10px">' + diag.join('<br>') + '</span><br><br>' +
-          '<a href="javascript:sessionStorage.clear();caches&&caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})});location.reload(true)" style="color:#10b981;text-decoration:underline;font-size:13px">Clear everything & reload</a>';
+        // Member-facing copy first; script URLs / error text only behind "Details" (audit 2026-10-07 #9).
+        var p = loader.querySelector('p');
+        p.innerHTML =
+          '<span style="color:#e8ecf3;font-size:15px;font-weight:600">QuantEdge didn\u2019t finish loading</span><br>' +
+          '<span style="color:#8b93a3;font-size:13px">This is usually an out-of-date copy saved by your browser. Reloading fixes it.</span><br><br>' +
+          '<button type="button" id="qe-boot-reload" style="min-height:44px;padding:10px 18px;border-radius:8px;border:1px solid #3b8cff;background:rgba(59,140,255,.12);color:#e8ecf3;font-size:14px;cursor:pointer">Reload QuantEdge</button>' +
+          '<details style="margin-top:14px;text-align:left;max-width:560px"><summary style="cursor:pointer;color:#8b93a3;font-size:12px;min-height:44px;line-height:44px">Details</summary>' +
+          '<div id="qe-boot-diag" style="color:#7f889a;font-size:11px;word-break:break-all"></div></details>';
+        var dd = document.getElementById('qe-boot-diag');
+        if (dd) dd.textContent = diag.join(' \u00b7 ');
+        var rb = document.getElementById('qe-boot-reload');
+        if (rb) rb.addEventListener('click', function () {
+          try { sessionStorage.clear(); } catch (e) {}
+          var done = function () { location.reload(); };
+          if (window.caches && caches.keys) caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); }).then(done, done); else done();
+        });
       }, 5000);
     </script>
   </body>

@@ -13,10 +13,10 @@
 .zd-head-sub{grid-column:1/-1;margin:0}
 .zd-engine{display:inline-flex;align-items:center;gap:6px;font-size:var(--zc-sm);color:var(--text-dim,#8b93a3);white-space:nowrap}
 .zd-engine i{width:8px;height:8px;border-radius:50%;background:var(--text-mute,#7f889a)}
-.zd-engine-ok i{background:var(--zd-up)}
+.zd-engine-ok i{background:var(--zd-acc)}
 .zd-engine-warn i{background:var(--zd-warn)}
-.zd-engine-blind{color:var(--zd-dn);font-weight:700}
-.zd-engine-blind i{background:var(--zd-dn)}
+.zd-engine-blind{color:var(--zd-warn);font-weight:700}
+.zd-engine-blind i{background:var(--zd-warn)}
 
 .zd-h2{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:var(--zc-md);font-weight:700;letter-spacing:.02em}
 .zd-h2-n{font:600 var(--zc-sm) var(--zd-mono);color:var(--text-mute,#7f889a)}

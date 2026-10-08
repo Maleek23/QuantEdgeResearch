@@ -607,7 +607,7 @@ function PortfolioInsights({ broker }: { broker: BrokerType }) {
             <h4 className="text-sm font-semibold text-white flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-400" />
               Portfolio Insights
-              <Badge variant="outline" className="text-[9px] text-muted-foreground">
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
                 {result.isAI ? 'AI + computed' : 'computed'}
               </Badge>
             </h4>
@@ -663,7 +663,7 @@ function PortfolioInsights({ broker }: { broker: BrokerType }) {
                     <span className="text-muted-foreground flex-1 px-2 truncate">{c.note}</span>
                     <Badge
                       className={cn(
-                        'text-[9px]',
+                        'text-[10px]',
                         c.alignment === 'agrees' && 'bg-emerald-500/20 text-[var(--trade-bullish)]',
                         c.alignment === 'conflicts' && 'bg-red-500/20 text-[var(--trade-bearish)]',
                         c.alignment === 'no_signal' && 'bg-muted text-muted-foreground'
@@ -799,7 +799,7 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
                 <h4 className="text-xs font-semibold text-purple-400 uppercase mb-2 flex items-center gap-2">
                   Options ({optionPositions.length})
                   {optionPositions.some(p => p.optionDetails && p.optionDetails.daysToExpiry <= 7) && (
-                    <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] text-[9px]">
+                    <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] text-[10px]">
                       <Clock className="w-3 h-3 mr-1" />
                       Expiring soon
                     </Badge>

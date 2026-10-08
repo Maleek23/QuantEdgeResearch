@@ -147,7 +147,7 @@ export default function ConvictionBacktestCard({
           </div>
           <div className="rounded-lg border border-foreground/10 overflow-hidden">
             <table className="w-full text-[11px]">
-              <thead className="bg-foreground/[0.04] text-[9px] uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-foreground/[0.04] text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="text-left px-2 py-1.5">Band</th>
                   <th className="text-right px-2 py-1.5">N</th>
@@ -207,7 +207,7 @@ export default function ConvictionBacktestCard({
             </div>
             <div className="rounded-lg border border-foreground/10 overflow-hidden">
               <table className="w-full text-[11px]">
-                <thead className="bg-foreground/[0.04] text-[9px] uppercase tracking-wider text-muted-foreground">
+                <thead className="bg-foreground/[0.04] text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="text-left px-2 py-1.5">Source</th>
                     <th className="text-right px-2 py-1.5">N</th>
@@ -267,7 +267,7 @@ export default function ConvictionBacktestCard({
                       <span className="font-bold">{b.symbol}</span>
                       <Badge
                         variant="outline"
-                        className={`px-1 py-0 text-[9px] ${BAND_COLOR[b.band as BandStats["band"]] ?? ""}`}
+                        className={`px-1 py-0 text-[10px] ${BAND_COLOR[b.band as BandStats["band"]] ?? ""}`}
                       >
                         {b.band}
                       </Badge>
@@ -300,7 +300,7 @@ export default function ConvictionBacktestCard({
                       <span className="font-bold">{b.symbol}</span>
                       <Badge
                         variant="outline"
-                        className={`px-1 py-0 text-[9px] ${BAND_COLOR[b.band as BandStats["band"]] ?? ""}`}
+                        className={`px-1 py-0 text-[10px] ${BAND_COLOR[b.band as BandStats["band"]] ?? ""}`}
                       >
                         {b.band}
                       </Badge>

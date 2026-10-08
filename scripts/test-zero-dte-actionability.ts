@@ -143,6 +143,15 @@ t('index health: ok / lagging / BLIND / idle', () => {
   assert.equal(indexHealth(null, now, 'pre').tone, 'idle');
 });
 
+t('index health: after hours is NOT in session (audit 2026-10-07 #4)', () => {
+  const late = ET('17:30');
+  assert.equal(indexHealth(null, late, 'after_hours').tone, 'idle', 'after_hours phase id → idle, never BLIND');
+  assert.equal(indexHealth(null, late, 'post').tone, 'idle');
+  assert.equal(indexHealth(null, late, 'midday').tone, 'idle', 'stale in-session phase id after 16:00 ET → clock wins');
+  assert.equal(indexHealth(null, ET('11:00'), 'some_new_phase').tone, 'idle', 'unknown phase ids are not assumed live');
+  assert.equal(indexHealth(null, ET('11:00'), 'midday').tone, 'blind', 'a real in-session gap is still BLIND');
+});
+
 t('filters: index lane', () => {
   assert.ok(isIndexSymbol('SPX') && isIndexSymbol('spy') && isIndexSymbol('QQQ'));
   assert.ok(!isIndexSymbol('TSLA') && !isIndexSymbol('META'));

@@ -23,7 +23,7 @@
 .flowdash .fd-menu{position:absolute;z-index:60;top:34px;left:0;min-width:230px;max-height:70vh;overflow:auto;padding:6px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-solid);box-shadow:0 12px 32px rgba(0,0,0,.5)}
 .flowdash .fd-bar-actions .fd-menu{left:auto;right:0}
 .flowdash .fd-menu-group+.fd-menu-group{border-top:1px solid var(--nx-border);margin-top:4px;padding-top:4px}
-.flowdash .fd-menu-head{padding:6px 8px 4px;font:600 9.5px var(--fd-mono);letter-spacing:1.3px;color:var(--text-mute)}
+.flowdash .fd-menu-head{padding:6px 8px 4px;font:600 10px var(--fd-mono);letter-spacing:1.3px;color:var(--text-mute)}
 .flowdash .fd-menu-item{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:7px 8px;border:0;border-radius:4px;background:transparent;color:var(--text);font:500 12px Inter,system-ui,sans-serif;text-align:left;cursor:pointer}
 .flowdash .fd-menu-item span{display:inline-flex;align-items:center;gap:6px}
 .flowdash .fd-menu-item:hover{background:var(--panel-2)}
@@ -58,7 +58,7 @@
 .flowdash .fd-age{min-width:0;font:500 10px var(--fd-mono);color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .flowdash .fd-age.warn{color:var(--amber)}
 .flowdash .fd-tool-blurb{margin-top:1px;font-size:10.5px;line-height:1.35;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.flowdash .fd-units{color:var(--text-mute);font-family:var(--fd-mono);font-size:9.5px;margin-left:4px}
+.flowdash .fd-units{color:var(--text-mute);font-family:var(--fd-mono);font-size:10px;margin-left:4px}
 .flowdash .fd-tool-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 /* GEX workspace: ONE header row (title · symbol · age/source chip · (i)) */
 .flowdash .fd-one-row .fd-tool-head{align-items:center;padding:4px 6px 4px 6px}
@@ -76,7 +76,7 @@
 .flowdash .fd-fill{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}
 .flowdash .fd-pad{padding:10px}
 .flowdash .fd-m{margin:10px}
-.flowdash .fd-foot{padding:6px 10px 8px;font:500 9.5px/1.45 var(--fd-mono);color:var(--text-mute)}
+.flowdash .fd-foot{padding:6px 10px 8px;font:500 10px/1.45 var(--fd-mono);color:var(--text-mute)}
 /* a method / ages footnote collapsed to one tap (UI redundancy pass 2026-10-01) */
 .flowdash details.fd-foot>summary{display:inline-flex;align-items:center;min-height:32px;cursor:pointer;color:var(--text-dim);list-style-position:inside}
 @media (max-width:767px){ .flowdash details.fd-foot>summary{min-height:44px} }
@@ -95,7 +95,7 @@
 
 /* ── mini tables / small tools ── */
 .flowdash table.fd-mini{width:100%;border-collapse:collapse;font:500 11px var(--fd-mono)}
-.flowdash .fd-mini th{position:sticky;top:0;z-index:1;padding:5px 8px;background:var(--bg-2);color:var(--text-mute);font-weight:600;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--nx-border)}
+.flowdash .fd-mini th{position:sticky;top:0;z-index:1;padding:5px 8px;background:var(--bg-2);color:var(--text-mute);font-weight:600;font-size:10px;letter-spacing:.6px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--nx-border)}
 .flowdash .fd-mini td{padding:5px 8px;border-bottom:1px solid var(--nx-border);color:var(--text-dim);white-space:nowrap}
 .flowdash .fd-mini .r{text-align:right}
 .flowdash .fd-mini .tk{color:var(--text);font-weight:700}
@@ -109,7 +109,7 @@
 .flowdash .fd-series-stats i.dash{height:0;border-top:2px dashed}
 .flowdash .fd-series-svg{flex:1;min-height:60px;width:100%;margin-top:6px}
 .flowdash .fd-strike-head,.flowdash .fd-strike-row{display:grid;grid-template-columns:1fr 64px 1fr;align-items:center;gap:4px;padding:0 10px}
-.flowdash .fd-strike-head{position:sticky;top:0;padding-top:6px;padding-bottom:4px;background:var(--panel-solid);font:600 9.5px var(--fd-mono);letter-spacing:.6px;color:var(--text-mute);text-transform:uppercase}
+.flowdash .fd-strike-head{position:sticky;top:0;padding-top:6px;padding-bottom:4px;background:var(--panel-solid);font:600 10px var(--fd-mono);letter-spacing:.6px;color:var(--text-mute);text-transform:uppercase}
 .flowdash .fd-strike-head span:nth-child(2){text-align:center}
 .flowdash .fd-strike-head span:last-child{text-align:right}
 .flowdash .fd-strike-row{height:20px;font:500 10px var(--fd-mono)}
@@ -124,7 +124,7 @@
 .flowdash .fd-alert:hover{background:color-mix(in srgb,var(--cyan) 5%,transparent)}
 .flowdash .fd-alert .tk{color:var(--text);font-weight:700}
 .flowdash .fd-alert .p{grid-column:4;grid-row:1;text-align:right;color:var(--text)}
-.flowdash .fd-alert .n{grid-column:2 / 5;color:var(--text-mute);font-size:9.5px}
+.flowdash .fd-alert .n{grid-column:2 / 5;color:var(--text-mute);font-size:10px}
 .flowdash .fd-kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--nx-border);font:500 11px var(--fd-mono);color:var(--text-dim)}
 .flowdash .fd-kv b{color:var(--text);font-weight:600;text-align:right}
 .flowdash .fd-regime{font:700 14px 'Space Grotesk',Inter,sans-serif}
@@ -134,7 +134,7 @@
 .flowdash .of-root{display:flex;flex-direction:column;flex:1;min-height:0}
 .flowdash .of-stats{display:grid;grid-template-columns:minmax(170px,1.3fr) repeat(2,minmax(90px,.7fr)) minmax(210px,1.6fr);gap:1px;background:var(--nx-border);border-bottom:1px solid var(--nx-border);flex:none}
 .flowdash .of-stat{padding:7px 10px;background:var(--panel-solid);min-width:0}
-.flowdash .of-lbl{font:600 9.5px var(--fd-mono);letter-spacing:.7px;color:var(--text-mute);text-transform:uppercase;white-space:nowrap}
+.flowdash .of-lbl{font:600 10px var(--fd-mono);letter-spacing:.7px;color:var(--text-mute);text-transform:uppercase;white-space:nowrap}
 .flowdash .of-val{font:700 15px var(--fd-mono);color:var(--text);margin-top:2px}
 .flowdash .of-sub{font:500 10px var(--fd-mono);color:var(--text-mute);text-transform:none;letter-spacing:0;white-space:nowrap}
 .flowdash .of-tide-svg{display:block;width:100%;height:34px;margin:3px 0 1px}
@@ -179,18 +179,18 @@
 .flowdash .of-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
 .flowdash table.of-table{table-layout:fixed;border-collapse:collapse;font:500 11.5px var(--fd-mono)}
 .flowdash .of-table th{position:sticky;top:0;z-index:2;height:28px;padding:0;background:var(--bg-2);border-bottom:1px solid var(--nx-border-hi);text-align:left}
-.flowdash .of-table th button{width:100%;height:100%;padding:0 6px;border:0;background:transparent;color:var(--text-mute);font:600 9.5px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;text-align:inherit;cursor:pointer;white-space:nowrap}
+.flowdash .of-table th button{width:100%;height:100%;padding:0 6px;border:0;background:transparent;color:var(--text-mute);font:600 10px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;text-align:inherit;cursor:pointer;white-space:nowrap}
 .flowdash .of-table th.r{text-align:right}
 .flowdash .of-table th.on button{color:var(--cyan)}
 .flowdash .of-table td{padding:0 6px;border-bottom:1px solid var(--nx-border);color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .flowdash .of-table td.r{text-align:right}
-.flowdash .of-table td.val{color:var(--amber);font-weight:700}
+.flowdash .of-table td.val{color:var(--text);font-weight:700} /* premium size is neutral, not caution (audit #23) */
 .flowdash .of-table td.lbl{color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:11px}
 .flowdash .of-table tbody tr{cursor:pointer}
 .flowdash .of-table tbody tr:hover td{background:color-mix(in srgb,var(--cyan) 6%,transparent)}
 .flowdash .of-table tr.sel td{box-shadow:inset 0 1px 0 var(--cyan),inset 0 -1px 0 var(--cyan)}
 .flowdash .of-table tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--cyan),inset 0 1px 0 var(--cyan),inset 0 -1px 0 var(--cyan)}
-.flowdash .of-d{color:var(--text-mute);font-size:9.5px}
+.flowdash .of-d{color:var(--text-mute);font-size:10px}
 .flowdash .of-tk{display:inline-block;min-width:44px;padding:1px 5px;border:1px solid var(--nx-border-hi);border-radius:3px;color:var(--text);font-weight:700;text-align:center}
 .flowdash .of-sig{display:inline-block;vertical-align:middle;width:48px;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
 .flowdash .of-sig span{display:block;height:100%;background:var(--cyan)}
@@ -200,7 +200,7 @@
 .flowdash .of-table tr.k-block td,.flowdash .of-table tr.k-grenade td{background:color-mix(in srgb,var(--amber) 8%,transparent)}
 .flowdash .of-table tr.k-repeater td{background:color-mix(in srgb,var(--purple) 10%,transparent)}
 .flowdash .of-table tr.k-unusual td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
-.flowdash .of-legend{display:flex;flex-wrap:wrap;gap:4px 12px;padding:5px 10px;border-top:1px solid var(--nx-border);font:500 9.5px var(--fd-mono);color:var(--text-dim);flex:none}
+.flowdash .of-legend{display:flex;flex-wrap:wrap;gap:4px 12px;padding:5px 10px;border-top:1px solid var(--nx-border);font:500 10px var(--fd-mono);color:var(--text-dim);flex:none}
 .flowdash .of-legend i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px;border-radius:2px}
 .flowdash .of-legend i.k-sweep{background:color-mix(in srgb,var(--cyan) 45%,transparent)}
 .flowdash .of-legend i.k-block{background:color-mix(in srgb,var(--amber) 45%,transparent)}
@@ -237,7 +237,7 @@
 .flowdash .fd-sym{flex:none;padding:0 5px;border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);border-radius:3px;font:700 10px var(--fd-mono);color:var(--cyan-bright,var(--cyan));letter-spacing:.4px}
 .flowdash .fd-menu-wide{min-width:280px}
 .flowdash .fd-menu-search{width:100%;height:28px;margin-bottom:4px;padding:0 8px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--bg-2);color:var(--text);font:500 12px Inter,system-ui,sans-serif}
-.flowdash .fd-menu-tag{margin-left:6px;padding:0 4px;border:1px solid var(--nx-border-hi);border-radius:3px;font:600 9px var(--fd-mono);font-style:normal;color:var(--text-mute);text-transform:uppercase;letter-spacing:.5px}
+.flowdash .fd-menu-tag{margin-left:6px;padding:0 4px;border:1px solid var(--nx-border-hi);border-radius:3px;font:600 10px var(--fd-mono);font-style:normal;color:var(--text-mute);text-transform:uppercase;letter-spacing:.5px}
 .flowdash .fd-focus b{font:700 11px var(--fd-mono);color:var(--cyan-bright,var(--cyan));letter-spacing:.5px}
 
 /* wrapped legacy boards: fill the tile instead of the viewport */
@@ -251,11 +251,11 @@
 .flowdash .gx-grow{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .flowdash .gx-grow.matrix-wrap{overflow:hidden;padding:0 2px 2px}
 .flowdash .gx-pad{padding:0 10px}
-.flowdash .gx-legend{flex:none;padding:5px 10px;border-bottom:1px solid var(--nx-border);font:500 9.5px/1.45 var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-legend{flex:none;padding:5px 10px;border-bottom:1px solid var(--nx-border);font:500 10px/1.45 var(--fd-mono);color:var(--text-mute)}
 .flowdash .gx-legend i{font-style:normal}
 .flowdash .gx-controls{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
 .flowdash .gx-controls .of-seg button .dim{color:var(--text-mute);font-weight:500}
-.flowdash .gx-note{font:500 9.5px var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-note{font:500 10px var(--fd-mono);color:var(--text-mute)}
 .flowdash .gx-kv-line{display:flex;flex-wrap:wrap;gap:4px 14px;font:500 10.5px var(--fd-mono);color:var(--text-dim)}
 .flowdash .gx-kv-line b{color:var(--text)}
 .flowdash .gx-profile{justify-content:center;margin-top:6px}
@@ -272,24 +272,24 @@
 .flowdash .gx-tool .context-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
 .flowdash .gx-tool .context-item{padding:7px 9px}
 .flowdash .gx-tool .context-v{font-size:13px}
-.flowdash .gx-sub-head{padding:10px 10px 4px;font:600 9.5px var(--fd-mono);letter-spacing:.9px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-sub-head{padding:10px 10px 4px;font:600 10px var(--fd-mono);letter-spacing:.9px;text-transform:uppercase;color:var(--text-mute)}
 .flowdash .gx-nodes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding-bottom:10px}
 .flowdash .gx-nodes>div{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border:1px solid var(--nx-border);border-radius:6px;background:var(--panel-2)}
-.flowdash .gx-nodes span{font:600 9px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-nodes span{font:600 10px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
 .flowdash .gx-nodes b{font:700 13px var(--fd-mono)}
 .flowdash .gx-hero{display:flex;align-items:center;gap:10px;margin:8px 10px;padding:8px 10px;border:1px solid;border-radius:7px}
 .flowdash .gx-glyph{font:800 22px/1 var(--fd-mono)}
 .flowdash .gx-hero-title{font:700 11px Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
 .flowdash .gx-hero-posture{margin-top:2px;font-size:11px;color:var(--text-dim);line-height:1.4}
-.flowdash .gx-hero-basis{margin-top:2px;font:500 9px var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-hero-basis{margin-top:2px;font:500 10px var(--fd-mono);color:var(--text-mute)}
 .flowdash .gx-expect{margin:0 10px 8px;font-size:11px;line-height:1.5;color:var(--text-dim)}
 .flowdash .gx-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1px;margin:0 10px 8px;border:1px solid var(--nx-border);border-radius:6px;overflow:hidden;background:var(--nx-border)}
 .flowdash .gx-stats>div{display:flex;flex-direction:column;gap:2px;padding:6px 8px;background:var(--panel-solid)}
-.flowdash .gx-stats span{font:600 9px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-stats span{font:600 10px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
 .flowdash .gx-stats b{font:700 12px var(--fd-mono);color:var(--text)}
 .flowdash .gx-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin:0 10px 6px}
 .flowdash .gx-actions>div{padding:8px 10px;border:1px solid var(--nx-border);border-radius:6px;background:var(--panel-2)}
-.flowdash .gx-actions span{font:600 9px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-actions span{font:600 10px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute)}
 .flowdash .gx-actions strong{display:block;margin:4px 0;font:700 12px var(--fd-mono);color:var(--text)}
 .flowdash .gx-actions p{margin:0;font-size:10.5px;line-height:1.5;color:var(--text-dim)}
 .flowdash .gx-tool .gravity-card,.flowdash .gx-tool .insight-card{padding:8px 10px}
@@ -654,3 +654,7 @@ html[data-mode=light] .flowdash .gxp-spot,html[data-mode=light] .flowdash .gxp-p
 /* PAGE mode: a tile not clicked into passes the wheel to the page (dashboard.tsx onWheel); the engaged one is outlined */
 .flowdash.ws-page .fd-tile.ws-engaged .fd-tool{box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 45%,transparent)}
 .flowdash .fd-expand{font-weight:700}
+
+/* tile footer for the expand / more cue (audit 2026-10-07 #14) */
+.flowdash .fd-cue-foot{flex:none;display:flex;justify-content:flex-end;align-items:center;padding:3px 10px;border-top:1px solid var(--nx-border);background:var(--panel-solid)}
+.flowdash .fd-cue-foot .fd-cue{position:static;box-shadow:none}

@@ -142,9 +142,7 @@ export function displayedGrade(idea: ScoredIdea | null | undefined): LetterGrade
  *  consistent across pages that still use the legacy helper.)
  */
 export function gradeColorClass(grade: LetterGrade): string {
-  if (grade === "A+") return "text-[var(--trade-bullish)] border-emerald-500/50 bg-emerald-500/15";
-  if (grade.startsWith("A")) return "text-[var(--trade-bullish)] border-emerald-500/40 bg-emerald-500/10";
-  if (grade.startsWith("B")) return "text-blue-300 border-blue-500/40 bg-blue-500/10";
-  if (grade.startsWith("C")) return "text-amber-300 border-amber-500/40 bg-amber-500/10";
-  return "text-[var(--trade-bearish)] border-red-500/40 bg-red-500/10";
+  // Same --grade-* tokens as canon/score.tsx gradeColor — one grade palette (audit 2026-10-07 #6).
+  const t = grade === "A+" ? "s" : grade.startsWith("A") ? "a" : grade.startsWith("B") ? "b" : grade.startsWith("C") ? "c" : grade.startsWith("D") ? "d" : "f";
+  return `text-[var(--grade-${t})] border-[color:color-mix(in_srgb,var(--grade-${t})_45%,transparent)] bg-[color:color-mix(in_srgb,var(--grade-${t})_12%,transparent)]`;
 }

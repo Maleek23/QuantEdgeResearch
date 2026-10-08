@@ -83,36 +83,25 @@ export class ErrorBoundary extends Component<Props, State> {
         );
       }
 
-      // Generic error UI for non-chunk errors
+      // Generic error UI for non-chunk errors. Plain words first; the message,
+      // stack and component trace sit behind "Details" (audit 2026-10-07 #9).
       return (
         <div className="min-h-screen bg-card text-foreground p-8">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">This screen hit an error</h1>
-            <p className="text-sm text-muted-foreground mb-4">Reload the page to try again. Your data is safe. If it keeps happening, send the details below to support.</p>
-            <div className="bg-muted rounded-lg p-4 mb-4">
-              <h2 className="text-lg font-semibold text-[var(--trade-bearish)] mb-2">What failed</h2>
-              <pre className="text-sm text-[var(--trade-bearish)] whitespace-pre-wrap break-all">
-                {this.state.error?.message}
-              </pre>
-            </div>
-            <div className="bg-muted rounded-lg p-4 mb-4">
-              <h2 className="text-lg font-semibold text-yellow-400 mb-2">Technical details</h2>
-              <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
-                {this.state.error?.stack}
-              </pre>
-            </div>
-            <div className="bg-muted rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-sky-400 mb-2">Where it happened</h2>
-              <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
-                {this.state.errorInfo?.componentStack}
-              </pre>
-            </div>
+          <div className="max-w-2xl mx-auto">
+            <h1 className="text-2xl font-bold mb-3">This screen didn’t load</h1>
+            <p className="text-sm text-muted-foreground mb-5">Something on this page broke. Reloading usually fixes it, and your data is safe. If it keeps happening, open Details and send it to support.</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded"
+              className="min-h-[44px] px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded text-white"
             >
               Reload page
             </button>
+            <details className="mt-6 bg-muted rounded-lg p-4">
+              <summary className="cursor-pointer text-sm text-muted-foreground min-h-[44px] flex items-center">Details</summary>
+              <pre className="mt-2 text-xs text-foreground/80 whitespace-pre-wrap break-all">{this.state.error?.message}</pre>
+              <pre className="mt-2 text-xs text-foreground/70 whitespace-pre-wrap break-all overflow-auto max-h-64">{this.state.error?.stack}</pre>
+              <pre className="mt-2 text-xs text-foreground/70 whitespace-pre-wrap break-all overflow-auto max-h-64">{this.state.errorInfo?.componentStack}</pre>
+            </details>
           </div>
         </div>
       );

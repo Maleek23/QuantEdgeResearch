@@ -91,3 +91,14 @@
 .ah-x { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 4px; min-height: 24px; }
 .ah-x:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
 .ah-linkbtn { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; min-height: 24px; }
+
+/* touch floor (audit 2026-10-07 #25): checkbox rows and text-link buttons reach 44px on phones / coarse pointers */
+.ah-check input[type='checkbox'] { width: 18px; height: 18px; }
+@media (max-width: 767px), (pointer: coarse) {
+  .ah-check { min-height: 44px; }
+  .ah-check input[type='checkbox'] { width: 22px; height: 22px; }
+}
+/* untruncated: selects take the row width, status tags wrap instead of clipping (audit #18) */
+.ah-stack select { max-width: 100%; min-width: 0; }
+.ah-stack .lx-tag { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 767px) { .ah-stack select { width: 100%; } }

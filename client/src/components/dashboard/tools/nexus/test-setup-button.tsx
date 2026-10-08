@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { SetupTestResult } from '@shared/idea-timeline';
 import './setup-tools.css';
+import { plainError } from '@/lib/optimistic';
 
 const pctText = (v: number | null) => (v == null ? '—' : `${v.toFixed(1)}%`);
 const rText = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`);
@@ -27,7 +28,7 @@ export function TestSetupButton({ ideaId }: { ideaId: string }) {
         {m.isPending ? 'Replaying similar setups…' : d ? 'Re-run test' : 'Test this setup'}
       </button>
       {!d && !m.isError && !m.isPending && <p>Replays this plan's rules (T1, stop, holding-window close) on up to 25 earlier setups from the same engine, on real bars. Nothing is saved.</p>}
-      {m.isError && <p role="alert">Test unavailable — {m.error.message.startsWith('404') ? 'no stored idea row for this id' : m.error.message}.</p>}
+      {m.isError && <p role="alert" title={m.error.message}>Test unavailable — {m.error.message.startsWith("404") ? "this setup has no stored idea to test" : plainError(m.error.message)}</p>}
       {d && (
         <>
           <span className="nxp-ts-label">{d.label}</span>

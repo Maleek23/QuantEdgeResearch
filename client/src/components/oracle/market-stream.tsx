@@ -54,7 +54,7 @@ export function MarketStream({ className }: { className?: string }) {
 
   return (
     <section className={cn('border-y border-border/35 py-2', className)} aria-label="Live overnight market stream">
-      <div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-[9px] uppercase tracking-[0.13em]">
+      <div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.13em]">
         <span className="inline-flex items-center gap-1.5 text-[var(--brand-cyan)]">
           <span className="relative flex h-1.5 w-1.5">
             {active > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--brand-cyan)] opacity-65" />}
@@ -69,7 +69,7 @@ export function MarketStream({ className }: { className?: string }) {
           const fresh = quote && quote.ageSeconds <= 30;
           return (
             <div key={symbol} className="min-w-0 font-mono tabular-nums">
-              <div className="flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-muted-foreground">
+              <div className="flex items-center gap-1 text-[10px] font-bold tracking-[0.13em] text-muted-foreground">
                 <span className="h-1 w-1 rounded-full" style={{ background: fresh ? TC.bull : TC.warn }} /> {symbol}
               </div>
               {quote ? (
@@ -79,7 +79,7 @@ export function MarketStream({ className }: { className?: string }) {
                   className="mt-0.5 block max-w-full truncate px-0 text-[10px] font-semibold text-foreground"
                 />
               ) : <span className="text-[10px] text-muted-foreground">—</span>}
-              <div className="mt-0.5 text-[9px] text-muted-foreground">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
             </div>
           );
         })}

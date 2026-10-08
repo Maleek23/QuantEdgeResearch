@@ -164,7 +164,7 @@ export function SessionBrief({
               </span>
               <span>· {data.quoted}/{data.universeSize} names</span>
               {data.session === 'closed' ? (
-                <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">cash closed</span>
+                <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">cash closed</span>
               ) : (
                 <Heartbeat since={data.generatedAt} staleAfterSec={900} className="ml-1" />
               )}
@@ -187,7 +187,7 @@ export function SessionBrief({
             <div className="border-b border-border/30 px-4 py-2.5" style={{ background: `color-mix(in srgb, ${TC.info} 6%, transparent)` }}>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-label ui-eyebrow" style={{ color: TC.info }}>{handoff?.label}</span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
                   {realtime?.futures?.connected ? `${realtime.futures.symbols ?? 0} futures streams` : 'futures unavailable'} · {realtime?.coinbase?.connected ? `${realtime.coinbase.symbols ?? 0} crypto streams` : 'crypto unavailable'}
                 </span>
               </div>
@@ -228,19 +228,19 @@ export function SessionBrief({
                   <div className="text-label ui-eyebrow" style={{ color: '#2dd4bf' }}>Rotation research queue</div>
                   <p className="ui-prose mt-1 text-label leading-snug text-muted-foreground">Improving groups are early handoffs; leading groups have established relative strength. The names below are next for interrogation—not automatic longs.</p>
                 </div>
-                <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{rotation.data?.sessionLabel ?? 'rotation feed'}</span>
+                <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{rotation.data?.sessionLabel ?? 'rotation feed'}</span>
               </div>
               <div className="mt-2.5 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 {rotationResearch.map((sector) => (
                   <div key={sector.etf} className="rounded border border-border/45 bg-background/20 px-2.5 py-2">
                     <div className="flex items-baseline justify-between gap-2 font-mono">
                       <b className="text-[10px] text-foreground">{sector.etf} · {sector.name}</b>
-                      <span className="text-[8px] font-bold tracking-wide" style={{ color: sector.phase === 'IMPROVING' ? '#2dd4bf' : TC.bull }}>{sector.phase}</span>
+                      <span className="text-[10px] font-bold tracking-wide" style={{ color: sector.phase === 'IMPROVING' ? '#2dd4bf' : TC.bull }}>{sector.phase}</span>
                     </div>
-                    <div className="mt-1 font-mono text-[8px] tabular-nums text-muted-foreground">RS {sector.rsRatio?.toFixed(2)} · momentum +{sector.rsMomentum?.toFixed(2)}</div>
+                    <div className="mt-1 font-mono text-[10px] tabular-nums text-muted-foreground">RS {sector.rsRatio?.toFixed(2)} · momentum +{sector.rsMomentum?.toFixed(2)}</div>
                     <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1">
                       {ROTATION_CANDIDATES[sector.etf].slice(0, 5).map((symbol) => (
-                        <button key={symbol} onClick={() => onSelectSymbol?.(symbol)} className="cursor-pointer font-mono text-[9px] font-semibold text-muted-foreground transition-colors hover:text-foreground">{symbol}</button>
+                        <button key={symbol} onClick={() => onSelectSymbol?.(symbol)} className="cursor-pointer font-mono text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground">{symbol}</button>
                       ))}
                     </div>
                   </div>

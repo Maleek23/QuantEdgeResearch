@@ -254,7 +254,7 @@ export function SetupReplay({ pick }: { pick: ConvictionPick }) {
   // ── render ──
   if (startMs == null) return <div className="nxp-rp"><p className="nxp-rp-note">Replay unavailable — this idea has no publish time.</p></div>;
   if (timeline.isLoading || barsQ.isLoading) return <div className="nxp-rp" role="status"><p className="nxp-rp-note">Loading {plan?.interval ?? ''} bars for the replay…</p></div>;
-  if (barsQ.isError) return <div className="nxp-rp"><p className="nxp-rp-note">Replay unavailable — {symbol} {plan?.interval} bars did not load ({(barsQ.error as Error).message}).</p></div>;
+  if (barsQ.isError) return <div className="nxp-rp"><p className="nxp-rp-note">Replay unavailable — {symbol} {plan?.interval} bars did not load.</p></div>;
   if (bars.length < 2) {
     return <div className="nxp-rp"><p className="nxp-rp-note">Replay unavailable — the {plan?.interval} feed ({plan?.range}) holds no {symbol} bars after the publish time ({fmtEt(startMs)}).</p></div>;
   }

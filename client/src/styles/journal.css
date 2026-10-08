@@ -285,11 +285,11 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-bar{flex:none;border-bottom:1px solid var(--jr-line);background:color-mix(in srgb,var(--panel-solid,#0e1117) 70%,transparent)}
 .jr-nav{position:relative;display:flex;align-items:center;gap:10px;min-width:0;padding:6px 20px 0}
 .jr-nav>.jr-book{flex:none;width:clamp(128px,11vw,176px);padding:0 0 6px}
-.jr-nav .jr-book-l,.jr-nav-phone .jr-book-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.jr-nav .jr-book-l,.jr-nav-phone .jr-book-l{font-size:11px;letter-spacing:.06em} /* visible label on the book selector (audit #17) */
 .jr-nav .jr-book-select{min-height:32px;font-size:12.5px}
 .jr-tabs{flex:1;min-width:0;display:flex;align-items:stretch;gap:0;overflow:hidden}
 .jr-tabs-g{display:flex;align-items:stretch;flex:none}
-.jr-tabs-gl{align-self:center;padding:0 6px 6px 2px;font-family:var(--jr-mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
+.jr-tabs-gl{align-self:center;padding:0 6px 6px 2px;font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
 .jr-tabs-sep{align-self:center;width:1px;height:16px;margin:0 6px 6px;background:var(--jr-line-hi);flex:none}
 .jr-tab{position:relative;display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 9px 6px;border:0;background:none;color:var(--text-dim);
   font:600 12.5px/1 Inter,system-ui,sans-serif;white-space:nowrap;text-decoration:none;cursor:pointer;border-radius:6px 6px 0 0}
@@ -303,7 +303,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-more-btn{color:var(--text-dim)}
 .jr-more-menu{position:fixed;z-index:50;margin-top:4px;min-width:240px;max-width:min(360px,92vw);padding:6px;border-radius:10px;border:1px solid var(--jr-line-hi);
   background:var(--panel-solid,#0e1117);box-shadow:0 16px 40px rgba(0,0,0,.45);max-height:calc(100dvh - 120px);overflow:auto}
-.jr-more-gl{padding:6px 8px 2px;font-family:var(--jr-mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
+.jr-more-gl{padding:6px 8px 2px;font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
 .jr-more-item{display:flex;flex-direction:column;gap:1px;padding:6px 8px;border-radius:6px;color:var(--text);text-decoration:none;font-size:12.5px;font-weight:600}
 .jr-more-item:hover,.jr-more-item:focus-visible{background:color-mix(in srgb,var(--jr-accent) 10%,transparent);outline:none}
 .jr-more-item[aria-current='page']{box-shadow:inset 2px 0 0 var(--jr-accent);background:color-mix(in srgb,var(--jr-accent) 12%,transparent)}
@@ -439,7 +439,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 button.jr-heat-c{cursor:pointer}
 .jr-heat-c.empty{background:transparent;opacity:.35}
 .jr-heat-c .p{font-family:var(--jr-mono);font-size:10.5px;font-weight:700}
-.jr-heat-c .n{font-family:var(--jr-mono);font-size:9px;color:var(--text-dim)}
+.jr-heat-c .n{font-family:var(--jr-mono);font-size:10px;color:var(--text-dim)}
 /* calendar: day preview on hover/focus */
 .jr-cal-cell{position:relative;display:flex}
 .jr-cal-cell>.jr-cal-day{flex:1;width:100%}
@@ -531,7 +531,7 @@ button.jr-heat-c{cursor:pointer}
 .jr-nav2{display:flex;flex-direction:column;gap:8px;padding:10px 20px 8px;border-bottom:1px solid var(--jr-line)}
 .jr-nav2-top{display:flex;align-items:center;gap:16px;min-width:0}
 .jr-nav2-top>.jr-book{flex:none;width:clamp(150px,13vw,200px);padding:0}
-.jr-nav2 .jr-book-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.jr-nav2 .jr-book-l{font-size:11px;letter-spacing:.06em}
 .jr-nav2 .jr-book-select{min-height:38px;font-size:14px}
 .jr-sec{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none}
 .jr-sec::-webkit-scrollbar{display:none}
@@ -549,7 +549,7 @@ button.jr-heat-c{cursor:pointer}
 .jr-nav2-phone .jr-nav2-top>.jr-book{width:100%}
 .jr-nav2-phone .jr-sec-tab{height:44px}
 .jr-nav2-phone .jr-sub-tab{height:40px}
-.jr-cal-wk{font-size:9.5px;color:var(--text-mute);font-family:var(--jr-mono);letter-spacing:.02em}
+.jr-cal-wk{font-size:10px;color:var(--text-mute);font-family:var(--jr-mono);letter-spacing:.02em}
 .jr-cls-unknown{opacity:.7}
 
 /* ══ PHONE (feat/mobile 2026-09-29): one scroller — the header scrolls away with
@@ -664,3 +664,5 @@ button.jr-heat-c:hover,button.jr-heat-c:focus-visible{outline:1px solid var(--jr
   .jr-ex,
   .jr-cal-wk{font-size:12px}
 }
+/* sizing / in-view line wraps on phones instead of running off the card (audit 2026-10-07 #17) */
+.jr-desk-ctl-row .jr-n{white-space:normal;min-width:0;overflow-wrap:anywhere}

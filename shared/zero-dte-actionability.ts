@@ -226,9 +226,20 @@ export interface IndexHealthInput {
 export interface IndexHealth { tone: 'ok' | 'warn' | 'blind' | 'idle'; text: string; scanAgeSec: number | null; gexAgeSec: number | null }
 export const INDEX_HEALTH_CFG = { GEX_OK_SEC: 180, GEX_WARN_SEC: 600, SCAN_WARN_SEC: 420 } as const;
 
+/** Phases in which the index engine is expected to run. Anything else — 'closed',
+ *  'pre', 'after_hours', 'post', an unknown id — is outside the session, and the
+ *  ET clock must also sit inside 09:30–16:00 (audit 2026-10-07 #4: after-hours
+ *  read as in-session and painted "BLIND" in the loss colour). */
+export const IN_SESSION_PHASES: ReadonlySet<string> = new Set(['open_drive', 'midday', 'power_hour', 'open', 'regular']);
+export function isRegularSessionPhase(phaseId: PhaseId, nowMs: number): boolean {
+  if (!IN_SESSION_PHASES.has(String(phaseId))) return false;
+  const m = etMinutesOf(nowMs);
+  return m >= ACT_CFG.OPEN_MIN && m < ACT_CFG.CLOSE_MIN;
+}
+
 export function indexHealth(h: IndexHealthInput | null | undefined, nowMs: number, phaseId: PhaseId): IndexHealth {
   const scanAge = secAge(h?.scanAt, nowMs); const gexAge = secAge(h?.gexAt, nowMs);
-  const inSession = phaseId !== 'closed' && phaseId !== 'pre';
+  const inSession = isRegularSessionPhase(phaseId, nowMs);
   if (!inSession) return { tone: 'idle', text: `idle outside the session${gexAge != null ? ` · last SPY GEX snapshot ${fmtAge(gexAge)} old` : ''}`, scanAgeSec: scanAge, gexAgeSec: gexAge };
   if (!h || scanAge == null) return { tone: 'blind', text: 'BLIND — the index engine has not run this session', scanAgeSec: null, gexAgeSec: null };
   if (gexAge == null) return { tone: 'blind', text: `BLIND — no SPY GEX snapshot${h.wait ? ` (${h.wait})` : ''} · last pass ${fmtAge(scanAge)} ago`, scanAgeSec: scanAge, gexAgeSec: null };

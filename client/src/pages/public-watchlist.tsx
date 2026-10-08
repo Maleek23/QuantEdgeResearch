@@ -157,7 +157,7 @@ export default function PublicWatchlist() {
                         </span>
                       )}
                       {fresh && (
-                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-300">
+                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-300">
                           New
                         </span>
                       )}

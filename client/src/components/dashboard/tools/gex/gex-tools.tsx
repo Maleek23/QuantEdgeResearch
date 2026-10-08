@@ -9,6 +9,9 @@
  * walls/max-γ/zero-γ rows), colours from gex-colors.ts (CVD-safe).
  * Ticker tools follow the dashboard focus symbol; a row click re-points it.
  */
+import { Term } from '@/components/onboarding/term';
+import { checkPriceAgreement } from '@shared/price-agreement';
+import { PriceConflictNote } from '@/components/ui/price-conflict';
 import { reasonOf } from '@/lib/optimistic';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -387,6 +390,7 @@ export function GexMatrixTool() {
           strikeBand={band}
           leading={leading}
           spotInToolbar={!dash.hasTool('gex-levels')}
+          snapshotAt={terminalAsOf(g.q.data)}
           emptyText={g.matrix.length === 0
             // No rows at all: a wider horizon cannot help — say why (server note).
             ? `no strike × expiry rows for ${g.symbol}${g.matrixNote ? ` — ${g.matrixNote}` : ''}`
@@ -440,8 +444,14 @@ export function GexKeyLevelsTool() {
   const snap = g.snap!; const spot = g.spot;
   const reg = regimeView(snap);
   const zg = zeroGammaOf(snap);
-  const dist = (v: number | null | undefined) => (v != null && spot ? `${v >= spot ? '+' : ''}${(((v - spot) / spot) * 100).toFixed(1)}%` : '');
   const chainAt = terminalAsOf(g.q.data);
+  // One reference price (shared/price-agreement.ts): live quote vs the chain's spot.
+  // >5% apart → one feed is stale; distances are withheld and both prices shown.
+  const agreement = checkPriceAgreement([
+    { label: 'Live quote', price: live?.price ?? null, asOf: live?.asOf ?? null },
+    { label: 'Chain snapshot', price: spot, asOf: chainAt ?? null },
+  ]);
+  const dist = (v: number | null | undefined) => (agreement.ok && v != null && spot ? `${v >= spot ? '+' : ''}${(((v - spot) / spot) * 100).toFixed(1)}%` : '');
   const chainTime = chainAt ? new Date(chainAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
   // Net GEX / VEX are exposures: they print once, in Regime & Narrative, when that tile is on the page.
   const exposuresElsewhere = hasTool('gex-regime');
@@ -463,6 +473,7 @@ export function GexKeyLevelsTool() {
             : `chain snapshot${chainTime ? ` @ ${chainTime}` : ''} · no live quote`}
         </span>
       </div>
+      {!agreement.ok && <div className="gx-pad"><PriceConflictNote agreement={agreement} /></div>}
       <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} names />
       <div className="context-grid gx-pad">
         <div className="context-item">
@@ -476,12 +487,12 @@ export function GexKeyLevelsTool() {
           <div className="context-sub">{dist(snap.putWall)} · largest put γ below{snap.putWallOI != null && snap.putWallOI !== snap.putWall ? ` · by OI $${snap.putWallOI}` : ''}</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin).">King node · max γ {askLevel('king node', snap.maxGammaStrike)}</div>
+          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin)."><Term k="king-node">King node · max γ</Term> {askLevel('king node', snap.maxGammaStrike)}</div>
           <div className="context-v" style={{ color: LEVEL_COLORS.magnet }}>{px(snap.maxGammaStrike, 0)}</div>
           <div className="context-sub">{dist(snap.maxGammaStrike)} · largest |GEX| strike</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target.">Zero-γ {askLevel('zero gamma', zg)}</div>
+          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target."><Term k="gamma-flip">Zero-γ</Term> {askLevel('zero gamma', zg)}</div>
           <div className="context-v amber">{zg != null ? px(zg) : '—'}</div>
           <div className="context-sub">{zg != null ? `spot ${Math.abs((spot / zg - 1) * 100).toFixed(1)}% ${spot >= zg ? 'above' : 'below'}` : 'no crossing within ±20%'}</div>
         </div>

@@ -15,6 +15,7 @@
  * (shared/gex-regime.ts + gex-colors.ts). Clicking a row hands the ticker back
  * to the hub's single-ticker map.
  */
+import { Term } from '@/components/onboarding/term';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { REGIME_COPY, type GammaRegime } from '@shared/gex-regime';
@@ -303,7 +304,7 @@ export function GexRankingsPanel({ onPick, compact = false }: {
           </div>
         )}
         <div>
-          <b>Sign is an assumption ·</b> {data?.signConventionNote ?? 'naive-oi: calls +, puts −; dealer-directional OI is not available.'}
+          <b><Term k="naive-oi">Sign is an assumption</Term> ·</b> {data?.signConventionNote ?? 'naive-oi: calls +, puts −; dealer-directional OI is not available.'}
         </div>
         <div>
           <b>Units ·</b> GEX {data?.units.gex ?? '$ per 1% move'} · VEX {data?.units.vex ?? '$ per 1 IV point'} · GEX+ {data?.units.gexPlus ?? 'GEX + VEX'}. Scope: all listed expiries.

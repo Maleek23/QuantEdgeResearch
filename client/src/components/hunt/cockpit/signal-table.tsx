@@ -56,7 +56,7 @@ export function SignalTable({
       <div className="overflow-x-auto">
         <table className={cn("w-full border-collapse text-left font-mono tabular-nums", !phone && "min-w-[1180px]")}>
           <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-xl">
-            <tr className="border-b border-border/70 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+            <tr className="border-b border-border/70 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <th className={cn("w-10 px-3 py-2 text-right", x)}>#</th>
               <th className="px-3 py-2">Ticker ↕</th>
               <th className="px-3 py-2">Side</th>
@@ -95,7 +95,7 @@ export function SignalTable({
                   <td className="px-3 py-2">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[13px] font-bold tracking-[0.04em] text-foreground">{pick.symbol}</span>
-                      <span className="max-w-24 truncate text-[9px] uppercase tracking-wider text-muted-foreground">
+                      <span className="max-w-24 truncate text-[10px] uppercase tracking-wider text-muted-foreground">
                         {pick.sector || pick.tradeType || 'equity'}
                       </span>
                     </div>
@@ -114,13 +114,13 @@ export function SignalTable({
                     </div>
                   </td>
                   <td className={cn("px-3 py-2", x)}>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{ color: pending ? 'var(--brand-gold)' : 'var(--trade-bullish)', borderColor: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 30%, transparent)`, background: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 8%, transparent)` }}>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ color: pending ? 'var(--brand-gold)' : 'var(--trade-bullish)', borderColor: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 30%, transparent)`, background: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 8%, transparent)` }}>
                       <span className="h-1.5 w-1.5 rounded-full bg-current" />{pending ? 'PENDING' : 'TRIGGERED'}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right font-semibold text-foreground">{money(px)}</td>
                   <td className={cn("px-3 py-2 text-right", x)} title={(pick as any).levelBasis === 'contract' ? "Levels are the option contract's PREMIUM, not share prices" : undefined}>
-                    {(pick as any).levelBasis === 'contract' && <span className="mr-1 text-[9px] font-bold tracking-wider" style={{ color: 'var(--brand-gold)' }}>PREM</span>}
+                    {(pick as any).levelBasis === 'contract' && <span className="mr-1 text-[10px] font-bold tracking-wider" style={{ color: 'var(--brand-gold)' }}>PREM</span>}
                     {money(pick.entryPrice)}
                   </td>
                   <td className={cn("px-3 py-2 text-right text-[var(--trade-bearish)]", x)}>{money(pick.stopLoss)}</td>
@@ -144,7 +144,7 @@ export function SignalTable({
                   <td className={cn("px-3 py-2", x)}>
                     <div className="flex items-baseline gap-2">
                       <span className="text-foreground">{contractFor(pick)}</span>
-                      <span className="text-[9px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         {pick.entryPremium != null ? money(pick.entryPremium) : ''}{pick.optionDte != null ? ` · ${pick.optionDte}d` : ''}
                       </span>
                     </div>
@@ -162,7 +162,7 @@ export function SignalTable({
           </motion.tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         <span>{picks.length} signals{phone ? ' · tap a row for its detail' : ' · click a row to open the cockpit'}</span>
         <span className={x}>live path · fixed published levels</span>
       </div>

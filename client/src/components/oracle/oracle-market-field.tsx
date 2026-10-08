@@ -89,7 +89,7 @@ function AssetRow({ asset }: { asset: AssetClass }) {
     <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-2 border-b border-border/25 py-1.5 font-mono text-[10px] tabular-nums last:border-b-0">
       <span className="truncate uppercase tracking-[0.1em] text-muted-foreground">{asset.label}</span>
       <span className="font-semibold" style={{ color: tone }}>{signed(asset.changePct)}</span>
-      <span className="text-[9px] font-bold tracking-[0.1em]" style={{ color: tone }}>{state}</span>
+      <span className="text-[10px] font-bold tracking-[0.1em]" style={{ color: tone }}>{state}</span>
     </div>
   );
 }
@@ -201,12 +201,12 @@ export function OracleMarketField({
               </>
             )}
             {esLive && (
-              <span className="absolute top-2 inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-[var(--brand-cyan)]">
+              <span className="absolute top-2 inline-flex items-center gap-1 text-[10px] font-bold tracking-[0.13em] text-[var(--brand-cyan)]">
                 <span className="h-1 w-1 rounded-full bg-[var(--brand-cyan)]" /> ES LIVE
               </span>
             )}
             <span className="text-[17px] font-bold tracking-tight" style={{ color: read.tone }}>{signed(data.spyChange)}</span>
-            <span className="absolute bottom-[13px] text-[9px] font-bold tracking-[0.14em] text-muted-foreground">SPY CASH</span>
+            <span className="absolute bottom-[13px] text-[10px] font-bold tracking-[0.14em] text-muted-foreground">SPY CASH</span>
           </motion.div>
         </div>
 
@@ -220,7 +220,7 @@ export function OracleMarketField({
 
         {extendedCurrent && ((extended?.gainers?.length ?? 0) > 0 || (extended?.losers?.length ?? 0) > 0) && (
           <div className="mt-3 border-y border-border/35 py-2">
-            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
               <span>{sessionLeadersLabel(extended?.session)}</span>
               <span className="text-[var(--brand-cyan)]">live tape · not signals</span>
             </div>
@@ -242,25 +242,25 @@ export function OracleMarketField({
         )}
 
         <div className="mt-3 border-t border-border/35 pt-3">
-          <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em]">
+          <div className="mb-2 flex items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.14em]">
             <span className="text-muted-foreground">Cash rotation</span>
           </div>
           <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 font-mono text-[10px] leading-relaxed">
             <div className="min-w-0">
-              <span className="block text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Out of</span>
+              <span className="block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Out of</span>
               {source.map((sector) => (
                 <span key={sector.etf} className="mr-2 inline-block font-semibold" style={{ color: TC.bear }} title={`${sector.name} · ${signed(sector.relChange)} vs SPY`}>{sector.name} {signed(sector.change)}</span>
               ))}
             </div>
             <span className="pt-3 text-muted-foreground">→</span>
             <div className="min-w-0 text-right">
-              <span className="block text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Into</span>
+              <span className="block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Into</span>
               {destination.map((sector) => (
                 <span key={sector.etf} className="ml-2 inline-block font-semibold" style={{ color: TC.bull }} title={`${sector.name} · ${signed(sector.relChange)} vs SPY`}>{sector.name} {signed(sector.change)}</span>
               ))}
             </div>
           </div>
-          {extendedCurrent && extended?.interpretation && <p className="mt-2 line-clamp-2 font-mono text-[9px] leading-relaxed text-muted-foreground">{extended.interpretation}</p>}
+          {extendedCurrent && extended?.interpretation && <p className="mt-2 line-clamp-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{extended.interpretation}</p>}
         </div>
       </div>
     </PanelFrame>

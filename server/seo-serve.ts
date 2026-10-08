@@ -12,11 +12,12 @@
  * a real status — 404 for unknown paths and for blog slugs that are not a
  * published post. The page body is still the SPA, which renders its NotFound.
  */
+import { SITE_DOMAIN } from '@shared/site';
 import type { Request, Response, NextFunction } from 'express';
 import { resolveLegacyRedirect } from '../client/src/lib/legacy-redirects';
 import { BLOG_POST_PATTERN, blogPostRoute, injectServerSeo, normalizePath, seoStatusFor, type SeoRoute } from './seo-metadata';
 
-const CANONICAL_HOST = 'quantedgelabs.net';
+const CANONICAL_HOST = SITE_DOMAIN;
 
 export function seoRedirects(req: Request, res: Response, next: NextFunction) {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();

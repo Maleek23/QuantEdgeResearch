@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { Term } from '@/components/onboarding/term';
 import { AnalyzeWithQuantinum } from '@/components/quantinum/analyze-with-quantinum';
 import { planGateMessage } from '@/lib/optimistic';
 import { gradeOfLoosePick, nexusGradeTitle, formatNexusGrade, NEXUS_GRADE_LABEL } from '@/components/canon/nexus-grade';
@@ -46,7 +47,10 @@ import {
   type CatalystRow, type EconEvent, type FlowTrade, type LedgerRow, type Pick, type Quote, type VolRead,
 } from './ticker-data';
 import './ticker-page.css';
-import { Clamp, FreshStamp, PhoneNote, QuoteFreshChip } from '@/components/ui/qe-phone';
+import { Clamp, PhoneNote, QuoteFreshChip } from '@/components/ui/qe-phone';
+import { LEVEL_COLORS } from '@/components/gex/gex-colors';
+import { PriceConflictNote } from '@/components/ui/price-conflict';
+import { checkPriceAgreement, position52w, position52wLabel } from '@shared/price-agreement';
 
 /** Cash indices have no traded volume of their own. */
 const CASH_INDEX = new Set(['SPX', 'NDX', 'RUT', 'VIX', 'XSP', 'DJX']);
@@ -66,11 +70,11 @@ export const SECTIONS = [
 /* ─────────────────────────── small pieces ─────────────────────────── */
 
 /** `unit`: the sub only restates the label's basis ("daily", "exchange-reported") — hidden on phones. */
-function Stat({ k, v, sub, tone, title, unit }: { k: string; v: ReactNode; sub?: ReactNode; tone?: 'gain' | 'loss' | 'caution' | 'accent' | 'mute'; title?: string; unit?: boolean }) {
+function Stat({ k, v, sub, tone, title, unit, color }: { k: ReactNode; v: ReactNode; sub?: ReactNode; tone?: 'gain' | 'loss' | 'caution' | 'accent' | 'mute'; title?: string; unit?: boolean; /** Level colour (LEVEL_COLORS) — walls are levels, not gain/loss. */ color?: string }) {
   return (
     <div className="tk-stat" title={title}>
       <div className="tk-stat-k">{k}</div>
-      <div className="tk-stat-v" data-tone={tone}>{v}</div>
+      <div className="tk-stat-v" data-tone={tone} style={color ? { color } : undefined}>{v}</div>
       {sub != null && <div className={unit ? 'tk-stat-s qp-desk-only' : 'tk-stat-s'}>{sub}</div>}
     </div>
   );
@@ -207,7 +211,6 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const ownVol = q?.volume && q.volume > 0 ? q.volume : null;
   const liveVol = volProxySym ? (proxyVolQ.data?.[volProxySym]?.volume || null) : ownVol;
   const volRatio = liveVol && stats.avgVol20 ? liveVol / stats.avgVol20 : null;
-  const pos52 = price != null && stats.h52 != null && stats.l52 != null && stats.h52 > stats.l52 ? ((price - stats.l52) / (stats.h52 - stats.l52)) * 100 : null;
 
   /* verdict — Quantinum lean + its two heaviest reasons */
   const topLayers = (qtm?.layers ?? []).filter((l) => l.points !== 0).sort((a, b) => Math.abs(b.points) - Math.abs(a.points)).slice(0, 2);
@@ -242,12 +245,23 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
     const ann = sd * Math.sqrt(252);
     return ann > 0.02 && ann < 3 ? ann : null;
   }, [bars]);
+  const dealerAge = d.dealer.data?.cachedAt ?? d.dealer.data?.generatedAt ?? null;
+
+  /* ONE reference price (shared/price-agreement.ts): the displayed quote. When
+     the chain's spot or the weekly-path spot sits >5% away, one feed is stale —
+     every value derived from "the price" is suppressed and both are shown. */
+  const agreement = checkPriceAgreement([
+    { label: 'Quote', price, asOf: q?.asOf ?? null },
+    { label: 'Option chain', price: snap?.spotPrice ?? null, asOf: dealerAge },
+    { label: 'Weekly path', price: week?.spotPrice ?? null, asOf: week?.cachedAt ?? null },
+  ]);
+  const refPx = agreement.ok ? price : null;
+  const pos52 = position52w(refPx, stats.l52, stats.h52);
   const weekTrusted = week?.expectedMove != null && week.volSource !== 'regime-estimate';
-  const emSpot = week?.spotPrice ?? price ?? null;
-  const em = weekTrusted ? week!.expectedMove! : rv20 != null && emSpot ? emSpot * rv20 * Math.sqrt(5 / 252) : null;
+  const emSpot = agreement.ok ? (week?.spotPrice ?? price ?? null) : null;
+  const em = emSpot == null ? null : weekTrusted ? week!.expectedMove! : rv20 != null ? emSpot * rv20 * Math.sqrt(5 / 252) : null;
   const emBasis = weekTrusted ? (week!.volSource === 'vix' ? 'VIX' : '20d realized vol') : rv20 != null ? '20d realized vol (daily series)' : null;
   const emPct = em != null && emSpot ? (em / emSpot) * 100 : null;
-  const dealerAge = d.dealer.data?.cachedAt ?? d.dealer.data?.generatedAt ?? null;
 
   /* chart levels: dealer anchors + published execution levels + 1σ week band */
   const levels: Level[] = useMemo(() => {
@@ -279,7 +293,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
             <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {Number.isFinite(q.change) ? <>{q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · </> : null}{fmtPct(q.changePercent)}</span>
             {/* One freshness rule for every price (shared/quote-freshness.ts): Live / Delayed 15m / Pre-mkt 07:42 / Overnight (proxy). */}
             <QuoteFreshChip q={q} />
-            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{[q.source ?? 'realtime quote', q.proxy && q.underlyingPrice ? `index ${fmtPx(q.underlyingPrice)} ${age(q.underlyingAsOf)}` : null].filter(Boolean).join(' · ')}</span>
+            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{[q.source ?? 'realtime quote', q.proxy && q.underlyingPrice ? `index ${fmtPx(q.underlyingPrice)}` : null].filter(Boolean).join(' · ')}</span>
           </>
         ) : d.quote.isError ? (
           <span className="tk-src">No quote for {sym} — every price provider failed. Retry in a minute.</span>
@@ -382,9 +396,9 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           : CASH_INDEX.has(sym)
           ? <Stat k="Volume" v="n/a" sub="index · no volume" unit />
           : <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />}
-        <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && price)} />
+        <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && refPx ? `${((stats.atr / refPx) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && refPx)} />
         <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} unit={stats.rsi == null || (stats.rsi < 70 && stats.rsi > 30)} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />
-        <Stat k="52w range" v={pos52 != null ? `${Math.round(pos52)}%` : '—'} sub={`${fmtPx(stats.l52)} – ${fmtPx(stats.h52)}`} title="Where the live price sits between the 52-week low (0%) and high (100%)" />
+        <Stat k="52w range" v={position52wLabel(pos52)} tone={pos52.state === 'below' || pos52.state === 'above' ? 'caution' : undefined} sub={`${fmtPx(stats.l52)} – ${fmtPx(stats.h52)}`} title={agreement.ok ? 'Where the live price sits between the 52-week low (0%) and high (100%)' : 'Withheld — price sources disagree'} />
         <Stat k="Short % float" v={shortInt.data?.shortPercentOfFloat != null ? `${(shortInt.data.shortPercentOfFloat * 100).toFixed(1)}%` : '—'} sub={shortInt.data?.shortRatio != null ? `${shortInt.data.shortRatio.toFixed(1)}d to cover` : 'exchange-reported'} unit={shortInt.data?.shortRatio == null} tone={(shortInt.data?.shortPercentOfFloat ?? 0) >= 0.15 ? 'caution' : undefined} />
         <Stat k="30 day" v={fmtPct(stats.ret30, 1)} tone={stats.ret30 == null ? undefined : stats.ret30 >= 0 ? 'gain' : 'loss'} sub="daily closes" unit />
       </div>
@@ -392,23 +406,23 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       <div className="tk-dealer" aria-label="Dealer map">
         <div className="tk-dealer-h">
           <span>Dealer map · this week</span>
-          <span className={snap && !d.dealer.isLoading ? 'tk-src qp-desk-only' : 'tk-src'}>
+          <span className="tk-src">
             {d.dealer.isLoading ? 'computing from the option chain…'
               : snap ? `${d.dealer.data?.cached ? 'last good · ' : ''}chain ${age(dealerAge)}` : 'chain unavailable'}
           </span>
-          {snap && !d.dealer.isLoading && <FreshStamp className="qp-phone-only" asOf={dealerAge} warn={!!d.dealer.data?.cached} />}
         </div>
+        {!agreement.ok && <PriceConflictNote agreement={agreement} />}
         {d.dealer.isError || (!d.dealer.isLoading && !snap) ? (
           <Empty>No option chain answered for {sym} (Alpaca, CBOE, Yahoo) — walls and zero-γ need listed options.</Empty>
         ) : null}
         <div className="tk-stats tk-stats-dealer">
-          <Stat k="Call wall" v={fmtPx(callWallW)} tone="gain" title={`Call wall · ${wallBasis}`} sub={callWallW && price ? fmtPct(((callWallW - price) / price) * 100, 1) + ' away' : undefined} />
-          <Stat k="Put wall" v={fmtPx(putWallW)} tone="loss" title={`Put wall · ${wallBasis}`} sub={putWallW && price ? fmtPct(((putWallW - price) / price) * 100, 1) + ' away' : undefined} />
-          <Stat k="Zero-γ" v={flipW != null ? fmtPx(flipW) : snap ? 'none near' : '—'} tone="caution" title={`Zero-γ · ${wallBasis}`}
-            sub={flipW != null && price ? (price >= flipW ? 'price above zero-γ' : 'price below zero-γ') : snap ? 'net γ keeps one sign ±20%' : undefined} />
+          <Stat k="Call wall" v={fmtPx(callWallW)} color={LEVEL_COLORS.callWall} title={`Call wall · ${wallBasis}`} sub={callWallW && refPx ? fmtPct(((callWallW - refPx) / refPx) * 100, 1) + ' away' : undefined} />
+          <Stat k="Put wall" v={fmtPx(putWallW)} color={LEVEL_COLORS.putWall} title={`Put wall · ${wallBasis}`} sub={putWallW && refPx ? fmtPct(((putWallW - refPx) / refPx) * 100, 1) + ' away' : undefined} />
+          <Stat k={<Term k="gamma-flip">Zero-γ</Term>} v={flipW != null ? fmtPx(flipW) : snap ? 'none near' : '—'} color={LEVEL_COLORS.zeroGamma} title={`Zero-γ · ${wallBasis}`}
+            sub={flipW != null && refPx ? (refPx >= flipW ? 'price above zero-γ' : 'price below zero-γ') : snap && agreement.ok ? 'net γ keeps one sign ±20%' : undefined} />
           <Stat k="Regime" v={regimeLabel ?? '—'} sub={regimeKey === 'positive_gamma' ? 'dealers damp moves' : regimeKey === 'negative_gamma' ? 'dealers amplify moves' : undefined} tone={regimeKey === 'negative_gamma' ? 'caution' : undefined} />
           <Stat k="Week move 1σ" v={em != null ? `±${fmtPx(em)}` : d.week.isLoading ? '…' : '—'}
-            sub={em != null && emSpot ? `${emPct != null ? `±${emPct.toFixed(1)}% · ` : ''}${fmtPx(emSpot - em)}–${fmtPx(emSpot + em)}` : 'no vol series'}
+            sub={em != null && emSpot ? `${emPct != null ? `±${emPct.toFixed(1)}% · ` : ''}${fmtPx(emSpot - em)}–${fmtPx(emSpot + em)}` : agreement.ok ? 'no vol series' : 'withheld · prices disagree'}
             title={emBasis ? `1σ for five sessions, sized on ${emBasis} — the Today weekly-path model` : undefined} />
           <Stat k="Next earnings" v={earn ? shortDate(earn.date) : INDEX_ETFS.has(sym) ? 'n/a · ETF' : d.earnings.isLoading ? '…' : 'none ≤30d'}
             sub={earn ? `${earn.session === 'pre' ? 'before open' : earn.session === 'post' ? 'after close' : 'time n/a'} · ${earn.daysAway}d` : 'Nasdaq calendar'} unit={!earn}
@@ -671,10 +685,10 @@ function GammaCompareTable({ c }: { c: NonNullable<import('./ticker-data').Quant
   const diff = (a: number | null | undefined, b: number | null | undefined, tol = 0) => (a == null) !== (b == null) || (a != null && b != null && Math.abs(a - b) > tol);
   return (
     <>
-      <h3 className="tk-h3">Dealer gamma · raw vs Δ-adjusted <span className="tk-src">(context, not scored)</span></h3>
+      <h3 className="tk-h3">Dealer gamma · raw vs <Term k="delta-adjusted">Δ-adjusted</Term> <span className="tk-src">(context, not scored)</span></h3>
       <div className="tk-table-wrap">
         <table className="tk-table">
-          <thead><tr><th>Definition</th><th>Regime</th><th className="r">Balance</th><th className="r">Put wall</th><th className="r">Zero-γ</th><th className="r">Call wall</th><th className="r">King node</th></tr></thead>
+          <thead><tr><th>Definition</th><th>Regime</th><th className="r">Balance</th><th className="r">Put wall</th><th className="r">Zero-γ</th><th className="r">Call wall</th><th className="r"><Term k="king-node">King node</Term></th></tr></thead>
           <tbody>
             {c.rows.map((r) => (
               <tr key={r.metric}>

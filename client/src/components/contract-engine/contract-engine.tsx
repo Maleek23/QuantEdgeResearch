@@ -18,6 +18,7 @@
  *   - Source + age are the chain actually used (Alpaca indicative / CBOE
  *     delayed / Yahoo) — never assumed.
  */
+import { gradeColor as canonGradeColor } from '@/components/canon/score';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { parseMarketDate } from '@/lib/market-date';
@@ -115,13 +116,8 @@ const TIER_STYLE: Record<ContractTier, { color: string; label: string; hint: str
   starter: { color: '#a78bfa', label: 'STARTER', hint: '|Δ| under 0.22 — cheapest way to express the view, lowest odds' },
 };
 
-function gradeColor(g: Letter | null): string {
-  if (g === 'A') return TC.bull;
-  if (g === 'B') return TC.info;
-  if (g === 'C') return TC.warn;
-  if (g == null) return TC.muted;
-  return TC.bear;
-}
+/** One grade palette (canon/score.tsx). */
+const gradeColor = (g: Letter | null): string => canonGradeColor(g);
 
 function GradeChip({ grade, score, partial }: { grade: Letter | null; score?: number | null; partial?: boolean }) {
   const c = gradeColor(grade);

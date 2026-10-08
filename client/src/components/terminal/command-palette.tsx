@@ -181,14 +181,14 @@ export function CommandPalette({
             placeholder="Search any ticker, or jump to a tab or page…"
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text, #e8ecf3)', fontFamily: "'JetBrains Mono',monospace", fontSize: 14, letterSpacing: 0.5 }}
           />
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', border: '1px solid var(--nx-border, rgba(148,163,184,0.16))', borderRadius: 4, padding: '2px 6px' }}>ESC</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', border: '1px solid var(--nx-border, rgba(148,163,184,0.16))', borderRadius: 4, padding: '2px 6px' }}>ESC</span>
         </div>
 
         <div id={listId} role="listbox" aria-label="Results" style={{ maxHeight: '46vh', overflowY: 'auto' }}>
           {items.map((item, i) => (
             <div key={item.kind === 'tab' ? `t-${item.tab}` : item.kind === 'page' ? `p-${item.href}` : `s-${item.symbol}-${i}`} role="presentation">
             {!q && (i === 0 || sectionOf(items[i - 1]) !== sectionOf(item)) && (
-              <div role="presentation" aria-hidden style={{ padding: '8px 16px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
+              <div role="presentation" aria-hidden style={{ padding: '8px 16px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
                 {sectionOf(item)}
               </div>
             )}
@@ -208,7 +208,7 @@ export function CommandPalette({
                 <>
                   <span aria-hidden style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--cyan-bright, #3b8cff)' }}>→</span>
                   <span style={{ fontSize: 12.5, color: 'var(--text)' }}>{item.label}</span>
-                  <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>{item.kind === 'tab' ? 'tab' : 'page'}</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>{item.kind === 'tab' ? 'tab' : 'page'}</span>
                 </>
               ) : (
                 <>
@@ -218,7 +218,7 @@ export function CommandPalette({
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>{item.name ?? ''}</span>
                   {item.name !== 'open directly' && <WatchStar sym={item.symbol} size={12} />}
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>
                 </>
               )}
             </div>
@@ -229,7 +229,7 @@ export function CommandPalette({
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 14, padding: '8px 16px', borderTop: '1px solid var(--nx-border, rgba(148,163,184,0.12))', fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
+        <div style={{ display: 'flex', gap: 14, padding: '8px 16px', borderTop: '1px solid var(--nx-border, rgba(148,163,184,0.12))', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
           <span>↑↓ navigate</span><span>↵ open</span><span>esc close</span>
           <span style={{ marginLeft: 'auto' }}>liquid universe · live change</span>
         </div>

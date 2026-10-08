@@ -60,7 +60,7 @@ export function JournalSwitcher({ value, onChange, sources, loading, collapsed =
 
   return (
     <div className="jr-book">
-      <label className="jr-book-l" htmlFor={selectId}>Book{current?.readOnly ? <span className="jr-book-ro"><Lock className="h-2.5 w-2.5" aria-hidden /> read-only</span> : null}</label>
+      <label className="jr-book-l" htmlFor={selectId}>Whose journal{current?.readOnly ? <span className="jr-book-ro"><Lock className="h-2.5 w-2.5" aria-hidden /> read-only</span> : null}</label>
       <div className="jr-book-row">
         <select id={selectId} className="jr-select jr-book-select" value={value} onChange={(e) => onChange(e.target.value as JournalKey)}
           title={current?.hint}>

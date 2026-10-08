@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from './site';
 /**
  * LANDING FAQ — one copy of the landing page's questions and answers.
  *
@@ -33,5 +34,5 @@ export const LANDING_FAQ: LandingFaqItem[] = [
   { id: 'invite', q: 'How do I get into the beta?',
     a: 'QuantEdge is an invite-only beta. If you have an invite code (it is in your invite email), create your account on the sign-up page. If your invite came by email, you can also continue with Google using that address. No code yet? Join the waitlist on the sign-up page.' },
   { id: 'cost', q: 'What does it cost, and how do I get access?',
-    a: 'QuantEdge is an invite-only beta. There is a Free plan with delayed data and limits; Advanced unlocks full access, still on delayed data with its age shown on every tile. Licensed real-time data is the Pro plan, coming soon — see Pricing. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing support@quantedgelabs.net.' },
+    a: 'QuantEdge is an invite-only beta. There is a Free plan with delayed data and limits; Advanced unlocks full access, still on delayed data with its age shown on every tile. Licensed real-time data is the Pro plan, coming soon — see Pricing. Paid plans are not on sale yet, so nothing is charged during the beta; questions go to ' + SUPPORT_EMAIL + '.' },
 ];

@@ -55,30 +55,29 @@ export class PageErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-4 my-3">
+        <div className="border border-[color:var(--nx-border-hi,rgba(59,140,255,.18))] rounded-lg p-4 my-3" role="alert">
           <div className="flex items-start gap-3">
-            <div className="text-2xl">⚠️</div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-[var(--trade-bearish)]">
-                {this.props.label || 'This section'} hit an error — reload to try again
+              <div className="text-sm font-semibold text-foreground">
+                {this.props.label || 'This section'} didn’t load
               </div>
-              <div className="text-xs text-zinc-400 mt-1 font-mono break-all">
-                {this.state.error.message}
-              </div>
-              <details className="mt-2">
-                <summary className="text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-300">
-                  Show stack trace
-                </summary>
-                <pre className="mt-2 text-[9px] text-zinc-500 font-mono whitespace-pre-wrap max-h-40 overflow-auto bg-zinc-950/50 p-2 rounded">
-                  {this.state.error.stack}
-                </pre>
-              </details>
+              <div className="text-xs text-muted-foreground mt-1">Try again — the rest of the page still works.</div>
               <button
                 onClick={this.reset}
-                className="mt-3 text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-200 border border-zinc-700"
+                className="mt-3 min-h-[44px] text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-200 border border-zinc-700"
               >
                 ↻ Retry
               </button>
+              {/* Technical text only behind Details (audit 2026-10-07 #9). */}
+              <details className="mt-2">
+                <summary className="text-xs text-zinc-400 cursor-pointer hover:text-zinc-300 min-h-[44px] flex items-center">
+                  Details
+                </summary>
+                <div className="text-xs text-zinc-400 font-mono break-all">{this.state.error.message}</div>
+                <pre className="mt-2 text-[10px] text-zinc-500 font-mono whitespace-pre-wrap max-h-40 overflow-auto bg-zinc-950/50 p-2 rounded">
+                  {this.state.error.stack}
+                </pre>
+              </details>
             </div>
           </div>
         </div>

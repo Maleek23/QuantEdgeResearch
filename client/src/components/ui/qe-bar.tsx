@@ -74,7 +74,7 @@ export function QEBar({
   return (
     <div className={cn('w-full', className)}>
       {(label || valueRight) && (
-        <div className="flex items-center justify-between mb-0.5 text-[9px] font-mono uppercase tracking-widest">
+        <div className="flex items-center justify-between mb-0.5 text-[10px] font-mono uppercase tracking-widest">
           <span className="text-muted-foreground">{label}</span>
           {valueRight && (
             <span className="text-foreground tabular-nums font-bold">
