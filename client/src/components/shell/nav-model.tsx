@@ -20,7 +20,7 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: 'gex',     label: 'GEX' },
   { id: 'chart',   label: 'CHART' },
   { id: 'sectors', label: 'SECTORS' },
-  { id: 'leaps',   label: 'LEAPS' },
+  { id: 'leaps',   label: 'LEAPS & Swings' },
   { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },

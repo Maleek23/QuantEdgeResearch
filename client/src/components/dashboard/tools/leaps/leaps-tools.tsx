@@ -67,14 +67,14 @@ export function LeapsGradesTool() {
 export function LeapsClassicTool() {
   useLeaps();
   const [view, setView] = useState<'board' | 'screener'>(() => {
-    try { return (localStorage.getItem('leaps.view') as 'board' | 'screener') || 'board'; } catch { return 'board'; }
+    try { return (localStorage.getItem('leaps.view.v2') as 'board' | 'screener') || 'screener'; } catch { return 'screener'; }
   });
-  const pick = (v: 'board' | 'screener') => { setView(v); try { localStorage.setItem('leaps.view', v); } catch { /* private mode */ } };
+  const pick = (v: 'board' | 'screener') => { setView(v); try { localStorage.setItem('leaps.view.v2', v); } catch { /* private mode */ } };
   return (
     <div className="leaps-fused">
       <div className="leaps-fused-tabs" role="tablist" aria-label="LEAPS views">
-        <button type="button" role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'on' : ''} onClick={() => pick('board')} data-testid="leaps-view-board">LEAPS board</button>
-        <button type="button" role="tab" aria-selected={view === 'screener'} className={view === 'screener' ? 'on' : ''} onClick={() => pick('screener')} data-testid="leaps-view-screener">Beaten-down screener · swings &amp; LEAPS</button>
+        <button type="button" role="tab" aria-selected={view === 'screener'} className={view === 'screener' ? 'on' : ''} onClick={() => pick('screener')} data-testid="leaps-view-screener">Swings &amp; LEAPS screener</button>
+        <button type="button" role="tab" aria-selected={view === 'board'} className={view === 'board' ? 'on' : ''} onClick={() => pick('board')} data-testid="leaps-view-board">LEAPS board (classic)</button>
       </div>
       {view === 'board'
         ? <Section />
