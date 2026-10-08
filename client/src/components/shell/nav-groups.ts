@@ -73,7 +73,7 @@ export const NAV_GROUPS: Array<{ id: string; label: string; tabs?: Tab[]; pages?
   { id: 'start', label: 'Start', pages: ['/today'] },
   { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'] },
   { id: 'research', label: 'Research', tabs: ['chart', 'sectors', 'leaps', 'crypto', 'catalyst'] },
-  { id: 'manage', label: 'Manage', tabs: ['bot', 'positions', 'journal'] },
+  { id: 'manage', label: 'Manage', tabs: ['bot', 'journal'] },
 ];
 
 export interface NavTarget {

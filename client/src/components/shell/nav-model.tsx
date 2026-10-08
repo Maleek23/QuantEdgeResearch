@@ -24,7 +24,6 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },
-  { id: 'positions', label: 'POSITIONS' },
   { id: 'journal',   label: 'JOURNAL' },
 ];
 
@@ -46,7 +45,7 @@ export const MOBILE_DOCK: DockItem[] = [
 ];
 export const MOBILE_PRIMARY: Tab[] = ['oracle', 'flow', 'gex', 'chart'];
 export const MOBILE_PRIMARY_PAGES: string[] = ['/today'];
-export const MOBILE_MORE: Tab[] = ['sectors', 'leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
+export const MOBILE_MORE: Tab[] = ['sectors', 'leaps', 'crypto', 'catalyst', 'bot', 'journal'];
 
 /** Standalone pages — same chrome as the terminal, reached from the nav and "More". */
 export interface PageLink { href: string; label: string; short: string; icon: typeof Radar }

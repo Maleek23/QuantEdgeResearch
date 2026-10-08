@@ -329,9 +329,12 @@ export function traderBookVisible(
   trader: { slug: string; linkedUserId: string | null },
   sharedWithGroup: boolean,
 ): boolean {
-  if (actor.isAdmin) return true;
-  if (actor.userId && trader.linkedUserId === actor.userId) return true;
-  return sharedWithGroup;
+  // Confidential since 2026-10-07: a trader book is visible ONLY to the user it is
+  // linked to — not to admins, not to the group (operator: "everyone has their own
+  // account, confidentially"). `actor.isAdmin` / `sharedWithGroup` are kept in the
+  // signature for callers but no longer widen visibility.
+  void actor.isAdmin; void sharedWithGroup;
+  return !!actor.userId && trader.linkedUserId === actor.userId;
 }
 
 // ─── "I took this": NEXUS idea → the taker's journal book ────

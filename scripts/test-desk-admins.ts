@@ -365,10 +365,10 @@ async function main() {
   // ── 8. Privacy: trader books private by default ───────────────────────────
   const tFemi = { slug: 'femi', linkedUserId: 'u-femi' };
   ok(traderBookVisible({ userId: 'u-femi', isAdmin: false }, tFemi, false), 'the desk admin sees their own private book');
-  ok(traderBookVisible({ userId: 'u-malik', isAdmin: true }, tFemi, false), 'the super-admin sees every book');
+  ok(!traderBookVisible({ userId: 'u-malik', isAdmin: true }, tFemi, false), 'confidential: the super-admin does NOT see another trader\'s book');
   ok(!traderBookVisible({ userId: 'u-uzo', isAdmin: false }, tFemi, false), "another trader does NOT see a private book");
   ok(!traderBookVisible({ userId: null, isAdmin: false }, tFemi, false), 'signed out sees nothing');
-  ok(traderBookVisible({ userId: 'u-uzo', isAdmin: false }, tFemi, true), 'opt-in sharing makes the book group-visible');
+  ok(!traderBookVisible({ userId: 'u-uzo', isAdmin: false }, tFemi, true), 'confidential: sharing no longer exposes a book to others');
   const js = src('server/journal-sources.ts');
   ok(/traderVisibilityFor\(actor\)\)\(trader\)\) throw new JournalAccessError\(404/.test(js) && js.indexOf('traderVisibilityFor') < js.indexOf('if (isTraderLocked(actor, trader))'), 'resolveJournal hides a private book (404) before the passcode check — every journal read and write goes through it');
   const jr = src('server/journals-routes.ts');
