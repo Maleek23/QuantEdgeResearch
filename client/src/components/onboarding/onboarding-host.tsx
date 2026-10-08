@@ -66,7 +66,9 @@ export function OnboardingHost() {
   const pageTour = tourForLocation(path.split('?')[0], liveSearch);
 
   // One-time profile sheet.
-  const needsProfile = ob.signedIn && !ob.loading && !ob.profile && !ob.progress.profileSheetDismissedAt;
+  // Only inside the app (terminal, Today, desks) — never over the landing page or other public pages.
+  const inApp = /^\/(t|today|desk)(\/|$)/.test(path.split('?')[0]);
+  const needsProfile = inApp && ob.signedIn && !ob.loading && !ob.profile && !ob.progress.profileSheetDismissedAt;
   useEffect(() => {
     if (!needsProfile) return;
     const t = window.setTimeout(() => setSheetOpen(true), 900);
@@ -80,11 +82,11 @@ export function OnboardingHost() {
 
   // Auto-run the page tour (never over the sheet, never for pros, never with tips off).
   useEffect(() => {
-    if (!pageTour || tour || sheetOpen || !ob.signedIn || ob.loading || !ob.profile) return;
+    if (!inApp || !pageTour || tour || sheetOpen || !ob.signedIn || ob.loading || !ob.profile) return;
     if (ob.tier === 'pro' || !ob.tipsOn || ob.progress.tours[pageTour]) return;
     const t = window.setTimeout(() => setTour({ id: pageTour, full: false }), 1200);
     return () => window.clearTimeout(t);
-  }, [pageTour, tour, sheetOpen, ob.signedIn, ob.loading, ob.profile, ob.tier, ob.tipsOn, ob.progress.tours]);
+  }, [inApp, pageTour, tour, sheetOpen, ob.signedIn, ob.loading, ob.profile, ob.tier, ob.tipsOn, ob.progress.tours]);
 
   // Help → Take the tour.
   useEffect(() => {
