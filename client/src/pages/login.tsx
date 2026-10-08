@@ -77,10 +77,10 @@ export default function Login() {
       const response = await apiRequest("POST", "/api/auth/dev-login", { accessCode: code });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { trader?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Welcome!", description: "Admin login successful." });
+      toast({ title: "Welcome!", description: data?.trader ? "Signed in to your desk." : "Admin login successful." });
       clearStashedReturnTo();
       setLocation(landing);
     },
@@ -429,15 +429,15 @@ export default function Login() {
               onClick={() => setShowAdminLogin(!showAdminLogin)}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center min-h-11"
             >
-              Admin access
+              Admin / trader access code
             </button>
 
             {showAdminLogin && (
               <div className="mt-4 space-y-3">
                 <Input
                   type="password"
-                  placeholder="Admin access code"
-                  aria-label="Admin access code"
+                  placeholder="Access code"
+                  aria-label="Access code"
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}

@@ -1491,8 +1491,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!safeSecretEqual(accessCode, adminCode)) { // constant-time
-        logger.warn('[DEV-LOGIN] Invalid access code');
-        return res.status(401).json({ error: "Invalid access code" });
+        // Trader access codes (TRADER_ACCESS_CODES="slug:code,slug:code"): one short code per
+        // trader, same box as the admin code. Signs in as the trader's linked user, creating
+        // and linking one on first use. They can add an email + password later in Settings.
+        const pairs = String(process.env.TRADER_ACCESS_CODES || '').split(',').map((x) => x.trim().split(':')).filter((x) => x.length === 2 && x[0] && x[1]);
+        let traderSlug: string | null = null;
+        for (const [slug, code] of pairs) if (safeSecretEqual(String(accessCode ?? '').trim(), code)) traderSlug = slug.toLowerCase();
+        if (!traderSlug) {
+          logger.warn('[DEV-LOGIN] Invalid access code');
+          return res.status(401).json({ error: "Invalid access code" });
+        }
+        const tr = await db.execute(sql`select id, name, linked_user_id from traders where lower(slug) = ${traderSlug} limit 1`);
+        const row = (tr as unknown as { rows: { id: string; name: string; linked_user_id: string | null }[] }).rows?.[0];
+        if (!row) return res.status(401).json({ error: "Invalid access code" });
+        let tUser = row.linked_user_id ? await storage.getUser(row.linked_user_id) : undefined;
+        if (!tUser) {
+          tUser = await storage.upsertUser({
+            id: `trader_${traderSlug}`,
+            email: `${traderSlug}@traders.quantedgelabs.net`,
+            firstName: row.name,
+            lastName: null,
+            profileImageUrl: null,
+            hasBetaAccess: true,
+            subscriptionTier: 'free',
+            subscriptionStatus: 'active',
+          } as never);
+          if (tUser) await db.execute(sql`update traders set linked_user_id = ${tUser.id} where id = ${row.id} and linked_user_id is null`);
+        }
+        if (!tUser) return res.status(500).json({ error: "Failed to log in" });
+        if (!tUser.hasBetaAccess) await storage.updateUser(tUser.id, { hasBetaAccess: true });
+        logger.info('[DEV-LOGIN] Trader signed in with access code', { trader: traderSlug, userId: tUser.id });
+        await establishSession(req, tUser.id);
+        return res.json({ user: sanitizeUser(tUser), trader: traderSlug });
       }
 
       // Login as admin user (use ADMIN_EMAIL from env)
