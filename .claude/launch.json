@@ -2,11 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "quantedge-dev",
+      "name": "quantedge-client-harness",
       "runtimeExecutable": "/bin/zsh",
-      "runtimeArgs": ["-l", "-c", "npx tsx server/index.ts"],
-      "port": 3000,
-      "autoPort": true
+      "runtimeArgs": ["-l", "-c", "npx vite --port 5173 --strictPort"],
+      "port": 5173
     }
   ]
 }
