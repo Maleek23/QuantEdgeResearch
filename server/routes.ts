@@ -33023,6 +33023,9 @@ Use this checklist before entering any trade:
     // NEXUS 0DTE desk + 2–4 day swings (server/zero-dte-desk.ts)
     const { registerZeroDteDeskRoutes } = await import('./zero-dte-desk');
     registerZeroDteDeskRoutes(app, requireBetaAccess);
+    // 0DTE past sessions + replay, setups by day, data-health strip, withheld list (server/journal-integrity-routes.ts).
+    const { registerJournalIntegrityRoutes } = await import('./journal-integrity-routes');
+    registerJournalIntegrityRoutes(app, requireBetaAccess, requireAdminJWT);
     // Board-wide 0DTE sniper — last cycle (server/zero-dte-sniper.ts; engine off unless ZERO_DTE_SNIPER=true)
     const { registerZeroDteSniperRoutes } = await import('./zero-dte-sniper');
     registerZeroDteSniperRoutes(app, requireBetaAccess);

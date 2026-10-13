@@ -272,6 +272,9 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
     executionState: sql<string | null>`${tradeIdeas.convergenceSignalsJson}->'executionAudit'->>'state'`,
     // Provenance for the integrity checks (shared/desk-integrity.ts).
     dataSourceUsed: tradeIdeas.dataSourceUsed, sessionContext: tradeIdeas.sessionContext,
+    // Options-only (shared/options-only.ts): conversion markers, not the analysis blob.
+    qualitySignals: tradeIdeas.qualitySignals,
+    analysis: sql<string | null>`CASE WHEN ${tradeIdeas.analysis} ILIKE '%Underlying-only idea%' THEN 'Underlying-only idea' ELSE NULL END`,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),

@@ -6,6 +6,8 @@ import { premiumAtTouch, priceOptionBarrierExit } from "@shared/option-exit-pric
 import { parsePeak, peakLine, withPeakTag } from "@shared/option-peak";
 import { parseRunner, readRunnerPolicy, runnerAppliesTo, runnerLine, withRunnerTag } from "@shared/runner-policy";
 import { zeroDteKindOf } from "@shared/bot-sleeves";
+import { judgePremiumOutcome, premiumConsistent, premiumPlanFor, type PremiumOutcome } from "@shared/premium-outcome";
+import { shortDatedReason } from "@shared/short-dated-option";
 import { readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { exceedsOptionValue, fillOnStrikeScale, safeIntrinsic } from "@shared/option-value-bounds";
 import { expiryDay, optionExpiryCloseMs } from "@shared/option-expiry";
@@ -387,7 +389,38 @@ class PerformanceValidationService {
         let exitPremium: number | null = null;
         let optionPercentGain: number | null = null;
         let optionPremiumBasis: 'touch_bar' | 'pass' | 'withheld' | 'intrinsic' | null = null;
+        // 💵 PREMIUM-BASED OUTCOME (shared/premium-outcome.ts): an option's T1 / stop
+        // are judged on the CONTRACT's own 1-minute bars against the premium plan
+        // mapped at publish. The underlying touch only says "look now".
+        let premiumJudged = false;
         if (
+          ideaForResult?.assetType === 'option' && result.outcomeStatus && result.outcomeStatus !== 'open' &&
+          !optionExpiryAttempted && typeof ideaForResult.entryPremium === 'number' && ideaForResult.entryPremium > 0 &&
+          process.env.PREMIUM_OUTCOMES !== 'off'
+        ) {
+          const v = await this.premiumVerdict(ideaForResult, result).catch((err) => {
+            console.warn(`  ⚠️ premium judge failed for ${ideaForResult.symbol}: ${err?.message ?? err}`);
+            return null;
+          });
+          if (v && v.status === 'open') {
+            console.log(`  ⏳ ${ideaForResult.symbol} ${ideaId}: underlying says ${result.outcomeStatus}, contract premium has not reached T1/stop (${v.basis}) — kept open`);
+            continue;
+          }
+          if (v) {
+            premiumJudged = true;
+            result.outcomeStatus = v.status;
+            result.resolutionReason = `premium_${v.status}` as any;
+            if (v.exitAtMs != null) result.exitDate = new Date(v.exitAtMs).toISOString();
+            exitPremium = v.exitPremium;
+            optionPercentGain = v.optionPercentGain;
+            optionPremiumBasis = 'touch_bar';
+            outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes,
+              `[premium-outcome] ${v.status} on the contract's premium: entry $${ideaForResult.entryPremium} → exit $${v.exitPremium ?? '—'}` +
+              `${v.peak ? ` · peak $${v.peak.premium} at ${new Date(v.peak.atMs).toISOString().slice(11, 16)}Z` : ''} (${v.basis})`);
+          }
+        }
+        if (
+          !premiumJudged &&
           ideaForResult?.assetType === 'option' &&
           result.outcomeStatus && result.outcomeStatus !== 'open' &&
           typeof ideaForResult.entryPremium === 'number' && ideaForResult.entryPremium > 0
@@ -475,6 +508,14 @@ class PerformanceValidationService {
             // thesis, not the side of the option contract.
             optionPercentGain = Math.round(rawPct * 100) / 100;
             console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
+          }
+        }
+        // INVARIANT: never hit_target with a realized premium below entry (TSLA 377.5C 0.81 → 0.45).
+        if (ideaForResult?.assetType === 'option') {
+          const inv = premiumConsistent(result.outcomeStatus, ideaForResult.entryPremium, exitPremium);
+          if (!inv.ok) {
+            console.warn(`  🚩 [PREMIUM-INVARIANT] ${ideaForResult.symbol} ${ideaId}: ${inv.reason} — not resolved as a target; kept open for the premium judge`);
+            continue;
           }
         }
         // 🏃 RUNNER (shared/runner-policy.ts, RUNNER_POLICY): a 0DTE idea that resolves
@@ -681,6 +722,33 @@ class PerformanceValidationService {
       await storage.updateTradeIdeaPerformance(idea.id, { outcomeNotes: notes });
       idea.outcomeNotes = notes; // a resolution later in this pass appends to it
     }
+  }
+
+  /**
+   * Judge an option idea on its contract's own 1-minute bars (shared/premium-outcome.ts),
+   * entry → now (barrier outcomes) or entry → the deadline (time / expiry exits, final).
+   * Null when no contract bars answered (the caller keeps the touch-pricing path
+   * and the premium invariant).
+   */
+  private async premiumVerdict(idea: TradeIdea, result: any): Promise<PremiumOutcome | null> {
+    const plan = premiumPlanFor(idea as any, { zeroDte: !!shortDatedReason(idea as any, Date.now()) });
+    if (!plan) return null;
+    const strike = Number((idea as any).strikePrice);
+    const day = expiryDay((idea as any).expiryDate);
+    if (!day || !(strike > 0)) return null;
+    const { ideaEntryMs } = await import('./option-peak-job');
+    const { contractMinuteBars } = await import('./option-bars-chain');
+    const entryMs = ideaEntryMs(idea as any);
+    if (entryMs == null) return null;
+    const nowMs = Date.now();
+    const final = result.outcomeStatus === 'expired';
+    const exitMs = Date.parse(String(result.exitDate ?? ''));
+    const toMs = final && Number.isFinite(exitMs) ? Math.min(exitMs, nowMs) : nowMs;
+    if (toMs <= entryMs) return null;
+    const type = String((idea as any).optionType ?? '').toLowerCase().startsWith('p') ? 'put' : 'call';
+    const cb = await contractMinuteBars({ symbol: idea.symbol, expiry: day, optionType: type, strike, fromMs: entryMs, toMs, nowMs });
+    if (!cb.bars.length) return null;
+    return judgePremiumOutcome(cb.bars, plan, entryMs, toMs, { final, source: cb.source });
   }
 
   /**

@@ -30,6 +30,7 @@ import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
 import { ZeroDteIdeas, ActBadge, ideaAct, ideaInFilter, minsTo, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
 import { TradeCard, ResultRow, type CardModel, type ResultModel } from './zd-trade-card';
+import { PastSessions, etTodayKey, playsToResults, useZdSession } from './zd-sessions';
 import { bigContract, resultChip } from '@shared/zero-dte-trade-card';
 import { engineStampLabel, type AutoName } from '@shared/zero-dte-names';
 import { useQuotes, type Quote } from '@/components/ticker/ticker-data';
@@ -508,30 +509,9 @@ function buildCards(d: DeskPayload, flow: FlowStateW | undefined, sn: SniperStat
   return out.sort((x, y) => Number(x.running) - Number(y.running) || x.a.rank - y.a.rank);
 }
 
-function buildResults(d: DeskPayload, flow: FlowStateW | undefined, now: number): ResultModel[] {
-  const out: ResultModel[] = [];
-  const day = etDayKey(now);
-  for (const x of d.ideas ?? []) {
-    if (x.stage !== 'done' || !x.logged) continue;
-    const a = ideaAct(x, d, now);
-    const c = x.contract;
-    out.push({
-      key: `i-${x.key}`, symbol: x.symbol, ideaId: x.ideaId, state: a.state, reason: x.doneReason, at: hhmmIn(x.doneReason),
-      contract: c ? bigContract(c.root === 'SPXW' ? 'SPX' : c.root, { strike: c.strike, optionType: c.optionType, dte: c.dte, expiry: c.expiry }, day) : x.symbol,
-      side: x.side, entryMid: x.loggedPremium, exitMid: null, peakPrem: x.peakPremium ?? null,
-    });
-  }
-  for (const r of flow?.rows ?? []) {
-    if (r.state !== 'reached' && r.state !== 'faded') continue;
-    if (!r.published) continue;
-    out.push({
-      key: `f-${r.id}`, symbol: r.symbol, ideaId: r.ideaId, state: r.state === 'reached' ? 'done_reached' : 'done_faded', reason: r.stateWhy, at: r.lastMarkAt ? new Date(r.lastMarkAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : null,
-      contract: r.contract ? bigContract(r.symbol, { strike: r.contract.strike, type: r.contract.type, dte: r.contract.dte }) : r.symbol,
-      side: r.side === 'long' ? 'CALLS' : 'PUTS', entryMid: r.plan?.entryPremium ?? null, exitMid: r.lastMid, peakPrem: r.peakPremium ?? null,
-    });
-  }
-  return out;
-}
+// TODAY'S RESULTS come from the DB rows (zd-sessions.tsx playsToResults) — one source
+// of truth with the journal. The desk's in-memory done states are not used for results
+// (2026-10-07: the desk showed AMZN as "stop" while its row said "missed entry").
 
 const ZdSetupDetail = lazy(() => import('./zd-setup-detail'));
 
@@ -552,14 +532,15 @@ function NowSection({ cards, quotes, phase, now, onDetails, forming }: { cards: 
   );
 }
 
-function ResultsSection({ rows, onDetails }: { rows: ResultModel[]; onDetails: (r: ResultModel) => void }) {
-  if (!rows.length) return null;
+function ResultsSection({ rows, onDetails, note }: { rows: ResultModel[]; onDetails: (r: ResultModel) => void; note?: string | null }) {
+  if (!rows.length) return note && /unavailable/.test(note) ? <p className="zd-note">Today's results: {note}</p> : null;
   const wins = rows.filter((r) => resultChip(r.state, r.reason).tone === 'win').length;
   const losses = rows.filter((r) => resultChip(r.state, r.reason).tone === 'loss').length;
   return (
     <section className="zd-results" aria-label="Today's results">
       <h2 className="zd-h2"><History size={15} aria-hidden /> Today's results <span className="zd-h2-n">{wins} ✓ · {losses} ✕</span></h2>
       <ul className="zc-results">{rows.map((r) => <ResultRow key={r.key} r={r} onDetails={onDetails} />)}</ul>
+      {note && <p className="zd-note">Results {note}.</p>}
     </section>
   );
 }
@@ -606,7 +587,11 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const d = q.data;
   const [detail, setDetail] = useState<{ ideaId: string; symbol: string; contract: string } | null>(null);
   const cards = useMemo(() => (d ? buildCards(d, fq.data, sq.data, now) : []), [d, fq.data, sq.data, now]);
-  const results = useMemo(() => (d ? buildResults(d, fq.data, now) : []), [d, fq.data, now]);
+  const todayQ = useZdSession(etTodayKey(now));
+  const results = useMemo(() => playsToResults(todayQ.data?.plays ?? []), [todayQ.data]);
+  const resultsNote = todayQ.data
+    ? `from the DB rows (${todayQ.data.plays.length} plays today) · read ${new Date(todayQ.data.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })} ET`
+    : todayQ.isError ? 'results unavailable — the DB read failed (not "no results")' : null;
   const quotes = useQuotes(cards.map((c) => c.underlying));
   if (q.isError && !d) return <QEError title="The 0DTE desk didn't load" message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} className="fd-m" />;
   if (!d) return <QELoading rows={6} label="reading chains, levels and the tape…" className="fd-pad" />;
@@ -619,8 +604,11 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
     <div className={`zd zd2 ${dense ? 'zd-dense' : ''}`}>
       <ZdHeader phase={d.phase} indexEngine={d.indexEngine} />
       <NowSection cards={cards} quotes={quotes.data} phase={d.phase} now={now} onDetails={openDetails} forming={forming} />
-      <ResultsSection rows={results} onDetails={openDetails} />
+      <ResultsSection rows={results} onDetails={openDetails} note={resultsNote} />
       <h3 className="zd-divider">More — closed until you need it</h3>
+      <Fold title="Past sessions" hint="every 0DTE play of any date, from the DB — with a premium replay">
+        <PastSessions />
+      </Fold>
       <Fold title="Forming setups and every 0DTE idea today" hint="not tradable until the trigger prints" count={(d.ideas ?? []).length}>
         <ZeroDteIdeas d={d} nowMs={now} />
       </Fold>

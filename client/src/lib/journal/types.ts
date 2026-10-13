@@ -46,6 +46,9 @@ export interface JournalTradeRow {
   afterStop?: string | null;
   /** Option rows: "peak $5.45 at 10:12 · exit $4.22" — the contract's best price after entry (shared/option-peak.ts). */
   peakLine?: string | null;
+  /** Desk rows from a stock engine: "Shares idea" (shared/options-only.ts). */
+  instrumentLabel?: string | null;
+  /** Budget contract beside the primary| null;
   /** Budget contract beside the primary (shared/budget-contract.ts). */
   primaryLine?: string | null;
   budgetLine?: string | null;

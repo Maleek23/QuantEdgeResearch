@@ -15,6 +15,7 @@ import {
   DESK_BUG_CLASSES, deskIntegrityFlags, failsIntegrity, findDuplicates, type DeskBugClass, type DeskIntegrityFlag,
 } from '@shared/desk-integrity';
 import { readPlanSnapshot } from '@shared/plan-snapshot';
+import { CONTRACT_NOT_RECORDED, SHARES_IDEA_LABEL, contractGap, instrumentIntent } from '@shared/options-only';
 import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
 import { deskRiskBasis, type DeskCall, type DeskManaged, type DeskPeak, type DeskRiskBasis } from '@shared/desk-view';
 
@@ -30,6 +31,8 @@ export type JournalWireRow = Pick<JournalTrade,
   origin?: 'own_idea' | 'quantedge_idea';
   /** Bot book only: the run (paper portfolio) the fill belongs to. */
   runId?: string | null;
+  /** Desk rows from a stock engine: "Shares idea" (shared/options-only.ts). */
+  instrumentLabel?: string | null;
   runLabel?: string | null;
   /** Open bot rows: the last mark and when it was taken — never a 0 standing in for "unknown". */
   mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
@@ -168,6 +171,9 @@ export interface DeskIdea {
   /** Provenance: synthetic backfill / replay rows are not live publications. */
   dataSourceUsed?: string | null;
   sessionContext?: string | null;
+  /** Options-only conversion markers (shared/options-only.ts). */
+  qualitySignals?: unknown;
+  analysis?: string | null;
 }
 
 /** States in which a published plan has actually been entered. */
@@ -202,7 +208,13 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     return { excluded: AWAITING_ENTRY_REASON };
   }
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
+  // Options-only (shared/options-only.ts): an option engine's idea without a usable
+  // contract — stored as shares by a legacy fallback, or missing strike/premium —
+  // is listed as "contract not recorded", never scored as shares or at a made-up premium.
+  const gap = contractGap(i);
+  if (gap) return { excluded: `${CONTRACT_NOT_RECORDED} — ${gap}` };
   const option = i.assetType === 'option';
+  const sharesIdea = instrumentIntent(i) === 'shares';
   // Operator rule 2026-10-07 (supersedes the 2026-10-06 exclusion): never hide a
   // trade the platform called. A pass-priced contract exit keeps its row and P&L;
   // verifyDeskRows labels it unverified (exit_premium_pass, shared/desk-integrity.ts).
@@ -237,7 +249,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const exitTimeNote = exitTime && Number.isFinite(exitMs) && isHitTimeUnknown(status, i.exitTimeSource)
     ? unresolvedExitLabel(exitMs) : null;
   const plan = [
-    `Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
+    `${sharesIdea ? `${SHARES_IDEA_LABEL} (${i.source ?? "stock engine"} publishes the underlying by design) — ` : ""}Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
     `plan${snapshot ? ` (${snapshot.version} · ${snapshot.capturedAt})` : ''}: entry ${planEntry} · target ${planTarget ?? '—'} · stop ${planStop ?? '—'}${planRr ? ` · R:R ${planRr.toFixed(1)}` : ''}`,
     (() => {
       // The ONE grade, as published: the logged stamp when present, else rebuilt
@@ -296,6 +308,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       screenshot: null,
       importBatchId: null,
       broker: 'trade-desk',
+      ...(sharesIdea ? { instrumentLabel: SHARES_IDEA_LABEL } : {}),
       ...(exitTimeNote ? { exitTimeNote } : {}),
       ...(capture != null ? { captureRatio: capture } : {}),
       ...(afterStop ? { afterStop } : {}),

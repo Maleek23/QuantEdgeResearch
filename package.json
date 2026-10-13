@@ -85,6 +85,7 @@
     "test:0dte-runners": "tsx scripts/test-0dte-runners.ts",
     "research:runner-replay": "tsx research/runner-replay.ts",
     "test:liquidity-gate": "tsx scripts/test-liquidity-gate.ts",
+    "test:journal-integrity": "tsx scripts/test-journal-integrity.ts",
     "test:short-dated": "tsx scripts/test-short-dated-withhold.ts",
     "test:nexus-0dte-ux": "tsx scripts/test-nexus-0dte-ux.ts",
     "research:bot-diagnose": "tsx research/bot-diagnose.ts",

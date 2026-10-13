@@ -220,16 +220,16 @@ assert.deepEqual([deskRow({}).status, deskRow({}).realizedPnL], ['open', null]);
 assert.equal(deskRow({ outcomeStatus: 'hit_target', exitPrice: 110, exitDate: '2026-09-03T14:00:00Z' }).realizedPnL, 100, '+10% on $1,000 notional');
 assert.equal(deskRow({ direction: 'short', outcomeStatus: 'hit_stop', exitPrice: 105, exitDate: '2026-09-03T14:00:00Z' }).realizedPnL, -50, 'short stopped 5% higher');
 assert.equal(deskRow({ assetType: 'option', optionType: 'call', strikePrice: 100, entryPremium: 2, exitPremium: 3.5, outcomeStatus: 'hit_target', exitDate: '2026-09-02T14:00:00Z' }).realizedPnL, 150, '1 contract');
-assert.equal(deskRow({ assetType: 'option', optionType: 'put', direction: 'short', entryPremium: 2, optionPercentGain: -40, outcomeStatus: 'hit_stop', exitDate: '2026-09-02T14:00:00Z' }).direction, 'long', 'bought put = long contract');
+assert.equal(deskRow({ assetType: 'option', optionType: 'put', strikePrice: 95, direction: 'short', entryPremium: 2, optionPercentGain: -40, outcomeStatus: 'hit_stop', exitDate: '2026-09-02T14:00:00Z' }).direction, 'long', 'bought put = long contract');
 assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', percentGain: 0 })), 'unmeasured expiry is excluded, not scored 0');
 // ── position bias: a bought put is BEARISH, not "▲ LONG" (shared/position-bias.ts) ──
 {
-  const putRow = deskRow({ assetType: 'option', optionType: 'put', direction: 'short', entryPremium: 2, strikePrice: 279, expiryDate: '2026-09-30' });
+  const putRow = deskRow({ assetType: 'option', optionType: 'put', strikePrice: 95, direction: 'short', entryPremium: 2, strikePrice: 279, expiryDate: '2026-09-30' });
   const pb = positionBias(putRow);
   assert.deepEqual([pb.bias, pb.arrow, pb.label, pb.leg], ['bear', '▼', 'BEAR', 'long put'], 'desk put row (direction long) renders bearish');
   assert.equal(positionBiasText(putRow), '▼ BEAR · long put');
   assert.equal(positionBiasText(putRow, true), '▼ BEAR');
-  assert.equal(positionBiasText(deskRow({ assetType: 'option', optionType: 'call', entryPremium: 2 })), '▲ BULL · long call');
+  assert.equal(positionBiasText(deskRow({ assetType: 'option', optionType: 'call', strikePrice: 100, entryPremium: 2 })), '▲ BULL · long call');
   assert.equal(positionBiasText({ direction: 'long', assetType: 'stock' }), '▲ BULL · long stock');
   assert.equal(positionBiasText({ direction: 'short', assetType: 'stock' }), '▼ BEAR · short stock');
   assert.equal(positionBiasText({ direction: 'short', assetType: 'option', optionType: 'call' }), '▼ BEAR · short call');

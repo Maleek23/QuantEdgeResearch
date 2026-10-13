@@ -50,6 +50,7 @@ import { BoundedCache } from './lib/bounded-cache';
 import { readShared, writeShared } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
 import { etParts, etWallToMs } from '@shared/loss-rules';
+import { OPTION_INTENT_SIGNAL } from '@shared/options-only';
 import {
   IGNITION_CFG, ignitionGroups, ideaCapCheck, ideaVehicles, intradayMemberFromBars, median, pickStructuralTargets, r2,
   scoreDaily, scoreIntraday, scoreSwing, scoreWeekly, shouldLogTransition, sortGroupReads, STAGE_RANK,
@@ -579,7 +580,9 @@ async function selectOption(symbol: string, side: Side, entry: number, stop: num
 }
 const withOption = (base: Record<string, any>, pick: any, tier: string) => (pick
   ? { ...base, assetType: 'option', optionType: pick.optionType, strikePrice: pick.strike, expiryDate: pick.expiry, entryPremium: Number(pick.entryPremium.toFixed(2)), optionDte: pick.dte, expiryTier: tier }
-  : { ...base, assetType: 'stock' });
+  // Options-only (shared/options-only.ts): no pick → option intent stamped; the write point
+  // publishes the budget contract or withholds. Never shares.
+  : { ...base, assetType: 'stock', qualitySignals: [...(base.qualitySignals ?? []), OPTION_INTENT_SIGNAL] });
 
 function dateParts(ms: number): [number, number, number] { const p = etParts(ms); return [p.y, p.m, p.d]; }
 
@@ -638,7 +641,7 @@ async function emitIntraday(st: HorizonState, nowMs: number): Promise<number> {
         const c = w.contract;
         const idea = c
           ? { ...base, assetType: 'option', optionType: c.optionType, strikePrice: c.strike, expiryDate: c.expiry, entryPremium: Number(Number(c.mid).toFixed(2)), expiryTier: '0DTE', qualitySignals: [...base.qualitySignals, c.qty ? `qty:${c.qty}` : '', c.premiumStop ? `prem_stop:${r2(c.premiumStop)}` : '', c.premiumT1 ? `prem_t1:${r2(c.premiumT1)}` : ''].filter(Boolean) }
-          : { ...base, assetType: 'stock' };
+          : { ...base, assetType: 'stock', qualitySignals: [...(base.qualitySignals ?? []), OPTION_INTENT_SIGNAL] };
         Object.assign(idea, {
           entryValidUntil: new Date(nowMs + 10 * 60_000).toISOString(),
           exitBy: new Date(etWallToMs(...dateParts(nowMs), 15 * 60 + 55)).toISOString(),

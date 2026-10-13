@@ -225,6 +225,16 @@ import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
 import { shortDatedReason, sameDayContractMissing, SHORT_DATED_WITHHELD_CODE } from "@shared/short-dated-option";
+import { OPTION_ONLY_SOURCES, OPTIONS_ONLY_WITHHELD_CODE, hasOptionIntentSignal, promoteBudgetContract, stripFailedContract } from "@shared/options-only";
+import { premiumPlanFor } from "@shared/premium-outcome";
+import { wholeContracts } from "@shared/budget-contract";
+import { recordWithheldIdea } from "./lib/withheld-ideas";
+
+/** One whole primary contract costs more than the risk budget (a fraction is not a trade). */
+function overBudgetPrimary(idea: { entryPremium?: number | null }, budget: number): boolean {
+  const p = Number(idea.entryPremium);
+  return Number.isFinite(p) && p > 0 && wholeContracts(budget, p) < 1;
+}
 import { checkIdeaPriceScale, usesEquityQuote } from "@shared/idea-price-scale";
 import { logger } from "./logger";
 
@@ -2775,19 +2785,30 @@ export class DatabaseStorage implements IStorage {
     // 💵 An option idea without an entry premium can never be scored — the
     // journal drops it (SR 11-7 v6 F-4: all 142 spx_session ideas). Publish it
     // as an underlying-only idea that says so. See shared/option-premium-guard.ts.
+    // OPTIONS-ONLY (shared/options-only.ts): an option-intended idea is never
+    // converted to shares. A missing premium / failed producer pick / illiquid
+    // primary sets `optionFallbackWhy`; the budget contract then becomes the
+    // tradable contract, or the idea is WITHHELD (admin withheld list).
+    const automatedWrite = !["manual", "user", "tradingview"].includes(String((sourced as any).source ?? "").toLowerCase()) &&
+      (sourced as any).status !== "draft" && (sourced as any).sessionContext !== "backfill";
+    let optionFallbackWhy: string | null = null;
     const guarded = ensureScorableOptionIdea(sourced as any);
-    if (guarded.converted) {
-      // A short-dated option without a premium is withheld, never shares.
-      const sd = shortDatedReason(sourced as any, Date.now());
-      if (sd) {
-        logger.warn(`[PREMIUM-GUARD] WITHHELD ${(sourced as any).source ?? "unknown"} ${sourced.symbol}: short-dated option (${sd}) has no entry premium — not published as an underlying-only stock idea`);
-        throw new Error(`Withheld trade idea: ${SHORT_DATED_WITHHELD_CODE}: short-dated option (${sd}) has no entry premium`);
-      }
-      logger.warn(
-        `[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`,
-      );
-    }
     let idea: InsertTradeIdea = guarded.idea as InsertTradeIdea;
+    if (guarded.converted) {
+      if (automatedWrite) {
+        optionFallbackWhy = `no entry premium recorded for ${describeInstrument(sourced as any)}`;
+        idea = stripFailedContract(sourced as any) as InsertTradeIdea;
+        logger.warn(`[OPTIONS-ONLY] ${(sourced as any).source ?? "unknown"} ${sourced.symbol}: ${optionFallbackWhy} — budget contract or withheld, never shares`);
+      } else {
+        logger.warn(`[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`);
+      }
+    } else if (automatedWrite && String((idea as any).assetType) !== "option" &&
+      (hasOptionIntentSignal(idea as any) || OPTION_ONLY_SOURCES.has(String((idea as any).source ?? "").toLowerCase()))) {
+      // A producer whose contract pick failed (gex/sector-ignition/leaders fallbacks), or an option-only engine sending a stock idea.
+      optionFallbackWhy = `${(idea as any).source ?? "engine"} found no contract for this option idea`;
+      idea = stripFailedContract(idea as any) as InsertTradeIdea;
+      logger.warn(`[OPTIONS-ONLY] ${(idea as any).source ?? "unknown"} ${idea.symbol}: ${optionFallbackWhy} — budget contract or withheld, never shares`);
+    }
 
     // 🛡️ Shared validation gate — blocks malformed scanner output BEFORE
     // it reaches the DB. Catches the entire class of bugs we kept fixing
@@ -2855,23 +2876,25 @@ export class DatabaseStorage implements IStorage {
       !ALWAYS_INSERT.has(src) &&
       (idea as any).sessionContext !== "backfill" &&
       (idea as any).status !== "draft" &&
-      String((idea as any).assetType) === "option"
+      String((idea as any).assetType) === "option" &&
+      !optionFallbackWhy
     ) {
       const { applyLiquidityGate } = await import("./lib/liquidity-gate");
       const liq = await applyLiquidityGate(idea as any);
-      if (liq.action === "stepped" || liq.action === "underlying_only") {
+      if (liq.action === "stepped" || liq.action === "underlying_only" || liq.action === "withheld") {
         logger.info(`[LIQ-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${liq.note}`);
       }
-      // 0DTE / ≤1DTE ideas never become shares (shared/short-dated-option.ts):
-      // no liquid contract → withheld, with the reason logged.
-      if (liq.action === "withheld") {
-        logger.warn(`[LIQ-GATE] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${liq.note}`);
-        throw new Error(`Withheld trade idea: ${liq.note}`);
-      }
-      idea = liq.idea as InsertTradeIdea;
-      if (liq.action === "stepped") {
-        const v3 = validateTradeIdeaForCreate(idea);
-        if (!v3.ok) throw new Error(`Invalid trade idea after liquidity step: ${v3.reason}`);
+      // OPTIONS-ONLY: no liquid primary strike (short-dated or not) → the budget
+      // contract becomes the tradable contract below, else the idea is withheld.
+      // Never the underlying-only share conversion.
+      if (liq.action === "withheld" || liq.action === "underlying_only") {
+        optionFallbackWhy = liq.note || "primary contract failed the liquidity gate";
+      } else {
+        idea = liq.idea as InsertTradeIdea;
+        if (liq.action === "stepped") {
+          const v3 = validateTradeIdeaForCreate(idea);
+          if (!v3.ok) throw new Error(`Invalid trade idea after liquidity step: ${v3.reason}`);
+        }
       }
     }
 
@@ -2884,14 +2907,48 @@ export class DatabaseStorage implements IStorage {
       (idea as any).status !== "draft" &&
       String((idea as any).assetType) === "option"
     ) {
+      let pick: any = null;
+      let pickWhy = "";
       try {
         const { attachBudgetContract } = await import("./lib/budget-contract-attach");
-        const bc = await attachBudgetContract(idea as any);
+        // A fallback idea needs the budget pick even when the BUDGET_CONTRACT display flag is off.
+        const bc = await attachBudgetContract(idea as any, optionFallbackWhy ? { env: { ...process.env, BUDGET_CONTRACT: "on" } } : {});
         idea = bc.idea as InsertTradeIdea;
+        pick = bc.pick; pickWhy = bc.reason;
         logger.info(`[BUDGET] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${bc.pick ? bc.reason : `no budget contract — ${bc.reason}`}`);
       } catch (e: any) {
-        logger.warn(`[BUDGET] ${(idea as any).symbol}: attach failed — ${e?.message ?? e}`);
+        pickWhy = `attach failed — ${e?.message ?? e}`;
+        logger.warn(`[BUDGET] ${(idea as any).symbol}: ${pickWhy}`);
       }
+      // Primary over budget (one contract costs more than the risk budget) is a fallback too.
+      if (!optionFallbackWhy && pick && overBudgetPrimary(idea as any, pick.budget)) {
+        optionFallbackWhy = `primary ${describeInstrument(idea as any)} @ $${Number((idea as any).entryPremium).toFixed(2)} costs more than the $${pick.budget} budget for one whole contract`;
+      }
+      if (optionFallbackWhy) {
+        if (pick) {
+          const primary = { contract: describeInstrument(idea as any), entryPremium: (idea as any).entryPremium ?? null };
+          idea = promoteBudgetContract(idea as any, pick, optionFallbackWhy, Date.now()) as InsertTradeIdea;
+          (idea as any).convergenceSignalsJson = { ...((idea as any).convergenceSignalsJson ?? {}), optionsOnly: { ...((idea as any).convergenceSignalsJson?.optionsOnly ?? {}), primary } };
+          logger.info(`[OPTIONS-ONLY] ${src || "unknown"} ${(idea as any).symbol}: published on budget contract ${pick.label} — ${optionFallbackWhy}`);
+          const v4 = validateTradeIdeaForCreate(idea);
+          if (!v4.ok) throw new Error(`Invalid trade idea after budget promotion: ${v4.reason}`);
+        } else {
+          const reason = `${optionFallbackWhy}; no liquid whole contract fits the budget (${pickWhy || "no pick"})`;
+          void recordWithheldIdea(sourced as any, OPTIONS_ONLY_WITHHELD_CODE, reason);
+          throw new Error(`Withheld trade idea: ${OPTIONS_ONLY_WITHHELD_CODE}: ${reason}`);
+        }
+      }
+    }
+    // An option-intended idea that never reached the budget step must not leave without a premium (or as shares).
+    if (optionFallbackWhy && !(String((idea as any).assetType) === "option" && Number((idea as any).entryPremium) > 0)) {
+      void recordWithheldIdea(sourced as any, OPTIONS_ONLY_WITHHELD_CODE, optionFallbackWhy);
+      throw new Error(`Withheld trade idea: ${OPTIONS_ONLY_WITHHELD_CODE}: ${optionFallbackWhy}`);
+    }
+    // PREMIUM PLAN (shared/premium-outcome.ts): the underlying T1/T2/stop mapped to
+    // the contract's premium ONCE, at publish — the tracker judges the option on it.
+    if (String((idea as any).assetType) === "option" && (idea as any).status !== "draft") {
+      const pp = premiumPlanFor(idea as any, { zeroDte: !!shortDatedReason(idea as any, Date.now()) });
+      if (pp) (idea as any).convergenceSignalsJson = { ...(((idea as any).convergenceSignalsJson && typeof (idea as any).convergenceSignalsJson === "object") ? (idea as any).convergenceSignalsJson : {}), premiumPlan: pp };
     }
 
     // 0DTE never becomes shares (shared/short-dated-option.ts): a same-day
@@ -2900,6 +2957,7 @@ export class DatabaseStorage implements IStorage {
     if (!["manual", "user"].includes(String(src).toLowerCase()) && (idea as any).status !== "draft" && (idea as any).sessionContext !== "backfill") {
       const missing = sameDayContractMissing(idea as any, Date.now());
       if (missing) {
+        void recordWithheldIdea(idea as any, SHORT_DATED_WITHHELD_CODE, missing);
         logger.warn(`[0DTE-GUARD] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${missing}`);
         throw new Error(`Withheld trade idea: ${SHORT_DATED_WITHHELD_CODE}: ${missing}`);
       }

@@ -1,9 +1,10 @@
 /**
- * NEXUS views — "Board" (the curated NEXUS dashboard, unchanged) and "0DTE"
- * (the 0DTE desk). A thin segment above the board, deep-linkable with
- * ?tab=oracle&nx=0dte (or /t?nx=0dte). The board keeps its fit-to-viewport
- * height: the host subtracts the 34px segment from --qe-main-h, so this adds a
- * view without touching the NEXUS layout itself.
+ * NEXUS views — "Board" (the curated NEXUS dashboard, unchanged), "0DTE"
+ * (the 0DTE desk) and "History" (setups by day with outcomes + data health,
+ * client/src/components/integrity/setups-by-day.tsx). A thin segment above the
+ * board, deep-linkable with ?tab=oracle&nx=0dte|history (or /t?nx=…). The board
+ * keeps its fit-to-viewport height: the host subtracts the 34px segment from
+ * --qe-main-h, so this adds views without touching the NEXUS layout itself.
  */
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearch } from 'wouter';
@@ -13,10 +14,14 @@ import './zero-dte-desk.css';
 
 const Dashboard = lazy(() => import('@/components/dashboard/dashboard').then((m) => ({ default: m.Dashboard })));
 const ZeroDteView = lazy(() => import('./zero-dte-desk'));
+const SetupsByDay = lazy(() => import('@/components/integrity/setups-by-day'));
 
-type View = 'board' | '0dte';
+type View = 'board' | '0dte' | 'history';
 const readView = (): View => {
-  try { return new URLSearchParams(window.location.search).get('nx') === '0dte' ? '0dte' : 'board'; } catch { return 'board'; }
+  try {
+    const v = new URLSearchParams(window.location.search).get('nx');
+    return v === '0dte' ? '0dte' : v === 'history' ? 'history' : 'board';
+  } catch { return 'board'; }
 };
 
 export function NexusViews() {
@@ -28,7 +33,7 @@ export function NexusViews() {
     setViewState(v);
     try {
       const u = new URL(window.location.href);
-      if (v === '0dte') u.searchParams.set('nx', '0dte'); else u.searchParams.delete('nx');
+      if (v !== 'board') u.searchParams.set('nx', v); else u.searchParams.delete('nx');
       window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`);
     } catch { /* URL sync is a convenience */ }
   }, []);
@@ -37,6 +42,7 @@ export function NexusViews() {
       <div className="nx-views" role="tablist" aria-label="NEXUS views" data-tour="nexus-views">
         <button type="button" role="tab" aria-selected={view === 'board'} onClick={() => setView('board')}>BOARD</button>
         <button type="button" role="tab" aria-selected={view === '0dte'} onClick={() => setView('0dte')} data-tour="nexus-0dte">0DTE</button>
+        <button type="button" role="tab" aria-selected={view === 'history'} onClick={() => setView('history')} title="Setups by day with outcomes + data health">HISTORY</button>
       </div>
       {view === 'board' ? (
         <div className="nx-board-host">
@@ -44,6 +50,10 @@ export function NexusViews() {
             <Dashboard page="nexus" />
           </Suspense>
         </div>
+      ) : view === 'history' ? (
+        <Suspense fallback={<RouteFallback tiles={[[0, 0, 12, 12]]} />}>
+          <SetupsByDay />
+        </Suspense>
       ) : (
         <Suspense fallback={<RouteFallback tiles={[[0, 0, 12, 12]]} />}>
           <ZeroDteView />

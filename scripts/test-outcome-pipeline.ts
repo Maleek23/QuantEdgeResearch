@@ -298,11 +298,11 @@ t('option idea without entry premium → underlying-only, stated in the idea, ho
   assert.ok(i.analysis.startsWith('VWAP reclaim. ' + UNDERLYING_ONLY_NOTE_HEAD));
   assert.match(i.analysis, /SPY 705C 2026-09-30/);
   assert.deepEqual(i.qualitySignals, ['x', UNDERLYING_ONLY_SIGNAL]);
-  // …and the journal scores it on the underlying instead of excluding it.
+  // Options-only (2026-10-13): the converted row is NOT scored as shares — the journal lists it as "contract not recorded".
   const before = mapDeskIdea({ ...spx, id: 'a', outcomeStatus: 'hit_target', exitPrice: 703, percentGain: 0.41, exitDate: '2026-09-30T11:00:00-05:00' } as any);
   assert.ok('excluded' in before && /entry premium/.test((before as any).excluded));
   const after = mapDeskIdea({ ...i, id: 'a', outcomeStatus: 'hit_target', exitPrice: 703, percentGain: 0.41, exitDate: '2026-09-30T11:00:00-05:00' } as any);
-  assert.ok('row' in after && (after as any).row.realizedPnL > 0);
+  assert.ok('excluded' in after && /^contract not recorded/.test((after as any).excluded));
 });
 t('priced options, zero-premium options, and operator ideas', () => {
   assert.equal(ensureScorableOptionIdea({ ...spx, entryPremium: 1.25 } as any).converted, false);
