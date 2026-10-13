@@ -8,7 +8,7 @@
  */
 
 export const ASK_QUANTINUM_NAME = 'Ask Quantinum';
-export const ASK_QUANTINUM_DISCLAIMER = 'Educational, not investment advice.';
+export const ASK_QUANTINUM_DISCLAIMER = 'Educational, can be wrong — decisions are yours.';
 
 // ─── Flag + who sees it ──────────────────────────────────────
 

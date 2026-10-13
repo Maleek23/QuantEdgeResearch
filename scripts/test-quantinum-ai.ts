@@ -296,7 +296,7 @@ async function main() {
     ok(evs.includes('delta') && evs[evs.length - 1] === 'done', 'deltas then done');
     const done = a.events.at(-1)!.data;
     de(done.citations.map((c: any) => c.key), ['quote.last', 'gex.walls'], 'done carries source chips for cited pack fields');
-    eq(done.disclaimer, 'Educational, not investment advice.', 'disclaimer on every answer');
+    eq(done.disclaimer, 'Educational, can be wrong — decisions are yours.', 'disclaimer on every answer');
     ok(!seenPrompts[0].includes('u3') && !/@/.test(seenPrompts[0]), 'provider never sees the user id or an email');
     ok(seenPrompts[0].includes('"key":"setup.grade"'), 'provider sees the grade breakdown');
 

@@ -75,12 +75,12 @@ export interface StreamHandlers {
   onDelta: (text: string) => void;
   onReset?: () => void;
   onLookup?: (l: { tool: string; symbol: string }) => void;
-  onDone: (d: { citations: { key: string; label: string; source: string; asOf: string | null }[]; provider: string | null; model: string | null; remaining: number; quota: number; disclaimer: string }) => void;
+  onDone: (d: { citations: { key: string; label: string; source: string; asOf: string | null; value?: string }[]; provider: string | null; model: string | null; remaining: number; quota: number; disclaimer: string }) => void;
   onError: (e: { code: string; error: string }) => void;
 }
 
 /** POST the question and read the SSE stream (fetch, so the session cookie rides along). */
-export async function streamAsk(body: { question: string; target: AskTarget; mode: 'quick' | 'deep'; history: { role: 'user' | 'assistant'; content: string }[] }, h: StreamHandlers, signal: AbortSignal) {
+export async function streamAsk(body: { question: string; target: AskTarget; mode: 'quick' | 'deep'; history: { role: 'user' | 'assistant'; content: string }[]; page?: unknown; horizon?: string }, h: StreamHandlers, signal: AbortSignal) {
   let r: Response;
   try {
     r = await fetch('/api/quantinum/ai/ask', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', ...csrfHeader() }, body: JSON.stringify(body), signal });
