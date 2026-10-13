@@ -26,6 +26,10 @@ import {
   UsageLedger, quantinumAiDir, readQuantinumAiConfig, readUsage, resetQuantinumAiConfig, summarizeUsage, writeQuantinumAiConfig,
 } from './quantinum-ai-ledger';
 import path from 'node:path';
+import { parsePageContext, pageContextLine, type PageContext } from '@shared/quantinum-analyst';
+import { HORIZON_WINDOWS, parseHorizon, type Horizon } from '@shared/quantinum-horizon';
+import { defaultAnalystDeps, type AnalystDeps } from './quantinum-analyst-tools';
+import { fileConversationStore, registerQuantinumAnalystRoutes, type ConversationStore } from './quantinum-analyst-routes';
 
 export interface QuantinumAiDeps {
   env: () => { mode: string | undefined; capUsd: string | undefined };
@@ -38,6 +42,39 @@ export interface QuantinumAiDeps {
   writeConfig: (cfg: Pick<QuantinumAiConfig, 'quick' | 'deep'>, actor: string) => QuantinumAiConfig;
   resetConfig: () => void;
   audit: (req: Request, action: string, detail: Record<string, unknown>) => void;
+  /** Slash-command tools + horizon GEX read. Optional so older test deps still work (no horizon field then). */
+  analyst?: AnalystDeps;
+  conversations?: ConversationStore;
+}
+
+/**
+ * Page context → target: "what are the levels?" on a page with a focused ticker
+ * or a selected NEXUS setup is about that object, not the bare page.
+ */
+export function applyPageContext(target: ReturnType<typeof parseAskTarget>, page: PageContext): ReturnType<typeof parseAskTarget> {
+  if (target.kind !== 'page') return target;
+  if (page.setupId) return { ...target, kind: 'setup', id: page.setupId, symbol: target.symbol ?? page.symbol };
+  if (!target.symbol && page.symbol) return { ...target, kind: 'ticker', symbol: page.symbol };
+  return target;
+}
+
+/** Add page context + the timeframe's GEX bucket to the pack (every value sourced + stamped). */
+export async function addAnalystFields(pack: ContextPack, page: PageContext, horizon: Horizon, analyst: AnalystDeps | undefined): Promise<ContextPack> {
+  const w = HORIZON_WINDOWS[horizon];
+  const fields = [...pack.fields];
+  const missing = [...pack.missing];
+  fields.push({ key: 'page.context', label: 'Page context', value: pageContextLine(page), source: 'the page the question was asked from' });
+  fields.push({ key: 'horizon', label: 'Timeframe', value: { horizon, expiries: w.expiries, gexBucket: w.gexBucket, note: w.bucketNote }, source: 'member timeframe picker' });
+  const sym = pack.target.symbol ?? (fields.find((f) => f.key === 'subject.symbol')?.value as string | undefined) ?? null;
+  if (analyst && sym) {
+    try {
+      const b = await analyst.getGexBuckets(sym);
+      const k = b?.byDte?.[w.gexBucket];
+      if (k) fields.push({ key: 'gex.horizon', label: `GEX ${w.label} walls`, value: { expiries: w.expiries, bucket: w.gexBucket, callWall: k.callWall, putWall: k.putWall, gammaFlip: k.gammaFlipPrice, maxGammaStrike: k.maxGammaStrike, expirations: k.expirationsCount, note: w.bucketNote }, source: `GEX DTE buckets (${b!.source ?? 'source unknown'})`, asOf: b!.asOf });
+      else missing.push(`GEX walls for the ${w.label.toLowerCase()} timeframe (${w.expiries})`);
+    } catch { missing.push(`GEX walls for the ${w.label.toLowerCase()} timeframe (${w.expiries})`); }
+  }
+  return { ...pack, fields, missing };
 }
 
 async function defaultCaller(req: Request): Promise<AskCaller> {
@@ -67,6 +104,8 @@ export function defaultQuantinumAiDeps(): QuantinumAiDeps {
     readConfig: () => readQuantinumAiConfig(),
     writeConfig: (cfg, actor) => writeQuantinumAiConfig(cfg, actor),
     resetConfig: () => resetQuantinumAiConfig(),
+    analyst: defaultAnalystDeps(),
+    conversations: fileConversationStore(path.join(quantinumAiDir(), 'conversations')),
     audit: (req, action, detail) => {
       import('./admin-audit').then(({ appendAdminAudit, auditActor }) =>
         appendAdminAudit({ action, actor: auditActor(req as any), target: 'quantinum-ai', detail, ip: req.ip ?? null }),
@@ -137,7 +176,9 @@ export function registerQuantinumAiRoutes(
     const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
     if (!question || question.length > 2000) return res.status(400).json({ error: 'Ask a question (up to 2,000 characters).', code: 'bad_request' });
     const askMode: AskMode = req.body?.mode === 'deep' ? 'deep' : 'quick';
-    const target = parseAskTarget(req.body?.target);
+    const pageCtx = parsePageContext(req.body?.page);
+    const horizon = parseHorizon(req.body?.horizon);
+    const target = applyPageContext(parseAskTarget(req.body?.target), pageCtx);
     const history = sanitizeHistory(req.body?.history);
     const userKey = caller.userId!;
     const tier = caller.role === 'super' ? 'admin' : caller.role === 'desk' ? `desk:${caller.tier ?? 'free'}` : String(caller.tier ?? 'free');
@@ -152,6 +193,7 @@ export function registerQuantinumAiRoutes(
     }
 
     let pack: ContextPack = await buildContextPack(target, { userId: caller.userId, isSuper: caller.role === 'super' }, d.context);
+    pack = await addAnalystFields(pack, pageCtx, horizon, d.analyst);
     let prompt = buildPrompt(pack, question, history, askMode);
     const worst = worstCaseUsd(chain, prompt.system + prompt.user, askMode);
     const gate = d.ledger.acquire(userKey, quota, capUsd, worst);
@@ -209,7 +251,7 @@ export function registerQuantinumAiRoutes(
         break;
       }
       if (violatesNoAdvice(answer)) { answer += NO_ADVICE_NOTE; send('delta', { text: NO_ADVICE_NOTE }); }
-      const citations = extractCitations(answer, pack).map((f) => ({ key: f.key, label: f.label, source: f.source, asOf: f.asOf ?? null }));
+      const citations = extractCitations(answer, pack).map((f) => ({ key: f.key, label: f.label, source: f.source, asOf: f.asOf ?? null, value: JSON.stringify(f.value ?? null).slice(0, 200) }));
       const remaining = Math.max(0, quota - (d.ledger.usedBy(userKey) + 1));
       send('done', { citations, provider, model, fallbacks, lookups, usage: { inputTokens: inTok, outputTokens: outTok, costUsd: +spend.toFixed(6) }, remaining, quota, disclaimer: ASK_QUANTINUM_DISCLAIMER });
     } catch (e) {
@@ -230,6 +272,14 @@ export function registerQuantinumAiRoutes(
       });
       if (!res.writableEnded) res.end();
     }
+  });
+
+  // ─── analyst: slash commands, shared history, timeframe pref ─────
+  registerQuantinumAnalystRoutes(app, requireMember, {
+    mode: () => D().env().mode,
+    caller: (req) => D().caller(req),
+    tools: () => D().analyst ?? defaultAnalystDeps(),
+    store: () => (D().conversations ??= fileConversationStore(path.join(quantinumAiDir(), 'conversations'))),
   });
 
   // ─── admin ────────────────────────────────────────────────

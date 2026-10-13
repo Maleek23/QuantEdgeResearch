@@ -17,6 +17,7 @@ import { RotationStrip, rotationTagFor, useRotationMap } from '@/components/sect
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearch } from 'wouter';
 import { NEXUS_IDEA_PARAM, NEXUS_SYM_PARAM, readNexusTarget } from '@/lib/nexus-link';
+import { setAskFocusSetup } from '@/lib/quantinum-analyst';
 import { Activity, Search } from 'lucide-react';
 import { SignalGrid } from '@/components/hunt/cockpit/signal-grid';
 import { SignalTable } from '@/components/hunt/cockpit/signal-table';
@@ -270,7 +271,7 @@ export function NexusBoardTool() {
     return (
       <div key={pick.ideaId} className={`nxp-acc ${open ? 'open' : ''}`}>
         <SetupRow pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId}
-          onSelect={() => { select.setup(pick); setExpandedId(open ? null : pick.ideaId); }} />
+          onSelect={() => { select.setup(pick); setAskFocusSetup(open ? null : { id: pick.ideaId, symbol: pick.symbol }); setExpandedId(open ? null : pick.ideaId); }} />
         {open && <div className="nxp-acc-body nxd nxd-detail" data-testid="nexus-inline-detail"><DetailSetup id={pick.ideaId} tab={inlineTab} onTab={setInlineTab} /></div>}
       </div>
     );
