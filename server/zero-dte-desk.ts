@@ -68,10 +68,10 @@ const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
 
 // ─── chains ──────────────────────────────────────────────────────────────
 
-interface DeskChain { rows: DeskChainRow[]; expirations: string[]; spot: number; source: string; fetchedAt: number }
+export interface DeskChain { rows: DeskChainRow[]; expirations: string[]; spot: number; source: string; fetchedAt: number }
 const chainCache = new BoundedCache<string, { at: number; c: DeskChain | null }>({ name: '0dte.deskChains', maxEntries: 30, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 
-async function getDeskChain(sym: string, priority: boolean): Promise<DeskChain | null> {
+export async function getDeskChain(sym: string, priority: boolean): Promise<DeskChain | null> {
   const hit = chainCache.get(sym);
   if (hit && Date.now() - hit.at < (hit.c ? CHAIN_TTL_MS : 30_000)) return hit.c;
   let c: DeskChain | null = null;

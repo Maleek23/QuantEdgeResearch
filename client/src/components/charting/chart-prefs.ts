@@ -31,6 +31,10 @@ import { useSyncExternalStore } from 'react';
 import { TF_CONFIG } from '@/components/charting/chart-engine';
 
 export type GexMode = 'bubbles' | 'lines' | 'off';
+/** Which exposure the nodes show: dealer gamma, vanna, or both (VEX as rings). */
+export type GexMetric = 'gex' | 'vex' | 'both';
+/** Expiry horizon feeding walls, nodes and zero-γ (shared/gex-horizon.ts). */
+export type ChartHorizon = 'today' | 'week' | 'opex' | 'all';
 export type RangeKey = '1D' | '5D' | 'ALL';
 export type ChartType = 'candles' | 'bars' | 'line' | 'area';
 /** Right price scale: linear, logarithmic, or percent from the first visible bar. */
@@ -65,6 +69,16 @@ export interface ChartPrefs {
   /** Full chart: session key levels from /api/levels — prior day H/L/C, 15m
    *  opening range, pre-market (cash index: ES-based overnight) H/L. */
   keyLevels: boolean;
+  /** Full chart: GEX / VEX / both on the nodes. */
+  gexMetric: GexMetric;
+  /** Full chart: Apex-node (and projected node) labels. */
+  gexLabels: boolean;
+  /** Full chart: current nodes projected past the last candle (dimmer). */
+  gexProject: boolean;
+  /** Full chart: expiry horizon for walls / nodes / zero-γ. */
+  horizon: ChartHorizon;
+  /** Full chart: expected-move lines (today / this week) + forward cone. */
+  expMove: boolean;
   /** Keys the user explicitly set (the rest follow DEFAULT_CHART_PREFS). */
   setKeys?: (keyof ChartPrefs)[];
 }
@@ -77,6 +91,7 @@ const LEGACY_KEY = 'qe-flowchart-v1';
 export const DEFAULT_CHART_PREFS: ChartPrefs = {
   tf: '5m', range: '1D', extended: true, gex: 'bubbles', dp: false, flow: false, ma: false, volume: false, type: 'candles',
   walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false, keyLevels: false,
+  gexMetric: 'gex', gexLabels: true, gexProject: true, horizon: 'all', expMove: true,
 };
 
 function read(): ChartPrefs {
@@ -107,6 +122,8 @@ function read(): ChartPrefs {
         tf: TF_CONFIG[raw.tf] ? raw.tf : DEFAULT_CHART_PREFS.tf,
         type: (['candles', 'bars', 'line', 'area'] as const).includes(raw.type) ? raw.type : 'candles',
         scale: raw.scale === 'log' || raw.scale === 'pct' ? raw.scale : 'normal',
+        gexMetric: raw.gexMetric === 'vex' || raw.gexMetric === 'both' ? raw.gexMetric : 'gex',
+        horizon: ['today', 'week', 'opex'].includes(raw.horizon) ? raw.horizon : 'all',
       };
     }
   } catch { /* storage unavailable — defaults */ }

@@ -35,7 +35,7 @@ const KNOWN_STARTS = [
   'observeTriggeredIdeas', 'performanceValidationService', 'startChartOverlayRecorder',
   'scheduleQuantBot', 'warmConvictions', 'startMemoryGuard', 'startHealthPublisher',
   'startGexRankingJob', 'selfLearning.start', 'startWorkerEventRelay', 'scheduleAfterStopJob',
-  'scheduleDiscordLifecycle',
+  'scheduleDiscordLifecycle', 'startGexIntradaySnapshots', 'scheduleGexSnapshotPrune',
 ];
 
 async function main() {

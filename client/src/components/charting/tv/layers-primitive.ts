@@ -19,14 +19,33 @@ import type {
   IPrimitivePaneView, Logical, SeriesAttachedParameter, SeriesType, Time,
 } from 'lightweight-charts';
 import type { Candle, Zone } from '@/components/charting/chart-engine';
-import type { GexMode } from '@/components/charting/chart-prefs';
+import type { GexMetric, GexMode } from '@/components/charting/chart-prefs';
 import { fmtUsd, type DpLevel, type FlowPrint, type OverlayPayload } from '@/components/charting/chart-layers';
+import { capNodes } from '@shared/gex-horizon';
+
+/** Nodes kept per bar (largest |value| first) — performance and legibility. */
+export const NODES_PER_BAR = 8;
+/** VEX rings per bar when GEX + VEX are both on. */
+export const VEX_RINGS_WITH_GEX = 5;
+/** Forward projection: at most this many bar slots past the last candle. */
+const PROJECT_MAX_SLOTS = 48;
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
 export interface LayerColors {
   pos: string; neg: string; dp: string; call: string; put: string; panel: string; caution: string;
   zone: (c: string | undefined) => string;
+  /** Node colours — the GEX hub law (gex-colors LEVEL_COLORS / exposure tokens), not gain/loss. */
+  gexPos?: string; gexNeg?: string; vexPos?: string; vexNeg?: string; apex?: string; em?: string; text?: string;
+}
+
+/** Expected-move layer: fixed priced ranges + a forward cone (all from /api/chart/expected-move). */
+export interface EmDraw {
+  daily: { upper: number; lower: number; move: number } | null;
+  weekly: { upper: number; lower: number; move: number } | null;
+  cone: { perSessionMove: number } | null;
+  /** ms of trading time in one session (390 min); daily bars count as one session each. */
+  sessionMs: number;
 }
 
 export interface LayersInput {
@@ -39,12 +58,19 @@ export interface LayersInput {
   gexTop: { strike: number; gex: number }[] | null;
   gexTopAsOf: number | null;
   zones: Zone[];
+  /** GEX / VEX / both on the nodes (default GEX). */
+  metric?: GexMetric;
+  /** Apex-node labels. */
+  labels?: boolean;
+  /** Carry the latest nodes forward past the last candle, dimmer. */
+  project?: boolean;
+  em?: EmDraw | null;
 }
 
 export type LayerHit =
   | { kind: 'flow'; p: FlowPrint }
   | { kind: 'dp'; lvl: DpLevel }
-  | { kind: 'orb'; strike: number; g: number; t: number; src: string }
+  | { kind: 'orb'; strike: number; g: number; t: number; src: string; metric?: 'gex' | 'vex'; apex?: boolean; projected?: boolean }
   | { kind: 'line'; strike: number; gex: number; t: number };
 
 interface Bubble { strike: number; vals: Float64Array; times: Float64Array; srcs: string[] }
@@ -60,16 +86,35 @@ function indexAt(bars: Candle[], t: number, barMs: number): number {
   return lo;
 }
 
+/** Index of the first bar whose open time is ≥ t (bars.length when none). */
+export function firstBarAtOrAfter(bars: Candle[], t: number): number {
+  let lo = 0; let hi = bars.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (bars[mid].time < t) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+interface ProjNode { y: number; strike: number; g: number; metric: 'gex' | 'vex'; apex: boolean }
+
 export class LayersPrimitive implements ISeriesPrimitive<Time> {
   private chart: IChartApi | null = null;
   private series: ISeriesApi<SeriesType> | null = null;
   private request: (() => void) | null = null;
   private input: LayersInput = { bars: [], ov: null, gex: 'off', dp: false, flow: false, cutoff: null, gexTop: null, gexTopAsOf: null, zones: [] };
   private bubbles: Bubble[] = [];
+  private vbubbles: Bubble[] = [];
+  /** Apex-node strike per bar (NaN = none). */
+  private apexStrike = new Float64Array(0);
   private maxAbs = 1;
+  private vMaxAbs = 1;
   private barMs = 60_000;
-  private frame: { dp: { y: number; lvl: DpLevel }[]; flow: { x: number; y: number; r: number; p: FlowPrint }[]; lines: { y: number; strike: number; gex: number }[]; rMax: number; spacing: number; norm?: number } =
-    { dp: [], flow: [], lines: [], rMax: 3, spacing: 6 };
+  private frame: {
+    dp: { y: number; lvl: DpLevel }[]; flow: { x: number; y: number; r: number; p: FlowPrint }[]; lines: { y: number; strike: number; gex: number }[];
+    rMax: number; spacing: number; norm?: number; vnorm?: number;
+    proj: { x0: number; x1: number; nodes: ProjNode[] } | null;
+  } = { dp: [], flow: [], lines: [], rMax: 3, spacing: 6, proj: null };
   /** Orbs painted in the last frame (0 = none on screen). */
   orbsDrawn = 0;
   private readonly views: IPrimitivePaneView[];
@@ -103,49 +148,104 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       gaps.sort((a, b) => a - b);
       this.barMs = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 60_000;
     }
-    if (prev.bars !== next.bars || prev.ov !== next.ov || prev.gex !== next.gex || prev.cutoff !== next.cutoff) this.computeBubbles();
+    if (prev.bars !== next.bars || prev.ov !== next.ov || prev.gex !== next.gex || prev.cutoff !== next.cutoff || prev.metric !== next.metric) this.computeBubbles();
     this.rebuildAxis();
     this.request?.();
   }
 
-  /* orb values per bar, once per data change */
-  private computeBubbles() {
-    const { bars, ov, gex, cutoff } = this.input;
-    this.bubbles = []; this.maxAbs = 1;
-    if (gex !== 'bubbles' || !ov || bars.length < 2) return;
+  /* node values per bar, once per data change.
+     Rule: a bar shows the nearest snapshot taken at or before the bar's open
+     time (bars of 4h and longer: before the bar's close — one snapshot per
+     day bar would otherwise never land), as long as it is no older than 2.5×
+     the cadence (hourly archive: 65 min) — a gap stays a gap. The forming
+     last bar shows the newest snapshot (that IS "now"); in replay nothing
+     after the cursor. Then each bar keeps its NODES_PER_BAR largest nodes. */
+  private fill(series: { strike: number; points: [number, number][] }[], srcAt: Map<number, string>, cadence: number, limit: number): { out: Bubble[]; maxAbs: number } {
+    const { bars } = this.input;
     const n = bars.length;
-    const limit = cutoff ?? Infinity;
-    const srcAt = new Map(ov.gexTimeline.samples.map((s) => [s.t, s.source]));
-    const cadence = ov.gexTimeline.sampleEveryMin * 60_000;
+    const long = this.barMs >= 4 * 3_600_000;
+    const now = Date.now();
+    const out: Bubble[] = [];
     let maxAbs = 0;
-    for (const s of ov.gexTimeline.series) {
+    for (const s of series) {
       const vals = new Float64Array(n).fill(NaN);
       const times = new Float64Array(n).fill(NaN);
       const srcs: string[] = new Array(n);
       const pts = s.points;
-      for (let k = 0; k < pts.length; k++) {
+      let k = -1;
+      for (let i = 0; i < n; i++) {
+        const bt = bars[i].time;
+        let ref = long ? bt + this.barMs - 1 : bt;
+        if (i === n - 1) ref = Math.max(ref, now);
+        ref = Math.min(ref, limit);
+        while (k + 1 < pts.length && pts[k + 1][0] <= ref) k++;
+        if (k < 0) continue;
         const [t, g] = pts[k];
-        if (t > limit) break;
         const src = srcAt.get(t) ?? 'recorded';
         const span = src === 'archive-hourly' ? 65 * 60_000 : cadence * 2.5;
-        const nextT = k + 1 < pts.length ? pts[k + 1][0] : Infinity;
-        const end = Math.min(nextT, t + span, limit === Infinity ? Date.now() : limit + 1);
-        let i = indexAt(bars, t, this.barMs);
-        if (i < 0) {
-          if (t < bars[0].time && end > bars[0].time) i = 0;
-          // a fresh sample stamped after the last bar (a newly charted ticker's
-          // first on-demand snapshot) belongs on the last bar, not off the chart
-          else if (t >= bars[n - 1].time && t - bars[n - 1].time <= cadence * 2.5) i = n - 1;
-          else continue;
-        }
-        for (; i < n && bars[i].time < end; i++) {
-          vals[i] = g; times[i] = t; srcs[i] = src;
-          if (Math.abs(g) > maxAbs) maxAbs = Math.abs(g);
-        }
+        if (t < bt - span) continue;
+        vals[i] = g; times[i] = t; srcs[i] = src;
+        if (Math.abs(g) > maxAbs) maxAbs = Math.abs(g);
       }
-      this.bubbles.push({ strike: s.strike, vals, times, srcs });
+      out.push({ strike: s.strike, vals, times, srcs });
     }
-    this.maxAbs = maxAbs || 1;
+    return { out, maxAbs };
+  }
+
+  private cap(list: Bubble[], cap: number) {
+    const n = this.input.bars.length;
+    if (!list.length) return;
+    const col = new Float64Array(list.length);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < list.length; j++) col[j] = list[j].vals[i];
+      const { keep } = capNodes(col, cap);
+      if (keep.length === list.length) continue;
+      const keepSet = new Set(keep);
+      for (let j = 0; j < list.length; j++) if (!keepSet.has(j)) list[j].vals[i] = NaN;
+    }
+  }
+
+  private computeBubbles() {
+    const { bars, ov, gex, cutoff } = this.input;
+    const metric = this.input.metric ?? 'gex';
+    this.bubbles = []; this.vbubbles = []; this.maxAbs = 1; this.vMaxAbs = 1;
+    this.apexStrike = new Float64Array(bars.length).fill(NaN);
+    if (gex !== 'bubbles' || !ov || bars.length < 2) return;
+    const limit = cutoff ?? Infinity;
+    const srcAt = new Map(ov.gexTimeline.samples.map((s) => [s.t, s.source]));
+    const cadence = (ov.gexTimeline.sampleEveryMin || 5) * 60_000;
+    if (metric !== 'vex') {
+      const g = this.fill(ov.gexTimeline.series, srcAt, cadence, limit);
+      this.bubbles = g.out; this.maxAbs = g.maxAbs || 1;
+      this.cap(this.bubbles, NODES_PER_BAR);
+    }
+    if (metric !== 'gex' && ov.gexTimeline.vexSeries?.length) {
+      const v = this.fill(ov.gexTimeline.vexSeries, srcAt, cadence, limit);
+      this.vbubbles = v.out; this.vMaxAbs = v.maxAbs || 1;
+      this.cap(this.vbubbles, metric === 'both' ? VEX_RINGS_WITH_GEX : NODES_PER_BAR);
+    }
+    // Apex node per bar: the largest GEX node (VEX when only VEX is shown).
+    const lead = metric === 'vex' ? this.vbubbles : this.bubbles;
+    for (let i = 0; i < bars.length; i++) {
+      let best = -1; let bestAbs = 0;
+      for (let j = 0; j < lead.length; j++) {
+        const a = Math.abs(lead[j].vals[i]);
+        if (Number.isFinite(a) && a > bestAbs) { bestAbs = a; best = j; }
+      }
+      if (best >= 0) this.apexStrike[i] = lead[best].strike;
+    }
+  }
+
+  /** Nodes painted (for tests / status): GEX discs + VEX rings on the last bar. */
+  lastBarNodes(): { strike: number; g: number; metric: 'gex' | 'vex'; apex: boolean }[] {
+    const L = this.input.bars.length - 1;
+    if (L < 0) return [];
+    const metric = this.input.metric ?? 'gex';
+    const out: { strike: number; g: number; metric: 'gex' | 'vex'; apex: boolean }[] = [];
+    for (const [list, kind] of [[this.bubbles, 'gex'], [this.vbubbles, 'vex']] as const) {
+      for (const b of list) if (Number.isFinite(b.vals[L])) out.push({ strike: b.strike, g: b.vals[L], metric: kind, apex: (kind === 'vex') === (metric === 'vex') && this.apexStrike[L] === b.strike });
+    }
+    return out;
   }
 
   private dpLevels(): DpLevel[] {
@@ -191,7 +291,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       const c = this.colors();
       const w = mediaSize.width; const h = mediaSize.height;
-      this.frame = { dp: [], flow: this.frame.flow, lines: [], rMax: 3, spacing: 6 };
+      this.frame = { dp: [], flow: this.frame.flow, lines: [], rMax: 3, spacing: 6, proj: null };
       ctx.save();
 
       for (const z of zones) {
@@ -212,42 +312,12 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       const spacing = x0 != null && x1 != null ? Math.abs(x1 - x0) : 6;
       this.frame.spacing = spacing;
 
-      if (gex === 'bubbles' && this.bubbles.length && n > 1) {
-        const [from, to] = this.visibleRange(n);
-        const rMax = Math.max(2.2, Math.min(5, spacing * 0.65));
-        this.frame.rMax = rMax;
-        // Scale to what is on screen: a huge wall 3% away (off the price
-        // scale) or an old session must not shrink every visible orb to
-        // nothing — that was the "no orbs" chart on a quiet 1D view.
-        const onScreen: { b: Bubble; y: number }[] = [];
-        let visMax = 0;
-        for (const b of this.bubbles) {
-          const y = series.priceToCoordinate(b.strike);
-          if (y == null || y < -10 || y > h + 10) continue;
-          onScreen.push({ b, y });
-          for (let i = from; i <= to; i++) { const a = Math.abs(b.vals[i]); if (a > visMax) visMax = a; }
-        }
-        const norm = visMax || this.maxAbs;
-        this.frame.norm = norm;
-        let drawn = 0;
-        for (const { b, y } of onScreen) {
-          for (let i = from; i <= to; i++) {
-            const g = b.vals[i];
-            if (!Number.isFinite(g)) continue;
-            const m = Math.sqrt(Math.abs(g) / norm);
-            if (m < 0.04) continue;
-            const x = this.xOf(i); if (x == null) continue;
-            const r = 1 + (rMax - 1) * m;
-            ctx.globalAlpha = 0.3 + 0.65 * m;
-            ctx.fillStyle = g >= 0 ? c.pos : c.neg;
-            if (r < 1.4) ctx.fillRect(x - r, y - r, r * 2, r * 2);
-            else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
-            drawn++;
-          }
-        }
-        ctx.globalAlpha = 1;
-        this.orbsDrawn = drawn;
+      this.frame.proj = null;
+      if (gex === 'bubbles' && (this.bubbles.length || this.vbubbles.length) && n > 1) {
+        this.drawNodes(ctx, w, h, spacing);
       } else this.orbsDrawn = 0;
+
+      if (this.input.em) this.drawEm(ctx, w, spacing);
 
       const top = this.input.gexTop;
       if (gex === 'lines' && top?.length) {
@@ -288,6 +358,221 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       }
       ctx.restore();
     });
+  }
+
+  /** GEX discs, VEX rings, the Apex node + labels, and the forward projection. */
+  private drawNodes(ctx: CanvasRenderingContext2D, w: number, h: number, spacing: number) {
+    const series = this.series!;
+    const { bars } = this.input;
+    const n = bars.length;
+    const c = this.colors();
+    const gexPos = c.gexPos ?? c.pos; const gexNeg = c.gexNeg ?? c.neg;
+    const vexPos = c.vexPos ?? c.pos; const vexNeg = c.vexNeg ?? c.neg;
+    const apexC = c.apex ?? c.caution;
+    const metric = this.input.metric ?? 'gex';
+    const [from, to] = this.visibleRange(n);
+    const rMax = Math.max(2.4, Math.min(6, spacing * 0.7));
+    this.frame.rMax = rMax;
+    const onScreen = (list: Bubble[]) => {
+      const rows: { b: Bubble; y: number }[] = []; let visMax = 0;
+      for (const b of list) {
+        const y = series.priceToCoordinate(b.strike);
+        if (y == null || y < -10 || y > h + 10) continue;
+        rows.push({ b, y });
+        for (let i = from; i <= to; i++) { const a = Math.abs(b.vals[i]); if (a > visMax) visMax = a; }
+      }
+      return { rows, visMax };
+    };
+    // Scale to what is on screen: a huge wall off the price scale must not shrink every visible node.
+    const G = onScreen(this.bubbles); const V = onScreen(this.vbubbles);
+    const norm = G.visMax || this.maxAbs; const vnorm = V.visMax || this.vMaxAbs;
+    this.frame.norm = norm; this.frame.vnorm = vnorm;
+    let drawn = 0;
+    const apexAt: { i: number; x: number; y: number; strike: number; g: number }[] = [];
+
+    for (const { b, y } of G.rows) {
+      for (let i = from; i <= to; i++) {
+        const g = b.vals[i];
+        if (!Number.isFinite(g)) continue;
+        const m = Math.sqrt(Math.abs(g) / norm);
+        const apex = metric !== 'vex' && this.apexStrike[i] === b.strike;
+        if (m < 0.04 && !apex) continue;
+        const x = this.xOf(i); if (x == null) continue;
+        const r = 1 + (rMax - 1) * Math.min(1, m);
+        ctx.fillStyle = g >= 0 ? gexPos : gexNeg;
+        if (apex) {
+          ctx.globalAlpha = 1; ctx.shadowColor = apexC; ctx.shadowBlur = 10;
+          ctx.beginPath(); ctx.arc(x, y, r + 0.5, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = apexC; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.stroke();
+          apexAt.push({ i, x, y, strike: b.strike, g });
+        } else {
+          ctx.globalAlpha = 0.28 + 0.6 * m;
+          if (r < 1.4) ctx.fillRect(x - r, y - r, r * 2, r * 2);
+          else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+        }
+        drawn++;
+      }
+    }
+    for (const { b, y } of V.rows) {
+      for (let i = from; i <= to; i++) {
+        const v = b.vals[i];
+        if (!Number.isFinite(v)) continue;
+        const m = Math.sqrt(Math.abs(v) / vnorm);
+        const apex = metric === 'vex' && this.apexStrike[i] === b.strike;
+        if (m < 0.06 && !apex) continue;
+        const x = this.xOf(i); if (x == null) continue;
+        const r = 1.5 + (rMax + (metric === 'both' ? 1.5 : 0) - 1.5) * Math.min(1, m);
+        ctx.strokeStyle = v >= 0 ? vexPos : vexNeg;
+        ctx.globalAlpha = apex ? 1 : 0.3 + 0.6 * m;
+        ctx.lineWidth = apex ? 2 : 1.2;
+        if (apex) { ctx.shadowColor = apexC; ctx.shadowBlur = 10; }
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur = 0;
+        if (apex) {
+          ctx.strokeStyle = apexC; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.stroke();
+          apexAt.push({ i, x, y, strike: b.strike, g: v });
+        }
+        drawn++;
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // ── forward projection: the last bar's nodes carried past the last candle (dimmer)
+    const L = n - 1;
+    const xL = this.xOf(L);
+    let projApex: { x: number; y: number; strike: number; g: number } | null = null;
+    if (this.input.project && xL != null && xL < w - spacing) {
+      const slots = Math.min(PROJECT_MAX_SLOTS, Math.floor((w - xL) / Math.max(spacing, 1)));
+      const nodes: ProjNode[] = [];
+      const lists: Array<[Bubble[], number, 'gex' | 'vex']> = [[this.bubbles, norm, 'gex'], [this.vbubbles, vnorm, 'vex']];
+      for (const [list, nn, kind] of lists) {
+        for (const b of list) {
+          const g = b.vals[L];
+          if (!Number.isFinite(g)) continue;
+          const y = series.priceToCoordinate(b.strike);
+          if (y == null || y < -10 || y > h + 10) continue;
+          const apex = (kind === 'vex') === (metric === 'vex') && this.apexStrike[L] === b.strike;
+          nodes.push({ y, strike: b.strike, g, metric: kind, apex });
+          const m = Math.sqrt(Math.abs(g) / nn);
+          const r = (kind === 'vex' ? 1.5 : 1) + (rMax - 1) * Math.min(1, m);
+          for (let k = 1; k <= slots; k++) {
+            const x = xL + k * spacing;
+            const fade = 1 - (k / (slots + 1)) * 0.6;
+            ctx.globalAlpha = (apex ? 0.55 : 0.2 + 0.4 * m) * 0.5 * fade;
+            if (kind === 'vex') { ctx.strokeStyle = g >= 0 ? vexPos : vexNeg; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); }
+            else { ctx.fillStyle = g >= 0 ? gexPos : gexNeg; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+          }
+          if (apex) {
+            projApex = { x: xL + slots * spacing, y, strike: b.strike, g };
+            ctx.globalAlpha = 0.6; ctx.strokeStyle = apexC; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+            ctx.beginPath(); ctx.moveTo(xL, y); ctx.lineTo(xL + slots * spacing, y); ctx.stroke(); ctx.setLineDash([]);
+          }
+        }
+      }
+      this.frame.proj = { x0: xL, x1: xL + slots * spacing, nodes };
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = c.text ?? apexC; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(xL + spacing / 2, 0); ctx.lineTo(xL + spacing / 2, h); ctx.stroke(); ctx.setLineDash([]);
+      if (this.input.labels !== false && slots >= 8) {
+        ctx.globalAlpha = 0.75; ctx.fillStyle = c.text ?? apexC; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+        ctx.fillText('current nodes carried forward · not a forecast', xL + spacing, 12);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Apex labels: where the Apex node changes strike, the last bar, and the projection end
+    if (this.input.labels !== false) {
+      const picks: { x: number; y: number; strike: number; g: number; tag?: string }[] = [];
+      let prevStrike = NaN;
+      for (const a of apexAt.sort((p, q) => p.i - q.i)) {
+        if (a.strike !== prevStrike || a.i === L) picks.push(a);
+        prevStrike = a.strike;
+      }
+      const chosen: typeof picks = [];
+      for (const p of picks.reverse()) { // newest first, kept apart so labels never stack
+        if (chosen.some((q) => Math.abs(q.x - p.x) < 110 && Math.abs(q.y - p.y) < 16)) continue;
+        chosen.push(p);
+        if (chosen.length >= 6) break;
+      }
+      if (projApex) {
+        const pa: { x: number; y: number; strike: number; g: number } = projApex;
+        if (!chosen.some((q) => Math.abs(q.x - pa.x) < 110 && Math.abs(q.y - pa.y) < 16)) chosen.push({ ...pa, tag: 'now' });
+      }
+      const kindLabel = metric === 'vex' ? 'VEX' : 'GEX';
+      for (const p of chosen) this.apexLabel(ctx, p.x, p.y, `Apex ${fmtStrike(p.strike)} · ${kindLabel} ${fmtUsd(p.g, true)}${p.tag ? ` · ${p.tag}` : ''}`, apexC, c.panel, w);
+    }
+    this.orbsDrawn = drawn;
+  }
+
+  private apexLabel(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, color: string, panel: string, w: number) {
+    ctx.font = '700 10px "JetBrains Mono", monospace';
+    const tw = ctx.measureText(text).width + 10;
+    let lx = x + 9; if (lx + tw > w - 4) lx = x - 9 - tw;
+    const ly = Math.max(9, y - 10);
+    ctx.globalAlpha = 0.92; ctx.fillStyle = panel;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(lx, ly - 7, tw, 15, 3); else ctx.rect(lx, ly - 7, tw, 15);
+    ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, lx + 5, ly + 0.5);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** Expected move: today / this-week priced ranges (fixed lines) + the forward cone. */
+  private drawEm(ctx: CanvasRenderingContext2D, w: number, spacing: number) {
+    const em = this.input.em; const series = this.series;
+    if (!em || !series) return;
+    const c = this.colors();
+    const col = c.em ?? c.caution;
+    const line = (price: number, dash: number[], label: string, alpha: number) => {
+      const yy = series.priceToCoordinate(price); if (yy == null) return;
+      const y = Math.round(yy) + 0.5;
+      ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = Math.min(1, alpha + 0.3); ctx.fillStyle = col; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+      ctx.fillText(label, 6, y - 3);
+    };
+    if (em.daily) {
+      line(em.daily.upper, [5, 4], `EM day +${em.daily.move.toFixed(2)} · priced range (options)`, 0.55);
+      line(em.daily.lower, [5, 4], `EM day −${em.daily.move.toFixed(2)}`, 0.55);
+    }
+    if (em.weekly) {
+      line(em.weekly.upper, [10, 5], `EM week +${em.weekly.move.toFixed(2)} · priced range (options)`, 0.45);
+      line(em.weekly.lower, [10, 5], `EM week −${em.weekly.move.toFixed(2)}`, 0.45);
+    }
+    const { bars } = this.input;
+    const n = bars.length;
+    const xL = n ? this.xOf(n - 1) : null;
+    if (em.cone && xL != null && xL < w - spacing && n) {
+      const center = bars[n - 1].close;
+      const slots = Math.min(240, Math.floor((w - xL) / Math.max(spacing, 1)));
+      // one bar = barMs of trading time; a daily (or longer) bar = one session
+      const perBar = this.barMs >= 20 * 3_600_000 ? Math.round(this.barMs / 86_400_000) || 1 : this.barMs / em.sessionMs;
+      const up: [number, number][] = []; const dn: [number, number][] = [];
+      for (let k = 0; k <= slots; k++) {
+        const half = em.cone.perSessionMove * Math.sqrt(k * perBar);
+        const yU = series.priceToCoordinate(center + half); const yD = series.priceToCoordinate(center - half);
+        if (yU == null || yD == null) continue;
+        up.push([xL + k * spacing, yU]); dn.push([xL + k * spacing, yD]);
+      }
+      if (up.length > 1) {
+        ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(up[0][0], up[0][1]);
+        for (const [x, y] of up) ctx.lineTo(x, y);
+        for (let k = dn.length - 1; k >= 0; k--) ctx.lineTo(dn[k][0], dn[k][1]);
+        ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+        for (const pts of [up, dn]) { ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+        ctx.setLineDash([]);
+        const [ex, ey] = dn[dn.length - 1];
+        ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'right';
+        ctx.fillText('priced range (options) · √t cone, modelled', Math.min(ex, w - 4), ey + 12);
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   /* flow prints: over the candles */
@@ -338,18 +623,39 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     const dp = f.dp.reduce<{ y: number; lvl: DpLevel } | null>((b, r) => (Math.abs(r.y - y) <= tol && (!b || Math.abs(r.y - y) < Math.abs(b.y - y)) ? r : b), null);
     if (dp) return { kind: 'dp', lvl: dp.lvl };
     if (this.input.gex === 'bubbles' && this.series && this.chart) {
+      const pj = f.proj;
+      if (pj && x > pj.x0 + f.spacing / 2 && x <= pj.x1 + f.spacing) {
+        let near: ProjNode | null = null; let nd = Infinity;
+        for (const p of pj.nodes) {
+          const d = Math.abs(p.y - y);
+          if (d <= Math.max(f.rMax, tol + 1) && d < nd) { nd = d; near = p; }
+        }
+        if (near) {
+          const L = this.input.bars.length - 1;
+          const src = (near.metric === 'vex' ? this.vbubbles : this.bubbles).find((b) => b.strike === near!.strike);
+          return { kind: 'orb', strike: near.strike, g: near.g, t: src ? src.times[L] : NaN, src: 'carried forward (current nodes, not a forecast)', metric: near.metric, apex: near.apex, projected: true };
+        }
+      }
       const l = this.chart.timeScale().coordinateToLogical(x);
       const idx = l == null ? -1 : Math.round(l);
       if (idx >= 0 && idx < this.input.bars.length) {
         let hit: LayerHit | null = null; let hd = Infinity;
-        for (const b of this.bubbles) {
-          const g = b.vals[idx];
-          if (!Number.isFinite(g)) continue;
-          const by = this.series.priceToCoordinate(b.strike);
-          if (by == null) continue;
-          const d = Math.abs(by - y);
-          const r = 1 + (f.rMax - 1) * Math.sqrt(Math.min(1, Math.abs(g) / (f.norm ?? this.maxAbs)));
-          if (d <= Math.max(r, tol + 1) && d < hd) { hd = d; hit = { kind: 'orb', strike: b.strike, g, t: b.times[idx], src: b.srcs[idx] }; }
+        const lists: Array<[Bubble[], number, 'gex' | 'vex']> = [[this.bubbles, f.norm ?? this.maxAbs, 'gex'], [this.vbubbles, f.vnorm ?? this.vMaxAbs, 'vex']];
+        const metric = this.input.metric ?? 'gex';
+        for (const [list, nn, kind] of lists) {
+          for (const b of list) {
+            const g = b.vals[idx];
+            if (!Number.isFinite(g)) continue;
+            const by = this.series.priceToCoordinate(b.strike);
+            if (by == null) continue;
+            const d = Math.abs(by - y);
+            const r = 1 + (f.rMax - 1) * Math.sqrt(Math.min(1, Math.abs(g) / nn));
+            if (d <= Math.max(r, tol + 1) && d < hd) {
+              hd = d;
+              const apex = (kind === 'vex') === (metric === 'vex') && this.apexStrike[idx] === b.strike;
+              hit = { kind: 'orb', strike: b.strike, g, t: b.times[idx], src: b.srcs[idx], metric: kind, apex };
+            }
+          }
         }
         if (hit) return hit;
       }
@@ -359,6 +665,8 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     return null;
   }
 }
+
+const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : k.toFixed(2));
 
 /* ───────────────────────── countdown to bar close ───────────────────────── */
 

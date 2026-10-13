@@ -29,6 +29,7 @@ import { marketDateET } from '@shared/market-day';
 import { BoundedCache } from './lib/bounded-cache';
 import { runHeavy } from './lib/heavy-job-gate';
 import { canonicalChartSymbol, indexInfo, indexEtfRatio, optionRootsFor } from '@shared/index-symbols';
+import { HORIZON_LABEL, horizonLastExpiry, isIntradayHeatmap, nodesForHorizon, topNodes, type GexHorizon, type MatrixCellLike } from '@shared/gex-horizon';
 
 // Env-tunable: every recorded ticker re-pulls its full option chain every 5 min
 // (SPY ≈ 8k contracts, 11 requests) — the 2 GB box can't carry many (2026-09-30).
@@ -371,9 +372,114 @@ async function printsForDate(date: string): Promise<any[]> {
   return prints;
 }
 
+/* ────────────────────────────── GEX timeline ────────────────────────────── */
+
+export interface TimelineSample { t: number; spot: number | null; net: number; source: string }
+export interface TimelineRow {
+  t: number; spot: number | null; net: number; source: string;
+  /** [strike, gex $, vex $ | null] */
+  nodes: Array<[number, number, number | null]>;
+  lv?: { cw: number | null; pw: number | null; flip: number | null; maxG: number | null; net?: number | null } | null;
+}
+
+/**
+ * One gex_snapshots row → nodes for the horizon. Pure (exported for tests).
+ * 5-min rows carry per-horizon blocks; hourly rows carry the full matrix (any
+ * horizon, cut relative to the row's OWN time) and top_levels (all only).
+ */
+export function rowToTimeline(r: { snapshotAt: Date | string; spotPrice: number | null; totalGex: number | null; topLevels: unknown; heatmapData: unknown; strikeExpiryMatrix?: unknown }, horizon: GexHorizon): TimelineRow | null {
+  const t = new Date(r.snapshotAt).getTime();
+  if (!Number.isFinite(t)) return null;
+  const spot = typeof r.spotPrice === 'number' && Number.isFinite(r.spotPrice) ? r.spotPrice : null;
+  if (isIntradayHeatmap(r.heatmapData)) {
+    const b = r.heatmapData.horizons[horizon];
+    if (!b) return null;
+    const nodes = b.n.filter((x) => Number.isFinite(x[0])).map(([k, g, v]) => [k, Math.round(g * 1e9), Math.round(v * 1e6)] as [number, number, number]);
+    if (!nodes.length) return null;
+    const net = horizon === 'all' ? Math.round((Number(r.totalGex) || 0) * 1e9) : Math.round((Number(b.lv?.net) || 0) * 1e9);
+    return { t, spot, net, source: 'snapshot-5m', nodes, lv: b.lv ?? null };
+  }
+  const matrix = Array.isArray(r.strikeExpiryMatrix) ? (r.strikeExpiryMatrix as MatrixCellLike[]) : [];
+  if (matrix.length) {
+    const nodes = topNodes(nodesForHorizon(matrix, horizon, t), 20, 10)
+      .map(([k, g, v]) => [k, Math.round(g * 1e9), Math.round(v * 1e6)] as [number, number, number]);
+    if (!nodes.length) return null;
+    const net = horizon === 'all' ? Math.round((Number(r.totalGex) || 0) * 1e9) : nodes.reduce((a, n) => a + n[1], 0);
+    return { t, spot, net, source: 'archive-hourly', nodes };
+  }
+  if (horizon !== 'all') return null; // top_levels are all-expiry: never relabelled as a horizon
+  const nodes = ((r.topLevels as any[]) ?? [])
+    .filter((l) => Number.isFinite(l?.strike) && Number.isFinite(l?.gex) && l.gex !== 0)
+    .map((l) => [l.strike, Math.round(l.gex * 1e9), Number.isFinite(l?.vex) ? Math.round(l.vex * 1e6) : null] as [number, number, number | null]);
+  return nodes.length ? { t, spot, net: Math.round((Number(r.totalGex) || 0) * 1e9), source: 'archive-hourly', nodes } : null;
+}
+
+/** Merge: 5-min DB rows › recorder disk samples (4 min window) › hourly archive (20 min window). Pure. */
+export function mergeTimeline(db5: TimelineRow[], recorded: TimelineRow[], hourly: TimelineRow[]): TimelineRow[] {
+  const out = [...db5];
+  for (const r of recorded) if (!out.some((x) => Math.abs(x.t - r.t) < 4 * 60_000)) out.push(r);
+  for (const r of hourly) if (!out.some((x) => Math.abs(x.t - r.t) < 20 * 60_000)) out.push(r);
+  return out.sort((a, b) => a.t - b.t);
+}
+
+async function readSnapshotRows(sym: string, start: Date, needMatrix: boolean): Promise<any[]> {
+  const { pool } = await import('./db');
+  // Columns, not SELECT *: an hourly row's strike_expiry_matrix is ~0.5 MB and
+  // is only read when a horizon must be cut from it.
+  const r = await pool.query(
+    `SELECT snapshot_at AS "snapshotAt", spot_price AS "spotPrice", total_gex AS "totalGex", top_levels AS "topLevels",
+            heatmap_data AS "heatmapData",
+            CASE WHEN $3::boolean AND (heatmap_data->>'kind') IS DISTINCT FROM 'intraday-5m' THEN strike_expiry_matrix END AS "strikeExpiryMatrix"
+       FROM gex_snapshots WHERE symbol = $1 AND snapshot_at >= $2 ORDER BY snapshot_at ASC LIMIT 3000`,
+    [sym.toUpperCase(), start, needMatrix],
+  );
+  return r.rows ?? [];
+}
+
+async function buildGexTimeline(sym: string, dates: string[], sinceDate: string, horizon: GexHorizon) {
+  const db5: TimelineRow[] = []; const hourly: TimelineRow[] = [];
+  try {
+    const start = new Date(`${sinceDate}T04:00:00-04:00`);
+    for (const row of await readSnapshotRows(sym, start, horizon !== 'all')) {
+      const tr = rowToTimeline(row, horizon);
+      if (!tr) continue;
+      (tr.source === 'snapshot-5m' ? db5 : hourly).push(tr);
+    }
+  } catch { /* archive optional */ }
+  // Recorder disk samples are all-expiry GEX only.
+  const recorded: TimelineRow[] = [];
+  if (horizon === 'all') {
+    for (const d of [...dates].reverse()) {
+      for (const s of daySamples(sym, d)) recorded.push({ t: s.t, spot: s.spot, net: s.net, source: s.source, nodes: s.levels.map(([k, g]) => [k, g, null]) });
+    }
+  }
+  const rows = mergeTimeline(db5, recorded, hourly);
+  const samples: TimelineSample[] = rows.map((r) => ({ t: r.t, spot: r.spot, net: r.net, source: r.source }));
+  const byStrike = new Map<number, Array<[number, number]>>();
+  const byStrikeV = new Map<number, Array<[number, number]>>();
+  for (const r of rows) {
+    for (const [k, g, v] of r.nodes) {
+      if (g !== 0) { const a = byStrike.get(k) ?? []; a.push([r.t, g]); byStrike.set(k, a); }
+      if (v != null && v !== 0) { const a = byStrikeV.get(k) ?? []; a.push([r.t, v]); byStrikeV.set(k, a); }
+    }
+  }
+  const top = (m: Map<number, Array<[number, number]>>) => [...m.entries()]
+    .map(([strike, points]) => ({ strike, points, peakAbs: Math.max(...points.map((p) => Math.abs(p[1]))) }))
+    .sort((a, b) => b.peakAbs - a.peakAbs)
+    .slice(0, 40);
+  const hasHourly = rows.some((r) => r.source === 'archive-hourly');
+  const has5 = rows.some((r) => r.source !== 'archive-hourly');
+  const cadence: '5m' | 'hourly' | 'mixed' | null = !rows.length ? null : has5 && hasHourly ? 'mixed' : hasHourly ? 'hourly' : '5m';
+  const lvRow = [...rows].reverse().find((r) => r.lv);
+  return {
+    samples, series: top(byStrike), vexSeries: top(byStrikeV), cadence,
+    levels: lvRow?.lv ? { ...lvRow.lv, asOf: new Date(lvRow.t).toISOString() } : null,
+  };
+}
+
 /* ────────────────────────────── the payload ────────────────────────────── */
 
-export async function buildChartOverlays(symbolRaw: string, range: string, spotHint?: number | null) {
+export async function buildChartOverlays(symbolRaw: string, range: string, spotHint?: number | null, horizon: GexHorizon = 'all') {
   // SPXW / $SPX / ^GSPC chart (and record, and read flow for) SPX.
   const sym = safeSym(canonicalChartSymbol(symbolRaw));
   const now = Date.now();
@@ -407,40 +513,13 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
     for (const d of dates) { const rows = daySamples(sym, d); if (rows.length) { latest = rows[rows.length - 1]; break; } }
   }
 
-  // ── GEX timeline: recorded samples for the range + hourly archive for gaps
-  const recorded: GexSample[] = [];
-  for (const d of [...dates].reverse()) recorded.push(...daySamples(sym, d));
-  let archive: GexSample[] = [];
-  try {
-    const { storage } = await import('./storage');
-    const start = new Date(`${sinceDate}T04:00:00-04:00`);
-    const rows = await storage.getGexSnapshotsByDateRange(sym, start, new Date());
-    archive = (rows ?? []).map((r: any) => ({
-      t: new Date(r.snapshotAt).getTime(),
-      spot: Number.isFinite(r.spotPrice) ? r.spotPrice : null,
-      net: Math.round((Number(r.totalGex) || 0) * 1e9),
-      source: 'archive-hourly',
-      levels: ((r.topLevels as any[]) ?? [])
-        .filter((l) => Number.isFinite(l?.strike) && Number.isFinite(l?.gex) && l.gex !== 0)
-        .map((l) => [l.strike, Math.round(l.gex * 1e9)] as [number, number]),
-    })).filter((s: GexSample) => s.levels.length > 0)
-      // Only where we have no recording within 20 min — recorded wins.
-      .filter((s: GexSample) => !recorded.some((r) => Math.abs(r.t - s.t) < 20 * 60_000));
-  } catch { /* archive optional */ }
-  const samples = [...recorded, ...archive].sort((a, b) => a.t - b.t);
-
-  const byStrike = new Map<number, Array<[number, number]>>();
-  for (const s of samples) {
-    for (const [k, g] of s.levels) {
-      const rows = byStrike.get(k) ?? [];
-      rows.push([s.t, g]);
-      byStrike.set(k, rows);
-    }
-  }
-  const series = [...byStrike.entries()]
-    .map(([strike, points]) => ({ strike, points, peakAbs: Math.max(...points.map((p) => Math.abs(p[1]))) }))
-    .sort((a, b) => b.peakAbs - a.peakAbs)
-    .slice(0, 40);
+  // ── GEX / VEX timeline for the expiry horizon (shared/gex-horizon.ts):
+  //    5-min gex_snapshots rows (intraday writer, every horizon, GEX + VEX)
+  //  › the recorder's 5-min disk samples (all expiries, GEX only)
+  //  › the hourly archive (full matrix → any horizon, GEX + VEX), labelled hourly.
+  const tl = await buildGexTimeline(sym, dates, sinceDate, horizon);
+  const samples = tl.samples;
+  const series = tl.series;
   const firstAt = samples[0]?.t ?? null;
   const lastAt = samples.at(-1)?.t ?? null;
   const sourcesUsed = [...new Set(samples.map((s) => s.source))];
@@ -499,12 +578,20 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
       source: latest.source,
     } : null,
     gexTimeline: {
-      unit: 'USD net GEX per strike (snapshot top-20 by |GEX|)',
-      // Orbs are the whole book the chain read covers, not the near-dated one —
-      // the 0–7d walls come from the dealer map (byDte.next7) and say so.
-      expiryScope: indexInfo(sym)
-        ? `all expiries in the ${sym} chain read (${optionRootsFor(sym).join('+')}; CBOE index chains ≤60 DTE) — not the 0–7d book`
-        : 'all expiries in the chain read — not the 0–7d book',
+      unit: 'USD net GEX per strike ($ per 1% move); vexSeries: USD net VEX per IV point',
+      horizon,
+      horizonLabel: HORIZON_LABEL[horizon],
+      // Which contracts feed the nodes. 'all' = the whole book the chain read
+      // covers; the others are cut at the horizon's last expiry RELATIVE TO
+      // EACH SNAPSHOT'S OWN TIME (a Monday 0DTE node is Monday's expiry).
+      expiryScope: horizon !== 'all'
+        ? `${HORIZON_LABEL[horizon]} — contracts expiring by ${horizonLastExpiry(horizon, now)} 16:00 ET (each snapshot uses its own session's cut-off)`
+        : indexInfo(sym)
+          ? `all expiries in the ${sym} chain read (${optionRootsFor(sym).join('+')}; CBOE index chains ≤60 DTE) — not the 0–7d book`
+          : 'all expiries in the chain read — not the 0–7d book',
+      cadence: tl.cadence,
+      vexSeries: tl.vexSeries.map(({ strike, points }) => ({ strike, points })),
+      horizonLevels: tl.levels,
       sampleEveryMin: SAMPLE_EVERY_MS / 60_000,
       recordingSince: firstAt ? new Date(firstAt).toISOString() : null,
       asOf: lastAt ? new Date(lastAt).toISOString() : null,
@@ -515,8 +602,10 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
       watched: watchedSymbols().includes(sym),
       recorderLastRun: lastRecorderRun ? new Date(lastRecorderRun).toISOString() : null,
       note: samples.length
-        ? `History exists only from ${new Date(firstAt!).toISOString()} — recorded every ${SAMPLE_EVERY_MS / 60_000}m while ${sym} is watched (09:00–16:30 ET), hourly archive fills gaps. Nothing earlier is reconstructed.`
-        : `No GEX samples recorded for ${sym} in this range yet. Recording starts when a symbol is watched; history is never back-filled with invented values.`,
+        ? `History exists only from ${new Date(firstAt!).toISOString()} — ${tl.cadence === 'hourly' ? 'hourly snapshots only for this range' : `5-min snapshots${tl.cadence === 'mixed' ? ', hourly archive in the gaps' : ''}`}. Nothing earlier is reconstructed.`
+        : horizon !== 'all'
+          ? `No ${HORIZON_LABEL[horizon]} snapshots for ${sym} in this range. Horizon nodes need a stored 5-min row or an hourly archive row with its expiry matrix; nothing is back-filled.`
+          : `No GEX samples recorded for ${sym} in this range yet. Recording starts when a symbol is watched; history is never back-filled with invented values.`,
     },
     darkPool: {
       source: dp.read?.source ?? 'bullflow darkPoolTrades',

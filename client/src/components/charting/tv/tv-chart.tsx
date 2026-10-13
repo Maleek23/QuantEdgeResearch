@@ -27,11 +27,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCandles, chartPalette, TF_CONFIG, type Level } from '@/components/charting/chart-engine';
-import { useChartPrefs, setChartPref, type ChartType, type RangeKey, type TfKey } from '@/components/charting/chart-prefs';
+import { useChartPrefs, setChartPref, type ChartHorizon, type ChartType, type GexMetric, type RangeKey, type TfKey } from '@/components/charting/chart-prefs';
 import {
   overlaysSupported, useInView, useLiveLast, useDealerMap, useChartOverlays, etClock, etInfo, fmtUsd, ageOf,
-  useLevelMap, pickKeyLevels, dealerWallLines,
+  useLevelMap, pickKeyLevels, dealerWallLines, useHorizonDealerMap, useExpectedMove,
 } from '@/components/charting/chart-layers';
+import type { EmDraw } from './layers-primitive';
 import { canonicalChartSymbol, indexInfo } from '@shared/index-symbols';
 import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
@@ -60,6 +61,19 @@ const CHIP_LABEL: Record<string, string> = { '1D': 'D', '1W': 'W', '4h': '4h', '
 const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
 const TF_NAME: Record<string, string> = { '1m': '1 minute', '5m': '5 minutes', '15m': '15 minutes', '30m': '30 minutes', '1h': '1 hour', '4h': '4 hours', '1D': '1 day', '1W': '1 week' };
 const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
+/** Expiry horizon chips (shared/gex-horizon.ts) — short label + what it means. */
+const HORIZONS: { id: ChartHorizon; short: string; long: string; tag: string }[] = [
+  { id: 'today', short: '0DTE', long: 'Today (0DTE) — contracts expiring this session', tag: '0DTE' },
+  { id: 'week', short: 'Week', long: 'This week — contracts expiring by Friday', tag: 'wk' },
+  { id: 'opex', short: 'OPEX', long: 'To monthly OPEX — contracts expiring by the 3rd Friday', tag: 'OPEX' },
+  { id: 'all', short: 'All', long: 'All expiries in the chain read', tag: 'all' },
+];
+const METRICS: { id: GexMetric; label: string; long: string }[] = [
+  { id: 'gex', label: 'GEX', long: 'Dealer gamma nodes (discs)' },
+  { id: 'vex', label: 'VEX', long: 'Dealer vanna nodes (rings)' },
+  { id: 'both', label: 'Both', long: 'Gamma discs + vanna rings' },
+];
+const SESSION_MS = 390 * 60_000;
 const NO_ZONES: never[] = [];
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl';
@@ -168,7 +182,26 @@ export function TvChart({
   const dealerSource = snap?.source ?? dealerQ.data?.optionsSource ?? 'chain';
   // 0–7d walls first (byDte.next7); all-expiry walls dashed + labelled "all"
   // where they differ — SPX's all-expiry walls sit on far round strikes.
-  const walls = useMemo(() => dealerWallLines(snap as Parameters<typeof dealerWallLines>[0]), [snap]);
+  const horizon = prefs.horizon;
+  const hzMeta = HORIZONS.find((h) => h.id === horizon) ?? HORIZONS[3];
+  const hzQ = useHorizonDealerMap(symbol, horizon, inView && prefs.walls);
+  const hzView = hzQ.data?.horizonView ?? null;
+  const allWalls = useMemo(() => dealerWallLines(snap as Parameters<typeof dealerWallLines>[0]), [snap]);
+  // A horizon other than All: the walls / zero-γ of that horizon's book only,
+  // labelled with it. Never the all-expiry walls under a horizon label.
+  const walls = useMemo(() => {
+    if (horizon === 'all') return allWalls;
+    if (!hzView) return { rows: [] as typeof allWalls.rows, basis: hzQ.isError ? `${hzMeta.short} dealer map unavailable` : `${hzMeta.short} book loading…` };
+    const rows: typeof allWalls.rows = [];
+    const push = (price: number | null, color: string, label: string) => {
+      if (price == null || !Number.isFinite(price) || rows.some((r) => Math.abs(r.price - price) < 1e-6)) return;
+      rows.push({ price, color, label, kind: 'gex-anchor' });
+    };
+    push(hzView.callWall, 'call', `CALL WALL ${hzMeta.tag}`);
+    push(hzView.putWall, 'put', `PUT WALL ${hzMeta.tag}`);
+    push(hzView.zeroGamma, 'caution', `ZERO-γ ${hzMeta.tag}`);
+    return { rows, basis: `${hzView.label}${hzView.lastExpiry ? ` · exp ≤ ${hzView.lastExpiry}` : ''}${hzView.source !== 'engine-byHorizon' ? ' · no horizon walls on this chain path' : ''}` };
+  }, [horizon, allWalls, hzView, hzMeta, hzQ.isError]);
   const levelQ = useLevelMap(symbol, prefs.keyLevels, inView);
   const keyLevels = useMemo(() => (prefs.keyLevels ? pickKeyLevels(levelQ.data) : []), [prefs.keyLevels, levelQ.data]);
   const allLevels = useMemo(() => {
@@ -191,6 +224,10 @@ export function TvChart({
     return { dollars: spot * sd, pct: sd * 100 };
   }, [daily]);
 
+  /* ── expected move from the options market (priced range): lines + cone ── */
+  const emQ = useExpectedMove(symbol, prefs.expMove, inView);
+  const emData = emQ.data ?? null;
+
   /* ── replay (bars cut at a cursor that steps forward) ── */
   const histBars = series?.bars;
   const sessionBars = useMemo(() => {
@@ -198,7 +235,9 @@ export function TvChart({
     return intraday && !extended ? b.filter((x) => { const m = etInfo(x.time).mins; return m >= 570 && m < 960; }) : b;
   }, [histBars, intraday, extended]);
   const [replay, setReplay] = useState<{ on: boolean; idx: number; playing: boolean; speed: number }>({ on: false, idx: 0, playing: false, speed: 1 });
-  useEffect(() => { setReplay((r) => ({ ...r, on: false, playing: false })); }, [symbol, tf, extended]);
+  /** Replay "pick start": the next click on the chart sets the replay cursor to that candle. */
+  const [pickStart, setPickStart] = useState(false);
+  useEffect(() => { setReplay((r) => ({ ...r, on: false, playing: false })); setPickStart(false); }, [symbol, tf, extended]);
   useEffect(() => {
     if (!replay.on || !replay.playing) return;
     const id = setInterval(() => {
@@ -218,7 +257,7 @@ export function TvChart({
   const ovRange = range === '1D' && intraday ? '1D' : '5D';
   const layersOk = overlaysSupported(symbol);
   const wantLayers = layersOk && (prefs.gex !== 'off' || prefs.dp || prefs.flow);
-  const { data: ov, isError: ovError, isLoading: ovLoading } = useChartOverlays(symbol, ovRange, wantLayers, inView, lastCloseRef);
+  const { data: ov, isError: ovError, isLoading: ovLoading } = useChartOverlays(symbol, ovRange, wantLayers, inView, lastCloseRef, horizon);
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -274,10 +313,23 @@ export function TvChart({
     };
   }, [prefs.gex, layersOk, ov, cutoff, now, intraday, range, sessionBars]);
 
+  // Expected move is anchored NOW: hidden in replay (it was not the priced range then).
+  const em = useMemo((): EmDraw | null => {
+    if (!prefs.expMove || !emData || cutoff != null) return null;
+    const d = emData.daily; const w = emData.weekly;
+    if (!d && !w && !emData.cone) return null;
+    return {
+      daily: d ? { upper: d.upper, lower: d.lower, move: d.move } : null,
+      weekly: w ? { upper: w.upper, lower: w.lower, move: w.move } : null,
+      cone: emData.cone ? { perSessionMove: emData.cone.perSessionMove } : null,
+      sessionMs: SESSION_MS,
+    };
+  }, [prefs.expMove, emData, cutoff]);
   const layers = useMemo(() => ({
     ov: ov ?? null, gex: prefs.gex, dp: prefs.dp, flow: prefs.flow,
     gexTop: gexRead?.top ?? null, gexTopAsOf: gexRead ? Date.parse(gexRead.asOf) : null,
-  }), [ov, prefs.gex, prefs.dp, prefs.flow, gexRead]);
+    metric: prefs.gexMetric, labels: prefs.gexLabels, project: prefs.gexProject, em,
+  }), [ov, prefs.gex, prefs.dp, prefs.flow, gexRead, prefs.gexMetric, prefs.gexLabels, prefs.gexProject, em]);
 
   const tk = useMemo(() => {
     const pal = chartPalette(rootRef.current);
@@ -452,13 +504,14 @@ export function TvChart({
           <span className="tv-dim">{walls.basis} · {dealerSource} · {ageOf(dealerAsOf, now)} old</span>
         </>
       ) : <span className="tv-dim">{dealerPending ? 'reading the chain…' : dealerQ.isError ? 'dealer map unavailable' : '—'}</span>, () => set('walls', false))}
-      {prefs.gex !== 'off' && layersOk && legendRow('gex', prefs.gex === 'bubbles' ? 'GEX orbs' : 'GEX lines', gexRead ? (
+      {prefs.gex !== 'off' && layersOk && legendRow('gex', prefs.gex === 'bubbles' ? `${prefs.gexMetric === 'vex' ? 'VEX' : prefs.gexMetric === 'both' ? 'GEX+VEX' : 'GEX'} nodes · ${hzMeta.short}` : `GEX lines · ${hzMeta.short}`, gexRead ? (
         <>
           <span>Net <b style={{ color: gexRead.net >= 0 ? tk.pos : tk.neg }}>{fmtUsd(gexRead.net, true)}</b></span>
           {gexRead.top.slice(0, 3).map((s) => <span key={s.strike}>{s.strike.toFixed(2)} <b style={{ color: s.gex >= 0 ? tk.pos : tk.neg }}>{fmtUsd(s.gex, true)}</b></span>)}
-          <span className="tv-dim" title={ov?.gexTimeline.expiryScope}>{cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source} · all expiries</span>
+          <span className="tv-dim" title={ov?.gexTimeline.expiryScope}>{cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source} · {horizon === 'all' ? 'all expiries' : hzMeta.long.split(' — ')[0]}</span>
+          {ov?.gexTimeline.cadence && <span className={ov.gexTimeline.cadence === 'hourly' ? 'tv-orb-chip' : 'tv-dim'} title="How dense the stored dealer snapshots are for this range">{ov.gexTimeline.cadence === 'hourly' ? 'hourly snapshots' : ov.gexTimeline.cadence === 'mixed' ? '5-min + hourly snapshots' : '5-min snapshots'}</span>}
         </>
-      ) : <span className="tv-dim">{ovLoading ? 'loading…' : ovError ? 'overlay feed unavailable' : 'no GEX snapshot for this symbol yet'}</span>, () => set('gex', 'off'))}
+      ) : <span className="tv-dim">{ovLoading ? 'loading…' : ovError ? 'overlay feed unavailable' : horizon !== 'all' ? `no ${hzMeta.short} snapshots stored for this range yet` : 'no GEX snapshot for this symbol yet'}</span>, () => set('gex', 'off'))}
       {orbStatus && (
         <div className="tv-leg-row tv-leg-ind" key="orb-status">
           <span className="tv-orb-chip" role="status">
@@ -487,7 +540,13 @@ export function TvChart({
       ), () => set('extended', false))}
       {idx?.ownExtendedSession && intraday && series?.meta?.session?.note && legendRow('idxsess', 'Session', <span className="tv-dim">{series.meta.session.note}</span>)}
       {cmpOn && legendRow('cmp', `vs ${cmpSym}`, <span className="tv-dim">{cmpQ.isError ? `no history for ${cmpSym}` : cmpQ.isLoading ? 'loading…' : '% from the first visible bar'}</span>, () => setCmpSym(null))}
-      {expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized</span></span>)}
+      {prefs.expMove && layersOk && (emData?.daily || emData?.weekly) ? legendRow('em', 'Expected move', (
+        <>
+          {emData.daily && <span title={`${emData.daily.basis}\nAnchored at ${emData.daily.anchorSpot.toFixed(2)} (${etClock(Date.parse(emData.daily.anchorAt))} ET) — fixed for the session`}>day ±<b>{emData.daily.move.toFixed(2)}</b> ({emData.daily.movePct.toFixed(2)}%)</span>}
+          {emData.weekly && <span title={`${emData.weekly.basis}\nAnchored at ${emData.weekly.anchorSpot.toFixed(2)} (${new Date(emData.weekly.anchorAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET) — fixed to ${emData.weekly.expiry}`}>week ±<b>{emData.weekly.move.toFixed(2)}</b> ({emData.weekly.movePct.toFixed(2)}%)</span>}
+          <span className="tv-dim" title={`${emData.note}${emData.cone ? `\nCone: ${emData.cone.basis}` : ''}`}>priced range (options) · {emData.daily?.source === 'atm_iv' ? 'ATM IV' : 'ATM straddle'} · {emData.chainSource} · chain {emData.chainAgeSec != null ? `${Math.round(emData.chainAgeSec / 60)}m` : '—'} old{cutoff != null ? ' · hidden in replay' : ''}</span>
+        </>
+      ), () => set('expMove', false)) : expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized{prefs.expMove && layersOk ? (emQ.isLoading ? ' · options read loading…' : ' · no options priced range') : ''}</span></span>)}
       {candlesError && <div className="tv-leg-row tv-warn">Price history unavailable for {symbol} {tfLabel}</div>}
       {candlesLoading && <div className="tv-leg-row tv-dim">loading {symbol} {tfLabel}…</div>}
     </>
@@ -523,6 +582,21 @@ export function TvChart({
       {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk.call)}
       {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk.pos)}
       {menuRow(prefs.gex === 'lines', (v) => set('gex', v ? 'lines' : 'off'), 'GEX top strikes (lines)', gexRead ? `snapshot ${ageOf(gexRead.asOf, now)} old` : null, tk.neg)}
+      <div className="tv-mseg-row">
+        <span className="tv-mseg-label">Expiries</span>
+        <div className="tv-seg" role="radiogroup" aria-label="Expiry horizon">
+          {HORIZONS.map((h) => <button type="button" role="radio" aria-checked={horizon === h.id} key={h.id} className={horizon === h.id ? 'on' : ''} title={h.long} onClick={() => set('horizon', h.id)}>{h.short}</button>)}
+        </div>
+      </div>
+      <div className="tv-mseg-row">
+        <span className="tv-mseg-label">Nodes</span>
+        <div className="tv-seg" role="radiogroup" aria-label="Node exposure">
+          {METRICS.map((m) => <button type="button" role="radio" aria-checked={prefs.gexMetric === m.id} key={m.id} className={prefs.gexMetric === m.id ? 'on' : ''} title={m.long} onClick={() => { set('gexMetric', m.id); if (prefs.gex !== 'bubbles') set('gex', 'bubbles'); }}>{m.label}</button>)}
+        </div>
+      </div>
+      {menuRow(prefs.gexLabels, (v) => set('gexLabels', v), 'Apex node labels', 'strike + size of the strongest node')}
+      {menuRow(prefs.gexProject, (v) => set('gexProject', v), 'Project nodes forward', 'latest nodes carried past the last candle — not a forecast')}
+      {menuRow(prefs.expMove, (v) => set('expMove', v), 'Expected move · priced range', 'today / this week lines + √t cone from the ATM straddle', tk.mute)}
       <div className="tv-mhead">Tape</div>
       {menuRow(prefs.dp, (v) => set('dp', v), 'Dark-pool levels', layersOk ? 'Bullflow dark-pool prints, multi-day' : 'no options layers for this symbol', tk.dp)}
       {menuRow(prefs.flow, (v) => set('flow', v), 'Options flow prints', layersOk ? 'calls ● above · puts ◆ below' : 'no options layers for this symbol', tk.call)}
@@ -677,6 +751,16 @@ export function TvChart({
           </button>
           {menu === 'ind' && indicatorsMenu}
         </div>
+        {layersOk && (
+          <div className="tv-seg tv-seg-top tv-desk-flex" role="radiogroup" aria-label="Expiry horizon" title="Which expiries feed walls, nodes and zero-γ">
+            {HORIZONS.map((h) => <button type="button" role="radio" aria-checked={horizon === h.id} key={h.id} className={horizon === h.id ? 'on' : ''} title={h.long} onClick={() => set('horizon', h.id)}>{h.short}</button>)}
+          </div>
+        )}
+        {layersOk && prefs.gex === 'bubbles' && (
+          <div className="tv-seg tv-seg-top tv-desk-flex" role="radiogroup" aria-label="Node exposure">
+            {METRICS.map((m) => <button type="button" role="radio" aria-checked={prefs.gexMetric === m.id} key={m.id} className={prefs.gexMetric === m.id ? 'on' : ''} title={m.long} onClick={() => set('gexMetric', m.id)}>{m.label}</button>)}
+          </div>
+        )}
         {onSymbolChange && (
           <button type="button" className={`tv-tb tv-desk-flex${prefs.watchlist ? ' on' : ''}`} aria-pressed={prefs.watchlist} onClick={() => set('watchlist', !prefs.watchlist)} aria-label="Watchlist panel" title="Watchlist panel"><IconPanel /></button>
         )}
@@ -710,7 +794,11 @@ export function TvChart({
             {[1, 2, 5, 10].map((s) => <option key={s} value={s}>{s}×</option>)}
           </select>
           <input type="range" min={1} max={sessionBars.length - 1} value={Math.min(replay.idx, sessionBars.length - 1)} onChange={(e) => setReplay((r) => ({ ...r, idx: Number(e.target.value), playing: false }))} aria-label="Replay position" />
-          <span className="tv-dim">{cutoff != null ? `${new Date(cutoff).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}</span>
+          <button type="button" className={`tv-btn${pickStart ? ' on' : ''}`} aria-pressed={pickStart} title="Pick the start candle: click a candle on the chart" onClick={() => {
+            setPickStart((v) => !v);
+            setReplay((r) => ({ ...r, playing: false, idx: pickStart ? r.idx : sessionBars.length - 1 }));
+          }}>{pickStart ? 'Click a candle…' : 'Pick start'}</button>
+          <span className="tv-dim">{cutoff != null ? `${new Date(cutoff).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}{ov?.gexTimeline.cadence === 'hourly' ? ' · nodes from hourly snapshots' : ''}</span>
           <button type="button" className="tv-btn" onClick={() => setReplay((r) => ({ ...r, on: false, playing: false }))} aria-label="Exit replay" title="Exit replay">✕</button>
         </div>
       )}
@@ -727,7 +815,14 @@ export function TvChart({
           </div>
         </div>
 
-        <div className="tv-main">
+        <div className="tv-main" onClickCapture={pickStart ? (e) => {
+          const a = paneRef.current?.pointerAnchor();
+          if (!a) return;
+          e.stopPropagation();
+          let i = 0; while (i < sessionBars.length - 1 && sessionBars[i + 1].time <= a.t) i++;
+          setReplay((r) => ({ ...r, idx: Math.max(1, i), playing: false }));
+          setPickStart(false);
+        } : undefined} style={pickStart ? { cursor: 'crosshair' } : undefined}>
           <TvPane
             ref={paneRef}
             symbol={symbol}
@@ -938,6 +1033,13 @@ const TV_CSS = `
 .tv-tfchips button{min-width:34px}
 .tv-seg.tv-chips-status{display:none}
 @media (max-width:1179px){.tv-seg.tv-chips-top{display:none}.tv-seg.tv-chips-status{display:inline-flex}}
+.tv-seg-top{flex:none;margin-left:4px}
+.tv-seg-top button{min-width:38px}
+@media (max-width:1379px){.tv-seg-top{display:none!important}}
+.tv-mseg-row{display:flex;align-items:center;gap:8px;padding:5px 6px}
+.tv-mseg-label{flex:none;width:56px;font-size:11px;color:var(--tv-mute)}
+.tv-mseg-row .tv-seg{flex:1}
+.tv-mseg-row .tv-seg button{flex:1;min-height:30px}
 .tv-cmp{display:flex;align-items:center;gap:4px;padding:2px 4px}
 .tv-cmp .tv-text-in{flex:1;min-width:0;width:auto}
 .tv-msub{display:block;padding:2px 6px 4px;font-size:11px;color:var(--tv-mute);line-height:1.35}

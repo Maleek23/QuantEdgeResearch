@@ -210,6 +210,20 @@ export const JOBS: JobDef[] = [
     },
   },
   {
+    name: 'gex-intraday-snapshots', role: 'worker', bootDelayMs: 450_000,
+    what: '5-min GEX snapshots 09:30–16:00 ET (index set + charted + watchlist + top-ranked, cap 30) → gex_snapshots (chart nodes / replay)',
+    disabled: () => {
+      const v = String(process.env.GEX_INTRADAY_SNAPSHOTS ?? 'on').toLowerCase();
+      return ['off', '0', 'false'].includes(v) ? `GEX_INTRADAY_SNAPSHOTS=${v}` : null;
+    },
+    start: async () => { await (await import('./gex-intraday-snapshots')).startGexIntradaySnapshots(); },
+  },
+  {
+    name: 'gex-snapshot-prune', role: 'worker', bootDelayMs: 480_000,
+    what: 'nightly 02:40 ET: 5-min gex_snapshots rows past retention (index set 400d, others 30d)',
+    start: async () => { await (await import('./gex-intraday-snapshots')).scheduleGexSnapshotPrune(); },
+  },
+  {
     name: 'idea-producers', role: 'worker', bootDelayMs: 60_000,
     what: 'every idea producer in server/idea-producer-schedule.ts (0DTE index/desk, flags, tape, GEX setups, quant, swings, crypto engine + tracker, pre-market plan/triggers, reversal slate)',
     disabled: () => (process.env.IDEA_PRODUCERS_IN_WEB === 'false' ? 'IDEA_PRODUCERS_IN_WEB=false' : null),

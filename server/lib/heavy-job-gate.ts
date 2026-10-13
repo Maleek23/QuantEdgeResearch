@@ -112,6 +112,7 @@ const DEFER_AT_OPEN: Array<(name: string) => boolean> = [
   (n) => n.startsWith('producer:sector-board'),            // sector board full recompute
   (n) => n === 'convictions-warm',                         // conviction board warm
   (n) => n.startsWith('chart-gex:') && !INDEX_CHART_SYMS.has(n.slice('chart-gex:'.length).toUpperCase()), // non-index chart recorder
+  (n) => n.startsWith('gex-intraday:') && !INDEX_CHART_SYMS.has(n.slice('gex-intraday:'.length).toUpperCase()), // non-index 5-min snapshots
   (n) => n === 'self-learning',
   (n) => n === 'producer:quant',                           // quant sweep
   (n) => /^producer:(index-swing|leader-swing|leaders|premium-discount|short-swings|crypto-proxy|gex-setups|bull-flag|bear-flag|base-reclaim)$/.test(n), // swing / structure / session-leader scans
