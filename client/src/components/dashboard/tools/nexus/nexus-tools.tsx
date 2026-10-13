@@ -14,7 +14,7 @@
  */
 import { usePhone } from '@/components/ui/qe-phone';
 import { RotationStrip, rotationTagFor, useRotationMap } from '@/components/sector-ignition/sector-ignition';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearch } from 'wouter';
 import { NEXUS_IDEA_PARAM, NEXUS_SYM_PARAM, readNexusTarget } from '@/lib/nexus-link';
 import { Activity, Search } from 'lucide-react';
@@ -260,9 +260,21 @@ export function NexusBoardTool() {
   const activeId = sel?.kind === 'setup' ? sel.id : sel == null ? topId : undefined;
   const phone = usePhone();
   // Phone: the detail is a section further down the one-column page — a row tap brings it into view.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [inlineTab, setInlineTab] = useState<DetailTab>('overview');
   const toDetail = () => { if (phone) window.requestAnimationFrame(() => document.querySelector('[data-tool="nexus-detail"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
-  const row = (pick: ConvictionPick) => <SetupRow key={pick.ideaId} pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />;
+  // Tap a setup → its details open right under the row (tap again to collapse). No jump elsewhere.
+  const row = (pick: ConvictionPick) => {
+    const open = expandedId === pick.ideaId;
+    return (
+      <div key={pick.ideaId} className={`nxp-acc ${open ? 'open' : ''}`}>
+        <SetupRow pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId}
+          onSelect={() => { select.setup(pick); setExpandedId(open ? null : pick.ideaId); }} />
+        {open && <div className="nxp-acc-body nxd nxd-detail" data-testid="nexus-inline-detail"><DetailSetup id={pick.ideaId} tab={inlineTab} onTab={setInlineTab} /></div>}
+      </div>
+    );
+  };
   const dayLabel = isDateKey(day) ? `on ${dayHeading(day, now)}` : day === 'week' ? 'this week' : day;
   const fstate: BoardFilterState = { day, side, rank, query, cryptoOnly, spxOnly, withRotation, showStale, calledRange: calledRange ?? EMPTY_CALLED_RANGE, view };
   const onFilter = (p: Partial<BoardFilterState>) => {

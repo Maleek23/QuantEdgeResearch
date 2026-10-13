@@ -162,3 +162,7 @@ html[data-mode=light] .nxp-risk-state.low{color:#035c43}
 @media (min-width:600px){
   .flowdash .nxd .nxp-row small{font-size:10px}
 }
+
+/* Ranked Setups: inline accordion detail (2026-10-13) */
+.nxp-acc.open { border-left: 2px solid var(--lx-accent, #3b8cff); background: rgba(59,140,255,.04); }
+.nxp-acc-body { padding: 8px 10px 14px; border-bottom: 1px solid var(--border, rgba(255,255,255,.08)); max-height: none; overflow: visible; }
