@@ -360,7 +360,7 @@ interface FlowStateW { enabled: boolean; lastCycle: FlowCycleW | null; rows: Flo
 const flowQuoteAge = (r: FlowRowW, c: FlowCycleW | null, now: number) =>
   r.contract?.quoteAgeS == null ? null : r.contract.quoteAgeS + (c ? Math.max(0, Math.round((now - Date.parse(c.at)) / 1000)) : 0);
 function flowAct(r: FlowRowW, c: FlowCycleW | null, phase: Phase, now: number): ActState {
-  return flowActionability({ state: r.state, at: r.at, quoteAgeSec: flowQuoteAge(r, c, now), hasPlan: !!r.plan, stateWhy: r.stateWhy, reason: r.reason },
+  return flowActionability({ state: r.state, at: r.at, quoteAgeSec: flowQuoteAge(r, c, now), hasPlan: !!r.plan, stateWhy: r.stateWhy, reason: r.reason, published: r.published },
     { nowMs: now, phaseId: phase.id, entriesOpen: phase.entriesOpen });
 }
 const flowContract = (r: FlowRowW) => (r.contract ? `${r.symbol} ${r.contract.strike}${r.contract.type === 'call' ? 'C' : 'P'} ${r.contract.dte === 0 ? '0DTE' : `${r.contract.dte}DTE`}` : '—');

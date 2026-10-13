@@ -36,7 +36,13 @@ export async function optionPublishPlan(
   const dte = calendarDaysToExpiry(p.expiryDate, p.nowMs ?? Date.now());
   const holdingPeriod = holdingPeriodForDte(dte, { fallback: p.fallbackHolding });
   const input = { symbol: p.symbol, entry: p.entry, stop: p.stop, target: p.target, direction: p.direction, holdingPeriod, assetType: 'option' };
-  const floored = deps.daily ? computeAtrStopFloor(input, deps.daily) : await applyAtrStopFloor(input);
+  // Short-dated (≤2 DTE) options are intraday plans: a stop widened to 1.25× the DAILY
+  // ATR wrecks their R:R (AVGO/AMZN 1DTE, 2026-10-13: R:R 0.24 → rejected as a trap while
+  // the desk showed "Enter now"). Keep the plan's own stop for them.
+  const shortDated = dte != null && dte <= 2;
+  const floored = shortDated
+    ? computeAtrStopFloor({ ...input, holdingPeriod: 'day' }, [])
+    : deps.daily ? computeAtrStopFloor(input, deps.daily) : await applyAtrStopFloor(input);
   const stopLoss = floored.widened && typeof floored.stopLoss === 'number' ? floored.stopLoss : p.stop;
   const risk = Math.abs(p.entry - stopLoss);
   const riskRewardRatio = risk > 0 ? +(Math.abs(p.target - p.entry) / risk).toFixed(2) : 0;

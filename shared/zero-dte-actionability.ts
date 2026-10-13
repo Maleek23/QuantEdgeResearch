@@ -149,6 +149,8 @@ export interface FlowActInput {
   hasPlan: boolean;
   stateWhy: string | null;
   reason: string | null;
+  /** False when the fired row was NOT written as an idea (gate, cap, dedup): never "Enter now". */
+  published?: boolean;
 }
 
 export function flowActionability(r: FlowActInput, ctx: ActCtx): ActState {
@@ -160,7 +162,8 @@ export function flowActionability(r: FlowActInput, ctx: ActCtx): ActState {
     if (m > ACT_CFG.FLOW_ENTRY_END_MIN) return mk('expired', `flow window closed ${hhmm(ACT_CFG.FLOW_ENTRY_END_MIN)} ET — never confirmed`);
     return mk('watch', r.reason ? `waiting: ${r.reason}` : 'waiting for structure');
   }
-  // fired
+  // fired — but a row the write gate refused is not a play: no journal row, no Discord card.
+  if (r.published === false) return mk('stale', `not posted${r.reason ? ` — ${r.reason}` : ''}`);
   const sinceMin = Math.max(0, Math.round((ctx.nowMs - Date.parse(r.at)) / 60_000));
   if (m > ACT_CFG.FLOW_ENTRY_END_MIN) return mk('passed', `entry window closed ${hhmm(ACT_CFG.FLOW_ENTRY_END_MIN)} ET — manage only`);
   if (sinceMin > ACT_CFG.FLOW_FRESH_MIN) return mk('passed', `fired ${sinceMin}m ago — premium has moved, manage only`);

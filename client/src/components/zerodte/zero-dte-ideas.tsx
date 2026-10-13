@@ -84,6 +84,10 @@ export function recordLine(d: DeskPayload): string {
 
 /* ── actionability (shared/zero-dte-actionability.ts) ── */
 export function ideaAct(x: DeskIdea, d: DeskPayload, nowMs: number): ActState {
+  // A triggered row that was never logged (gate refused it) is not a play — never "Enter now".
+  if (x.stage === 'triggered' && !x.logged) {
+    return { state: 'stale', label: 'Not posted', reason: x.loggedNote ?? 'not posted', actionable: false, rank: 50 } as ActState;
+  }
   return ideaActionability({
     stage: x.stage, doneReason: x.doneReason, distPct: x.distPct, hasContract: !!x.contract,
     quote: x.quote ? { mid: x.quote.mid, at: x.quote.at } : null, entryBy: x.entryBy, exitBy: x.exitBy,
