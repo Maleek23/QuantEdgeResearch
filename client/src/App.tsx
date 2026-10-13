@@ -71,6 +71,7 @@ const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog"
 const AdminTraders = lazyWithRetry(() => import("@/pages/admin/traders"), "admin-traders");
 const DeskPortalPage = lazyWithRetry(() => import("@/pages/desk"), "desk");
 const AdminAudit = lazyWithRetry(() => import("@/pages/admin/audit"), "admin-audit");
+const AdminLearning = lazyWithRetry(() => import("@/pages/admin/learning"), "admin-learning");
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
@@ -334,6 +335,7 @@ function Router() {
       <Route path="/admin/blog" component={AdminBlog} />
       <Route path="/admin/traders" component={AdminTraders} />
       <Route path="/admin/audit" component={AdminAudit} />
+      <Route path="/admin/learning" component={AdminLearning} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
@@ -384,7 +386,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/admin/learning', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

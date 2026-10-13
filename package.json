@@ -43,6 +43,7 @@
     "test:zero-dte-actionability": "tsx scripts/test-zero-dte-actionability.ts",
     "test:spx-fast-moves": "tsx scripts/test-spx-fast-moves.ts",
     "test:roles": "tsx scripts/test-roles.ts",
+    "test:learning-loop": "tsx scripts/test-learning-loop.ts",
     "test:auth-hardening": "tsx scripts/test-auth-hardening.ts",
     "test:admin-ops": "tsx scripts/test-admin-ops.ts",
     "test:desk-admins": "tsx scripts/test-desk-admins.ts",

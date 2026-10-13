@@ -81,6 +81,7 @@ export interface AdminInviteRow {
 export interface AdminAuditRow { at: string; action: string; actor: string; target: string | null; detail: Record<string, unknown>; ip: string | null }
 
 export const AUDIT_LABEL: Record<string, string> = {
+  'learning.approve': 'Approved learning challenger', 'learning.reject': 'Rejected learning challenger', 'learning.rollback': 'Rolled back calibration',
   'invite.generate': 'Generated invite codes', 'invite.revoke': 'Revoked invite', 'invite.create': 'Created invite (email)', 'invite.send': 'Sent invite email',
   'waitlist.approve': 'Approved waitlist', 'waitlist.reject': 'Rejected waitlist', 'waitlist.invite': 'Invited from waitlist',
   'user.tier': 'Changed tier', 'user.beta': 'Changed beta access', 'user.disable': 'Disabled account', 'user.enable': 'Enabled account',

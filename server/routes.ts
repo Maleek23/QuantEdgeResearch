@@ -33050,6 +33050,9 @@ Use this checklist before entering any trade:
     // Monthly swings & LEAPS — research screen (server/swings-screener.ts; worker computes nightly, web reads the cache; admin refresh)
     const { registerSwingsRoutes } = await import('./swings-screener');
     registerSwingsRoutes(app, requireBetaAccess, requireAdminJWT);
+    // Self-calibration loop admin (server/learning-loop-job.ts): scorecard, re-fit, shadow, Approve / Reject / Rollback
+    const { registerLearningRoutes } = await import('./learning-loop-job');
+    registerLearningRoutes(app, requireAdminJWT);
   }
 
   /**

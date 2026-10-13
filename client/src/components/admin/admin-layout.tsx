@@ -58,6 +58,7 @@ export const ADMIN_SECTIONS = [
   { title: "Overview", href: "/admin", match: ["/admin"] },
   { title: "Users & access", href: "/admin/users", match: ["/admin/users", "/admin/invites", "/admin/waitlist", "/admin/traders"] },
   { title: "Audit log", href: "/admin/audit", match: ["/admin/audit"] },
+  { title: "Learning", href: "/admin/learning", match: ["/admin/learning"] },
   { title: "System health", href: "/admin/system", match: ["/admin/system"] },
   { title: "Content", href: "/admin/blog", match: ["/admin/blog"] },
   { title: "Roadmap", href: "/admin/roadmap", match: ["/admin/roadmap"] },

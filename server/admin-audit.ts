@@ -41,6 +41,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'trader_self_setup.fail', 'trader_self_setup.lockout', 'trader_self_setup.complete', 'trader_self_setup.config',
   // Ask Quantinum (docs/ASK_QUANTINUM.md) — provider order / models changed or reset.
   'quantinum_ai.config', 'quantinum_ai.config_reset',
+  // Learning loop (server/learning-loop-job.ts) — challenger approve / reject, calibration rollback.
+  'learning.approve', 'learning.reject', 'learning.rollback',
 ] as const;
 
 export function adminAuditFile(): string {

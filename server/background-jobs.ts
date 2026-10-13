@@ -328,6 +328,12 @@ export const JOBS: JobDef[] = [
     disabled: () => (/^(0|false|off|no)$/i.test(String(process.env.SWINGS_SCREENER ?? '').trim()) ? 'SWINGS_SCREENER=off' : null),
     start: async ({ log }) => { await (await import('./swings-screener')).scheduleSwingsScreener(log); },
   },
+  {
+    name: 'learning-loop', role: 'worker', bootDelayMs: 510_000,
+    what: 'self-calibration loop: idea feature ledger every 15 min 09–16 ET · scorecard + drift + shadow + gate + auto-rollback 19:00 ET weekdays · walk-forward re-fit Sat 10:00 ET (heavy gate; never auto-promotes) → .cache/shared/learning-*',
+    disabled: () => (/^(0|false|off|no)$/i.test(String(process.env.LEARNING_LOOP ?? '').trim()) ? 'LEARNING_LOOP=off' : null),
+    start: async ({ log }) => { await (await import('./learning-loop-job')).scheduleLearningLoop(log); },
+  },
 ];
 
 /** Worker start order: by bootDelayMs (missing = 0), registry order within a tie. */

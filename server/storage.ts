@@ -2853,6 +2853,13 @@ export class DatabaseStorage implements IStorage {
         logger.info(`[PUBLISH-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${g}`);
         throw new Error(`Publish gate: ${g}`);
       }
+      // 🧠 Approved learning calibration (server/learning-calibration.ts) — no-op unless LEARNING_LOOP_APPLY=on.
+      const { learningPublishGate } = await import("./learning-calibration");
+      const lg = learningPublishGate(idea as any, Date.now());
+      if (lg) {
+        logger.info(`[LEARNING-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${lg}`);
+        throw new Error(`Publish gate: ${lg}`);
+      }
       // #5 any-strike duplicates within the ET session: same symbol + side +
       // source + option, whatever the strike — 59 ideas, −$2,621 closed.
       if (String((idea as any).assetType) === "option" && opts?.dedupWindowHours !== 0) {
