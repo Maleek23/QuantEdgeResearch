@@ -12,6 +12,7 @@ import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
 import { fmtAge } from '@/components/gex/gex-colors';
 import type { TerminalData } from '@/components/gex/gex-model';
 import type { LevelMapPayload } from './chart-levels';
+import type { ChartHorizon } from './chart-prefs';
 
 export interface FlowPrint {
   time: number; optionType: 'call' | 'put'; strike: number; expiry: string;
@@ -27,6 +28,14 @@ export interface OverlayPayload {
     sources: string[]; note: string; watched: boolean; recorderLastRun?: string | null;
     samples: { t: number; spot: number | null; net: number; source: string }[];
     series: { strike: number; points: [number, number][] }[];
+    /** Net VEX ($ per IV point) per strike through time — 5-min rows and hourly matrices only. */
+    vexSeries?: { strike: number; points: [number, number][] }[];
+    horizon?: ChartHorizon;
+    horizonLabel?: string;
+    /** '5m' | 'hourly' | 'mixed' — how dense the stored snapshots are for this range. */
+    cadence?: '5m' | 'hourly' | 'mixed' | null;
+    /** The newest stored horizon levels (5-min rows). */
+    horizonLevels?: { cw: number | null; pw: number | null; flip: number | null; maxG: number | null; asOf: string } | null;
   };
   darkPool: {
     source: string; asOf: string | null; ageSec: number | null; stale: boolean;
@@ -97,13 +106,52 @@ export function useDealerMap(symbol: string, enabled: boolean, inView: boolean) 
   });
 }
 
-/** GEX timeline, dark pool and flow prints for the symbol + session range. */
-export function useChartOverlays(symbol: string, ovRange: '1D' | '5D', enabled: boolean, inView: boolean, spotRef: MutableRefObject<number | null>) {
+/** Dealer map over one expiry horizon (?horizon=today|week|opex). Off for 'all' (useDealerMap is the all-expiry read). */
+export interface HorizonView {
+  horizon: ChartHorizon; label: string; lastExpiry: string | null;
+  callWall: number | null; putWall: number | null; zeroGamma: number | null; maxGammaStrike: number | null;
+  totalGEX: number | null; expirations: number | null; nodes: Array<[number, number, number]>;
+  source: 'engine-byHorizon' | 'matrix-only' | 'none'; note: string;
+}
+export function useHorizonDealerMap(symbol: string, horizon: ChartHorizon, inView: boolean) {
+  return useQuery<TerminalData & { horizonView?: HorizonView }>({
+    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus', horizon],
+    queryFn: async ({ signal }) => {
+      const r = await fetch(`/api/gex-vex/terminal/${encodeURIComponent(symbol)}?interval=15m&lookback=5&horizon=${horizon}`, { credentials: 'include', signal });
+      if (!r.ok) throw new Error(`${symbol} ${horizon} dealer map: HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: horizon !== 'all' && inView && overlaysSupported(symbol),
+    staleTime: 60_000, refetchInterval: inView ? 120_000 : false, retry: 1, retryDelay: 3_000,
+  });
+}
+
+/** Expected move: "priced range (options)" — server/chart-expected-move.ts. */
+export interface EmLine { anchorSpot: number; anchorAt: string; key: string; move: number; movePct: number; upper: number; lower: number; expiry: string; source: 'atm_straddle' | 'atm_iv'; basis: string }
+export interface ExpectedMovePayload {
+  symbol: string; generatedAt: string; label: string; spot: number | null; chainSource: string | null; chainAgeSec: number | null;
+  daily: EmLine | null; weekly: EmLine | null; cone: null | { fromSpot: number; perSessionMove: number; basis: string }; note: string;
+}
+export function useExpectedMove(symbol: string, enabled: boolean, inView: boolean) {
+  return useQuery<ExpectedMovePayload>({
+    queryKey: ['/api/chart/expected-move', symbol],
+    queryFn: async () => {
+      const r = await fetch(`/api/chart/expected-move/${encodeURIComponent(symbol)}`, { credentials: 'include' });
+      if (!r.ok) throw new Error(`expected move HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: enabled && inView && overlaysSupported(symbol),
+    staleTime: 120_000, refetchInterval: inView ? 300_000 : false, retry: 1,
+  });
+}
+
+/** GEX timeline, dark pool and flow prints for the symbol + session range (+ expiry horizon). */
+export function useChartOverlays(symbol: string, ovRange: '1D' | '5D', enabled: boolean, inView: boolean, spotRef: MutableRefObject<number | null>, horizon: ChartHorizon = 'all') {
   return useQuery<OverlayPayload>({
-    queryKey: ['/api/chart/overlays', symbol, ovRange],
+    queryKey: horizon === 'all' ? ['/api/chart/overlays', symbol, ovRange] : ['/api/chart/overlays', symbol, ovRange, horizon],
     queryFn: async () => {
       const spot = spotRef.current;
-      const r = await fetch(`/api/chart/overlays/${encodeURIComponent(symbol)}?range=${ovRange}${spot ? `&spot=${spot}` : ''}`, { credentials: 'include' });
+      const r = await fetch(`/api/chart/overlays/${encodeURIComponent(symbol)}?range=${ovRange}${spot ? `&spot=${spot}` : ''}${horizon !== 'all' ? `&horizon=${horizon}` : ''}`, { credentials: 'include' });
       if (!r.ok) throw new Error('overlays failed');
       return r.json();
     },

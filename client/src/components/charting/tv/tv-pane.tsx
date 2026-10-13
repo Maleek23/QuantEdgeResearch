@@ -32,6 +32,14 @@ import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indica
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
 import { guardChart, type ChartGuard } from './chart-guard';
+import { LEVEL_COLORS, exposureVar } from '@/components/gex/gex-colors';
+
+/** 'var(--x, #fallback)' → the active mode's value (canvas cannot read CSS vars). */
+function cssColor(v: string, el: Element | null): string {
+  const m = /^var\((--[\w-]+)\s*(?:,\s*([^)]+))?\)$/.exec(v.trim());
+  if (!m || typeof getComputedStyle === 'undefined') return v;
+  return getComputedStyle(el ?? document.documentElement).getPropertyValue(m[1]).trim() || (m[2]?.trim() ?? v);
+}
 
 /* ───────────────────────── time: ET on the axis ───────────────────────── */
 
@@ -229,7 +237,14 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const layerColors = useCallback((): LayerColors => {
     const c = colors();
     const pal = chartPalette(hostRef.current);
-    return { pos: c.accent, neg: c.down, dp: c.caution, call: c.call, put: c.put, panel: c.bg, caution: c.caution, zone: (z) => (z ? resolveLevelColor(z, pal, hostRef.current) : c.caution) };
+    const el = hostRef.current;
+    return {
+      pos: c.accent, neg: c.down, dp: c.caution, call: c.call, put: c.put, panel: c.bg, caution: c.caution, zone: (z) => (z ? resolveLevelColor(z, pal, el) : c.caution),
+      // Nodes follow the GEX hub colour law (gex-colors.ts), not the candle gain/loss pair.
+      gexPos: cssColor(LEVEL_COLORS.callWall, el), gexNeg: cssColor(LEVEL_COLORS.putWall, el),
+      vexPos: cssColor(exposureVar('vex', 1), el), vexNeg: cssColor(exposureVar('vex', -1), el),
+      apex: cssColor(LEVEL_COLORS.magnet, el), em: c.info, text: c.text,
+    };
   }, [colors]);
 
   const drawPrim = useMemo(() => new DrawingsPrimitive(drawColors), [drawColors]);
@@ -875,10 +890,12 @@ export function describeLayerHit(hit: ReturnType<LayersPrimitive['hit']>, tk: { 
     ];
   }
   if (hit.kind === 'orb') {
+    const vex = hit.metric === 'vex';
     return [
-      { text: `GEX ${hit.strike.toFixed(2)}`, bold: true, color: hit.g >= 0 ? tk.pos : tk.neg },
-      { text: `${fmtUsd(hit.g, true)} net gamma` },
-      { text: `Sampled ${etClock(hit.t)} ET · ${hit.src}`, color: tk.mute },
+      { text: `${hit.apex ? 'Apex node · ' : ''}${vex ? 'VEX' : 'GEX'} ${hit.strike.toFixed(2)}`, bold: true, color: hit.g >= 0 ? tk.pos : tk.neg },
+      { text: vex ? `${fmtUsd(hit.g, true)} net vanna per IV point` : `${fmtUsd(hit.g, true)} net gamma per 1% move` },
+      { text: `${Number.isFinite(hit.t) ? `Snapshot ${etClock(hit.t)} ET · ` : ''}${hit.src}`, color: tk.mute },
+      ...(hit.projected ? [{ text: 'Carried forward — the latest nodes, not a forecast', color: tk.mute }] : []),
     ];
   }
   return [

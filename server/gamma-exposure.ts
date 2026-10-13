@@ -90,6 +90,8 @@ export interface GammaExposureResult {
   gammaProfile?: Array<{ spot: number; netGEX: number }>;
   /** Per-horizon levels from the same contracts (shared/gex-buckets.ts). */
   byDte?: ExposureSnapshot['byDte'];
+  /** Expiry-horizon levels (shared/gex-horizon.ts). */
+  byHorizon?: ExposureSnapshot['byHorizon'];
   /** Raw vs Δ-adjusted vs flow-signed GEX + levels under each (shared/gex-adjusted.ts). */
   gammaMetrics?: ExposureSnapshot['gammaMetrics'];
   callWallOI?: number | null;
@@ -351,6 +353,7 @@ function snapshotToLegacy(
     vexRegime: snap.vexRegime,
     strikeExpiryMatrix: snap.strikeExpiryMatrix,
     byDte: snap.byDte,
+    byHorizon: snap.byHorizon,
     gammaMetrics: snap.gammaMetrics,
     dataSource: source === 'none' ? undefined : source,
     dataQuality: {

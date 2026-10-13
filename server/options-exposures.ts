@@ -31,7 +31,8 @@ import {
   type GammaMetricsBlock,
 } from '../shared/gex-adjusted';
 import { classifyGammaRegime, type GammaRegimeRead } from '../shared/gex-regime';
-import { bucketizeLegs, type BucketLeg, type GexBucketKey, type GexBucketSummary } from '../shared/gex-buckets';
+import { bucketizeLegs, summarizeBucketLegs, type BucketLeg, type GexBucketKey, type GexBucketSummary } from '../shared/gex-buckets';
+import { horizonLastExpiry, horizonMaxDte, type GexHorizon } from '../shared/gex-horizon';
 import type { GreekSource } from '../shared/iv-fill';
 
 /**
@@ -180,6 +181,13 @@ export interface ExposureSnapshot {
    * the headline, computed from the same contracts. /api/gex/buckets reads this.
    */
   byDte?: Partial<Record<GexBucketKey, GexBucketSummary>>;
+
+  /**
+   * Expiry-horizon levels (shared/gex-horizon.ts): the same headline
+   * definitions over contracts expiring by the horizon's cut-off — today's
+   * 0DTE, to this Friday, to monthly OPEX. 'all' is the headline itself.
+   */
+  byHorizon?: Partial<Record<Exclude<GexHorizon, 'all'>, GexBucketSummary & { lastExpiry: string | null }>>;
 
   // Diagnostics
   expirationsUsed: string[];
@@ -703,6 +711,7 @@ export function computeExposures(
     strikeExpiryMatrix,
     gammaMetrics,
     byDte: bucketizeLegs(bucketLegs, S),
+    byHorizon: horizonSummaries(bucketLegs, S, Date.now()),
     expirationsUsed,
     strikesScanned: strikes.length,
     strikesWithOI,
@@ -715,6 +724,18 @@ export function computeExposures(
     bsAssumptions,
     greekSources, modelledShare, modelledGrossShare,
   };
+}
+
+/** Per-horizon level summaries; a horizon with no contracts is omitted. */
+export function horizonSummaries(legs: BucketLeg[], spot: number, nowMs: number): ExposureSnapshot['byHorizon'] {
+  const out: NonNullable<ExposureSnapshot['byHorizon']> = {};
+  for (const h of ['today', 'week', 'opex'] as const) {
+    const cut = horizonMaxDte(h, nowMs);
+    const inside = legs.filter((l) => l.dte <= cut);
+    if (!inside.length) continue;
+    out[h] = { ...summarizeBucketLegs(inside, spot), lastExpiry: horizonLastExpiry(h, nowMs) };
+  }
+  return out;
 }
 
 // ─── Adapter from Tradier/Yahoo option shape ───────────────

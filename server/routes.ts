@@ -15589,11 +15589,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawRange = String(req.query.range ?? '1D').toUpperCase();
       const range = ['1D', '2D', '5D'].includes(rawRange) ? rawRange : '1D';
       const spot = Number(req.query.spot);
+      const { parseHorizon } = await import('@shared/gex-horizon');
       const { buildChartOverlays } = await import('./chart-overlays');
-      res.json(await buildChartOverlays(symbol, range, Number.isFinite(spot) && spot > 0 ? spot : null));
+      res.json(await buildChartOverlays(symbol, range, Number.isFinite(spot) && spot > 0 ? spot : null, parseHorizon(req.query.horizon)));
     } catch (error: any) {
       logger.warn(`[CHART-OVERLAYS] failed: ${error?.message}`);
       res.status(500).json({ error: 'Chart overlays unavailable' });
+    }
+  });
+  // CHART expected move — daily + weekly priced range from the ATM straddle
+  // (IV × √T when no two-sided quote), anchored at the first read of the
+  // session / week (server/chart-expected-move.ts). Labelled "priced range (options)".
+  app.get("/api/chart/expected-move/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const symbol = canonicalChartSymbol(String(req.params.symbol ?? ''));
+      if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+      const { buildExpectedMove } = await import('./chart-expected-move');
+      res.json(await buildExpectedMove(symbol));
+    } catch (error: any) {
+      logger.warn(`[CHART-EM] failed: ${error?.message}`);
+      res.status(500).json({ error: 'Expected move unavailable' });
     }
   });
   app.get("/api/bullflow/leaders", async (_req, res) => {
@@ -33406,6 +33422,10 @@ Use this checklist before entering any trade:
       const symbol = req.params.symbol.toUpperCase();
       const interval = (req.query.interval || '15m') as '1m' | '5m' | '15m' | '1h' | '1d';
       const lookback = parseInt(req.query.lookback as string, 10) || 5;
+      // Expiry horizon (shared/gex-horizon.ts): which contracts feed walls / zero-γ /
+      // nodes. Default 'all' = the pre-2026-10-13 payload, byte for byte.
+      const { parseHorizon } = await import('@shared/gex-horizon');
+      const horizon = parseHorizon(req.query.horizon);
 
       const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
       const { scanWatchlistConfluence, toSnapshot } = await import('./gex-vex-scanner');
@@ -33433,7 +33453,7 @@ Use this checklist before entering any trade:
       if (!gex && !cboeSnapshot) {
         // Final fallback: serve cached if available
         const cached = gexTerminalCache.get(symbol) ?? loadLastGood('gex-terminal', symbol);
-        if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
+        if (cached && horizon === 'all' && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
           logger.info(`[GEX-TERMINAL] Serving cached data for ${symbol} (age: ${((Date.now() - cached.cachedAt) / 60000).toFixed(0)}m)`);
           return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
         }
@@ -33636,6 +33656,13 @@ Use this checklist before entering any trade:
         },
         ...(futuresProxy ? { futuresProxy } : {}),
       };
+
+      if (horizon !== 'all') {
+        // Horizon view: the same snapshot with walls / zero-γ / max-γ re-read over
+        // the horizon's contracts only. Never cached under the all-expiry key.
+        const { applyHorizonToTerminal } = await import('./gex-horizon-view');
+        return res.json(applyHorizonToTerminal(payload, gex ?? null, horizon, Date.now()));
+      }
 
       // Cache successful computation for after-hours/weekend access
       gexTerminalCache.set(symbol, { data: payload, cachedAt: Date.now() });

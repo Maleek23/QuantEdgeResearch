@@ -136,22 +136,42 @@ function mockHistory(symbol: string, range: string, interval: string) {
   });
   return { symbol, range, data };
 }
+/** Synthetic /api/chart/expected-move (TEST HARNESS — not market data). */
+function mockExpectedMove(symbol: string, spot: number) {
+  const at = new Date(Date.now() - 3 * 36e5).toISOString();
+  const d = +(spot * 0.0078).toFixed(2); const w = +(spot * 0.0182).toFixed(2);
+  return {
+    symbol, generatedAt: new Date().toISOString(), label: 'priced range (options)', spot, chainSource: 'TEST HARNESS fixture', chainAgeSec: 95,
+    daily: { anchorSpot: spot, anchorAt: at, key: 'fixture', move: d, movePct: +(d / spot * 100).toFixed(2), upper: +(spot + d).toFixed(2), lower: +(spot - d).toFixed(2), expiry: '2026-10-13', source: 'atm_straddle', basis: 'fixture straddle' },
+    weekly: { anchorSpot: spot, anchorAt: at, key: '2026-10-16', move: w, movePct: +(w / spot * 100).toFixed(2), upper: +(spot + w).toFixed(2), lower: +(spot - w).toFixed(2), expiry: '2026-10-16', source: 'atm_straddle', basis: 'fixture straddle' },
+    cone: { fromSpot: spot, perSessionMove: +(w / Math.sqrt(4)).toFixed(2), basis: 'fixture — modelled √t' },
+    note: 'TEST HARNESS fixture',
+  };
+}
 /** Synthetic /api/chart/overlays (TEST HARNESS): GEX timeline, dark pool, flow. */
-function mockOverlays(symbol: string, spot: number) {
+function mockOverlays(symbol: string, spot: number, horizon = 'all') {
   const r = rng(symbol.length * 131);
   // Anchor to the fixture's last intraday bar (sessions end 20:00 ET = 00:00 UTC).
   const wall = Date.now(); const d0 = new Date(wall); const h = d0.getUTCHours();
   const now = h < 8 ? Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()) - 5 * 6e4 : wall;
   const start = now - 6.5 * 36e5;
-  const strikes = [-10, -5, 0, 5, 10].map((d) => Math.round(spot + d));
+  const scale = horizon === 'today' ? 0.45 : horizon === 'week' ? 0.7 : horizon === 'opex' ? 0.85 : 1;
+  const strikes = [-12, -9, -6, -4, -2, 0, 2, 4, 6, 9, 12].map((d) => Math.round(spot + d));
   const samples: { t: number; spot: number; net: number; source: string }[] = [];
   for (let t = start; t <= now; t += 5 * 6e4) samples.push({ t, spot, net: (r() - 0.4) * 3e9, source: 'test_harness_fixture' });
-  const series = strikes.map((k, i) => ({ strike: k, points: samples.map((s) => [s.t, ((i - 2) >= 0 ? 1 : -1) * (0.3 + r()) * 8e8] as [number, number]) }));
+  // Nodes that build and fade through the session so the Apex node moves (fixture).
+  const series = strikes.map((k, i) => ({ strike: k, points: samples.map((s, j) => {
+    const phase = j / Math.max(1, samples.length - 1);
+    const sign = k >= spot - 1 ? 1 : -1;
+    const bump = Math.exp(-(((i / (strikes.length - 1)) - phase) ** 2) / 0.05);
+    return [s.t, sign * scale * (0.15 + 0.6 * r() * 0.3 + 1.4 * bump) * 8e8] as [number, number];
+  }) }));
+  const vexSeries = strikes.filter((_, i) => i % 2 === 0).map((k, i) => ({ strike: k, points: samples.map((s) => [s.t, (i % 2 ? -1 : 1) * scale * (0.3 + r()) * 4e7] as [number, number]) }));
   const iso = new Date(now - 60e3).toISOString();
   return {
     symbol, range: '1D', dates: [], generatedAt: iso,
     gexNow: { net: 2.1e9, spot, topStrikes: strikes.map((k, i) => ({ strike: k, gex: (i - 2 || 1) * 4e8 })), asOf: iso, ageSec: 60, source: 'test_harness_fixture' },
-    gexTimeline: { sampleEveryMin: 5, recordingSince: new Date(start).toISOString(), asOf: iso, ageSec: 60, sources: ['test_harness_fixture'], note: 'fixture', watched: true, samples, series },
+    gexTimeline: { sampleEveryMin: 5, recordingSince: new Date(start).toISOString(), asOf: iso, ageSec: 60, sources: ['test_harness_fixture'], note: 'fixture', watched: true, samples, series, vexSeries, horizon, cadence: '5m', expiryScope: `fixture · ${horizon}` },
     darkPool: { source: 'test_harness_fixture', asOf: iso, ageSec: 60, stale: false, windowFrom: null, windowTo: null, printsScanned: 40, levels: [{ price: +(spot * 0.992).toFixed(2), notional: 4.2e8, prints: 12, date: iso, firstDate: iso }, { price: +(spot * 1.006).toFixed(2), notional: 1.9e8, prints: 5, date: iso, firstDate: iso }], note: 'fixture' },
     flow: { source: 'test_harness_fixture', streamState: 'fixture', asOf: iso, ageSec: 60, prints: Array.from({ length: 8 }, (_, i) => ({ time: start + (i + 1) * 40 * 6e4, optionType: i % 3 ? 'call' : 'put', strike: Math.round(spot), expiry: '2026-10-02', contract: `${symbol} fixture ${i % 3 ? 'C' : 'P'}`, premium: (0.2 + r()) * 2e6, fillPrice: 3.2, contracts: 500, alertNames: ['fixture'], side: null })), note: 'fixture' },
   };
@@ -509,7 +529,16 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   }
   if (p === '/api/premarket/gappers') return json(200, mockGappers());
   const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
-  if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));
+  if (m) {
+    const t = mockTerminal(decodeURIComponent(m[1]).toUpperCase()) as any;
+    const hz = url.searchParams.get('horizon');
+    if (hz && hz !== 'all' && t?.snapshot) {
+      const s0 = t.snapshot.spotPrice ?? 575;
+      const view = { horizon: hz, label: `fixture ${hz}`, lastExpiry: '2026-10-16', callWall: Math.round(s0 + 4), putWall: Math.round(s0 - 4), zeroGamma: +(s0 - 1.2).toFixed(2), maxGammaStrike: Math.round(s0), totalGEX: 0.8, expirations: 2, nodes: [], source: 'engine-byHorizon', note: 'TEST HARNESS fixture' };
+      return json(200, { ...t, horizon: hz, horizonView: view, snapshot: { ...t.snapshot, callWall: view.callWall, putWall: view.putWall, zeroGammaLevel: view.zeroGamma, gammaFlipPrice: view.zeroGamma } });
+    }
+    return json(200, t);
+  }
   if (p === '/api/convictions') return json(200, mockConvictions());
   if (p === '/api/weekly-path/SPY') return json(200, mockWeeklyPath());
   if (p === '/api/sector-rotation') return json(200, mockRotation());
@@ -522,7 +551,9 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   const hp = p.match(/^\/api\/historical-prices\/([^/]+)/);
   if (hp) return json(200, mockHistory(decodeURIComponent(hp[1]).toUpperCase(), url.searchParams.get('range') ?? '1mo', url.searchParams.get('interval') ?? '5m'));
   const co = p.match(/^\/api\/chart\/overlays\/([^/]+)/);
-  if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575)); }
+  if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575, url.searchParams.get('horizon') ?? 'all')); }
+  const em = p.match(/^\/api\/chart\/expected-move\/([^/]+)/);
+  if (em) { const sym = decodeURIComponent(em[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockExpectedMove(sym, h[h.length - 1]?.close || 575)); }
   if (p === '/api/flow/tape') return json(200, mockFlowTape(url.searchParams.get('symbol')));
   if (p === '/api/journal/trades') return json(200, mockJournalTrades());
   if (p === '/api/journal/analytics') return json(200, { timingByHour: [], timingByDay: [], timingBySession: [], insights: [], dteBreakdown: [], tradeCountOptimum: [], emotionAnalysis: [] });
