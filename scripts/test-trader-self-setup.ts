@@ -319,7 +319,7 @@ async function main() {
   const csrf = src('server/csrf.ts');
   ok(/req\.path\.startsWith\('\/api\/auth\/'\)/.test(csrf), '(why the routes check CSRF themselves: /api/auth/* is exempt globally)');
   const login = src('client/src/pages/login.tsx');
-  ok(/href="\/trader-setup"/.test(login) && /Trader\? Set up your account/.test(login), 'sign-in page links to /trader-setup');
+  ok(!/Trader\? Set up your account/.test(login), 'sign-in page no longer advertises /trader-setup (traders use access codes since 2026-10-07)');
   const app3 = src('client/src/App.tsx');
   ok(/<Route path="\/trader-setup" component=\{TraderSetup\} \/>/.test(app3) && /publicPages = \[[^\]]*'\/trader-setup'/.test(app3), '/trader-setup is routed as a public page');
 
