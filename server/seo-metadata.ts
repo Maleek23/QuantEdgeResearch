@@ -152,7 +152,7 @@ const APP_ROUTE_PATTERNS: RegExp[] = [
   /^\/login$/, /^\/signup$/, /^\/forgot-password$/, /^\/reset-password$/,
   /^\/join-beta$/, /^\/invite$/, /^\/settings$/, /^\/alerts$/,
   /^\/trade-ideas\/[^/]+\/audit$/,
-  /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders)$/,
+  /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders|learning)$/,
   /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/, /^\/swings$/, /^\/ask$/,
 ];
 
