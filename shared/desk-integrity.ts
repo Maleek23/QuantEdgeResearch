@@ -35,6 +35,10 @@ export const DESK_BUG_CLASSES = {
   illiquid_contract: 'published as an option although its liquidity-gate snapshot failed (OI / volume / two-sided / spread / mid — shared/option-liquidity.ts) — recorded fills on a contract that does not trade are untrustworthy',
   liquidity_unverified: 'option published with liquidity unverified (no chain answered; OPT_LIQUIDITY_UNVERIFIED=allow)',
   exit_premium_pass: 'exit priced from intrinsic at target touch — unverified fill',
+  // P&L truth (shared/journal-pnl-truth.ts, 2026-10-14): outside-the-headline reasons.
+  bar_pending: 'closed, not yet bar-checked — the nightly verify (17:30 ET) has not reached it; not in the headline',
+  not_options: 'published as shares; no verified rule-picked options view — outside the options headline',
+  crypto_excluded: 'crypto — labelled, outside the options headline',
 } as const;
 
 export type DeskBugClass = keyof typeof DESK_BUG_CLASSES;

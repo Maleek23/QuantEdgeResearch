@@ -225,7 +225,7 @@ import { normalizeIdeaSource } from "@shared/idea-sources";
 import { isOptionExpired } from "@shared/option-expiry";
 import { ensureScorableOptionIdea } from "@shared/option-premium-guard";
 import { shortDatedReason, sameDayContractMissing, SHORT_DATED_WITHHELD_CODE } from "@shared/short-dated-option";
-import { OPTION_ONLY_SOURCES, OPTIONS_ONLY_WITHHELD_CODE, hasOptionIntentSignal, promoteBudgetContract, stripFailedContract } from "@shared/options-only";
+import { OPTIONS_ONLY_WITHHELD_CODE, isOptionIntendedWrite, promoteBudgetContract, stripFailedContract } from "@shared/options-only";
 import { premiumPlanFor } from "@shared/premium-outcome";
 import { wholeContracts } from "@shared/budget-contract";
 import { recordWithheldIdea } from "./lib/withheld-ideas";
@@ -2802,9 +2802,9 @@ export class DatabaseStorage implements IStorage {
       } else {
         logger.warn(`[PREMIUM-GUARD] ${(sourced as any).source ?? "unknown"} ${sourced.symbol} option idea has no entry premium — publishing as underlying-only`);
       }
-    } else if (automatedWrite && String((idea as any).assetType) !== "option" &&
-      (hasOptionIntentSignal(idea as any) || OPTION_ONLY_SOURCES.has(String((idea as any).source ?? "").toLowerCase()))) {
-      // A producer whose contract pick failed (gex/sector-ignition/leaders fallbacks), or an option-only engine sending a stock idea.
+    } else if (automatedWrite && isOptionIntendedWrite(idea as any)) {
+      // options-only-v2 (operator 2026-10-14): NO shares ideas — every automated stock / penny-stock idea
+      // (any engine) gets its budget contract or is withheld. Crypto / futures pass through unchanged.
       optionFallbackWhy = `${(idea as any).source ?? "engine"} found no contract for this option idea`;
       idea = stripFailedContract(idea as any) as InsertTradeIdea;
       logger.warn(`[OPTIONS-ONLY] ${(idea as any).source ?? "unknown"} ${idea.symbol}: ${optionFallbackWhy} — budget contract or withheld, never shares`);

@@ -323,6 +323,12 @@ export const JOBS: JobDef[] = [
     start: async ({ log }) => { await (await import('./option-peak-job')).scheduleOptionPeakJob(log); },
   },
   {
+    name: 'journal-verify', role: 'worker', bootDelayMs: 540_000,
+    what: 'NEXUS book auto-verify: 17:30 ET incremental bar re-check of every closed idea (Alpaca same-day / Massive prior-day option bars, Yahoo stocks) → verify ledger; retro shares→options view → .cache/shared/ledgers; 09:20 ET + boot catch-up',
+    disabled: () => (/^(0|false|off|no)$/i.test(String(process.env.JOURNAL_VERIFY_JOB ?? '').trim()) ? 'JOURNAL_VERIFY_JOB=off' : null),
+    start: async ({ log }) => { await (await import('./journal-verify-job')).scheduleJournalVerifyJob(log); },
+  },
+  {
     name: 'swings-screener', role: 'worker', bootDelayMs: 420_000,
     what: 'monthly swings & LEAPS research screen: weekdays 18:40 ET (heavy gate) → .cache/shared/swings-screener.json; one boot run when the cache is empty',
     disabled: () => (/^(0|false|off|no)$/i.test(String(process.env.SWINGS_SCREENER ?? '').trim()) ? 'SWINGS_SCREENER=off' : null),

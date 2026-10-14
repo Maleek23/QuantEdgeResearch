@@ -175,7 +175,7 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: 
             <>
               <Pnl value={money.net} />
               <span className="jr-n">won <span className="jr-gain">{fmtMoney(money.won)}</span> · lost <span className="jr-loss">{fmtMoney(money.lost)}</span> · {money.closed.length} closed{stats ? ` · ${stats.wins}W/${stats.losses}L` : ''}</span>
-              {money.unvCount > 0 && <span className="jr-n" style={{ color: 'var(--amber,#facc15)' }} title="Unverified closes are listed with an amber chip and kept out of the verified day total">· incl. unverified: {fmtMoney(money.net + money.unvPnl)} ({money.unvCount} unverified)</span>}
+              {money.unvCount > 0 && <span className="jr-n" style={{ color: 'var(--amber,#facc15)' }} title="Closes outside the headline are listed with an amber chip and never added to the day total">· outside the headline: {money.unvCount} ({fmtMoney(money.unvPnl)} recorded) — not added</span>}
             </>
           ) : <span className="jr-mute">no closed trades</span>}
           {openCount > 0 && (
@@ -189,7 +189,7 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: 
         <div id={panelId} className="jr-day-body">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }} aria-label="Day scoreboard">
-              <div><span>Closed net{money.unvCount ? ' (verified)' : ''}</span><b><Pnl value={money.closed.length ? money.net : null} /></b><small>{money.closed.length} closed · realized{money.unvCount ? ` · incl. unverified ${fmtMoney(money.net + money.unvPnl)}` : ''}</small></div>
+              <div><span>Closed net{money.unvCount ? ' (verified)' : ''}</span><b><Pnl value={money.closed.length ? money.net : null} /></b><small>{money.closed.length} closed · realized{money.unvCount ? ` · ${money.unvCount} outside the headline, not added` : ''}</small></div>
               <div><span>Won</span><b><Pnl value={money.won || null} /></b><small>{winners.length} winners</small></div>
               <div><span>Lost</span><b><Pnl value={money.lost || null} /></b><small>{losers.length} losers{flat.length ? ` · ${flat.length} flat` : ''}</small></div>
               <div><span>Open, live</span><b><Pnl value={money.marked ? money.unreal : null} /></b><small>{openCount ? `${money.marked} of ${openCount} marked · ${money.up}▲ ${money.down}▼ · unrealized` : 'nothing open'}</small></div>

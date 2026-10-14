@@ -92,7 +92,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   /** One line (book + n) that expands to the full basis — the fit-to-screen header uses this. */
   compact?: boolean;
   /** Rows in view — the Bot book names which runs they cover. */
-  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean; notes?: string | null }[];
+  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean; notes?: string | null; verification?: { status?: string; truth?: string } | null }[];
 }) {
   if (!meta) return null;
   // Options with no closing fill, settled at intrinsic on expiry day (shared/journal-expiry.ts).
@@ -112,6 +112,10 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   // NEXUS ideas: what the counted P&L is verified against; unverified rows listed, not counted.
   const ver = meta.verification ?? null;
   const usd = (v: number | null) => v == null ? '—' : `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  // The headline as the tiles compute it: the SAME rows in view (sized, filtered), closed and in the headline set.
+  const headRows = (rows ?? []).filter((r) => r.status === 'closed' && r.verification && r.verification.status !== 'unverified');
+  const headPnl = headRows.reduce((s, r) => s + (typeof r.realizedPnL === 'number' ? r.realizedPnL : 0), 0);
+  const headBy = (c: string) => headRows.filter((r) => r.verification?.truth === c).length;
   // The basis names its book first ("Trade desk — every idea…"); bold that part.
   const [head, ...rest] = meta.basis.split(' — ');
   const detail = (
@@ -136,15 +140,19 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
       )}
       {ver && (
         <div className="jr-basis-s">
-          <span className="jr-basis-k">Verified</span>{' '}
-          {ver.counted.verified} bar-verified ({usd(ver.counted.verifiedPnL)}) · {ver.counted.checked} integrity-checked only ({usd(ver.counted.checkedPnL)})
-          {ver.ledger ? ` · ledger ${ver.ledger.asOf.slice(0, 16).replace('T', ' ')}Z` : ' · no bar-verification ledger on this server'}
+          <span className="jr-basis-k">Headline</span>{' '}
+          {ver.truth
+            ? <>bar-verified options only — n={headRows.length} in view ({headBy('verified')} verified · {headBy('corrected')} bar-corrected · {headBy('retro')} options views of legacy shares) = <b>{usd(headPnl)}</b>, the same rows and n as the tiles
+              {' '}· book-wide {ver.truth.n} at 1 contract ({usd(ver.truth.pnl)}); a row whose single contract costs more than the budget is not in a budget-sized view</>
+            : <>{ver.counted.verified} bar-verified ({usd(ver.counted.verifiedPnL)})</>}
+          {ver.ledger ? ` · verify ledger ${ver.ledger.asOf.slice(0, 16).replace('T', ' ')}Z` : ' · no bar-verification ledger on this server'}
+          {ver.retroLedger ? ` · options-view ledger ${ver.retroLedger.asOf.slice(0, 10)}` : ''}
         </div>
       )}
       {ver && ver.unverified.count > 0 && (
         <details className="jr-basis-s">
           <summary style={{ cursor: 'pointer' }}>
-            {ver.unverified.count} closed trade{ver.unverified.count === 1 ? '' : 's'} UNVERIFIED — recorded {usd(ver.unverified.recordedPnL)} {ver.includeUnverified ? 'shown with an amber chip, not in the verified total' : 'not counted'}
+            {ver.unverified.count} closed trade{ver.unverified.count === 1 ? '' : 's'} OUTSIDE THE HEADLINE — recorded {usd(ver.unverified.recordedPnL)} {ver.includeUnverified ? 'shown with an amber chip, never added to the headline' : 'not counted'}
           </summary>
           <ul className="jr-basis-list">
             {ver.unverified.byReason.map((r) => <li key={r.code} title={r.label}>{r.count} · {r.code || 'unknown'} · recorded {usd(r.recordedPnL)} — {r.label || r.code || 'no reason recorded'}</li>)}
@@ -182,7 +190,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
         <summary>
           <span className="jr-basis-k">Computed on</span> <b>{head}</b>{' '}{n}
           {nExcluded > 0 && <span className="jr-n"> · {nExcluded} not scored</span>}
-          {ver && ver.unverified.count > 0 && <span className="jr-n"> · {ver.unverified.count} unverified ({usd(ver.unverified.recordedPnL)}) {ver.includeUnverified ? 'shown, not in verified total' : 'not counted'}</span>}
+          {ver && ver.unverified.count > 0 && <span className="jr-n"> · {ver.unverified.count} outside the headline ({usd(ver.unverified.recordedPnL)}) {ver.includeUnverified ? 'shown, never added' : 'not counted'}</span>}
           {exp.n > 0 && <span className="jr-n"> · {expiryCountsText(exp)}</span>}
           <span className="jr-basis-more">details</span>
         </summary>

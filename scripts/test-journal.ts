@@ -285,20 +285,21 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
   ]);
   assert.deepEqual([...d.entries()], [['b', 'a']], 'b overlaps a; c opens after a closed; d is another strike');
 
-  // verifyDeskRows: the default book counts clean rows only, labels the rest.
+  // verifyDeskRows (pnl-truth-v1): with no bar ledger NOTHING closed is in the headline — integrity-clean is bar_pending.
   const pair = (i: DeskIdea) => { const m = mapDeskIdea(i); assert.ok('row' in m); return { idea: i, row: (m as any).row }; };
   const clean = opt({ id: 'clean', exitPremium: 4.5 });
   const inflated = opt({ id: 'inflated', symbol: 'TSLA', exitPremium: 866 });
   const dupe = opt({ id: 'dupe', exitPremium: 4.5, timestamp: '2026-09-01T15:00:00Z' });
   const open = idea({ id: 'open' });
   const res = verifyDeskRows([pair(clean), pair(inflated), pair(dupe), pair(open)], null);
-  assert.deepEqual(res.counted.map((r) => r.id).sort(), ['desk:clean', 'desk:open']);
-  assert.deepEqual(res.unverified.map((r) => [r.id, r.verification!.reasons[0].code]).sort(), [['desk:dupe', 'duplicate'], ['desk:inflated', 'impossible_exit_premium']]);
-  assert.equal(res.counted.find((r) => r.id === 'desk:clean')!.verification!.status, 'checked');
-  assert.match(res.unverified.find((r) => r.id === 'desk:inflated')!.notes!, /UNVERIFIED — recorded \+\$86,400/);
+  assert.deepEqual(res.counted.map((r) => r.id).sort(), ['desk:open']);
+  assert.deepEqual(res.unverified.map((r) => [r.id, r.verification!.reasons[0].code]).sort(), [['desk:clean', 'bar_pending'], ['desk:dupe', 'duplicate'], ['desk:inflated', 'impossible_exit_premium']]);
+  assert.equal(res.unverified.find((r) => r.id === 'desk:clean')!.verification!.truth, 'bar_pending');
+  assert.match(res.unverified.find((r) => r.id === 'desk:inflated')!.notes!, /OUTSIDE THE HEADLINE — recorded \+\$86,400/);
   const meta = deskVerificationMeta(res, null, false);
-  assert.deepEqual([meta.counted.checked, meta.counted.verified, meta.unverified.count, meta.ledger], [1, 0, 2, null]);
-  assert.equal(meta.unverified.recordedPnL, 86400 + 250);
+  assert.deepEqual([meta.counted.checked, meta.counted.verified, meta.unverified.count, meta.ledger], [0, 0, 3, null]);
+  assert.deepEqual([meta.truth!.n, meta.truth!.pnl, meta.truth!.outside.n], [0, 0, 3]);
+  assert.equal(meta.unverified.recordedPnL, 86400 + 250 + 250);
   assert.equal(meta.unverified.rows[0].id, 'desk:inflated', 'largest recorded P&L first');
 
   // A bar ledger overrides: VERIFIED counts (even past a caveat), MISMATCH is not counted and shows the recomputed P&L.
@@ -333,24 +334,24 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
     assert.ok(tslaRow && failRow, 'both the pass-priced winner and the integrity-fail row are rows');
     assert.equal(tslaRow.verification!.status, 'unverified');
     assert.equal(tslaRow.verification!.reasons[0].code, 'exit_premium_pass');
+    assert.equal(tslaRow.verification!.truth, 'integrity_fail');
     assert.match(tslaRow.notes!, /exit priced from intrinsic at target touch — unverified fill/);
     assert.equal(failRow.verification!.status, 'unverified');
     assert.equal(failRow.verification!.reasons[0].code, 'impossible_exit_premium');
     // Totals split: verified total vs incl. unverified.
     const m2 = deskVerificationMeta(r, null, true);
-    assert.equal(m2.counted.checkedPnL, 250, 'verified total = the clean row only');
-    assert.equal(m2.unverified.recordedPnL, 250 + 86400, 'unverified recorded P&L reported separately');
-    assert.equal(m2.unverified.rows.length, 2, 'every unverified row listed');
+    assert.equal(m2.counted.checkedPnL, 0, 'no ledger → nothing in the headline (clean row is bar_pending)');
+    assert.equal(m2.unverified.recordedPnL, 250 + 86400 + 250, 'outside-the-headline recorded P&L reported separately');
+    assert.equal(m2.unverified.rows.length, 3, 'every outside row listed');
     assert.ok(m2.unverified.rows.every((x) => x.reasons.length > 0 && x.reasons.every((y) => y.code && y.detail)), 'no blank reasons');
     // Client split (client/src/lib/journal/metrics.ts): lists keep every row, totals stay verified.
     const { toTrade, isUnverifiedTrade, unverifiedSummary, computeMetrics, withUnverifiedDays, dailyStats } = await import('../client/src/lib/journal/metrics');
     const listTrades = all.map((x) => toTrade(x as any));
     assert.equal(listTrades.length, 3, 'all three rows listed');
     const scored = listTrades.filter((t) => !isUnverifiedTrade(t));
-    assert.equal(computeMetrics(scored).netPnl, 250, 'Net P&L (verified)');
+    assert.equal(computeMetrics(scored).netPnl, 0, 'headline: bar-verified only');
     const u = unverifiedSummary(listTrades);
-    assert.deepEqual([u.count, u.netPnl], [2, 86650]);
-    assert.equal(computeMetrics(scored).netPnl + u.netPnl, 86900, 'incl. unverified');
+    assert.deepEqual([u.count, u.netPnl], [3, 86900]);
     const cal = withUnverifiedDays(dailyStats(scored), listTrades);
     const oct7 = cal.find((d) => d.date === '2026-10-07')!;
     assert.deepEqual([oct7.trades, oct7.netPnl, oct7.unverified, oct7.unverifiedPnl], [0, 0, 1, 250], 'unverified-only day stays on the calendar');
@@ -360,8 +361,8 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
     assert.match(rd('server/routes.ts'), /includeUnverified = !\(req\.query\.unverified === '0'/);
     assert.match(rd('server/journal-sources.ts'), /loadDesk\(false\)/, 'public record stays verified-only');
     assert.doesNotMatch(rd('server/journal-row-maps.ts'), /exitPremiumBasis === 'pass'\) \{\s*return \{ excluded/, 'no pass-priced exclusion');
-    assert.match(rd('client/src/pages/journal/dashboard-view.tsx'), /Net P&L \(verified\)/);
-    assert.match(rd('client/src/pages/journal/dashboard-view.tsx'), /incl\. unverified/);
+    assert.match(rd('client/src/pages/journal/dashboard-view.tsx'), /Net P&L — bar-verified options/);
+    assert.doesNotMatch(rd('client/src/pages/journal/dashboard-view.tsx'), /incl\. unverified/, 'outside rows are never summed into the headline');
     assert.match(rd('client/src/components/journal/parts.tsx'), /export function UnverifiedChip/);
     for (const f of ['client/src/pages/journal/trades-view.tsx', 'client/src/components/journal/trade-mini-list.tsx']) assert.match(rd(f), /<UnverifiedChip row=\{t\.row\} \/>/, `${f} shows the chip`);
     assert.match(rd('client/src/components/journal/journal-switcher.tsx'), /excludedRows\.map/, 'not-scored panel lists every row');
@@ -369,9 +370,9 @@ assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionR
   // Wiring: loader applies it; the route takes ?unverified=1; the basis panel lists them.
   const fsx = await import('node:fs');
   const read = (f: string) => fsx.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
-  assert.match(read('server/journal-sources.ts'), /verifyDeskRows\(pairs, ledger\)/);
+  assert.match(read('server/journal-sources.ts'), /verifyDeskRows\(pairs, ledger, retro\?\.byId \?\? null\)/);
   assert.match(read('server/routes.ts'), /loadJournal\(j, \{ includeUnverified \}\)/);
-  assert.match(read('client/src/components/journal/journal-switcher.tsx'), /UNVERIFIED — recorded/);
+  assert.match(read('client/src/components/journal/journal-switcher.tsx'), /OUTSIDE THE HEADLINE — recorded/);
   // The verifier is read-only: one READ ONLY transaction, rolled back, and no write statement anywhere.
   const verifier = read('research/verify-nexus-book.ts');
   assert.match(verifier, /BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY/);

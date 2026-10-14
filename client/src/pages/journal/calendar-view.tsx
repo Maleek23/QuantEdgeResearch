@@ -156,7 +156,7 @@ export default function CalendarView() {
               )}
               {(() => {
                 const u = unverifiedSummary(dayTrades);
-                return u.count > 0 ? <p className="jr-note" style={{ margin: 0, color: 'var(--amber,#facc15)' }}>incl. unverified: {fmtMoney((dayStats?.netPnl ?? 0) + u.netPnl)} — {u.count} unverified close{u.count === 1 ? '' : 's'} ({fmtMoney(u.netPnl)}) listed below, not in the verified day P&amp;L.</p> : null;
+                return u.count > 0 ? <p className="jr-note" style={{ margin: 0, color: 'var(--amber,#facc15)' }}>{u.count} close{u.count === 1 ? '' : 's'} outside the headline ({fmtMoney(u.netPnl)} recorded) listed below — never added to the day P&amp;L.</p> : null;
               })()}
               <TradeMiniList trades={dayTrades} onOpen={(id) => openTrade(id, dayTrades.map((t) => t.id))} />
               {dayNotes.length > 0 && (

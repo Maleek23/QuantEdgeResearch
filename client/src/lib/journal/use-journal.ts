@@ -251,16 +251,18 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
     : null), [settled, key, desk?.view, desk?.sizing.mode, desk?.sizing.riskDollars]); // eslint-disable-line react-hooks/exhaustive-deps
   const allRows = deskView ? deskView.rows : settled;
   const rows = useMemo(() => allRows.filter((r) => matchesJournalFilters(r, filters)), [allRows, filters]);
-  // NEXUS ideas: CALL ACCURACY (shared/call-accuracy.ts) — independent of sizing and exit view, so it is
-  // computed on the book's rows as published (filters applied), not on the re-priced ones.
+  // NEXUS ideas: CALL ACCURACY (shared/call-accuracy.ts) — independent of sizing and exit view, but on
+  // the SAME population as the headline (pnl-truth-v1): closed rows outside the headline are left out,
+  // so call accuracy and realized win rate share one n of closed trades.
   const calls = useMemo(() => {
     if (key !== 'desk' || !settled.some((r) => r.call)) return null;
-    return summarizeCalls(settled.filter((r) => matchesJournalFilters(r, filters)).map((r) => ({ result: r.call?.result, publishedAt: r.entryTime })));
+    return summarizeCalls(settled.filter((r) => matchesJournalFilters(r, filters) && r.verification?.status !== 'unverified')
+      .map((r) => ({ result: r.call?.result, publishedAt: r.entryTime })));
   }, [key, settled, filters]);
   // Operator rule 2026-10-07: every called trade is SHOWN (listTrades — trade lists,
   // calendar day lists, activity), but the headline numbers and analytics (trades,
-  // days, curve, metrics) stay on verified + integrity-checked P&L. Unverified rows
-  // are summed separately so the "incl. unverified" figure sits next to the total.
+  // days, curve, metrics) read ONLY the headline set (pnl-truth-v1: bar-verified options).
+  // Rows outside it are counted separately and never added to the headline.
   const listTrades = useMemo(() => rows.map(toTrade), [rows]);
   const trades = useMemo(() => listTrades.filter((t) => !isUnverifiedTrade(t)), [listTrades]);
   const unverified = useMemo(() => unverifiedSummary(listTrades), [listTrades]);
