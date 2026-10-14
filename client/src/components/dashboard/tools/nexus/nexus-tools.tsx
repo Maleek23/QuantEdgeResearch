@@ -35,6 +35,7 @@ import {
   RANKS, SIDES, type DetailTab, type PatternHit, type Rank, type Side,
 } from './nexus-parts';
 import { TraderCallLine } from './trader-calls';
+import { IdeaDetailById } from '@/components/ideas/idea-detail-by-id';
 import { TrackedRow } from './tracked-row';
 import { EMPTY_CALLED_RANGE, filterByCalledRange, type CalledRange } from './board-time-filter';
 import { BoardFilterBar } from './board-filters';
@@ -118,8 +119,10 @@ function useApplyUrlSelection(all: ConvictionPick[], loaded: boolean) {
     applied = key;
     const bySym = t.symbol ? rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' }).find((p) => p.symbol === t.symbol) ?? all.find((p) => p.symbol === t.symbol) : undefined;
     const exact = t.ideaId ? all.find((p) => p.ideaId === t.ideaId) : undefined;
-    const pick = exact ?? bySym;
-    substituted = t.ideaId && !exact && pick ? { requested: t.ideaId, shown: pick.ideaId } : null;
+    // An idea id is always resolved BY ID — off the board the detail fetches the
+    // stored idea (components/ideas/idea-detail-by-id.tsx); never another setup.
+    const pick = exact ?? (t.ideaId ? undefined : bySym);
+    substituted = null;
     if (pick) {
       setSel({ kind: 'setup', id: pick.ideaId });
       setFocus(pick.symbol);
@@ -128,7 +131,7 @@ function useApplyUrlSelection(all: ConvictionPick[], loaded: boolean) {
       // link opens it, not just the row (audit 2026-10-07 #11).
       scrollPhoneDetailIntoView();
     } else {
-      if (t.ideaId) setSel({ kind: 'setup', id: t.ideaId }); // detail: "selection left the book · showing top setup"
+      if (t.ideaId) { setSel({ kind: 'setup', id: t.ideaId }); scrollPhoneDetailIntoView(); } // detail resolves it by id
       if (t.symbol) setFocus(t.symbol);
     }
   }, [search, all, loaded, setSel, setFocus]);
@@ -515,11 +518,14 @@ function DetailSetup({ id, tab, onTab }: { id?: string; tab: DetailTab; onTab: (
   const { map: life } = useSetupLifecycles(all, convictions.data?.generatedAt, now);
   const top = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' }, life)[0], [all, life]);
   const found = id ? all.find((p) => p.ideaId === id) : undefined;
+  const offBoard = !!id && !found && !!convictions.data && !id.startsWith('spx-linked-');
   const selected = found ?? top;
-  const note = id && !found && convictions.data ? 'selection left the book · showing top setup'
+  const note = offBoard ? `idea ${id!.slice(0, 8)} · not on the live board — stored plan + outcome`
     : selected && substituted?.shown === selected.ideaId ? `linked idea is not in the live book · showing ${selected.symbol}'s current setup`
     : selected ? selected.symbol : undefined;
   useBookReport(convictions, note);
+  // Any id resolves: off the board → the stored idea, same detail (never "left the book").
+  if (offBoard) return <IdeaDetailById ideaId={id!} tab={tab} onTab={onTab} />;
   const blocked = bookGate(convictions, 'live book');
   if (blocked) return blocked;
   if (!selected) return <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The engine published no setups in this read; pick a developing candidate or position instead.</p></div>;

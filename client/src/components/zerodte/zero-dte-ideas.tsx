@@ -19,6 +19,7 @@
 import { reasonOf } from '@/lib/optimistic';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'wouter';
+import { ideaDetailHref } from '@/lib/idea-link';
 import { Crosshair, ExternalLink, FlaskConical } from 'lucide-react';
 import type { Level } from '@/components/charting/chart-engine';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -140,6 +141,7 @@ function IdeaCard({ x, a, nowMs, open, onToggle }: { x: DeskIdea; a: ActState; n
           <p className="zi-why">{x.why}</p>
           {(x.contractNote || x.loggedNote) && <p className="zi-note">{[x.contractNote, x.loggedNote].filter(Boolean).join(' · ')}</p>}
           <p className="zi-note">{x.symbol} {px(x.price)} · {ageOf(x.priceAt, nowMs)}{c?.basis ? ` · ${c.basis}` : ''}</p>
+          {x.ideaId && <p className="zi-note"><Link href={ideaDetailHref(x.ideaId)}>Setup detail →</Link></p>}
         </div>
       ) : (
         <p className="zi-summary">
@@ -223,7 +225,7 @@ export function ZeroDteIdeas({ d, compact = false, nowMs, filter = 'all', hideDo
         : (
           <ul className="zi-list">
             {shown.map(({ x, a }) => compact
-              ? <li key={x.key} className={`zi-card zd-a-${a.state} ${a.actionable ? 'zd-is-act' : 'zd-is-dim'}`}><Link href="/t?nx=0dte" className="zi-row">
+              ? <li key={x.key} className={`zi-card zd-a-${a.state} ${a.actionable ? 'zd-is-act' : 'zd-is-dim'}`}><Link href={x.ideaId ? ideaDetailHref(x.ideaId) : '/t?nx=0dte'} className="zi-row">
                   <ActBadge a={a} /><span className="zi-sym">{x.symbol}</span>
                   <span className={`zi-side ${x.direction === 'long' ? 'zd-up' : 'zd-dn'}`}>{x.side}</span>
                   <span className="zi-contract">{x.contract ? contractLabel(x.contract) : x.expiryLabel}</span>

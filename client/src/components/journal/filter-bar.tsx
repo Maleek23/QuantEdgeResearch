@@ -70,6 +70,9 @@ export function JournalFilterBar({ api, options, shown, total }: {
         onKeyDown={(e) => { if (e.key === 'Enter') commitSymbols(); }}
       />
       <datalist id="jr-symbols">{options.symbols.map((s) => <option key={s} value={s} />)}</datalist>
+      <button type="button" className={`jr-btn jr-btn-sm${f.zeroDte ? ' jr-btn-primary' : ''}`} aria-pressed={!!f.zeroDte}
+        title="0DTE / index plays only — 0DTE desk, flow ignition, sniper, index scalps (SPX thesis on SPY), open drive, SPX fast move / session, and any 0–1 DTE option"
+        onClick={() => setFilter('zeroDte', f.zeroDte ? undefined : true)}>0DTE</button>
       <button type="button" className="jr-btn jr-btn-sm jr-filter-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
       </button>

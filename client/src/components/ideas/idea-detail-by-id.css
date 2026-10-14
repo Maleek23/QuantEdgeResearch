@@ -1,0 +1,22 @@
+/* Setup detail by id — status chip + premium outcome strip (idea-detail-by-id.tsx). */
+.idb-strip { border: 1px solid var(--nx-border, rgba(255,255,255,.12)); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; background: var(--bg-2, transparent); }
+.idb-strip-slim { padding: 6px 10px; }
+.idb-strip-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.idb-chip { font: 600 11px/1.6 var(--fd-mono, ui-monospace, monospace); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--nx-border-hi, rgba(255,255,255,.2)); color: var(--text, inherit); }
+.idb-chip.live { color: var(--cyan, #3aa0ff); border-color: currentColor; }
+.idb-chip.gain { color: var(--green, #2bb673); border-color: currentColor; }
+.idb-chip.loss { color: var(--red, #e5484d); border-color: currentColor; }
+.idb-chip.muted { color: var(--text-mute, #8a94a6); }
+.idb-chip.idb-thesis { color: var(--lx-accent, var(--cyan, #3aa0ff)); border-color: currentColor; }
+.idb-gain { color: var(--green, #2bb673); font-family: var(--fd-mono, ui-monospace, monospace); }
+.idb-loss { color: var(--red, #e5484d); font-family: var(--fd-mono, ui-monospace, monospace); }
+.idb-asof { color: var(--text-mute, #8a94a6); font-size: 11px; }
+.idb-cells { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; margin-top: 8px; }
+.idb-cells > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.idb-cells span { color: var(--text-mute, #8a94a6); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+.idb-cells strong { font-family: var(--fd-mono, ui-monospace, monospace); font-size: 13px; color: var(--text, inherit); }
+.idb-cells small { color: var(--text-mute, #8a94a6); font-size: 10.5px; overflow-wrap: anywhere; }
+.idb-foot { color: var(--text-mute, #8a94a6); font-size: 11px; margin: 8px 0 0; overflow-wrap: anywhere; }
+.idb-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.idb-page-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.idb-page-head a { font-size: 12px; }

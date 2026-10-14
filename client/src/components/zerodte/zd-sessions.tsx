@@ -11,6 +11,8 @@
  * on premium, peak + time, exit + time, outcome, why it fired, and a replay of
  * the contract's 1-minute premium path (GET /api/zero-dte/replay/:id).
  */
+import { ideaDetailHref } from '@/lib/idea-link';
+import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { ResultModel } from './zd-trade-card';
@@ -118,7 +120,7 @@ function PlayRow({ p }: { p: ZdPlay }) {
         <td className="num" title={p.exit?.basis}>{p.exit ? `${$(p.exit.premium)} ${p.exit.atEt ?? ''}` : '—'}{p.exit?.pct != null && <small className={p.exit.pct >= 0 ? ' ix-win' : ' ix-loss'}> {p.exit.pct >= 0 ? '+' : ''}{p.exit.pct.toFixed(0)}%</small>}</td>
         <td className={`ix-${p.outcome.tone}`} title={p.outcome.reason ?? undefined}>{p.outcome.label}</td>
         <td className="ix-why">{p.why ?? '—'}{p.gaps.map((g) => <div key={g} className="ix-gap">{g}</div>)}</td>
-        <td>{p.contract ? <button type="button" className="zc-btn zc-btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Replay'}</button> : null}</td>
+        <td>{p.contract ? <button type="button" className="zc-btn zc-btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Replay'}</button> : null} <Link href={ideaDetailHref(p.id)} className="zc-btn zc-btn-sm">Detail</Link></td>
       </tr>
       {open && <tr><td colSpan={10}><PremiumReplay id={p.id} /></td></tr>}
     </>

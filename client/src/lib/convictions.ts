@@ -113,6 +113,10 @@ export interface ConvictionPick {
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
+  /** "SPX thesis · traded on SPY 770P" when an index thesis is expressed on SPY (shared/zero-dte-journal.ts). */
+  thesisLabel?: string | null;
+  /** Set by GET /api/ideas/:id/detail: the stored plan of an idea that is not on the live board. */
+  offBoard?: boolean;
 
   /** SPXW mirror of an open SPY 0–2 DTE option idea (display only; tracked as the SPY idea). */
   spxMirror?: import('@shared/spx-mirror').SpxMirror;

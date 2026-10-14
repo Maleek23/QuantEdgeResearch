@@ -57,6 +57,7 @@ const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
 const AskQuantinumPage = lazyWithRetry(() => import("@/pages/ask-quantinum"), "ask-quantinum");
 const SwingsPage    = lazyWithRetry(() => import("@/pages/swings"), "swings");
+const IdeaDetailPage = lazyWithRetry(() => import("@/pages/idea-detail"), "idea-detail");
 // REMOVED — Market page consolidated, redirect to /home
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
 const AlertsPage = lazyWithRetry(() => import("@/pages/alerts"), "alerts");
@@ -169,6 +170,7 @@ const ProtectedResearchShell = withBetaProtection(ResearchShell);
 const ProtectedTodayPage = withBetaProtection(TodayPage);
 const ProtectedAskQuantinumPage = withBetaProtection(AskQuantinumPage);
 const ProtectedSwingsPage = withBetaProtection(SwingsPage);
+const ProtectedIdeaDetailPage = withBetaProtection(IdeaDetailPage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
 const ProtectedSettingsPage = withBetaProtection(SettingsPage);
 const ProtectedAlertsPage = withBetaProtection(AlertsPage);
@@ -280,6 +282,8 @@ function Router() {
         <Route path="/ask"         component={ProtectedAskQuantinumPage} />
         {/* Monthly Swings & LEAPS — research screen (server/swings-screener.ts) */}
         <Route path="/swings"      component={ProtectedSwingsPage} />
+        {/* Any idea by id — the NEXUS Setup Detail, open or resolved (pages/idea-detail.tsx). */}
+        <Route path="/idea/:id"    component={ProtectedIdeaDetailPage} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx

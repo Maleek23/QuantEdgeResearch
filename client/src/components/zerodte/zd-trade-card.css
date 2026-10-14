@@ -113,3 +113,6 @@ em.zc-warn{color:var(--zd-warn)}
   .zd-fold-h{display:none}
   .zd-names-search{flex:1 1 100%}
 }
+
+/* "SPX thesis · traded on SPY 770P" (shared/zero-dte-journal.ts spxThesisLabel) */
+.zc-thesis { margin: -2px 0 6px; font-size: var(--zc-sm, 11px); color: var(--lx-accent, var(--cyan, #3aa0ff)); }

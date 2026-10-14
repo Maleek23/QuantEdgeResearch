@@ -14,6 +14,8 @@
  * (reason 'trade_review') and the rating is journal_trades.rating.
  * Writable only on writable books; Bot / Trade desk trades are read-only.
  */
+import { Link } from 'wouter';
+import { ideaDetailHref } from '@/lib/idea-link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
@@ -257,6 +259,9 @@ function ReviewCard({ row, draft, setDraft, att, setAtt, dirty, pbRules, setup, 
         <StarRating value={row.rating ?? null} disabled />
         {row.notes && <div className="jr-notes" style={{ marginTop: 10 }}>{row.notes}</div>}
         <p className="jr-note">The {data.meta?.label ?? 'ledger'} book is computed from its source ledger — it carries no reviews, checklist or attachments.</p>
+        {row.id.startsWith('desk:') && (
+          <p className="jr-note"><Link href={ideaDetailHref(row.id)}>Setup detail →</Link> the full NEXUS view of this idea (plan, levels, contract, premium T1 / T2 / stop / peak, timeline).{row.thesisLabel ? ` ${row.thesisLabel}.` : ''}</p>
+        )}
       </Card>
     );
   }

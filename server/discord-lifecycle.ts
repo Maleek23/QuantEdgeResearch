@@ -50,6 +50,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { logger } from './logger';
+import { SITE_URL } from '@shared/site';
+import { spxThesisLabel } from '@shared/zero-dte-journal';
 import { readNexusRiskDollars, riskSizedFromPct } from '@shared/position-sizing';
 import { budgetLine, primaryLine, readBudgetContract } from '@shared/budget-contract';
 import { sharedDir, sharedFile, writeSharedSync } from './lib/shared-state';
@@ -166,6 +168,8 @@ export type CardStatus = 'published' | 'triggered' | 'win' | 'loss' | 'time' | '
 export interface CardEvent { kind: 'publish' | 'trigger' | 'resolve'; at: number; line: string }
 export interface Card {
   ideaId: string;
+  /** "SPX thesis · traded on SPY 770P" (shared/zero-dte-journal.ts) — absent on older stored cards. */
+  thesisLabel?: string | null;
   channel: Exclude<LabsChannel, 'bot'>;
   day: string;
   thesisKey: string;
@@ -453,7 +457,9 @@ export function buildCardPayload(c: Card): Record<string, unknown> {
     allowed_mentions: { parse: [] },
     embeds: [{
       title: `${CHANNEL_TAG[c.channel]} · ${c.label} · ${sideWord}`.slice(0, 256),
-      description: c.thesis ? c.thesis.slice(0, 600) : undefined,
+      // Setup detail by id — the full NEXUS view, open or resolved (/idea/:id).
+      url: `${SITE_URL}/idea/${encodeURIComponent(c.ideaId)}`,
+      description: [c.thesisLabel, c.thesis].filter(Boolean).join('\n').slice(0, 600) || undefined,
       color: STATUS_COLOR[c.status],
       fields,
       footer: { text: `idea ${c.ideaId.slice(0, 8)} · ${c.source || 'nexus'}` },
@@ -566,6 +572,7 @@ export async function onIdeaPublished(i: IdeaLike, opts: PublishOpts = {}): Prom
         plan: { entry: num(i.entryPrice), target: num(i.targetPrice), stop: num(i.stopLoss), premium: num(i.entryPremium), expiry: i.expiryDate ? String(i.expiryDate).slice(0, 10) : null },
         grade: grade ? `${grade.letter} ${Math.round(grade.score)}` : null,
         thesis: String(i.analysis ?? i.catalyst ?? '').replace(/\s+/g, ' ').trim(),
+        thesisLabel: spxThesisLabel({ symbol: String(i.symbol ?? ''), source: i.source, dataSourceUsed: i.dataSourceUsed, qualitySignals: i.qualitySignals, optionType: i.optionType, strikePrice: num(i.strikePrice) }),
         source: String(i.source ?? ''),
         publishedAt, status: 'published', statusLine: 'Published — waiting for the entry trigger', verified: null,
         events: [{ kind: 'publish', at: publishedAt, line: `${etHm(publishedAt)} published` }],

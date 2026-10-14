@@ -9,6 +9,8 @@
  * re-implemented for our journal_trades row shape.
  */
 
+import { isZeroDteJournalRow } from './zero-dte-journal';
+
 export type JournalOutcomeFilter = 'win' | 'loss' | 'breakeven' | 'open';
 
 export interface JournalFilters {
@@ -34,6 +36,8 @@ export interface JournalFilters {
   ids?: string[];
   /** Display-only name of the drill ("Loss driver · Exit: stop hit") — never filters. */
   drill?: string;
+  /** 0DTE / index plays only (shared/zero-dte-journal.ts isZeroDteJournalRow). */
+  zeroDte?: boolean;
 }
 
 /** Most trade ids a drill-down URL carries (~40 chars each → ≤ 6 KB of query). */
@@ -55,6 +59,7 @@ export const JOURNAL_FILTER_PARAMS = {
   run: 'jrun',
   ids: 'jids',
   drill: 'jdrill',
+  zeroDte: 'j0dte',
 } as const satisfies Record<keyof JournalFilters, string>;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -100,6 +105,8 @@ export function parseJournalFilters(get: (key: string) => string | null | undefi
   if (ids?.length) f.ids = [...new Set(ids)].slice(0, JOURNAL_DRILL_MAX_IDS);
   const drill = clean(get(JOURNAL_FILTER_PARAMS.drill));
   if (drill && f.ids) f.drill = drill;
+  const zero = clean(get(JOURNAL_FILTER_PARAMS.zeroDte), 8);
+  if (zero === '1' || zero === 'true') f.zeroDte = true;
   return f;
 }
 
@@ -124,7 +131,8 @@ export function journalFiltersToParams(f: JournalFilters): URLSearchParams {
   (Object.keys(JOURNAL_FILTER_PARAMS) as (keyof JournalFilters)[]).forEach((key) => {
     const value = f[key];
     if (value == null) return;
-    const s = Array.isArray(value) ? value.join(',') : String(value);
+    if (value === false) return;
+    const s = Array.isArray(value) ? value.join(',') : value === true ? '1' : String(value);
     if (s) p.set(JOURNAL_FILTER_PARAMS[key], s);
   });
   return p;
@@ -134,7 +142,7 @@ export function countJournalFilters(f: JournalFilters): number {
   return (Object.keys(f) as (keyof JournalFilters)[]).filter((k) => {
     if (k === 'drill') return false; // a label, not a filter
     const v = f[k];
-    return Array.isArray(v) ? v.length > 0 : v != null && v !== '';
+    return Array.isArray(v) ? v.length > 0 : v != null && v !== '' && v !== false;
   }).length;
 }
 
@@ -168,6 +176,9 @@ export interface JournalFilterableRow {
   emotion?: string | null;
   broker?: string | null;
   runId?: string | null;
+  /** Server flag on NEXUS-ideas rows (0DTE engine / index scalp); else derived from setup + DTE. */
+  zeroDte?: boolean;
+  expiryDate?: string | null;
 }
 
 /** Closed-with-a-price → win/loss/breakeven by sign; anything else is open. */
@@ -196,5 +207,6 @@ export function matchesJournalFilters(row: JournalFilterableRow, f: JournalFilte
   if (f.run && row.runId !== f.run) return false;
   if (f.outcome && journalRowOutcome(row) !== f.outcome) return false;
   if (f.ids?.length && !(row.id && f.ids.includes(row.id))) return false;
+  if (f.zeroDte && !(row.zeroDte ?? isZeroDteJournalRow(row))) return false;
   return true;
 }

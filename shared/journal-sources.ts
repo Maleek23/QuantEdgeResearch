@@ -75,6 +75,10 @@ export interface JournalExcludedRow {
   symbol: string;
   entryTime: string;
   reason: string;
+  /** 0DTE / index play (shared/zero-dte-journal.ts) — the journal's 0DTE chip lists these too. */
+  zeroDte?: boolean;
+  /** Publishing engine, for the label. */
+  source?: string | null;
 }
 
 export interface DeskUnverifiedItem {

@@ -32851,6 +32851,11 @@ Use this checklist before entering any trade:
     const { registerIdeaTimelineRoutes } = await import('./idea-timeline');
     registerIdeaTimelineRoutes(app, requireBetaAccess);
   }
+  /** Any idea by id in the board's pick shape + stored / premium outcome (server/idea-detail.ts). */
+  {
+    const { registerIdeaDetailRoutes } = await import('./idea-detail');
+    registerIdeaDetailRoutes(app, requireBetaAccess);
+  }
 
   /** Time-of-day relative volume for a setup (server/volume-read.ts). ?at= trigger ISO time. */
   app.get("/api/volume-read/:symbol", requireBetaAccess, async (req, res) => {

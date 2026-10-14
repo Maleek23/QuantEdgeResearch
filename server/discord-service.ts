@@ -2,6 +2,11 @@
 import { gradeIdeaRowAtPublish, formatNexusGrade, nexusGradeCaveat } from '@shared/nexus-grade';
 import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
+import { SITE_URL } from '@shared/site';
+import { spxThesisLabel } from '@shared/zero-dte-journal';
+
+/** Absolute /idea/:id link for a Discord card (the Setup Detail by id). */
+export const ideaDetailUrl = (id: string) => `${SITE_URL}/idea/${encodeURIComponent(String(id))}`;
 import { logger } from './logger';
 import { getLetterGrade as canonicalLetterGrade } from './grading';
 import { isOptionsMarketOpen } from './paper-trading-service';
@@ -325,6 +330,8 @@ interface DiscordEmbed {
   footer?: { text: string };
   timestamp?: string;
   image?: { url: string };
+  /** Title link — the idea's Setup Detail (/idea/:id). */
+  url?: string;
 }
 
 interface DiscordMessage {
@@ -708,7 +715,12 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     const titlePrefix = isTVSignal ? 'TV SIGNAL' : isOracleSignal ? 'NEXUS SIGNAL' : idea.direction.toUpperCase();
     const embed: DiscordEmbed = {
       title: `${titleEmoji} ${titlePrefix}: ${idea.symbol} ${idea.direction.toUpperCase()}`,
-      description: idea.analysis || 'New trade idea detected.',
+      // Setup detail by id — opens for open AND resolved ideas (server/idea-detail.ts).
+      url: ideaDetailUrl(idea.id),
+      description: [
+        spxThesisLabel({ symbol: idea.symbol, source: idea.source, dataSourceUsed: (idea as any).dataSourceUsed, qualitySignals: (idea as any).qualitySignals, optionType: idea.optionType, strikePrice: idea.strikePrice }),
+        idea.analysis || 'New trade idea detected.',
+      ].filter(Boolean).join('\n'),
       color,
       fields: [
         { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },

@@ -2,6 +2,7 @@
  * Pure row mappers for the read-only journal books (no DB import, so the
  * journal tests can exercise them): one published trade idea → one journal row.
  */
+import { isZeroDteJournalRow, spxThesisLabel } from '@shared/zero-dte-journal';
 import { afterStopLabel, parseAfterStop, isStoppedOut } from '@shared/after-stop';
 import { parsePeak, peakLine } from '@shared/option-peak';
 import { budgetLine, primaryLine, readBudgetContract } from '@shared/budget-contract';
@@ -37,6 +38,10 @@ export type JournalWireRow = Pick<JournalTrade,
   runId?: string | null;
   /** Desk rows from a stock engine: "Shares idea" (shared/options-only.ts); converted rows: "Options view (rule-picked, verified)". */
   instrumentLabel?: string | null;
+  /** 0DTE / index play (shared/zero-dte-journal.ts) — drives the journal's 0DTE chip. */
+  zeroDte?: boolean;
+  /** "SPX thesis · traded on SPY 770P" (shared/zero-dte-journal.ts spxThesisLabel). */
+  thesisLabel?: string | null;
   /** Legacy shares rows converted to the rule-picked contract (shared/journal-pnl-truth.ts RetroRecord). */
   retroOption?: RetroRecord | null;
   runLabel?: string | null;
@@ -312,6 +317,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       importBatchId: null,
       broker: 'trade-desk',
       ...(sharesIdea ? { instrumentLabel: SHARES_IDEA_LABEL } : {}),
+      ...(zeroDteOf(i, planExpiry) ? { zeroDte: true } : {}),
+      ...(thesisOf(i) ? { thesisLabel: thesisOf(i) } : {}),
       ...(exitTimeNote ? { exitTimeNote } : {}),
       ...(capture != null ? { captureRatio: capture } : {}),
       ...(afterStop ? { afterStop } : {}),
@@ -325,6 +332,12 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     },
   };
 }
+
+/** 0DTE / index play flag for a desk idea (shared/zero-dte-journal.ts). */
+export function zeroDteOf(i: Pick<DeskIdea, 'source' | 'assetType' | 'expiryDate' | 'timestamp'> & { dataSourceUsed?: string | null; qualitySignals?: unknown }, expiry?: string | null): boolean {
+  return isZeroDteJournalRow({ source: i.source, dataSourceUsed: i.dataSourceUsed, qualitySignals: i.qualitySignals, assetType: i.assetType, expiryDate: expiry ?? i.expiryDate, entryTime: i.timestamp });
+}
+const thesisOf = (i: DeskIdea) => spxThesisLabel({ symbol: i.symbol, source: i.source, dataSourceUsed: (i as any).dataSourceUsed, qualitySignals: (i as any).qualitySignals, optionType: i.optionType, strikePrice: i.strikePrice });
 
 // ─── NEXUS book verification (audit 2026-10-06) ─────────────
 

@@ -48,6 +48,10 @@ export interface JournalTradeRow {
   peakLine?: string | null;
   /** Instrument label (shared/options-only.ts). Legacy stock rows never reach the trade list — they are in the excluded list. */
   instrumentLabel?: string | null;
+  /** 0DTE / index play (shared/zero-dte-journal.ts) — drives the journal's 0DTE chip. */
+  zeroDte?: boolean;
+  /** "SPX thesis · traded on SPY 770P" (shared/zero-dte-journal.ts spxThesisLabel). */
+  thesisLabel?: string | null;
   /** Budget contract beside the primary| null;
   /** Budget contract beside the primary (shared/budget-contract.ts). */
   primaryLine?: string | null;

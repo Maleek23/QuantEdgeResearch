@@ -93,6 +93,9 @@ export function TradeCard({ m, quote, nowMs, onDetails }: { m: CardModel; quote?
         <span className="zc-left">{m.timeLeft ?? ''}</span>
       </header>
       <h3 className="zc-contract"><span>{m.contract}</span><em className={m.side === 'CALLS' ? 'zc-up' : 'zc-dn'}>{m.side === 'CALLS' ? 'Calls' : 'Puts'}</em></h3>
+      {m.symbol.toUpperCase() === 'SPX' && m.underlying.toUpperCase() === 'SPY' && (
+        <p className="zc-thesis" title="The thesis is on the SPX index; the contract traded is SPY">SPX thesis · traded on {/^SPY\b/i.test(m.contract) ? m.contract : `SPY ${m.contract}`}</p>
+      )}
       <dl className="zc-plan">
         <div><dt>Entry</dt><dd>{$(m.entryMid)}<small title={m.entryMidNote}>{m.entryMidNote}</small></dd></div>
         <div><dt>Stop</dt><dd className="zc-dn">{$(m.stopPrem)}<small>{und$(m.underlying, m.stopUnd)}</small></dd></div>

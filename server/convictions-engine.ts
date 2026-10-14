@@ -31,6 +31,7 @@ import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
 import { stripConflictingTargetClaims } from "@shared/plan-narrative";
+import { spxThesisLabel } from "@shared/zero-dte-journal";
 import { readBoardSort, orderBoard, boardComparator, type BoardSort } from "@shared/board-sort";
 import { gradePick, gradeComponents, gradeComponentsTag, activeGradeVersion, type NexusGrade, type GradeV3Inputs } from "@shared/nexus-grade";
 import { getMarketContext, type MarketContext } from "./market-context-service";
@@ -186,6 +187,8 @@ export interface ConvictionPick {
   gradeInputs?: GradeV3Inputs | null;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
+  /** "SPX thesis · traded on SPY 770P" when an index thesis is expressed on SPY (shared/zero-dte-journal.ts). */
+  thesisLabel?: string | null;
 }
 
 export interface ConvictionsResponse {
@@ -2900,6 +2903,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // Carry-over policy reads the idea's own deadlines (shared/setup-lifecycle.ts).
       exitBy: idea.exitBy ?? null,
       entryValidUntil: idea.entryValidUntil ?? null,
+      thesisLabel: spxThesisLabel({
+        symbol: idea.symbol, source: idea.source, dataSourceUsed: idea.dataSourceUsed, qualitySignals: idea.qualitySignals,
+        optionType: idea.optionType, strikePrice: idea.strikePrice,
+      }),
     });
   }
 

@@ -17,6 +17,8 @@ import { apiRequest } from '@/lib/queryClient';
 import type { JournalKey, JournalSourceMeta } from '@shared/journal-sources';
 import { JOURNAL_SOURCES_KEY, readApiError, type JournalSourcesResponse } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
+import { Link } from 'wouter';
+import { ideaDetailHref } from '@/lib/idea-link';
 
 /**
  * The book picker — top of the journal sidebar (and of the phone strip).
@@ -108,7 +110,9 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   })() : null;
   const excluded = (meta.excluded ?? []).filter((e) => e.count > 0);
   const nExcluded = excluded.reduce((s, e) => s + e.count, 0);
-  const excludedRows = meta.excludedRows ?? [];
+  // 0DTE / index plays first (stable sort), each a link to its setup detail.
+  const excludedRows = [...(meta.excludedRows ?? [])].sort((a, b) => Number(!!b.zeroDte) - Number(!!a.zeroDte));
+  const zeroExcluded = excludedRows.filter((r) => r.zeroDte);
   // NEXUS ideas: what the counted P&L is verified against; unverified rows listed, not counted.
   const ver = meta.verification ?? null;
   const usd = (v: number | null) => v == null ? '—' : `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -172,11 +176,17 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
           <ul className="jr-basis-list">
             {excluded.map((e) => <li key={e.reason || 'unknown'}>{e.count} · {e.reason || 'no reason recorded'}</li>)}
           </ul>
+          {zeroExcluded.length > 0 && (
+            <div className="jr-basis-s">
+              <b>{zeroExcluded.length} 0DTE / index play{zeroExcluded.length === 1 ? '' : 's'} not scored</b> — listed, never summed; each opens its setup detail:
+            </div>
+          )}
           {excludedRows.length > 0 && (
             <ul className="jr-basis-list" style={{ maxHeight: 220, overflowY: 'auto' }} aria-label="Every row not scored">
-              {excludedRows.map((r) => (
-                <li key={r.id}>{r.symbol || r.id} {String(r.entryTime ?? '').slice(0, 16).replace('T', ' ') || '—'} · {r.reason || 'no reason recorded'}</li>
-              ))}
+              {excludedRows.map((r) => {
+                const text = <>{r.symbol || r.id} {String(r.entryTime ?? '').slice(0, 16).replace('T', ' ') || '—'}{r.zeroDte ? ' · 0DTE' : ''} · {r.reason || 'no reason recorded'}</>;
+                return <li key={r.id}>{r.id.startsWith('desk:') ? <Link href={ideaDetailHref(r.id)}>{text}</Link> : text}</li>;
+              })}
             </ul>
           )}
         </details>

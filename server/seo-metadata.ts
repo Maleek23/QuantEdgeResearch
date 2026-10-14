@@ -154,7 +154,7 @@ const APP_ROUTE_PATTERNS: RegExp[] = [
   /^\/join-beta$/, /^\/invite$/, /^\/settings$/, /^\/alerts$/,
   /^\/trade-ideas\/[^/]+\/audit$/,
   /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders|learning)$/,
-  /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/, /^\/swings$/, /^\/ask$/,
+  /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/, /^\/swings$/, /^\/ask$/, /^\/idea\/[^/]+$/,
 ];
 
 export function isAppRoute(pathname: string): boolean {

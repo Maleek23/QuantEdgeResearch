@@ -23,7 +23,7 @@ import { OUTCOME_BASELINE_DATE } from '@shared/constants';
 import { auditBotOptionFill } from '@shared/bot-fill-verification';
 import { peakLine, readPeakSignal } from '@shared/option-peak';
 import {
-  DESK_STOCK_NOTIONAL, assetOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
+  DESK_STOCK_NOTIONAL, assetOf, zeroDteOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
   type DeskIdea, type JournalWireRow,
 } from './journal-row-maps';
 import { loadDeskVerifyLedger, loadRetroOptionsLedger } from './desk-verify-ledger';
@@ -291,7 +291,7 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
     if ('row' in res) pairs.push({ idea: i as DeskIdea, row: res.row });
     else {
       excluded.set(res.excluded, (excluded.get(res.excluded) ?? 0) + 1);
-      excludedRows.push({ id: `desk:${i.id}`, symbol: i.symbol, entryTime: String(i.timestamp ?? ''), reason: res.excluded });
+      excludedRows.push({ id: `desk:${i.id}`, symbol: i.symbol, entryTime: String(i.timestamp ?? ''), reason: res.excluded, source: i.source ?? null, ...(zeroDteOf(i as DeskIdea) ? { zeroDte: true } : {}) });
     }
   }
   // ONE P&L definition (shared/journal-pnl-truth.ts, 2026-10-14): the headline is
