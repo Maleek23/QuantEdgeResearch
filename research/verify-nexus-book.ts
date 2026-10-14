@@ -746,7 +746,7 @@ async function main() {
   }
   if (mr.needs.length) { console.log('  NOT ENTITLED — to unlock:'); for (const n2 of mr.needs) console.log(`    • ${n2}`); }
   if (recheck) {
-    console.log(`\nre-check of ${recheck.rechecked} UNVERIFIABLE rows from ${ONLY_UNV}:`);
+    console.log(`\n${INCREMENTAL ? "incremental re-check" : "re-check"} of ${recheck.rechecked} rows from ${ONLY_UNV ?? INCREMENTAL}:`);
     for (const [k, v] of Object.entries(recheck.transitions as Record<string, number>)) console.log(`  ${k.padEnd(28)} ${v}`);
     console.log(`  winning option source: ${JSON.stringify(recheck.optionSourceOfRechecked)}`);
   }
