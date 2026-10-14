@@ -116,7 +116,7 @@ export function TerminalTickerSearch({
 
       {open && q && (
         <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[340px] overflow-hidden rounded-md border border-border/80 bg-[var(--background)]/98 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             <span>Universal ticker</span>
             <span>{isFetching ? 'searching…' : `${results.length} matches`}</span>
           </div>
@@ -138,14 +138,14 @@ export function TerminalTickerSearch({
               >
                 {result.name ?? result.symbol}
               </span>
-              <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--brand-cyan)]/75">{result.type ?? 'stock'}</span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--brand-cyan)]/75">{result.type ?? 'stock'}</span>
             </button>
           )) : !isFetching ? (
             <button type="button" onClick={() => select({ symbol: q, type: 'stock' })} className="flex w-full items-center justify-between px-3 py-3 text-left font-mono text-[10px] hover:bg-foreground/[0.035]">
               <span>Open {q} directly</span><span className="text-[var(--brand-cyan)]">↗</span>
             </button>
           ) : null}
-          <div className="border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+          <div className="border-t border-border/50 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             Enter open · ↑↓ navigate · symbol follows every workspace
           </div>
         </div>

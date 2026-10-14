@@ -122,7 +122,7 @@ export function Spark({ bars, color, height = 60, label }: { bars: Bar[]; color:
   const onLeave = () => { setTip(null); draw(null); };
 
   if (bars.length < 2) {
-    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
+    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
   }
   return (
     <div ref={wrapRef} style={{ position: 'relative', height }} onMouseMove={onMove} onMouseLeave={onLeave}>

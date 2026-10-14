@@ -42,12 +42,12 @@ export function GammaProfileChart({ snap, spot, zeroGamma, height = 86, idSuffix
         {zeroGamma != null && zeroGamma >= x0 && zeroGamma <= x1 && <line x1={X(zeroGamma)} x2={X(zeroGamma)} y1={pad} y2={H - pad} stroke="var(--amber)" strokeDasharray="3 2" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />}
         {spot > 0 && spot >= x0 && spot <= x1 && <line x1={X(spot)} x2={X(spot)} y1={pad} y2={H - pad} stroke="var(--text)" strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: mono, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: mono, fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>
         <span>${x0.toFixed(0)}</span>
         <span><span style={{ color: 'var(--text)' }}>│</span> spot · <span style={{ color: 'var(--amber)' }}>┆</span> zero-γ{zeroGamma != null ? ` $${zeroGamma.toFixed(2)}` : ' none'}</span>
         <span>${x1.toFixed(0)}</span>
       </div>
-      <div style={{ fontFamily: mono, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', marginTop: 2 }}>
+      <div style={{ fontFamily: mono, fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', marginTop: 2 }}>
         <span style={{ color: 'var(--cyan-bright)' }}>blue</span> = dealers long gamma at that price · <span style={{ color: 'var(--red)' }}>vermilion</span> = short gamma
       </div>
     </>
@@ -74,7 +74,7 @@ export function DealerStructureRail({ snap, spot, zeroGamma, negGamma, names = f
         {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--cyan)', boxShadow: '0 0 6px var(--cyan)' }} />}
         {spot > 0 && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: 'var(--text)', boxShadow: '0 0 8px rgba(255,255,255,0.5)', transform: 'translateX(-4px)' }} />}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: mono, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: mono, fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>
         <span style={{ color: 'var(--red)' }}>{names ? 'put wall' : `P ${snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}`}</span>
         <span style={{ color: 'var(--amber)' }}>{names ? 'zero-γ' : `zero-γ ${flip != null ? `$${flip.toFixed(1)}` : '—'}`}</span>
         <span style={{ color: 'var(--cyan-bright)' }}>{names ? 'call wall' : `C ${snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}`}</span>
@@ -121,11 +121,11 @@ export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
           [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtCell(expiryTotal, metric)}` : '—'],
         ].map(([k, val2]) => (
           <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed color-mix(in srgb, var(--cyan) 8%, transparent)', fontFamily: mono, fontSize: 11 }}>
-            <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)', letterSpacing: 0.5 }}>{k}</span>
+            <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 10px)', letterSpacing: 0.5 }}>{k}</span>
             <span style={{ fontWeight: 700, color: k === 'net GEX' ? exposureText('gex', drill.netGEX) : k === 'Δ-adj GEX' ? exposureText('gex', drill.netGEXAdj ?? 0) : k === 'net VEX' ? exposureText('vex', drill.netVEX ?? 0) : undefined }}>{val2}</span>
           </div>
         ))}
-        <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: mono, fontStyle: 'italic' }}>listed-chain node · Esc, ✕ or click away to close</div>
+        <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: mono, fontStyle: 'italic' }}>listed-chain node · Esc, ✕ or click away to close</div>
       </div>
     </div>
   );

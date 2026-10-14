@@ -24,6 +24,8 @@
  * The mock's fabricated fills, jittering SPY, fake latency and looping
  * uptime counter do not ship.
  */
+import { Term } from '@/components/onboarding/term';
+import { bookAsOfLabel } from '@shared/as-of-label';
 import { gradeOfLoosePick, formatNexusGrade } from '@/components/canon/nexus-grade';
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -366,8 +368,8 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
             </>
           ) : (
             <>
-              <div className="stat-val amber">VALIDATION HOLD</div>
-              <div className="stat-sub">{observed?.win ?? 0}W–{observed?.loss ?? 0}L observed · {coverage.toFixed(0)}% coverage</div>
+              <div className="stat-val amber"><Term k="validation-hold">VALIDATION HOLD</Term></div>
+              <div className="stat-sub"><Term k="win-loss">{observed?.win ?? 0}W–{observed?.loss ?? 0}L</Term> observed · {coverage.toFixed(0)}% coverage</div>
             </>
           )}
         </div>
@@ -429,12 +431,14 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 <span title="cash + open positions at their last marks, computed at read">Value <b>{fmtMoney(activeRun.totalValue, { signed: false })}</b></span>
                 <span>Cash <b>{fmtMoney(activeRun.cashBalance, { signed: false })}</b></span>
                 <span>P&L <b style={{ color: activeRun.totalValue - activeRun.startingCapital >= 0 ? `var(--green)` : `var(--red)` }}>{fmtMoney(activeRun.totalValue - activeRun.startingCapital)} ({(((activeRun.totalValue - activeRun.startingCapital) / activeRun.startingCapital) * 100).toFixed(2)}%)</b></span>
+                {/* Not repriced on read: value / P&L are the marks the last cycle wrote (audit 2026-10-07 #3). */}
+                <span className="book-asof" style={{ color: 'var(--text-mute)' }} title="Value and P&L use each position's last mark, written by the bot's cycle — not a live reprice">{bookAsOfLabel(book?.lastCycle?.at ?? null, activeRun.oldestMarkAt ?? null)}</span>
               </>
             ) : <span>—</span>}
             {book?.sleeves
               ? <span title="Two sleeves, separate capacity: 0DTE/1DTE index + mega-cap (09:35–11:30 ET, −40% / +50% breakeven / +100%, flat 15:45) and swing (top NEXUS grade)">0DTE {book.sleeves['0dte']?.held ?? 0}/{book.sleeves['0dte']?.max ?? '—'} · swing {book.sleeves.swing?.held ?? 0}/{book.sleeves.swing?.max ?? '—'} · swing min grade {String(book.sleeves.swing?.minGrade ?? '—')}</span>
               : <span>max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>}
-            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin}${book.lastCycle.role ? ` · ROLE=${book.lastCycle.role}` : ''}) · ${book.lastCycle.opened} opened · ${book.lastCycle.skipped ?? 0} skipped${book.lastCycle.error ? ` · ${book.lastCycle.error}` : ''}` : 'none seen'}</span>
+            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin}) · ${book.lastCycle.opened} opened · ${book.lastCycle.skipped ?? 0} skipped${book.lastCycle.error ? ` · ${book.lastCycle.error}` : ''}` : 'none seen'}</span>
           </div>
           {book?.lastCycle?.skipSummary && book.lastCycle.skipSummary.total > 0 && (
             <div className="book-meta" style={{ padding: '4px 0 0', flexWrap: 'wrap' }} aria-label="Why the last cycle skipped candidates">
@@ -494,12 +498,12 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                   >⤢</button>
                   {prog != null && marked && (
                     <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--red)' }}>S</span>
                       <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
                         {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
                         <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
                       </div>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--green)' }}>T</span>
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'max(10px, var(--fs-10, 10px))', color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
                     </div>
                   )}
@@ -562,7 +566,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               {record.all.runs.length > 1 && recRow(record.all.combined, `Combined · all ${record.all.runs.length} runs`)}
             </tbody>
           </table>
-          <div style={{ marginTop: 5, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+          <div style={{ marginTop: 5, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)' }}>
             Ledger W–L uses every realized paper result. Quote-audited W–L requires a reconciled fresh entry ask and exit bid, or exact intrinsic settlement; {record.measurement.unverified} closed option outcomes are unverified and excluded from that rate. Open P&L is unrealized at the last mark, never counted as realized.
           </div>
         </div>
@@ -611,7 +615,11 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
             <span>{ledger?.totalBlocked ?? 0} blocked</span>
             <span>{ledger?.decided ?? 0} decided</span>
             <span>saved <b style={{ color: 'var(--green)' }}>{ledger?.blockedLosers ?? 0}</b> · cost <b style={{ color: 'var(--red)' }}>{ledger?.blockedWinners ?? 0}</b></span>
-            <span>net wouldBe <b style={{ color: (ledger?.netWouldBePercent ?? 0) > 0 ? 'var(--red)' : 'var(--green)' }}>{(ledger?.netWouldBePercent ?? 0) >= 0 ? '+' : ''}{(ledger?.netWouldBePercent ?? 0).toFixed(2)}%</b></span>
+            {/* The gate's effect = minus what the blocked shorts would have made, so the
+                printed sign and the gain/loss colour agree (audit 2026-10-07 #16). */}
+            {(() => { const eff = -(ledger?.netWouldBePercent ?? 0); return (
+              <span title="Sum of the blocked shorts' would-be returns, sign-flipped: positive = the gate saved money, negative = it cost money">gate net effect <b style={{ color: eff > 0 ? 'var(--green)' : eff < 0 ? 'var(--red)' : 'var(--text-dim)' }}>{eff > 0 ? '+' : eff < 0 ? '−' : ''}{Math.abs(eff).toFixed(2)}%</b></span>
+            ); })()}
           </div>
         </div>
         {(ledger?.entries ?? []).slice(0, 8).map((e2) => {
@@ -630,7 +638,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
               <div className="bp-kv">outcome<b>{oc === 'hit_target' ? 'won (cost us)' : oc === 'hit_stop' ? 'lost (saved us)' : 'open'}</b></div>
               <div className={`bp-pnl ${up ? 'up' : 'down'}`}>{e2.wouldBePercent != null ? `${up ? '+' : ''}${e2.wouldBePercent.toFixed(1)}%` : '—'}</div>
               <div className="bp-kv">
-                <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
+                <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
               </div>
               <div className="bp-kv" />
             </div>
@@ -724,12 +732,12 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       <div className="perf">
         {!only && (
           <div className="perf-head">
-            <div className="perf-label">Outcome integrity · SR 11-7 control</div>
+            <div className="perf-label">Outcome integrity · is the record complete enough to quote?</div>
           </div>
         )}
         <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
           {/* No daily P&L series is tracked — a curve here would be a random walk. */}
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
             {reportable ? 'OBSERVED LEDGER — coverage gate passed' : 'VALIDATION HOLD — not a performance claim'}<br />
             {coverage.toFixed(0)}% measured · {outcomes?.coverage?.unresolved ?? '—'} unresolved
           </div>
@@ -749,7 +757,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
           </div>
         </div>
         {(strongestSlice || weakestSlice) && (
-          <div style={{ borderTop: '1px solid var(--nx-border)', padding: '9px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+          <div style={{ borderTop: '1px solid var(--nx-border)', padding: '9px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)' }}>
             {strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--text-mute)' }}><span>best observed · {strongestSlice.dimension}/{strongestSlice.name}</span><b style={{ color: (strongestSlice.averageR ?? 0) >= 0 ? 'var(--green)' : 'var(--amber)' }}>{strongestSlice.averageR! >= 0 ? '+' : ''}{strongestSlice.averageR!.toFixed(3)}R · n={strongestSlice.decided}</b></div>}
             {weakestSlice && weakestSlice !== strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 5, color: 'var(--text-mute)' }}><span>largest drag · {weakestSlice.dimension}/{weakestSlice.name}</span><b style={{ color: 'var(--red)' }}>{weakestSlice.averageR!.toFixed(3)}R · n={weakestSlice.decided}</b></div>}
             <div style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-dim)' }}>Descriptive only · use a later out-of-sample window before changing gates.</div>
@@ -865,7 +873,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                         <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 5px)`, top: -2, width: 12, height: 12, borderRadius: '50%', background: pnl >= 0 ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 8px ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}` }} />
                       </div>
                     )}
-                    <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+                    <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>
                       {prog != null ? `${(prog * 100).toFixed(0)}% of the way from stop to target` : 'barrier geometry unavailable'} · barriers checked every bot cycle{expandPos.useTrailingStop ? ` · trailing ${expandPos.trailingStopPercent ?? '—'}%` : ''} · click-out to close
                     </div>
                   </>
@@ -994,3 +1002,4 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
 }
 
 export default BotNexus;
+

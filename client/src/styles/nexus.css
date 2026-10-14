@@ -313,7 +313,7 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .nexus-vars .nexus-index-label>span.live{background:var(--green);box-shadow:0 0 10px var(--green);animation:nexus-pulse 1.8s ease-in-out infinite}
 .nexus-vars .nexus-index-label>div{display:flex;min-width:0;flex-direction:column;gap:1px}
 .nexus-vars .nexus-index-label b{font-size:11px;color:var(--text)}
-.nexus-vars .nexus-index-label small{font:500 8.5px 'JetBrains Mono',monospace;color:var(--text-mute);white-space:nowrap}
+.nexus-vars .nexus-index-label small{font:500 10px 'JetBrains Mono',monospace;color:var(--text-mute);white-space:nowrap}
 .nexus-vars .nexus-index-instruments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--nx-border)}
 .nexus-vars .nexus-index-tile{
   display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;
@@ -324,11 +324,11 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .nexus-vars .nexus-index-tile.active{box-shadow:inset 2px 0 0 var(--green)}
 .nexus-vars .nexus-index-tile.active.short{box-shadow:inset 2px 0 0 var(--red)}
 .nexus-vars .nexus-index-tile strong{font:700 12px 'JetBrains Mono',monospace}
-.nexus-vars .nexus-index-tile span{font:700 8px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-mute)}
+.nexus-vars .nexus-index-tile span{font:700 10px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-mute)}
 .nexus-vars .nexus-index-tile.active span{color:var(--green)}
 .nexus-vars .nexus-index-tile.active.short span{color:var(--red)}
 .nexus-vars .nexus-index-tile em{font:700 10px 'JetBrains Mono',monospace;font-style:normal;text-align:right}
-.nexus-vars .nexus-index-tile small{font:500 8.5px 'JetBrains Mono',monospace;color:var(--text-mute);text-align:right}
+.nexus-vars .nexus-index-tile small{font:500 10px 'JetBrains Mono',monospace;color:var(--text-mute);text-align:right}
 
 /* ============ SECTION HEADERS ============ */
 .nexus-vars .sec-head{
@@ -1531,7 +1531,7 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 /* SPX / index decision plane: the three variables a flat price chart hides. */
 .nexus-vars .gex-three-axis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .nexus-vars .gex-axis-card{min-width:0;padding:12px 13px;border:1px solid var(--nx-border);border-radius:7px;background:color-mix(in srgb,var(--panel-solid) 88%,transparent)}
-.nexus-vars .gex-axis-card>span{display:block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
+.nexus-vars .gex-axis-card>span{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
 .nexus-vars .gex-axis-card>strong{display:block;margin-top:7px;font:700 15px/1.2 'Space Grotesk',sans-serif;color:var(--text)}
 .nexus-vars .gex-axis-card>small{display:block;min-height:28px;margin-top:5px;font:500 10px/1.4 'JetBrains Mono',monospace;color:var(--text-dim)}
 .nexus-vars .gex-axis-card>i{display:block;height:3px;margin-top:9px;overflow:hidden;border-radius:2px;background:rgba(139,147,163,.12)}
@@ -1940,7 +1940,7 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .nexus-vars .crypto-chart-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:14px 16px 8px}
 .nexus-vars .crypto-chart-title{font:700 15px 'Space Grotesk',sans-serif;color:var(--text)}
 .nexus-vars .crypto-chart-tabs{display:flex;gap:4px;flex-wrap:wrap}
-.nexus-vars .crypto-chart-tabs button{border:1px solid var(--nx-border);border-radius:4px;background:transparent;color:var(--text-mute);padding:4px 8px;font:700 9px 'JetBrains Mono',monospace;cursor:pointer}
+.nexus-vars .crypto-chart-tabs button{border:1px solid var(--nx-border);border-radius:4px;background:transparent;color:var(--text-mute);padding:4px 8px;font:700 10px 'JetBrains Mono',monospace;cursor:pointer}
 .nexus-vars .crypto-chart-tabs button.active{border-color:var(--brand-cyan);background:color-mix(in srgb,var(--brand-cyan) 12%,transparent);color:var(--brand-cyan)}
 .nexus-vars .crypto-chart-tabs button{font-size:var(--fs-11,11px)} /* was 9px, under every floor (phones remap --fs-11 to 13px) */
 .nexus-vars .crypto-level-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--nx-border)}
@@ -1948,7 +1948,7 @@ html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:
 .nexus-vars .crypto-level-strip>div:last-child{border-right:0}
 .nexus-vars .crypto-level-ref{padding:9px 12px;border-top:1px solid var(--nx-border);color:var(--text-mute);font:500 12px/1.4 Inter,system-ui,sans-serif}
 .nexus-vars .crypto-level-ref b{color:var(--text-dim);font-weight:600}
-.nexus-vars .crypto-level-strip span{font:700 8px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mute)}
+.nexus-vars .crypto-level-strip span{font:700 10px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mute)}
 .nexus-vars .crypto-level-strip b{font:700 11px 'JetBrains Mono',monospace;color:var(--text)}
 .nexus-vars .crypto-level-strip b.up{color:var(--green)}.nexus-vars .crypto-level-strip b.down{color:var(--red)}
 .nexus-vars .crypto-chart-note{margin:0;padding:9px 14px;border-top:1px solid var(--nx-border);font:9px/1.5 'JetBrains Mono',monospace;color:var(--text-mute)}
@@ -2883,14 +2883,14 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-strike b{font-weight:700;color:var(--text,#e8ecf3)}
 .gx-pct{margin-left:6px;font-size:var(--fs-9,9px);color:var(--text-mute,#8a93a6)}
 .gx-chips{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
-.gx-chip{display:inline-block;padding:1px 5px;border:1px solid;border-radius:3px;font-size:8.5px;font-weight:800;letter-spacing:.06em;line-height:1.4}
+.gx-chip{display:inline-block;padding:1px 5px;border:1px solid;border-radius:3px;font-size:10px;font-weight:800;letter-spacing:.06em;line-height:1.4}
 .gx-table td.gx-sum{min-width:132px;background:var(--gx-bg);border-left:1px solid var(--nx-border,rgba(148,163,184,.14));text-align:right;padding:0 8px;white-space:nowrap}
 .gx-sum-bar{display:inline-block;width:52px;height:6px;margin-right:8px;vertical-align:middle;border-radius:2px;background:color-mix(in srgb,var(--text-mute,#8a93a6) 14%,transparent);overflow:hidden}
 .gx-sum-bar i{display:block;height:100%;border-radius:2px}
 .gx-cell{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:24px;border:0;border-radius:3px;padding:0 5px;font:600 var(--fs-10,10px)/1 'JetBrains Mono',monospace;cursor:pointer;overflow:hidden}
 .gx-cell.top{padding-left:13px;font-weight:800;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--text,#e8ecf3) 80%,transparent)}
-.gx-cell.top::before,.gx-lval[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:9px;font-weight:800;opacity:.9}
-.gx-cell.top::before{position:absolute;left:3px;top:1px;margin:0;font-size:8.5px;line-height:1}
+.gx-cell.top::before,.gx-lval[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:10px;font-weight:800;opacity:.9}
+.gx-cell.top::before{position:absolute;left:3px;top:1px;margin:0;font-size:10px;line-height:1}
 .gx-colnet{display:block;margin-top:2px;font-style:normal;font-weight:700;font-size:var(--fs-9,9px);letter-spacing:0}
 .gx-scale-seg{display:inline-flex;align-items:center;gap:0;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:5px;overflow:hidden}
 .gx-scale-seg b{padding:0 6px;font-weight:700;color:var(--text-mute,#8a93a6);letter-spacing:.06em;text-transform:uppercase}
@@ -2899,7 +2899,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-scale-now{font-weight:600;color:var(--text-dim,#aab3c5)}
 .gx-ramp{display:inline-flex;flex-direction:column;gap:1px;min-width:220px}
 .gx-ramp-bar{display:block;height:8px;border-radius:2px;border:1px solid var(--nx-border,rgba(148,163,184,.2))}
-.gx-ramp-ticks{display:flex;justify-content:space-between;gap:6px;font-size:8.5px;color:var(--text-mute,#8a93a6);white-space:nowrap}
+.gx-ramp-ticks{display:flex;justify-content:space-between;gap:6px;font-size:10px;color:var(--text-mute,#8a93a6);white-space:nowrap}
 .gx-lrow.top .gx-lval{font-weight:800}
 .gx-cell.dust{opacity:.55;font-weight:500}
 .gx-cell.max{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text,#e8ecf3) 45%,transparent)}
@@ -2914,7 +2914,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-row.spot td.gx-strike b{text-decoration:underline;text-underline-offset:3px}
 .gx-lines{position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:5}
 .gx-line{position:absolute;left:0;right:0;height:0}
-.gx-line span{position:sticky;display:inline-block;transform:translateY(-50%);padding:1px 6px;border-radius:3px;font-size:8.5px;font-weight:800;letter-spacing:.06em;white-space:nowrap}
+.gx-line span{position:sticky;display:inline-block;transform:translateY(-50%);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:800;letter-spacing:.06em;white-space:nowrap}
 .gx-line.zg{border-top:2px dashed var(--amber,#facc15)}
 .gx-line.zg span{left:300px;margin-left:300px;color:#1a1300;background:var(--amber,#facc15)}
 .gx-line.spot{border-top:1.5px solid color-mix(in srgb,var(--text,#e8ecf3) 85%,transparent)}
@@ -2926,7 +2926,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-hover div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .gx-hover span{color:var(--text-mute,#8a93a6)}
 .gx-hover .gx-hover-h{font-weight:800;color:var(--text,#e8ecf3);border-bottom:1px solid var(--nx-border,rgba(148,163,184,.14));margin-bottom:3px;padding-bottom:4px}
-.gx-hover .gx-hover-note{display:block;font-size:9.5px;color:var(--text-dim,#aab3c5)}
+.gx-hover .gx-hover-note{display:block;font-size:10px;color:var(--text-dim,#aab3c5)}
 .gx-empty{display:grid;place-items:center;min-height:200px;font:500 11px 'JetBrains Mono',monospace;color:var(--text-mute,#8a93a6)}
 /* ladder */
 .gx-wrap.ladder{flex:none}
@@ -2961,7 +2961,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-laxis.pair i.b{top:55%;bottom:1px;opacity:.9;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text,#e8ecf3) 40%,transparent)}
 .gx-wrap.ladder.pair .gx-lrow,.gx-wrap.ladder.pair .gx-ladder-head{grid-template-columns:96px minmax(90px,1fr) 124px minmax(56px,auto)}
 .gx-lval2{margin-left:8px;font-weight:600}
-.gx-lval2[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:9px;font-weight:800;opacity:.9}
+.gx-lval2[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:10px;font-weight:800;opacity:.9}
 .gx-view-note{font-size:var(--fs-10,10px);color:var(--text-dim,#aab3c5);padding:4px 10px;border-bottom:1px solid color-mix(in srgb,var(--nx-border,rgba(148,163,184,.14)) 60%,transparent);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
 .gx-view-note b{color:var(--text,#e8ecf3)}
 .gx-view-note .gx-diff{color:var(--amber,#f5b83d)}
@@ -3000,7 +3000,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-narrow .gx-table thead th .gx-colnet{font-size:12px}
 .gx-narrow .gx-cell{height:32px;padding:0 2px;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .gx-narrow .gx-cell.top{padding-left:9px}
-.gx-narrow .gx-cell.top::before{font-size:9px}
+.gx-narrow .gx-cell.top::before{font-size:10px}
 .gx-narrow .gx-toolbar{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:6px;scrollbar-width:none}
 .gx-narrow .gx-toolbar>*{flex:none}
 .gx-narrow .gx-sign,.gx-narrow .gx-scale-now,.gx-narrow .gx-legend,.gx-narrow .gx-count{display:none}
@@ -3689,5 +3689,5 @@ html[data-mode=light] .landing.lp .lp-gallery-item .lp-frame{box-shadow:0 18px 4
 
 /* Matrix spot tag (audit 2026-10-01, GEX #2): "SPOT" only — the price prints once elsewhere —
    right-aligned inside the strike column so it never covers the first expiry's cells. */
-.gx-wrap .gx-line.spot.gx-line-gutter span,.gx-line.spot.gx-line-gutter span{left:calc(var(--gx-strike-w,176px) - 31px);margin-left:calc(var(--gx-strike-w,176px) - 31px);padding:0 3px;font-size:8px;letter-spacing:.04em}
+.gx-wrap .gx-line.spot.gx-line-gutter span,.gx-line.spot.gx-line-gutter span{left:calc(var(--gx-strike-w,176px) - 31px);margin-left:calc(var(--gx-strike-w,176px) - 31px);padding:0 3px;font-size:10px;letter-spacing:.04em}
 .gx-wrap.gx-narrow .gx-line.spot.gx-line-gutter span,.gx-narrow .gx-line.spot.gx-line-gutter span{left:2px;margin-left:2px;font-size:12px;padding:0 4px}

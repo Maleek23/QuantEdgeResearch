@@ -2313,7 +2313,7 @@ button:not([disabled]):active,
 }
 
 .qe-section-eyebrow {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .16em;
 }
@@ -2347,7 +2347,7 @@ button:not([disabled]):active,
   border-radius: 999px;
   background: color-mix(in srgb, var(--brand-cyan) 5%, transparent);
   font-family: var(--font-mono);
-  font-size:9px;
+  font-size:10px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: .13em;
@@ -2628,7 +2628,7 @@ button:not([disabled]):active,
   height: 100%;
   border-right: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: .12em;
   color: var(--muted-foreground);

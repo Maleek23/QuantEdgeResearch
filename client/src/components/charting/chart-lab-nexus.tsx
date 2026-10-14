@@ -481,7 +481,7 @@ export function ChartLabLevels() {
     <div className="levels-section">
       <div className="levels-head">
         <div className="levels-title">QuantEdge Levels</div>
-        <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
+        <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
       </div>
       {levelRows.length ? levelRows.map((l) => (
         <div className="level-row" key={l.label}>

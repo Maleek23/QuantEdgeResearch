@@ -46,7 +46,7 @@ export function TASummary({ symbol }: { symbol: string }) {
       <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
         {ta.structure && (
           <div>
-            <div className="text-muted-foreground text-[9px] uppercase tracking-wider">Structure</div>
+            <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Structure</div>
             <div className="text-foreground capitalize">
               {ta.structure.trend}
               {ta.structure.breakOfStructure && <span className="text-[var(--brand-gold,#d4af37)]"> · BOS</span>}
@@ -55,7 +55,7 @@ export function TASummary({ symbol }: { symbol: string }) {
         )}
         {ta.fib && (
           <div>
-            <div className="text-muted-foreground text-[9px] uppercase tracking-wider">Fib Zone ({ta.fib.trend === 'uptrend' ? 'up' : 'down'})</div>
+            <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Fib Zone ({ta.fib.trend === 'uptrend' ? 'up' : 'down'})</div>
             <div className="text-foreground">{ta.fib.currentZone}</div>
           </div>
         )}
@@ -64,7 +64,7 @@ export function TASummary({ symbol }: { symbol: string }) {
       {/* key fib retracement levels */}
       {keyFibs.length > 0 && (
         <div>
-          <div className="text-muted-foreground text-[9px] uppercase tracking-wider mb-1">Key Fib Levels</div>
+          <div className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Key Fib Levels</div>
           <div className="flex flex-wrap gap-1.5">
             {keyFibs.map((l) => (
               <span
@@ -81,7 +81,7 @@ export function TASummary({ symbol }: { symbol: string }) {
       {/* candlestick patterns on latest candle */}
       {patterns.length > 0 && (
         <div>
-          <div className="text-muted-foreground text-[9px] uppercase tracking-wider mb-1">Candlestick</div>
+          <div className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Candlestick</div>
           <div className="flex flex-wrap gap-1.5">
             {patterns.map((p) => (
               <span

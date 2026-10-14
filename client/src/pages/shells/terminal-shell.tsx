@@ -328,7 +328,7 @@ export default function TerminalShell() {
               <span className="user-name hidden lg:inline">{accountLabel}</span>
               {alerts.unread > 0 && (
                 <span
-                  className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold"
+                  className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[10px] font-bold"
                   style={{ background: 'rgba(59,140,255,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(59,140,255,0.3)' }}
                   aria-label={`${alerts.unread} unread alerts`}
                 >
@@ -524,14 +524,16 @@ export default function TerminalShell() {
         <div className="bb-item"><span className="dot" /><b>{TAB_SHORT[tab].toUpperCase()}</b> engaged</div>
         <div className="bb-sep" />
         <SystemPulse />
-        <div className="bb-sep hidden md:block" />
-        <div className="bb-item hidden md:flex">Uptime <Uptime /></div>
+        {/* Server uptime is an operator number — traders don't see it (audit 2026-10-07 #21). */}
+        {(user as { isAdmin?: boolean } | null | undefined)?.isAdmin && <><div className="bb-sep hidden md:block" />
+        <div className="bb-item hidden md:flex">Uptime <Uptime /></div></>}
         <div className="bb-sep hidden md:block" />
         <span className="hidden items-center md:inline-flex">
           <LiveStatsBar />
         </span>
         <div className="bb-spacer" />
-        <span className="hidden min-w-0 shrink items-center overflow-hidden lg:inline-flex">
+        {/* Whole or not at all: the market line shows only where it fits untruncated (audit #21). */}
+        <span className="hidden shrink-0 items-center 2xl:inline-flex">
           <FooterMarketLine className="text-[10px]" />
         </span>
         <div className="bb-sep hidden sm:block" />

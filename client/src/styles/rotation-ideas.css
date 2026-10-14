@@ -21,7 +21,7 @@
 .rti-entry{margin:0;font-size:13px;line-height:1.45}
 .rti-levels{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:0}
 .rti-levels div{min-width:0}
-.rti-levels dt{font:700 9.5px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
+.rti-levels dt{font:700 10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
 .rti-levels dd{margin:0;font:600 13px 'JetBrains Mono',monospace;overflow-wrap:anywhere}
 .rti-levels small{display:block;font-weight:500;font-size:10px;color:var(--text-mute)}
 .rti-why{margin:0;padding:0 0 0 16px;font-size:12px;line-height:1.5;color:var(--text-dim)}

@@ -10,6 +10,7 @@
  * real 52. The mock's hardcoded 25 rows, spot jitter and looping countdown
  * do not ship.
  */
+import { gradeColor } from '@/components/canon/score';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { openWorkup } from '@/lib/workup-bus';
 import { useLocation } from 'wouter';
@@ -35,8 +36,9 @@ interface LeapPayload {
 }
 
 const GRADE_ORDER: Record<string, number> = { S: 1, A: 2, B: 3, C: 4 };
+/** One grade palette (canon/score.tsx gradeColor) — S/A/B/C map onto --grade-*. */
 const GRADE_COLOR: Record<string, string> = {
-  S: 'var(--gold)', A: 'var(--cyan)', B: 'var(--blue)', C: 'var(--text-dim)',
+  S: gradeColor('S'), A: gradeColor('A'), B: gradeColor('B'), C: gradeColor('C'),
 };
 
 /** The feed, exported so dashboard tools (dashboard/tools/leaps) observe the

@@ -51,7 +51,8 @@ export default function DeskPortal() {
   if (!role.enabled) {
     return (
       <LuxPage>
-        <LuxPageHeader section="Desk" title="Desk portals are off" purpose="The platform admin turns desk portals on (DESK_ADMINS)." />
+        <LuxPageHeader section="Desk" title="Desk pages aren’t open yet" purpose="Trader desk pages haven’t been switched on for this account. Your journal and the rest of the terminal work as usual." />
+        <p className="ah-note"><Link href="/today">← Back to Today</Link></p>
       </LuxPage>
     );
   }
@@ -59,7 +60,7 @@ export default function DeskPortal() {
     return (
       <LuxPage>
         <LuxPageHeader section="Desk" title={role.isSuperAdmin ? 'Pick a desk' : 'You do not run a desk'}
-          purpose={role.isSuperAdmin ? 'Every trader book has a desk. Open one to see and manage it.' : 'Malik links your account to your trader book. Ask him, then reload.'} />
+          purpose={role.isSuperAdmin ? 'Every trader book has a desk. Open one to see and manage it.' : 'An admin links your account to your trader book. Ask the desk admin, then reload.'} />
         {role.isSuperAdmin && (
           <LuxPanel title="Desks">
             <div className="ah-acts" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>

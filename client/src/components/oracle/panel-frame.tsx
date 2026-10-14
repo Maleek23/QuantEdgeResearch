@@ -88,7 +88,7 @@ export function PanelFrame({
               onClick={onFocus}
               title={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
               aria-label={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
-              className="qe-panel-action inline-flex shrink-0 cursor-pointer items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]/85 transition-colors hover:text-foreground"
+              className="qe-panel-action inline-flex shrink-0 cursor-pointer items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]/85 transition-colors hover:text-foreground"
             >
               <span className="hidden sm:inline">Expand</span><Maximize2 className="h-3 w-3" />
             </button>

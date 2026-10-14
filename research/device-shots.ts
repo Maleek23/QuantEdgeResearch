@@ -18,7 +18,7 @@ import { createRequire } from 'node:module';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const LABEL = process.argv[2] || 'shots';
-const OUT = path.join(ROOT, 'docs', 'screens', 'devices', LABEL);
+const OUT = process.env.SHOTS_OUT ? path.resolve(ROOT, process.env.SHOTS_OUT, LABEL) : path.join(ROOT, 'docs', 'screens', 'devices', LABEL);
 const BASE = process.env.SHOTS_BASE || 'http://127.0.0.1:5179';
 
 export const PAGES: Array<{ slug: string; path: string; admin?: boolean; out?: boolean }> = [
@@ -53,6 +53,7 @@ const SIZES = [
   { w: 390, h: 844, phone: true },
   { w: 768, h: 1024, phone: false, touch: true },
   { w: 1366, h: 768, phone: false },
+  { w: 1440, h: 900, phone: false },
 ];
 
 function loadPlaywright(): any {

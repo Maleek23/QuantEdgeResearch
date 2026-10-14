@@ -33,8 +33,14 @@ export function scoreBand(n: number): ScoreBand {
 }
 
 /** Token-backed colour for a letter grade. Replaces the hardcoded Tailwind palette. */
-export function gradeColor(grade: LetterGrade): string {
-  if (grade === 'A+') return 'var(--grade-s)';
+/**
+ * THE grade colour map (audit 2026-10-07 #6) — every letter grade on the platform
+ * (conviction A+…F, contract-engine A–F, LEAPS S–C) resolves here to the
+ * --grade-* tokens. No local palettes.
+ */
+export function gradeColor(grade: LetterGrade | 'S' | string | null | undefined): string {
+  if (grade == null || grade === '') return 'var(--text-mute)';
+  if (grade === 'A+' || grade === 'S') return 'var(--grade-s)';
   if (grade.startsWith('A')) return 'var(--grade-a)';
   if (grade.startsWith('B')) return 'var(--grade-b)';
   if (grade.startsWith('C')) return 'var(--grade-c)';

@@ -41,34 +41,39 @@ export default function AdminOverview() {
   const o = ov.data;
   const h = health.data;
   const s = stats.data;
+  // One coherent failure state (audit 2026-10-07 #18): no "loading" forever after a failure,
+  // and HEALTHY only when the check answered AND every feed + Postgres is up.
+  const pend = ov.isError ? 'unavailable' : 'loading';
+  const allUp = !!h && h.status === 'ok' && !health.isError && (h.dataProviders ?? []).every((p) => p.state === 'ok') && h.checks?.postgres?.ok !== false;
+  const platformTag = health.isError ? { tone: 'caution' as const, text: 'NO ANSWER' } : !h ? null : allUp ? { tone: 'accent' as const, text: 'HEALTHY' } : { tone: 'caution' as const, text: 'DEGRADED' };
 
   return (
     <AdminLayout>
       <div className="ah-stack">
-        {ov.isError && <QEError title="The overview didn't load" message="/api/admin/ops/overview failed — the server may be on an older build." onRetry={() => void ov.refetch()} />}
+        {ov.isError && <QEError title="The overview didn't load" message="Counts below are unavailable until it answers. (ops/overview — the server may be on an older build.)" onRetry={() => void ov.refetch()} />}
 
         {/* Operator 2026-10-07: trader accounts first, right after the admin code. */}
         <TraderAccountsPanel />
 
         <LuxKpiGrid cols={4}>
           <LuxKpi label="Users" value={o?.users.total ?? '—'}
-            sub={o ? `Free ${o.users.byTier.free ?? 0} · Adv ${o.users.byTier.advanced ?? 0} · Pro ${o.users.byTier.pro ?? 0} · Admin ${o.users.byTier.admin ?? 0}` : 'loading'} />
-          <LuxKpi label="Beta access" value={o?.users.betaAccess ?? '—'} sub={o ? `${o.users.disabled} disabled account${o.users.disabled === 1 ? '' : 's'}` : 'loading'} />
+            sub={o ? `Free ${o.users.byTier.free ?? 0} · Adv ${o.users.byTier.advanced ?? 0} · Pro ${o.users.byTier.pro ?? 0} · Admin ${o.users.byTier.admin ?? 0}` : pend} />
+          <LuxKpi label="Beta access" value={o?.users.betaAccess ?? '—'} sub={o ? `${o.users.disabled} disabled account${o.users.disabled === 1 ? '' : 's'}` : pend} />
           <LuxKpi label="Sign-ups" value={o ? `${o.users.signups7d} / ${o.users.signups30d}` : '—'} sub="last 7 / 30 days (account created)" />
           <LuxKpi label="Seen" value={o ? `${o.users.seen24h} / ${o.users.seen7d}` : '—'}
-            sub={o ? `signed in last 24h / 7d · ${o.sessions ? `${o.sessions.active} live sessions (${o.sessions.users} users)` : 'sessions not readable'}` : 'loading'} />
+            sub={o ? `signed in last 24h / 7d · ${o.sessions ? `${o.sessions.active} live sessions (${o.sessions.users} users)` : 'sessions not readable'}` : pend} />
         </LuxKpiGrid>
 
         <LuxKpiGrid cols={4}>
           <LuxKpi label="Waitlist" value={o?.waitlist.total ?? '—'}
-            sub={o ? `${o.waitlist.byStatus.pending ?? 0} pending · ${o.waitlist.byStatus.approved ?? 0} approved · ${o.waitlist.byStatus.joined ?? 0} joined` : 'loading'} />
-          <LuxKpi label="Invite codes issued" value={o?.invites.issued ?? '—'} sub={o ? `${o.invites.unused} unused` : 'loading'} />
+            sub={o ? `${o.waitlist.byStatus.pending ?? 0} pending · ${o.waitlist.byStatus.approved ?? 0} approved · ${o.waitlist.byStatus.joined ?? 0} joined` : pend} />
+          <LuxKpi label="Invite codes issued" value={o?.invites.issued ?? '—'} sub={o ? `${o.invites.unused} unused` : pend} />
           <LuxKpi label="Redeemed" value={o?.invites.used ?? '—'} sub={o && o.invites.issued ? `${Math.round((o.invites.used / o.invites.issued) * 100)}% of issued` : '—'} />
           <LuxKpi label="Expired / revoked" value={o ? `${o.invites.expired} / ${o.invites.revoked}` : '—'} sub={<Link href="/admin/invites" className="ah-link">Invite codes →</Link>} />
         </LuxKpiGrid>
 
         <div className="ah-grid">
-          <LuxPanel title="Platform" meta={h ? <LuxTag tone={h.status === 'ok' ? 'accent' : 'caution'}>{h.status === 'ok' ? 'HEALTHY' : 'DEGRADED'}</LuxTag> : undefined}
+          <LuxPanel title="Platform" meta={platformTag ? <LuxTag tone={platformTag.tone}>{platformTag.text}</LuxTag> : undefined}
             sub={<>From <a className="ah-link" href="/api/health" target="_blank" rel="noreferrer">/api/health</a>{h ? ` · release ${h.release} · checked ${fmtAgo(h.timestamp)}` : ''}. <Link href="/admin/system" className="ah-link">System health →</Link></>}>
             {health.isError && <p className="ah-note">The health check didn't answer.</p>}
             {h && (
@@ -125,7 +130,7 @@ export default function AdminOverview() {
                 <div className="ah-li"><b>Win rate</b><span className="ah-kv">{s.closedIdeas ? `${s.winRate}% · n=${s.closedIdeas}` : '— (no decided ideas)'}</span></div>
               </div>
             ) : stats.isError ? <p className="ah-note">Stats unavailable.</p> : <p className="ah-note">Loading…</p>}
-            <p className="ah-note">The honest model record lives in JOURNAL › Track record and the SR 11-7 report; this is a raw count.</p>
+            <p className="ah-note">The honest model record lives in JOURNAL › Track record and the model validation report; this is a raw count.</p>
           </LuxPanel>
         </div>
       </div>

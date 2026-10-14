@@ -189,12 +189,29 @@ export function isPlanGate(err: unknown): boolean {
  * Never a raw status code or an HTML error page (docs/UX_COPY_GUIDE.md §U4):
  * a reason the server wrote wins; otherwise a plain sentence for the status.
  */
+/**
+ * A thrown message that carries plumbing ("HTTP 404", "/api/x → 500",
+ * "volume read HTTP 404 — …") becomes a plain sentence for members; the raw text
+ * belongs behind "Details" or on admin screens (audit 2026-10-07 #9).
+ */
+export function plainError(msg: string): string {
+  const status = /(?:HTTP|→|status)\s*(\d{3})\b/i.exec(msg)?.[1] ?? (/^\d{3}$/.test(msg.trim()) ? msg.trim() : null);
+  const technical = status != null || /\/api\/|https?:\/\/|\bstack\b|TypeError|ReferenceError|undefined is not/i.test(msg);
+  if (!technical) return msg;
+  if (status === '401') return 'Sign in first.';
+  if (status === '403') return 'Not available on this account.';
+  if (status === '404') return 'This isn’t available right now.';
+  if (status === '429') return 'Too many requests — wait a moment and try again.';
+  if (status?.startsWith('5')) return 'The server had a problem. Try again in a minute.';
+  return 'This didn’t load. Try again.';
+}
+
 export function reasonOf(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? '');
   if (!msg.trim()) return 'Something went wrong. Try again.';
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'Couldn’t reach QuantEdge — check your connection and try again.';
   const m = msg.match(/^(\d{3}): ([\s\S]*)$/);
-  if (!m) return msg;
+  if (!m) return plainError(msg);
   const [, status, body] = m;
   try {
     const j = JSON.parse(body);

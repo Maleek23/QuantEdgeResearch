@@ -109,7 +109,7 @@ export const componentStyles = {
     /** Percent change */
     change: 'font-mono tabular-nums text-xs font-medium',
     /** Section chrome label */
-    chromeLabel: 'text-[9px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground',
+    chromeLabel: 'text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground',
   },
 
   // Tab trigger variants

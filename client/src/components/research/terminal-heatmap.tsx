@@ -68,13 +68,13 @@ export default function TerminalHeatmapPage() {
               <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--gex-negative)]">
                 FAILED TO LOAD {symbol}
               </div>
-              <div className="text-[9px] font-mono text-muted-foreground">
+              <div className="text-[10px] font-mono text-muted-foreground">
                 Options data unavailable — market may be closed or data source is down
               </div>
               <button
                 type="button"
                 onClick={() => refetch()}
-                className="px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest rounded border border-border/30 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+                className="px-3 py-1.5 text-[10px] font-mono font-bold uppercase tracking-widest rounded border border-border/30 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
               >
                 RETRY
               </button>
@@ -86,7 +86,7 @@ export default function TerminalHeatmapPage() {
               <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--gex-positive)] animate-pulse">
                 LOADING {symbol} EXPOSURES...
               </div>
-              <div className="text-[9px] font-mono text-muted-foreground">
+              <div className="text-[10px] font-mono text-muted-foreground">
                 Fetching options chain & computing exposures
               </div>
             </div>
