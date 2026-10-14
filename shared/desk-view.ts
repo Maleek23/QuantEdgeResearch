@@ -166,7 +166,11 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
       if (!b) { skip('no plan levels to size from'); continue; }
       const sz = sizeForRisk(b, opts.sizing.riskDollars);
       if (!sz.ok) { skip(sz.reason); continue; }
-      const rs = riskSizedPnl(row.realizedPnL ?? null, b.unitQty, sz);
+      // P&L truth (shared/journal-pnl-truth.ts): whole contracts at the budget, and a
+      // bar-verified option exit is the fill — never capped at a premium stop it did not fill at.
+      const rs = b.assetType === 'option'
+        ? (() => { const p = scaleUnitPnl(row.realizedPnL ?? null, b.unitQty, sz); return { pnl: p, uncapped: p, capped: false }; })()
+        : riskSizedPnl(row.realizedPnL ?? null, b.unitQty, sz);
       const pnl = rs.pnl;
       if (sz.scaled) scaled++;
       if (rs.capped) { capped.count++; capped.uncappedPnL = r2(capped.uncappedPnL + (rs.uncapped ?? 0)); capped.cappedPnL = r2(capped.cappedPnL + (pnl ?? 0)); }

@@ -309,3 +309,31 @@ export function mergeRechecked<T extends { id: string; verdict: string; reason: 
   for (const r of byId.values()) trades.push(r);
   return { trades, replaced, added, transitions };
 }
+
+// ─── --incremental (nightly auto-verify, server/journal-verify-job.ts) ─────
+export interface IncrementalCandidate { id: string; recordedPnL: number | null; exitMs: number | null }
+
+/**
+ * Which closed rows the nightly run (re-)verifies against the prior ledger:
+ *   new        closed since the ledger was written (not in it);
+ *   changed    the book's recorded P&L moved since (e.g. a premium backfill re-priced it);
+ *   catch-up   UNVERIFIABLE and exited within `catchupDays` — prior-day Massive aggs may now exist;
+ *   pass       the row's exit premium is still tracker-pass priced (`passIds`) and the ledger
+ *              has no bar verdict that settled it (not VERIFIED).
+ * Pure.
+ */
+export function incrementalIds(prior: any, rows: IncrementalCandidate[], nowMs: number, catchupDays: number, passIds: ReadonlySet<string> = new Set()):
+  { ids: string[]; why: Record<'new' | 'changed' | 'catchup' | 'pass', number> } {
+  const byId = new Map<string, any>((Array.isArray(prior?.trades) ? prior.trades : []).filter((t: any) => t && typeof t.id === 'string').map((t: any) => [t.id, t]));
+  const why = { new: 0, changed: 0, catchup: 0, pass: 0 };
+  const ids: string[] = [];
+  for (const r of rows) {
+    const p = byId.get(r.id);
+    if (!p) { ids.push(r.id); why.new++; continue; }
+    const rec = typeof p.recordedPnL === 'number' ? p.recordedPnL : null;
+    if (r.recordedPnL != null && (rec == null || Math.abs(rec - r.recordedPnL) > 0.5)) { ids.push(r.id); why.changed++; continue; }
+    if (p.verdict === 'UNVERIFIABLE' && r.exitMs != null && nowMs - r.exitMs <= catchupDays * 86_400_000) { ids.push(r.id); why.catchup++; continue; }
+    if (passIds.has(r.id) && p.verdict !== 'VERIFIED') { ids.push(r.id); why.pass++; continue; }
+  }
+  return { ids, why };
+}

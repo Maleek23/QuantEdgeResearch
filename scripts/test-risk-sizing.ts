@@ -95,11 +95,11 @@ t('−$1,617 one-contract loss on a $25 contract: over a $500/$1,000 budget → 
   const u = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'unit', riskDollars: 0 } }).rows[0];
   assert.equal(u.realizedPnL, -1617);
 });
-t('affordable contract: whole contracts, loss capped at risk to stop', () => {
+t('affordable contract: whole contracts; the verified exit is the fill (never capped, pnl-truth-v1)', () => {
   const row = rowOf(idea({ id: 'c', entryPremium: 4, exitPremium: 1 })); // unit −$300
   const r = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: DEFAULT_SIZING }).rows[0];
   assert.equal(r.quantity, 1); assert.equal(r.sizedAs!.scaled, false);
-  assert.equal(r.realizedPnL, -200); assert.equal(r.sizedAs!.capped, true); // −50% stop on $400 debit
+  assert.equal(r.realizedPnL, -300); assert.equal(r.sizedAs!.capped, false); // debit $400 ≤ $500 budget is the most it can lose
 });
 t('no closed risk-sized trade loses more than its budget (property)', () => {
   const rows: DeskViewRow[] = [];

@@ -32,7 +32,7 @@ import {
 } from '@shared/leaders-detector';
 import { readMinRrPublish } from '@shared/publish-rr';
 import { earningsWithin, pickByDelta, ROTATION_CFG } from '@shared/sector-rotation-ideas';
-import { OPTION_INTENT_SIGNAL, SHARES_IDEA_LABEL } from '@shared/options-only';
+import { OPTION_INTENT_SIGNAL } from '@shared/options-only';
 
 // ─── types / seams ──────────────────────────────────────────────────────
 
@@ -209,11 +209,9 @@ export function ideaFromLeader(a: {
   };
   return contract
     ? { ...base, assetType: 'option', optionType: contract.optionType, strikePrice: contract.strike, expiryDate: contract.expiry, entryPremium: Number(Number(contract.entryPremium).toFixed(2)), optionDte: contract.dte, expiryTier: 'MONTHLY' }
-    // Options-only (shared/options-only.ts): above the option price floor a failed pick is
-    // option-intended (budget contract or withheld at the write); under it, a genuine shares idea.
-    : a.price >= LEADERS_CFG.optionMinPrice
-      ? { ...base, assetType: 'stock', qualitySignals: [...base.qualitySignals, OPTION_INTENT_SIGNAL] }
-      : { ...base, assetType: 'stock', analysis: `${SHARES_IDEA_LABEL}: ${base.analysis}` };
+    // Options-only v2 (shared/options-only.ts, 2026-10-14): no shares ideas — a failed pick is
+    // option-intended at any price (budget contract or withheld at the write).
+    : { ...base, assetType: 'stock', qualitySignals: [...base.qualitySignals, OPTION_INTENT_SIGNAL] };
 }
 
 /** Of the board groups that contain the symbol, the one that admits `side` (best rank), else the first read. */

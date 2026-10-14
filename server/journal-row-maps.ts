@@ -18,6 +18,10 @@ import { readPlanSnapshot } from '@shared/plan-snapshot';
 import { CONTRACT_NOT_RECORDED, SHARES_IDEA_LABEL, contractGap, instrumentIntent } from '@shared/options-only';
 import { gradeIdeaRowAtPublish } from '@shared/nexus-grade';
 import { deskRiskBasis, type DeskCall, type DeskManaged, type DeskPeak, type DeskRiskBasis } from '@shared/desk-view';
+import {
+  PNL_TRUTH_VERSION, TRUTH_CLASS_LABEL, classifyClosedRow, retroLine, summarizeTruth,
+  type RetroRecord, type TruthClass, type TruthLedgerEntry,
+} from '@shared/journal-pnl-truth';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -31,8 +35,10 @@ export type JournalWireRow = Pick<JournalTrade,
   origin?: 'own_idea' | 'quantedge_idea';
   /** Bot book only: the run (paper portfolio) the fill belongs to. */
   runId?: string | null;
-  /** Desk rows from a stock engine: "Shares idea" (shared/options-only.ts). */
+  /** Desk rows from a stock engine: "Shares idea" (shared/options-only.ts); converted rows: "Options view (rule-picked, verified)". */
   instrumentLabel?: string | null;
+  /** Legacy shares rows converted to the rule-picked contract (shared/journal-pnl-truth.ts RetroRecord). */
+  retroOption?: RetroRecord | null;
   runLabel?: string | null;
   /** Open bot rows: the last mark and when it was taken — never a 0 standing in for "unknown". */
   mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
@@ -87,20 +93,17 @@ export type JournalWireRow = Pick<JournalTrade,
  *             not counted in the default book
  */
 export interface DeskVerification {
+  /** 'verified' = in the headline (bar-verified, bar-corrected or a verified options view); else outside it. */
   status: 'verified' | 'checked' | 'unverified';
-  basis: 'bars' | 'integrity';
+  basis: 'bars' | 'integrity' | 'retro';
   reasons: { code: DeskBugClass; detail: string }[];
   recordedPnL: number | null;
   recomputedPnL: number | null;
+  /** The one P&L-truth class (shared/journal-pnl-truth.ts). */
+  truth?: TruthClass;
 }
 
-export interface DeskLedgerEntry {
-  verdict: 'VERIFIED' | 'MISMATCH' | 'UNVERIFIABLE';
-  recordedPnL: number | null;
-  recomputedPnL: number | null;
-  bugClass: string | null;
-  reason: string | null;
-}
+export type DeskLedgerEntry = TruthLedgerEntry;
 export interface DeskLedger { asOf: string; path: string; byId: Map<string, DeskLedgerEntry> }
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -249,7 +252,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   const exitTimeNote = exitTime && Number.isFinite(exitMs) && isHitTimeUnknown(status, i.exitTimeSource)
     ? unresolvedExitLabel(exitMs) : null;
   const plan = [
-    `${sharesIdea ? `${SHARES_IDEA_LABEL} (${i.source ?? "stock engine"} publishes the underlying by design) — ` : ""}Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
+    `${sharesIdea ? `${SHARES_IDEA_LABEL} (${i.source ?? "engine"} published the underlying before options-only-v2) — ` : ""}Published ${planDirection.toUpperCase()} ${i.symbol}${option ? ` ${planStrike ?? ''}${(planOptionType ?? '').charAt(0).toUpperCase()} ${planExpiry?.slice(0, 10) ?? ''}` : ''}`.trim(),
     `plan${snapshot ? ` (${snapshot.version} · ${snapshot.capturedAt})` : ''}: entry ${planEntry} · target ${planTarget ?? '—'} · stop ${planStop ?? '—'}${planRr ? ` · R:R ${planRr.toFixed(1)}` : ''}`,
     (() => {
       // The ONE grade, as published: the logged stamp when present, else rebuilt
@@ -335,13 +338,15 @@ export interface DeskVerifyResult {
 }
 
 /**
- * Label every mapped desk row and split off the closed rows whose recorded P&L
- * cannot be counted: a failed integrity check (shared/desk-integrity.ts), a
- * duplicate of an earlier open position, or — when a bar-level ledger exists —
- * a MISMATCH / UNVERIFIABLE verdict. Never edits P&L; it only decides what is
- * counted and says why.
+ * Label every mapped desk row with its ONE P&L-truth class (shared/journal-pnl-truth.ts)
+ * and split off the closed rows outside the headline. Headline = closed option rows
+ * that are bar-verified, bar-corrected (P&L replaced by the bar re-price, recorded value
+ * kept on the label), or legacy shares rows with a verified rule-picked options view
+ * (the row becomes that option trade, labelled). Duplicates (first kept), crypto,
+ * shares without a verified options view, and every not-yet / not bar-verified row
+ * are listed outside the headline with their reason — never summed into it.
  */
-export function verifyDeskRows(pairs: { idea: DeskIdea; row: JournalWireRow }[], ledger: DeskLedger | null): DeskVerifyResult {
+export function verifyDeskRows(pairs: { idea: DeskIdea; row: JournalWireRow }[], ledger: DeskLedger | null, retro: Map<string, RetroRecord> | null = null): DeskVerifyResult {
   const closed = pairs.filter((p) => p.row.status === 'closed');
   const dups = findDuplicates(closed.map(({ idea, row }) => ({
     id: idea.id, symbol: idea.symbol, assetType: idea.assetType, direction: idea.direction, optionType: idea.optionType,
@@ -352,33 +357,69 @@ export function verifyDeskRows(pairs: { idea: DeskIdea; row: JournalWireRow }[],
   const unverified: JournalWireRow[] = [];
   const pick = (fs: DeskIntegrityFlag[], sev?: 'fail' | 'caveat') =>
     fs.filter((f) => !sev || f.severity === sev).map(({ code, detail }) => ({ code, detail }));
-  for (const { idea, row } of pairs) {
+  for (const { idea, row: row0 } of pairs) {
+    let row = row0;
     const flags: DeskIntegrityFlag[] = deskIntegrityFlags(idea);
     const isClosed = row.status === 'closed';
     const dupOf = isClosed ? dups.get(idea.id) : undefined;
-    if (dupOf) flags.push({ code: 'duplicate', severity: 'fail', detail: `same position as desk:${dupOf}` });
+    if (dupOf) flags.push({ code: 'duplicate', severity: 'fail', detail: `same position as desk:${dupOf} (first kept)` });
     const entry = isClosed ? ledger?.byId.get(idea.id) : undefined;
     const recorded = row.realizedPnL ?? null;
-    let v: DeskVerification;
-    if (dupOf) {
-      v = { status: 'unverified', basis: 'integrity', reasons: pick(flags, 'fail'), recordedPnL: recorded, recomputedPnL: null };
-    } else if (entry?.verdict === 'VERIFIED') {
-      v = { status: 'verified', basis: 'bars', reasons: pick(flags, 'caveat'), recordedPnL: recorded, recomputedPnL: entry.recomputedPnL };
-    } else if (entry) {
-      const code: DeskBugClass = entry.verdict === 'MISMATCH' ? 'bar_mismatch' : 'bar_unverifiable';
-      const detail = [entry.bugClass, entry.reason].filter(Boolean).join(': ') || DESK_BUG_CLASSES[code];
-      v = { status: 'unverified', basis: 'bars', reasons: [{ code, detail }, ...pick(flags, 'fail')], recordedPnL: recorded, recomputedPnL: entry.recomputedPnL };
-    } else {
-      const fail = isClosed && failsIntegrity(flags);
-      v = { status: fail ? 'unverified' : 'checked', basis: 'integrity', reasons: pick(flags, fail ? 'fail' : undefined), recordedPnL: recorded, recomputedPnL: null };
+    const intent = instrumentIntent(idea);
+    const instrument = idea.assetType === 'option' ? 'option' : intent === 'crypto' ? 'crypto' : intent === 'future' ? 'future' : intent === 'shares' ? 'shares' : 'other';
+    if (!isClosed) {
+      const v: DeskVerification = { status: 'checked', basis: 'integrity', reasons: pick(flags), recordedPnL: null, recomputedPnL: null };
+      counted.push({ ...row, verification: v, notes: v.reasons.length ? `${row.notes ?? ''}\nVerification: open — ${v.reasons.map((r) => `${r.code} (${r.detail})`).join('; ')}`.trim() : row.notes });
+      continue;
     }
-    const label = v.status === 'verified'
-      ? `Verification: VERIFIED against market bars${ledger ? ` (ledger ${ledger.asOf.slice(0, 16)}Z)` : ''}${v.recomputedPnL != null ? ` — recomputed ${money(v.recomputedPnL)}` : ''}`
-      : v.status === 'checked'
-        ? `Verification: integrity-checked, not bar-verified${v.reasons.length ? ` — ${v.reasons.map((r) => `${r.code} (${r.detail})`).join('; ')}` : ''}`
-        : `Verification: UNVERIFIED — recorded ${money(recorded)}${v.recomputedPnL != null ? `, recomputed ${money(v.recomputedPnL)}` : ''}, not counted: ${v.reasons.map((r) => `${r.code} (${r.detail})`).join('; ')}`;
-    const labelled: JournalWireRow = { ...row, verification: v, notes: isClosed || v.reasons.length ? `${row.notes ?? ''}\n${label}`.trim() : row.notes };
-    if (isClosed && v.status === 'unverified') unverified.push(labelled);
+    const c = classifyClosedRow({ instrument, duplicateOf: dupOf ?? null, ledger: entry ?? null, integrityFail: failsIntegrity(flags) });
+    let v: DeskVerification;
+    let label: string;
+    const rr = instrument === 'shares' && !dupOf ? retro?.get(idea.id) : undefined;
+    if (rr && rr.status === 'verified' && rr.contract && rr.entryPremium != null && rr.exitPremium != null && rr.unitPnL != null) {
+      // Legacy shares idea → its rule-picked options view becomes the trade (unit: 1 contract; the client sizes whole contracts).
+      const pnl = r2(rr.unitPnL);
+      v = { status: 'verified', basis: 'retro', reasons: [], recordedPnL: recorded, recomputedPnL: pnl, truth: 'retro' };
+      label = `${retroLine(rr)}\nShares as published: ${money(recorded)} on $${DESK_STOCK_NOTIONAL.toLocaleString()} notional — replaced in the options headline by the options view (${PNL_TRUTH_VERSION}).`;
+      row = {
+        ...row,
+        assetType: 'option', direction: 'long', optionType: rr.contract.type, strikePrice: rr.contract.strike, expiryDate: rr.contract.expiry,
+        quantity: 1, entryPrice: rr.entryPremium, exitPrice: rr.exitPremium,
+        entryTime: rr.triggerAt ?? row.entryTime, exitTime: rr.exitAt ?? row.exitTime,
+        holdingMinutes: minutesBetween(rr.triggerAt ?? row.entryTime, rr.exitAt ?? row.exitTime),
+        realizedPnL: pnl, grossPnL: pnl, realizedPnLPercent: r2(((rr.exitPremium - rr.entryPremium) / rr.entryPremium) * 100), outcome: outcomeOf(pnl),
+        instrumentLabel: 'Options view (rule-picked, verified)', retroOption: rr,
+        riskBasis: deskRiskBasis({
+          assetType: 'option', direction: idea.direction, entry: idea.entryPrice, stop: idea.stopLoss, entryPremium: rr.entryPremium,
+          expiryDate: rr.contract.expiry, publishedAt: idea.timestamp, unitQty: 1,
+        }),
+        peakLine: null, budgetLine: null, primaryLine: null, runner: null, captureRatio: null,
+      };
+    } else if (c.cls === 'verified') {
+      v = { status: 'verified', basis: 'bars', reasons: pick(flags, 'caveat'), recordedPnL: recorded, recomputedPnL: entry?.recomputedPnL ?? null, truth: 'verified' };
+      label = `Verification: BAR-VERIFIED${ledger ? ` (ledger ${ledger.asOf.slice(0, 16)}Z)` : ''}${v.recomputedPnL != null ? ` — recomputed ${money(v.recomputedPnL)}` : ''}`;
+    } else if (c.cls === 'corrected' && c.corrected) {
+      v = { status: 'verified', basis: 'bars', reasons: [{ code: 'bar_mismatch', detail: [entry?.bugClass, entry?.reason].filter(Boolean).join(': ') }], recordedPnL: recorded, recomputedPnL: c.corrected.pnl, truth: 'corrected' };
+      label = `Verification: BAR-CORRECTED — recorded ${money(recorded)} → bars ${money(c.corrected.pnl)} (entry ${c.corrected.entry} → exit ${c.corrected.exit}, ${entry?.optionSource ?? 'contract bars'}); the bar value is the one counted`;
+      row = {
+        ...row, entryPrice: c.corrected.entry, exitPrice: c.corrected.exit, realizedPnL: c.corrected.pnl, grossPnL: c.corrected.pnl,
+        realizedPnLPercent: c.corrected.entry > 0 ? r2(((c.corrected.exit - c.corrected.entry) / c.corrected.entry) * 100) : row.realizedPnLPercent,
+        outcome: outcomeOf(c.corrected.pnl),
+        riskBasis: row.riskBasis ? { ...row.riskBasis, entryPremium: c.corrected.entry } : row.riskBasis,
+      };
+    } else {
+      const code: DeskBugClass = c.cls === 'integrity_fail' ? (pick(flags, 'fail')[0]?.code ?? 'bar_pending') : c.cls as DeskBugClass;
+      const ledgerDetail = entry ? [entry.bugClass, entry.reason].filter(Boolean).join(': ') : '';
+      const retroWhy = instrument === 'shares' ? (rr ? ` · options view: ${rr.status.replace('_', ' ')} — ${rr.reason}` : ' · options view: not converted yet') : '';
+      const failFirst = c.cls === 'integrity_fail' ? pick(flags, 'fail')[0] : undefined;
+      const first = { code, detail: `${failFirst?.detail || ledgerDetail || TRUTH_CLASS_LABEL[c.cls]}${retroWhy}` };
+      const rest = pick(flags, 'fail').filter((f) => f.code !== code);
+      v = { status: 'unverified', basis: entry ? 'bars' : 'integrity', reasons: [first, ...rest], recordedPnL: recorded, recomputedPnL: entry?.recomputedPnL ?? null, truth: c.cls };
+      label = `Verification: OUTSIDE THE HEADLINE — recorded ${money(recorded)}${v.recomputedPnL != null ? `, recomputed ${money(v.recomputedPnL)}` : ''}, not counted: ${v.reasons.map((r) => `${r.code} (${r.detail})`).join('; ')}`;
+      if (rr) row = { ...row, retroOption: rr };
+    }
+    const labelled: JournalWireRow = { ...row, verification: v, notes: `${row.notes ?? ''}\n${label}`.trim() };
+    if (v.status === 'unverified') unverified.push(labelled);
     else counted.push(labelled);
   }
   return { counted, unverified };
@@ -406,9 +447,11 @@ export function deskVerificationMeta(res: DeskVerifyResult, ledger: DeskLedger |
       id: r.id, symbol: r.symbol, entryTime: r.entryTime, recordedPnL: r.realizedPnL ?? null,
       recomputedPnL: r.verification?.recomputedPnL ?? null, reasons: r.verification?.reasons ?? [],
     }));
+  const truth = summarizeTruth([...res.counted, ...res.unverified]);
   return {
     ledger: ledger ? { asOf: ledger.asOf, path: ledger.path } : null,
     counted: { verified: verified.length, checked: checked.length, verifiedPnL: sum(verified.map((r) => r.realizedPnL)), checkedPnL: sum(checked.map((r) => r.realizedPnL)) },
+    truth,
     unverified: {
       count: res.unverified.length,
       recordedPnL: sum(res.unverified.map((r) => r.realizedPnL)),

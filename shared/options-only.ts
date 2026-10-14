@@ -25,14 +25,17 @@
  * OPTION_INTENT_SIGNAL (a producer whose contract pick failed), OR comes from
  * an option-only engine (OPTION_ONLY_SOURCES).
  *
- * GENUINE SHARES ENGINES keep stock, labelled "Shares idea" everywhere:
- *   market_scanner movers/patterns/index-swing ETFs, quant stock/penny gems,
- *   options_flow Bullflow tape ideas (flow-primary on the underlying, by design),
- *   leaders/sector_ignition names under the option price floor, convergence,
- *   holy-grail, premarket, earnings scanner.
+ * NO SHARES IDEAS AT ALL (operator decision 2026-10-14, options-only-v2): the
+ * "Shares idea" exception is gone. Every automated equity idea (stock / penny
+ * stock, any engine — market_scanner, quant, sector_ignition, leaders,
+ * gex_scanner, flow, …) is OPTION-INTENDED at the write (isOptionIntendedWrite):
+ * published on its contract, else the budget contract, else WITHHELD. Crypto
+ * stays crypto (labelled, outside the options headline); futures stay futures.
+ * Rows already published as shares are "Legacy shares idea" — the journal shows
+ * the rule-picked options view beside them (shared/journal-pnl-truth.ts).
  */
 
-export const OPTIONS_ONLY_VERSION = 'options-only-v1';
+export const OPTIONS_ONLY_VERSION = 'options-only-v2';
 
 /** Engines whose every idea is an option trade by construction. A stock idea from these is never written. */
 export const OPTION_ONLY_SOURCES: ReadonlySet<string> = new Set([
@@ -45,7 +48,7 @@ export const OPTION_INTENT_SIGNAL = 'instrument_intent:option';
 export const LEGACY_CONVERSION_SIGNALS: readonly string[] = ['underlying_only:no_entry_premium', 'underlying_only:no_liquid_contract'];
 export const OPTIONS_ONLY_WITHHELD_CODE = 'options_only_no_tradable_contract';
 export const BUDGET_PROMOTED_SIGNAL = 'contract:budget_promoted';
-export const SHARES_IDEA_LABEL = 'Shares idea';
+export const SHARES_IDEA_LABEL = 'Legacy shares idea';
 export const CONTRACT_NOT_RECORDED = 'contract not recorded';
 
 export type InstrumentIntent = 'option' | 'shares' | 'crypto' | 'future' | 'other';
@@ -66,6 +69,18 @@ const signalsOf = (q: unknown): string[] => {
 
 export function hasOptionIntentSignal(row: IntentRow): boolean {
   return signalsOf(row.qualitySignals).includes(OPTION_INTENT_SIGNAL);
+}
+
+/**
+ * Write-time rule (options-only-v2): an automated equity idea is option-intended —
+ * any stock / penny_stock idea, the producer's intent signal, or an option-only
+ * engine. Crypto / futures are not. Pure.
+ */
+export function isOptionIntendedWrite(row: IntentRow): boolean {
+  const a = String(row.assetType ?? '').toLowerCase();
+  if (a === 'option') return false; // already an option — nothing to convert
+  if (a === 'crypto' || a === 'future' || a === 'futures') return false;
+  return a === 'stock' || a === 'penny_stock' || hasOptionIntentSignal(row) || OPTION_ONLY_SOURCES.has(String(row.source ?? '').toLowerCase());
 }
 
 /** True when a STOCK row in the DB is really an option idea that a legacy fallback converted. Pure. */

@@ -91,6 +91,14 @@ export interface DeskVerificationMeta {
   ledger: { asOf: string; path: string } | null;
   /** Closed rows counted, by how far they are verified. */
   counted: { verified: number; checked: number; verifiedPnL: number; checkedPnL: number };
+  /**
+   * The ONE P&L definition (shared/journal-pnl-truth.ts): closed rows by truth class at UNIT
+   * size (1 contract) — headline = verified + corrected + retro. The page's $ headline is the
+   * same rows re-sized as whole contracts within the budget; n is identical.
+   */
+  truth?: import('./journal-pnl-truth').HeadlineSummary;
+  /** Retro (shares → options) ledger the server read, if any. */
+  retroLedger?: { asOf: string; path: string; records: number } | null;
   /** Closed rows NOT counted by default; recordedPnL is what the book used to add. */
   unverified: { count: number; recordedPnL: number; byReason: { code: string; label: string; count: number; recordedPnL: number }[]; rows: DeskUnverifiedItem[] };
   /** True when the response includes the unverified rows (the default since 2026-10-07; ?unverified=0 drops them). */

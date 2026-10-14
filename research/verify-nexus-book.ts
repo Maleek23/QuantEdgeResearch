@@ -70,7 +70,7 @@ import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, type DeskIntegrit
 import { optionSideOf } from '../shared/option-value-bounds';
 import { liquidityGateResult, liquidityBugClass } from '../shared/option-liquidity';
 import {
-  attemptsText, expirySettlement, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
+  attemptsText, expirySettlement, incrementalIds, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
   unverifiableIds, type ChainDeps, type ChainResult, type HttpResult, type MassiveEndpoint,
 } from './verify-nexus-book-sources';
 
@@ -78,7 +78,10 @@ import {
 const argv = process.argv.slice(2);
 const arg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
 const ONLY_UNV = arg('--only-unverifiable') ?? null;
-const OUT = arg('--out') ?? ONLY_UNV ?? '/tmp/nexus-book-verify.json';
+/** --incremental <ledger>: nightly mode (server/journal-verify-job.ts) — verify new / changed / catch-up / pass-priced rows and merge. */
+const INCREMENTAL = arg('--incremental') ?? null;
+const CATCHUP_DAYS = Number(arg('--catchup-days') ?? 10);
+const OUT = arg('--out') ?? ONLY_UNV ?? INCREMENTAL ?? '/tmp/nexus-book-verify.json';
 const CSV = OUT.replace(/\.json$/i, '') + '.csv';
 let SINCE = arg('--since') ?? OUTCOME_BASELINE_DATE;
 const IDS = arg('--ids')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null;
@@ -545,6 +548,12 @@ async function main() {
     priorIds = new Set(unverifiableIds(prior));
     if (!arg('--since') && typeof prior?.summary?.since === 'string') SINCE = prior.summary.since;
     console.log(`[verify-nexus-book] --only-unverifiable ${ONLY_UNV}: ${priorIds.size} UNVERIFIABLE of ${prior.trades.length} rows to re-check`);
+  } else if (INCREMENTAL) {
+    // Nightly: the prior ledger may not exist yet (first run) → a full run that seeds it.
+    try { prior = JSON.parse(fs.readFileSync(INCREMENTAL, 'utf8')); } catch { prior = null; }
+    if (prior && !Array.isArray(prior?.trades)) throw new Error(`${INCREMENTAL} has no trades[] — not a verify-nexus-book ledger`);
+    if (prior && !arg('--since') && typeof prior?.summary?.since === 'string') SINCE = prior.summary.since;
+    console.log(`[verify-nexus-book] --incremental ${INCREMENTAL}: ${prior ? `${prior.trades.length} prior rows (${prior.generatedAt})` : 'no prior ledger — full run'}`);
   }
   console.log(`[verify-nexus-book] since ${SINCE} · out ${OUT} · cache ${CACHE}${OFFLINE ? ' · OFFLINE' : ''}`
     + ` · massive ${MASSIVE_KEY ? `on (throttle ${MASSIVE_THROTTLE}ms)` : 'off'}`);
@@ -558,8 +567,15 @@ async function main() {
   }
   let closed = pairs.filter((p) => p.row.status === 'closed' && p.row.realizedPnL != null);
   if (IDS) closed = closed.filter((p) => IDS.includes(p.idea.id));
+  if (INCREMENTAL && prior) {
+    const passIds = new Set(closed.filter((p) => /\[exit-premium:pass\]/.test(p.idea.outcomeNotes ?? '')).map((p) => p.idea.id));
+    const inc = incrementalIds(prior, closed.map((p) => ({ id: p.idea.id, recordedPnL: p.row.realizedPnL ?? null, exitMs: p.row.exitTime ? Date.parse(p.row.exitTime) : null })), Date.now(), CATCHUP_DAYS, passIds);
+    priorIds = new Set(inc.ids);
+    closed = closed.filter((p) => priorIds!.has(p.idea.id));
+    console.log(`  incremental: ${inc.ids.length} to verify — new ${inc.why.new} · changed ${inc.why.changed} · catch-up ${inc.why.catchup} (≤${CATCHUP_DAYS}d) · pass-priced ${inc.why.pass}`);
+  }
   const missingFromBook: string[] = [];
-  if (priorIds) {
+  if (priorIds && ONLY_UNV) {
     const present = new Set(closed.map((p) => p.idea.id));
     for (const id of priorIds) if (!present.has(id)) missingFromBook.push(id);
     closed = closed.filter((p) => priorIds!.has(p.idea.id));
@@ -619,10 +635,12 @@ async function main() {
     const bySource: Record<string, number> = {};
     for (const r of rechecked) { const k = String(r.evidence.optionSource ?? r.evidence.underlyingSource ?? 'none').split(':')[0]; bySource[k] = (bySource[k] ?? 0) + 1; }
     recheck = {
-      at: new Date().toISOString(), fromLedger: ONLY_UNV, priorGeneratedAt: prior.generatedAt ?? null, candidates: priorIds!.size,
+      at: new Date().toISOString(), mode: INCREMENTAL ? 'incremental' : 'only-unverifiable', fromLedger: ONLY_UNV ?? INCREMENTAL, priorGeneratedAt: prior.generatedAt ?? null, candidates: priorIds!.size,
       rechecked: rechecked.length, replaced: m.replaced, missingFromBook, transitions: m.transitions, optionSourceOfRechecked: bySource,
-      previousRechecks: prior.summary?.recheck ? [prior.summary.recheck, ...(prior.summary.previousRechecks ?? [])] : (prior.summary?.previousRechecks ?? []),
+      previousRechecks: (prior.summary?.recheck ? [prior.summary.recheck, ...(prior.summary.previousRechecks ?? [])] : (prior.summary?.previousRechecks ?? [])).slice(0, 30),
     };
+    // Duplicates are decided on the WHOLE book: refresh duplicateOf on every merged row.
+    for (const r of results) r.duplicateOf = dups.get(r.id) ?? null;
   }
 
   // ─── summary ──────────────────────────────────────────────
@@ -684,6 +702,10 @@ async function main() {
     const bak = OUT.replace(/\.json$/i, '') + `.bak-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     fs.copyFileSync(OUT, bak);
     console.log(`  previous ledger kept at ${bak}`);
+    // Nightly runs: keep the newest 7 backups of this ledger, drop older ones.
+    const stem = path.basename(OUT).replace(/\.json$/i, '') + '.bak-';
+    const baks = fs.readdirSync(path.dirname(OUT)).filter((f) => f.startsWith(stem) && f.endsWith('.json')).sort();
+    for (const f of baks.slice(0, Math.max(0, baks.length - 7))) { try { fs.unlinkSync(path.join(path.dirname(OUT), f)); } catch { /* best effort */ } }
   }
   fs.writeFileSync(OUT, JSON.stringify(ledger, null, 1));
   const cols = ['id', 'symbol', 'source', 'assetType', 'direction', 'optionType', 'strike', 'expiry', 'publishedAt', 'triggerAt', 'exitAt', 'exitDayET',
@@ -724,7 +746,7 @@ async function main() {
   }
   if (mr.needs.length) { console.log('  NOT ENTITLED — to unlock:'); for (const n2 of mr.needs) console.log(`    • ${n2}`); }
   if (recheck) {
-    console.log(`\nre-check of ${recheck.rechecked} UNVERIFIABLE rows from ${ONLY_UNV}:`);
+    console.log(`\n${INCREMENTAL ? "incremental re-check" : "re-check"} of ${recheck.rechecked} rows from ${ONLY_UNV ?? INCREMENTAL}:`);
     for (const [k, v] of Object.entries(recheck.transitions as Record<string, number>)) console.log(`  ${k.padEnd(28)} ${v}`);
     console.log(`  winning option source: ${JSON.stringify(recheck.optionSourceOfRechecked)}`);
   }

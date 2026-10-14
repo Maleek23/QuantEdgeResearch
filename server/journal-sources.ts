@@ -26,7 +26,8 @@ import {
   DESK_STOCK_NOTIONAL, assetOf, deskVerificationMeta, mapDeskIdea, minutesBetween, outcomeOf, r2, verifyDeskRows,
   type DeskIdea, type JournalWireRow,
 } from './journal-row-maps';
-import { loadDeskVerifyLedger } from './desk-verify-ledger';
+import { loadDeskVerifyLedger, loadRetroOptionsLedger } from './desk-verify-ledger';
+import { PNL_TRUTH_VERSION, ageText } from '@shared/journal-pnl-truth';
 import {
   journalKindOf, traderOwnerId, traderSlugOf,
   type JournalKey, type JournalSourceMeta, type DeskVerificationMeta, type JournalExcludedRow,
@@ -292,25 +293,31 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
       excludedRows.push({ id: `desk:${i.id}`, symbol: i.symbol, entryTime: String(i.timestamp ?? ''), reason: res.excluded });
     }
   }
-  // Audit 2026-10-06: the verified total counts only verified / integrity-checked
-  // P&L. Operator rule 2026-10-07: every called trade is still SHOWN — unverified
-  // closed rows ride along labelled (includeUnverified, the route default);
-  // includeUnverified=false (?unverified=0, the public record) drops them.
+  // ONE P&L definition (shared/journal-pnl-truth.ts, 2026-10-14): the headline is
+  // closed OPTION trades that are bar-verified / bar-corrected / a verified rule-picked
+  // options view of a legacy shares idea; duplicates removed (first kept). Every other
+  // closed row is shown (includeUnverified, the route default) labelled with why it is
+  // outside the headline, and never summed into it; ?unverified=0 drops them.
   const ledger = loadDeskVerifyLedger();
-  const split = verifyDeskRows(pairs, ledger);
-  const verification = deskVerificationMeta(split, ledger, includeUnverified);
+  const retro = loadRetroOptionsLedger();
+  const split = verifyDeskRows(pairs, ledger, retro?.byId ?? null);
+  const verification = { ...deskVerificationMeta(split, ledger, includeUnverified), retroLedger: retro ? { asOf: retro.asOf, path: retro.path, records: retro.byId.size } : null };
   const rows = includeUnverified ? [...split.counted, ...split.unverified] : split.counted;
-  const u = verification.unverified;
+  const t = verification.truth;
+  const now = Date.now();
+  const usd = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const k = (c: string) => t?.byClass[c as keyof typeof t.byClass]?.n ?? 0;
   excludedRows.sort((a, b) => b.entryTime.localeCompare(a.entryTime));
   return {
     rows,
     meta: {
       basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry once its trigger was hit (untriggered ideas are listed as awaiting entry, with no P&L)`,
-      sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. ` +
-        (includeUnverified
-          ? `Every called trade is shown. Net P&L (verified) counts ${ledger ? `bar-verified (ledger ${ledger.asOf.slice(0, 10)}) and ` : ''}integrity-checked rows${u.count ? `; ${u.count} unverified closed row${u.count === 1 ? '' : 's'} (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) are listed with an amber "unverified" chip and shown separately as "incl. unverified"` : ''}. `
-          : `Only verified P&L is counted: ${ledger ? `bar-verified by research/verify-nexus-book.ts (ledger ${ledger.asOf.slice(0, 10)}), ` : 'no bar-verification ledger on this server — '}rows passing every integrity check count${u.count ? `; ${u.count} closed row${u.count === 1 ? '' : 's'} (recorded ${u.recordedPnL >= 0 ? '+' : '−'}$${Math.abs(u.recordedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}) are unverified and not counted` : ''}. `) +
-        `Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
+      sizing: `Headline (${PNL_TRUTH_VERSION}) = closed OPTION trades verified against real bars only: ${k('verified')} bar-verified + ${k('corrected')} bar-corrected + ${k('retro')} options views of legacy shares ideas (rule-picked at publish, priced from the contract's bars) = n ${t?.n ?? 0}, ${usd(t?.pnl ?? 0)} at 1 contract each; `
+        + `the page re-sizes the SAME n as whole contracts within the budget ($500 default, $1,000 max). Duplicates removed (first kept). `
+        + `Verify ledger ${ledger ? `${ledger.asOf.slice(0, 16).replace('T', ' ')}Z (${ageText(ledger.asOf, now)}; refreshed nightly 17:30 ET)` : 'missing on this server — nothing is bar-verified'}`
+        + `${retro ? ` · options-view ledger ${retro.asOf.slice(0, 10)} (${ageText(retro.asOf, now)})` : ''}. `
+        + `${t?.outside.n ? `${t.outside.n} closed row${t.outside.n === 1 ? '' : 's'} outside the headline (recorded ${usd(t.outside.pnl)}) ${includeUnverified ? 'are listed with an amber chip and never added to it' : 'are not included'}. ` : ''}`
+        + `Journal win = positive P&L. Setup = publishing engine.`,
       excluded: [...excluded.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
       excludedRows: excludedRows.slice(0, 5000),
       verification,
@@ -325,7 +332,9 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
  */
 export async function loadNexusBookForPublicRecord(): Promise<{ rows: JournalWireRow[]; verification: DeskVerificationMeta | undefined }> {
   const { rows, meta } = await loadDesk(false);
-  return { rows, verification: meta.verification };
+  // The public record is what NEXUS PUBLISHED: the journal's rule-picked options views of
+  // legacy shares ideas (truth 'retro') are a derived, labelled view — not shown publicly.
+  return { rows: rows.filter((r) => r.verification?.truth !== 'retro'), verification: meta.verification };
 }
 
 // ─── Loader ──────────────────────────────────────────────────
