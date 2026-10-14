@@ -11,8 +11,10 @@
  *   sources    "Data from" wordmark row (plain text — no third-party logos)
  *   desks      "Seven desks, one terminal." — one tab row + one large framed clip
  *              (client/public/videos/<desk>.mp4 when present, else an animated mockup)
+ *   how        "How QuantEdge works" — 5-layer systems diagram (system-diagram.tsx)
  *   features   4 alternating sections; each visual is a live showcase panel —
  *              labelled SAMPLE data until the live read lands, never "—"
+ *   numbers    two real-data charts: SPY GEX snapshot + a tracked play (landing-charts.tsx)
  *   record     "A record you can check" — 3 findings with n + dates, the live paper
  *              ledger and delayed ideas, where every number comes from
  *   pricing    Free during the beta; paid plans → waitlist while checkout is off
@@ -35,6 +37,8 @@ import { StatStrip, Findings, DataSources, AmbientGrid, useScrollReveal } from '
 import { AnnouncementBar, LandingNav, CommandPalette, useCmdK } from '@/components/landing/landing-chrome';
 import { CHECKOUT_LIVE, PLANS, PRICING_FINE_PRINT, annualSavingsPct, type PricingPlan } from '@shared/pricing';
 import { LANDING_FAQ } from '@shared/landing-faq';
+import SystemDiagram from '@/components/landing/system-diagram';
+import { GexProfile, PlayTimeline } from '@/components/landing/landing-charts';
 import { SEOHead } from '@/components/seo-head';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
@@ -298,6 +302,18 @@ export default function LandingV2() {
           </div>
         </section>
 
+        {/* HOW IT WORKS — the systems diagram (components/landing/system-diagram.tsx) */}
+        <section id="sec-how" className="lv2-sec" aria-labelledby="lv2-how-title">
+          <div className="lv2-wrap">
+            <header className="lv2-head center">
+              <p className="lv2-eyebrow">How QuantEdge works</p>
+              <h2 id="lv2-how-title">From raw chain to graded play.</h2>
+              <p className="lv2-lede">Five layers, one direction of travel. Data feeds the engines, the engines score a decision, the decision reaches your desk — and every play is tracked until it’s proven or disproven.</p>
+            </header>
+            <SystemDiagram />
+          </div>
+        </section>
+
         {/* FEATURES — alternating; each visual is a live panel (sample until the live read lands) */}
         {FEATURES.map((f, i) => (
           <section key={f.id} id={f.id} className={`lv2-sec lv2-feat${i % 2 ? ' flip' : ''}`} aria-labelledby={`${f.id}-t`}>
@@ -318,6 +334,21 @@ export default function LandingV2() {
             </div>
           </section>
         ))}
+
+        {/* IN REAL NUMBERS — two charts on captured data (components/landing/landing-charts.tsx) */}
+        <section id="sec-numbers" className="lv2-sec" aria-labelledby="lv2-numbers-title">
+          <div className="lv2-wrap">
+            <header className="lv2-head center">
+              <p className="lv2-eyebrow">In real numbers</p>
+              <h2 id="lv2-numbers-title">What the engines see, and how a play is scored.</h2>
+              <p className="lv2-lede">Two charts drawn from real data — each labelled with its date and source. Nothing here is a mock-up.</p>
+            </header>
+            <div className="lv2-charts">
+              <GexProfile />
+              <PlayTimeline />
+            </div>
+          </div>
+        </section>
 
         {/* TRACK RECORD */}
         <section id="sec-record" className="lv2-sec" aria-labelledby="lv2-record-title">
