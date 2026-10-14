@@ -65,7 +65,8 @@ export default function ResetPassword() {
         });
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to reset password. The link may be expired.";
+      const raw = error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "";
+      const errorMessage = raw && raw.length < 120 && !/[{}<]|Error|at /.test(raw) ? raw : "We couldn't reset your password. The link may have expired — request a new one.";
       toast({
         title: "Reset failed",
         description: errorMessage,

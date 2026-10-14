@@ -1228,7 +1228,7 @@ button:not([disabled]):active,
 }
 
 .metric-block .metric-label {
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1263,7 +1263,7 @@ button:not([disabled]):active,
 
 .section-chrome .section-label {
   font-family: var(--font-mono);
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;

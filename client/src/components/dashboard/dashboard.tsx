@@ -84,7 +84,7 @@ class ToolBoundary extends Component<{ title: string; children: ReactNode }, { e
   componentDidCatch(err: Error, info: ErrorInfo) { console.warn('[dashboard] tool crashed', err, info.componentStack); }
   render() {
     if (this.state.err) {
-      return <QEError className="fd-m" title={`${this.props.title} hit an error`} message={`${this.state.err.message || 'It failed while drawing.'} Retry, or remove the tool and add it back.`} onRetry={() => this.setState({ err: null })} />;
+      return <QEError className="fd-m" title={`${this.props.title} hit an error`} message={<>It failed while drawing. Retry, or remove the tool and add it back.{this.state.err.message && <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer' }}>Details</summary><code style={{ wordBreak: 'break-all' }}>{this.state.err.message}</code></details>}</>} onRetry={() => this.setState({ err: null })} />;
     }
     return this.props.children;
   }
