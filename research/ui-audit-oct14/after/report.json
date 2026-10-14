@@ -1,0 +1,4158 @@
+{
+ "today-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 40,
+   "12": 185,
+   "13": 145,
+   "14": 62,
+   "15": 52,
+   "17": 14,
+   "20": 4,
+   "22": 2,
+   "12.5": 11,
+   "13.5": 15
+  },
+  "bigText": [
+   "div.lsig-ticker 17px ×7",
+   "div.lstat-val 22px ×2",
+   "h3.feature-title 17px ×2",
+   "h1.hero-title 20px ×1",
+   "span.grad 20px ×1",
+   "span.accent 20px ×1",
+   "b.mag 17px ×1",
+   "b.up 17px ×1",
+   "b.dn 17px ×1",
+   "span. 20px ×1",
+   "h2.lsec-title 17px ×1",
+   "h2.cta-title 17px ×1"
+  ],
+  "nestedBoxes": [
+   "div.lflow-row ×4",
+   "a.t-signal.t-signal-link ×3",
+   "div.td-ladder-reward ×1",
+   "a.lsig-card ×1",
+   "div.lsig-levels ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "today-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 40,
+   "12": 185,
+   "13": 145,
+   "14": 62,
+   "15": 52,
+   "17": 14,
+   "20": 4,
+   "22": 2,
+   "12.5": 11,
+   "13.5": 15
+  },
+  "bigText": [
+   "div.lsig-ticker 17px ×7",
+   "div.lstat-val 22px ×2",
+   "h3.feature-title 17px ×2",
+   "h1.hero-title 20px ×1",
+   "span.grad 20px ×1",
+   "span.accent 20px ×1",
+   "b.mag 17px ×1",
+   "b.up 17px ×1",
+   "b.dn 17px ×1",
+   "span. 20px ×1",
+   "h2.lsec-title 17px ×1",
+   "h2.cta-title 17px ×1"
+  ],
+  "nestedBoxes": [
+   "div.lflow-row ×4",
+   "a.t-signal.t-signal-link ×3",
+   "div.td-ladder-reward ×1",
+   "a.lsig-card ×1",
+   "div.lsig-levels ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "today-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "today-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "nexus-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 1,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 1,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/zero-dte/flow"
+  ]
+ },
+ "nexus-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/zero-dte/flow"
+  ]
+ },
+ "nexus-detail-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas"
+  ]
+ },
+ "nexus-detail-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA"
+  ]
+ },
+ "nexus-detail-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 1,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-detail-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 1,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "nexus-0dte-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "nexus-0dte-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "nexus-0dte-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "button.tl-link-btn.si-meta \"+2 quiet groups\" top=0 bottom=30"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "12": 345,
+   "13": 12,
+   "14": 18,
+   "17": 3,
+   "22": 1,
+   "13.5": 61
+  },
+  "bigText": [
+   "a.zd-sym-link 17px ×3",
+   "span. 22px ×1"
+  ],
+  "nestedBoxes": [
+   "div.zd-state.s-no_setup ×2",
+   "span.zd-count ×1",
+   "li.zi-card.zd-a-armed ×1",
+   "li.zi-card.zd-a-stale ×1",
+   "div.zd-state.s-armed ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "nexus-0dte-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "button.tl-link-btn.si-meta \"+2 quiet groups\" top=0 bottom=30"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "12": 345,
+   "13": 12,
+   "14": 18,
+   "17": 3,
+   "22": 1,
+   "13.5": 61
+  },
+  "bigText": [
+   "a.zd-sym-link 17px ×3",
+   "span. 22px ×1"
+  ],
+  "nestedBoxes": [
+   "div.zd-state.s-no_setup ×2",
+   "span.zd-count ×1",
+   "li.zi-card.zd-a-armed ×1",
+   "li.zi-card.zd-a-stale ×1",
+   "div.zd-state.s-armed ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/zero-dte/flow",
+   "[harness] no fixture: /api/zero-dte/sniper",
+   "[harness] no fixture: /api/zero-dte/sessions",
+   "[harness] no fixture: /api/wall-touch",
+   "[harness] no fixture: /api/wall-touch/report"
+  ]
+ },
+ "flow-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow",
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "flow-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow",
+   "[harness] no fixture: /api/bullflow/leaders",
+   "[harness] no fixture: /api/bullflow/net-premium-series/SPY"
+  ]
+ },
+ "ticker-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "sectors-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"MU\" 18×24"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.sx-sym.sx-sym-lg \"MU\" 18×24"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "flow-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 6,
+   "12": 72,
+   "13": 160,
+   "16": 5,
+   "17": 5,
+   "12.5": 2
+  },
+  "bigText": [
+   "div.of-val 17px ×5"
+  ],
+  "nestedBoxes": [
+   "span. ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow"
+  ]
+ },
+ "flow-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 6,
+   "12": 72,
+   "13": 160,
+   "16": 5,
+   "17": 5,
+   "12.5": 2
+  },
+  "bigText": [
+   "div.of-val 17px ×5"
+  ],
+  "nestedBoxes": [
+   "span. ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Aflow"
+  ]
+ },
+ "ticker-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 26,
+   "12": 49,
+   "13": 10,
+   "14": 197,
+   "15": 7,
+   "16": 8,
+   "17": 28,
+   "20": 1,
+   "22": 1,
+   "35": 1,
+   "12.5": 3,
+   "13.5": 21
+  },
+  "bigText": [
+   "div.tk-stat-v 17px ×22",
+   "h2. 17px ×5",
+   "h1.tk-sym 22px ×1",
+   "span.tk-price 20px ×1",
+   "span.tk-chg.lx-tone-loss 17px ×1",
+   "span.fc-wm-sym 35px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "ticker-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 26,
+   "12": 49,
+   "13": 10,
+   "14": 197,
+   "15": 7,
+   "16": 8,
+   "17": 28,
+   "20": 1,
+   "22": 1,
+   "35": 1,
+   "12.5": 3,
+   "13.5": 21
+  },
+  "bigText": [
+   "div.tk-stat-v 17px ×22",
+   "h2. 17px ×5",
+   "h1.tk-sym 22px ×1",
+   "span.tk-price 20px ×1",
+   "span.tk-chg.lx-tone-loss 17px ×1",
+   "span.fc-wm-sym 35px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/bullflow/net-premium/NVDA",
+   "[harness] no fixture: /api/bullflow/context/NVDA",
+   "[harness] no fixture: /api/volatility-analysis/NVDA",
+   "[harness] no fixture: /api/ideas/ledger",
+   "[harness] no fixture: /api/quantinum/NVDA",
+   "[harness] no fixture: /api/weekly-path/NVDA",
+   "[harness] no fixture: /api/ticker/NVDA/read-throughs",
+   "[harness] no fixture: /api/short-interest/NVDA"
+  ]
+ },
+ "sectors-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 196,
+   "13": 22,
+   "14": 17,
+   "15": 3,
+   "17": 10,
+   "20": 2,
+   "12.5": 83,
+   "13.5": 93
+  },
+  "bigText": [
+   "h2.sx-h2 17px ×4",
+   "button.sx-link-btn 17px ×3",
+   "h1.sx-title 20px ×1",
+   "span.grad 20px ×1",
+   "button.sx-link-btn.sx-c-up 17px ×1",
+   "button.sx-link-btn.sx-c-dn 17px ×1",
+   "div.sx-stat-v 17px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "sectors-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 196,
+   "13": 22,
+   "14": 17,
+   "15": 3,
+   "17": 10,
+   "20": 2,
+   "12.5": 83,
+   "13.5": 93
+  },
+  "bigText": [
+   "h2.sx-h2 17px ×4",
+   "button.sx-link-btn 17px ×3",
+   "h1.sx-title 20px ×1",
+   "span.grad 20px ×1",
+   "button.sx-link-btn.sx-c-up 17px ×1",
+   "button.sx-link-btn.sx-c-dn 17px ×1",
+   "div.sx-stat-v 17px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/sectors/semis"
+  ]
+ },
+ "crypto-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "crypto-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-daily-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-daily-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "gex-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell \"+1.1B\" 73×19",
+   "button.gx-cell \"+629M\" 73×19",
+   "button.gx-cell \"+657M\" 73×19",
+   "button.gx-cell \"+624M\" 73×19",
+   "button.gx-cell \"+219M\" 73×19",
+   "button.gx-cell \"+278M\" 73×19",
+   "button.gx-cell \"+250M\" 73×19",
+   "button.gx-cell \"+405M\" 73×19",
+   "button.gx-cell \"+848M\" 73×19",
+   "button.gx-cell \"+338M\" 73×19",
+   "button.gx-cell \"+324M\" 73×19",
+   "button.gx-cell \"+173M\" 73×19",
+   "button.gx-cell \"+89M\" 73×19",
+   "button.gx-cell \"+820M\" 73×19",
+   "button.gx-cell \"+647M\" 73×19",
+   "button.gx-cell \"+635M\" 73×19",
+   "button.gx-cell \"+452M\" 73×19",
+   "button.gx-cell \"+469M\" 73×19",
+   "button.gx-cell \"+373M\" 73×19",
+   "button.gx-cell \"+318M\" 73×19"
+  ],
+  "smallCount": 189,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "gex-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell \"+1.1B\" 73×19",
+   "button.gx-cell \"+629M\" 73×19",
+   "button.gx-cell \"+657M\" 73×19",
+   "button.gx-cell \"+624M\" 73×19",
+   "button.gx-cell \"+219M\" 73×19",
+   "button.gx-cell \"+278M\" 73×19",
+   "button.gx-cell \"+250M\" 73×19",
+   "button.gx-cell \"+405M\" 73×19",
+   "button.gx-cell \"+848M\" 73×19",
+   "button.gx-cell \"+338M\" 73×19",
+   "button.gx-cell \"+324M\" 73×19",
+   "button.gx-cell \"+173M\" 73×19",
+   "button.gx-cell \"+89M\" 73×19",
+   "button.gx-cell \"+820M\" 73×19",
+   "button.gx-cell \"+647M\" 73×19",
+   "button.gx-cell \"+635M\" 73×19",
+   "button.gx-cell \"+452M\" 73×19",
+   "button.gx-cell \"+469M\" 73×19",
+   "button.gx-cell \"+373M\" 73×19",
+   "button.gx-cell \"+318M\" 73×19"
+  ],
+  "smallCount": 189,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "crypto-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 170,
+   "13": 5,
+   "14": 6,
+   "16": 6,
+   "13.5": 21,
+   "12.5": 49
+  },
+  "bigText": [],
+  "nestedBoxes": [
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "crypto-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 170,
+   "13": 5,
+   "14": 6,
+   "16": 6,
+   "13.5": 21,
+   "12.5": 49
+  },
+  "bigText": [],
+  "nestedBoxes": [
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "chart-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "chart-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 3,
+   "13": 4,
+   "14": 6,
+   "20": 1,
+   "13.5": 1
+  },
+  "bigText": [
+   "h1.jr-top-h 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 3,
+   "13": 4,
+   "14": 6,
+   "20": 1,
+   "13.5": 1
+  },
+  "bigText": [
+   "h1.jr-top-h 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "leaps-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "leaps-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "journal-daily-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 4,
+   "13": 4,
+   "14": 6,
+   "20": 1,
+   "13.5": 2
+  },
+  "bigText": [
+   "h1.jr-top-h 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "journal-daily-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 4,
+   "13": 4,
+   "14": 6,
+   "20": 1,
+   "13.5": 2
+  },
+  "bigText": [
+   "h1.jr-top-h 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "catalysts-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "catalysts-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "gex-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell.gxp-cell \"+632M\" 56×40",
+   "button.gx-cell.gxp-cell \"+929M\" 56×40",
+   "button.gx-cell.gxp-cell \"+560M\" 56×40",
+   "button.gx-cell.gxp-cell \"+500M\" 56×40",
+   "button.gx-cell.gxp-cell \"+713M\" 56×40",
+   "button.gx-cell.gxp-cell \"+458M\" 56×40",
+   "button.gx-cell.gxp-cell \"+469M\" 56×40",
+   "button.gx-cell.gxp-cell \"+1.2B\" 56×40",
+   "button.gx-cell.gxp-cell \"+646M\" 56×40",
+   "button.gx-cell.gxp-cell \"+428M\" 56×40",
+   "button.gx-cell.gxp-cell \"+544M\" 56×40",
+   "button.gx-cell.gxp-cell \"+908M\" 56×40",
+   "button.gx-cell.gxp-cell \"+865M\" 56×40",
+   "button.gx-cell.gxp-cell \"+447M\" 56×40",
+   "button.gx-cell.gxp-cell \"+628M\" 56×40",
+   "button.gx-cell.gxp-cell \"+501M\" 56×40",
+   "button.gx-cell.gxp-cell \"+1.1B\" 56×40",
+   "button.gx-cell.gxp-cell \"+953M\" 56×40",
+   "button.gx-cell.gxp-cell.gxp-top \"+953M\" 56×40",
+   "button.gx-cell.gxp-cell \"+427M\" 56×40"
+  ],
+  "smallCount": 69,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 7,
+   "12": 46,
+   "13": 93,
+   "14": 5,
+   "15": 1,
+   "16": 5,
+   "18": 5,
+   "22": 1,
+   "12.5": 20,
+   "13.5": 2
+  },
+  "bigText": [
+   "b. 18px ×1",
+   "div.context-v.cyan 18px ×1",
+   "div.context-v.red 18px ×1",
+   "div.context-v 18px ×1",
+   "div.context-v.amber 18px ×1",
+   "span.gx-glyph 22px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "gex-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.gx-cell.gxp-cell \"+632M\" 56×40",
+   "button.gx-cell.gxp-cell \"+929M\" 56×40",
+   "button.gx-cell.gxp-cell \"+560M\" 56×40",
+   "button.gx-cell.gxp-cell \"+500M\" 56×40",
+   "button.gx-cell.gxp-cell \"+713M\" 56×40",
+   "button.gx-cell.gxp-cell \"+458M\" 56×40",
+   "button.gx-cell.gxp-cell \"+469M\" 56×40",
+   "button.gx-cell.gxp-cell \"+1.2B\" 56×40",
+   "button.gx-cell.gxp-cell \"+646M\" 56×40",
+   "button.gx-cell.gxp-cell \"+428M\" 56×40",
+   "button.gx-cell.gxp-cell \"+544M\" 56×40",
+   "button.gx-cell.gxp-cell \"+908M\" 56×40",
+   "button.gx-cell.gxp-cell \"+865M\" 56×40",
+   "button.gx-cell.gxp-cell \"+447M\" 56×40",
+   "button.gx-cell.gxp-cell \"+628M\" 56×40",
+   "button.gx-cell.gxp-cell \"+501M\" 56×40",
+   "button.gx-cell.gxp-cell \"+1.1B\" 56×40",
+   "button.gx-cell.gxp-cell \"+953M\" 56×40",
+   "button.gx-cell.gxp-cell.gxp-top \"+953M\" 56×40",
+   "button.gx-cell.gxp-cell \"+427M\" 56×40"
+  ],
+  "smallCount": 69,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 7,
+   "12": 46,
+   "13": 93,
+   "14": 5,
+   "15": 1,
+   "16": 5,
+   "18": 5,
+   "22": 1,
+   "12.5": 20,
+   "13.5": 2
+  },
+  "bigText": [
+   "b. 18px ×1",
+   "div.context-v.cyan 18px ×1",
+   "div.context-v.red 18px ×1",
+   "div.context-v 18px ×1",
+   "div.context-v.amber 18px ×1",
+   "span.gx-glyph 22px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Agex",
+   "[harness] no fixture: /api/gex-vex/rankings"
+  ]
+ },
+ "bot-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "bot-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "chart-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 9,
+   "12": 20,
+   "43": 1
+  },
+  "bigText": [
+   "span.tv-wm-sym 43px ×1"
+  ],
+  "nestedBoxes": [
+   "div.tv-seg.tv-tfchips ×1",
+   "div.tv-seg ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "chart-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 9,
+   "12": 20,
+   "43": 1
+  },
+  "bigText": [
+   "span.tv-wm-sym 43px ×1"
+  ],
+  "nestedBoxes": [
+   "div.tv-seg.tv-tfchips ×1",
+   "div.tv-seg ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "leaps-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "label \"Drawdown min %\" 10.5px",
+   "label \"Drawdown max %\" 10.5px",
+   "label \"SectorAll\" 10.5px",
+   "label \"Min score\" 10.5px",
+   "label \"Earnings within (days)\" 10.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 4,
+   "13": 2,
+   "14": 1,
+   "24": 1,
+   "13.5": 1,
+   "10.5": 5
+  },
+  "bigText": [
+   "span.grad 24px ×1"
+  ],
+  "nestedBoxes": [
+   "select. ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "leaps-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "label \"Drawdown min %\" 10.5px",
+   "label \"Drawdown max %\" 10.5px",
+   "label \"SectorAll\" 10.5px",
+   "label \"Min score\" 10.5px",
+   "label \"Earnings within (days)\" 10.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 4,
+   "13": 2,
+   "14": 1,
+   "24": 1,
+   "13.5": 1,
+   "10.5": 5
+  },
+  "bigText": [
+   "span.grad 24px ×1"
+  ],
+  "nestedBoxes": [
+   "select. ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "positions-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/zero-dte/flow"
+  ]
+ },
+ "positions-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.zd-sym-link \"SPY\" 20×24",
+   "a.zd-sym-link \"QQQ\" 20×24",
+   "a.zd-sym-link \"IWM\" 20×24"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA",
+   "[harness] no fixture: /api/zero-dte/flow"
+  ]
+ },
+ "alerts-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "alerts-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "catalysts-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 86,
+   "13": 38,
+   "16": 5,
+   "12.5": 48
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "catalysts-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 86,
+   "13": 38,
+   "16": 5,
+   "12.5": 48
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "settings-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20"
+  ],
+  "smallCount": 7,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "settings-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.relative.h-5.w-9 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20",
+   "button.st-switch 36×20"
+  ],
+  "smallCount": 7,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "admin-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 18×18",
+   "a.ah-link \"Invite codes →\" 92×14"
+  ],
+  "smallCount": 2,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 18×18",
+   "a.ah-link \"Invite codes →\" 92×14"
+  ],
+  "smallCount": 2,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Say hi on Discord → (opens in \" 123×21"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Say hi on Discord → (opens in \" 123×21"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Say hi on Discord → (opens in \" 123×21"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a \"Say hi on Discord → (opens in \" 123×21"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "bot-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 5,
+   "12": 79,
+   "13": 32,
+   "16": 6,
+   "17": 5,
+   "12.5": 66
+  },
+  "bigText": [
+   "div.stat-val.amber 17px ×2",
+   "div.stat-val.bot 17px ×1",
+   "div.stat-val 17px ×1",
+   "div.stat-val.green 17px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "bot-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 5,
+   "12": 79,
+   "13": 32,
+   "16": 6,
+   "17": 5,
+   "12.5": 66
+  },
+  "bigText": [
+   "div.stat-val.amber 17px ×2",
+   "div.stat-val.bot 17px ×1",
+   "div.stat-val 17px ×1",
+   "div.stat-val.green 17px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "signup-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "signup-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "a.flex.items-center.gap-2 \"Back to home\" 115×20"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "how-to-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "how-to-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "swings-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "swings-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "ask-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/quantinum/ai/history"
+  ]
+ },
+ "ask-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/quantinum/ai/history"
+  ]
+ },
+ "positions-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 2,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "positions-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 2×44"
+  ],
+  "smallCount": 1,
+  "tiny": [
+   "span.nxf-count \"0\" 10.5px"
+  ],
+  "tinyCount": 1,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 3,
+   "12": 128,
+   "13": 2,
+   "14": 4,
+   "15": 1,
+   "16": 6,
+   "18": 1,
+   "22": 1,
+   "35": 1,
+   "10.5": 1,
+   "13.5": 16,
+   "12.5": 147
+  },
+  "bigText": [
+   "h2. 22px ×1",
+   "span.fc-wm-sym 35px ×1",
+   "h2. 18px ×1"
+  ],
+  "nestedBoxes": [
+   "button.fd-btn ×1",
+   "div.fc-root.fc-compact ×1",
+   "div.chart-info-overlay ×1",
+   "div.nx-ohlc-legend ×1",
+   "article.nxp-thesis ×1",
+   "aside.nxp-execution ×1",
+   "div.nxp-contract ×1",
+   "button.nxp-cockpit ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/user/audit-user/layouts/wsprefs%3Anexus",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/nexus/tracked",
+   "[harness] no fixture: /api/nexus/resolved-today",
+   "[harness] no fixture: /api/journal/took-ideas",
+   "[harness] no fixture: /api/volume-read/NVDA",
+   "[harness] no fixture: /api/holy-grail/NVDA",
+   "[harness] no fixture: /api/wall-touch/NVDA",
+   "[harness] no fixture: /api/levels/NVDA"
+  ]
+ },
+ "desk-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-slug-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-slug-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "alerts-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 7,
+   "12": 17,
+   "13": 9,
+   "15": 3,
+   "17": 3,
+   "20": 1,
+   "13.5": 7,
+   "12.5": 1
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×3",
+   "span. 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "alerts-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 7,
+   "12": 17,
+   "13": 9,
+   "15": 3,
+   "17": 3,
+   "20": 1,
+   "13.5": 7,
+   "12.5": 1
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×3",
+   "span. 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "trader-setup-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/auth/trader-setup/names"
+  ]
+ },
+ "trader-setup-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/auth/trader-setup/names"
+  ]
+ },
+ "settings-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px"
+  ],
+  "tinyCount": 15,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "10": 15,
+   "12": 49,
+   "13": 39,
+   "14": 5,
+   "15": 8,
+   "16": 1,
+   "20": 1,
+   "22": 1,
+   "13.5": 26,
+   "12.5": 15
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1",
+   "div.st-avatar 22px ×1"
+  ],
+  "nestedBoxes": [
+   "input.st-input ×7",
+   "div.st-prev ×5",
+   "div.lx-seg ×4",
+   "button.lx-btn.st-danger ×2",
+   "span.lx-tag ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "settings-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px",
+   "b \"SPY\" 10px",
+   "em \"+1.24%\" 10px",
+   "em \"−0.62%\" 10px"
+  ],
+  "tinyCount": 15,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "10": 15,
+   "12": 49,
+   "13": 39,
+   "14": 5,
+   "15": 8,
+   "16": 1,
+   "20": 1,
+   "22": 1,
+   "13.5": 26,
+   "12.5": 15
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1",
+   "div.st-avatar 22px ×1"
+  ],
+  "nestedBoxes": [
+   "input.st-input ×7",
+   "div.st-prev ×5",
+   "div.lx-seg ×4",
+   "button.lx-btn.st-danger ×2",
+   "span.lx-tag ×1"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/journal/broker/alpaca"
+  ]
+ },
+ "admin-traders-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-traders-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 18,
+   "12": 45,
+   "13": 26,
+   "15": 5,
+   "17": 8,
+   "20": 1,
+   "12.5": 34,
+   "11.5": 8
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×8",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×8"
+  ],
+  "errors": []
+ },
+ "admin-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 18,
+   "12": 45,
+   "13": 26,
+   "15": 5,
+   "17": 8,
+   "20": 1,
+   "12.5": 34,
+   "11.5": 8
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×8",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×8"
+  ],
+  "errors": []
+ },
+ "admin-waitlist-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 13×13",
+   "input 13×13",
+   "input 13×13",
+   "input 13×13"
+  ],
+  "smallCount": 4,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-waitlist-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 13×13",
+   "input 13×13",
+   "input 13×13",
+   "input 13×13"
+  ],
+  "smallCount": 4,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "landing-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.lp-chip.live \"LIVE\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lv2-chip \"Beta members start here\" 10px"
+  ],
+  "tinyCount": 17,
+  "offCentre": [
+   "a \"Abdulmalik Ajisegiri\" top=6 bottom=22"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "10": 17,
+   "11": 14,
+   "12": 29,
+   "13": 30,
+   "14": 65,
+   "15": 46,
+   "16": 2,
+   "17": 19,
+   "18": 10,
+   "20": 4,
+   "21": 3,
+   "24": 6,
+   "26": 1,
+   "30": 8,
+   "32": 6,
+   "44": 3,
+   "45": 2
+  },
+  "bigText": [
+   "span. 17px ×10",
+   "p.lv2-lede 18px ×8",
+   "li. 17px ×6",
+   "h2. 32px ×5",
+   "dd. 24px ×5",
+   "dd. 30px ×4",
+   "h2. 30px ×4",
+   "h3. 21px ×3",
+   "h3. 20px ×3",
+   "b. 44px ×3",
+   "span.lv2-brand-name 17px ×2",
+   "a. 18px ×2"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "landing-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.lp-chip.live \"LIVE\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lv2-chip \"Beta members start here\" 10px"
+  ],
+  "tinyCount": 17,
+  "offCentre": [
+   "a \"Abdulmalik Ajisegiri\" top=6 bottom=22"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "10": 17,
+   "11": 14,
+   "12": 29,
+   "13": 30,
+   "14": 65,
+   "15": 46,
+   "16": 2,
+   "17": 19,
+   "18": 10,
+   "20": 4,
+   "21": 3,
+   "24": 6,
+   "26": 1,
+   "30": 8,
+   "32": 6,
+   "44": 3,
+   "45": 2
+  },
+  "bigText": [
+   "span. 17px ×10",
+   "p.lv2-lede 18px ×8",
+   "li. 17px ×6",
+   "h2. 32px ×5",
+   "dd. 24px ×5",
+   "dd. 30px ×4",
+   "h2. 30px ×4",
+   "h3. 21px ×3",
+   "h3. 20px ×3",
+   "b. 44px ×3",
+   "span.lv2-brand-name 17px ×2",
+   "a. 18px ×2"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "admin-roadmap-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 13×13"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-roadmap-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 13×13"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "pricing-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.lp-chip.live \"LIVE\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lv2-chip \"Beta members start here\" 10px"
+  ],
+  "tinyCount": 17,
+  "offCentre": [
+   "a \"Abdulmalik Ajisegiri\" top=6 bottom=22"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "10": 17,
+   "11": 14,
+   "12": 29,
+   "13": 30,
+   "14": 65,
+   "15": 46,
+   "16": 2,
+   "17": 19,
+   "18": 10,
+   "20": 4,
+   "21": 3,
+   "24": 6,
+   "26": 1,
+   "30": 8,
+   "32": 6,
+   "44": 3,
+   "45": 2
+  },
+  "bigText": [
+   "span. 17px ×10",
+   "p.lv2-lede 18px ×8",
+   "li. 17px ×6",
+   "h2. 32px ×5",
+   "dd. 24px ×5",
+   "dd. 30px ×4",
+   "h2. 30px ×4",
+   "h3. 21px ×3",
+   "h3. 20px ×3",
+   "b. 44px ×3",
+   "span.lv2-brand-name 17px ×2",
+   "a. 18px ×2"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "pricing-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.dk-badge \"Sample data\" 10px",
+   "span.lp-chip.live \"LIVE\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.delayed \"DELAYED\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.eod \"EOD\" 10px",
+   "span.lp-chip.measuring \"MEASURING\" 10px",
+   "span.lv2-chip \"Beta members start here\" 10px"
+  ],
+  "tinyCount": 17,
+  "offCentre": [
+   "a \"Abdulmalik Ajisegiri\" top=6 bottom=22"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "10": 17,
+   "11": 14,
+   "12": 29,
+   "13": 30,
+   "14": 65,
+   "15": 46,
+   "16": 2,
+   "17": 19,
+   "18": 10,
+   "20": 4,
+   "21": 3,
+   "24": 6,
+   "26": 1,
+   "30": 8,
+   "32": 6,
+   "44": 3,
+   "45": 2
+  },
+  "bigText": [
+   "span. 17px ×10",
+   "p.lv2-lede 18px ×8",
+   "li. 17px ×6",
+   "h2. 32px ×5",
+   "dd. 24px ×5",
+   "dd. 30px ×4",
+   "h2. 30px ×4",
+   "h3. 21px ×3",
+   "h3. 20px ×3",
+   "b. 44px ×3",
+   "span.lv2-brand-name 17px ×2",
+   "a. 18px ×2"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "admin-learning-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/admin/learning"
+  ]
+ },
+ "admin-learning-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/admin/learning"
+  ]
+ },
+ "signup-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 1,
+   "12": 4,
+   "13": 8,
+   "14": 13,
+   "15": 2,
+   "24": 1
+  },
+  "bigText": [
+   "h1.auth-h1 24px ×1"
+  ],
+  "nestedBoxes": [
+   "button. ×1"
+  ],
+  "errors": []
+ },
+ "signup-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 1,
+   "12": 4,
+   "13": 8,
+   "14": 13,
+   "15": 2,
+   "24": 1
+  },
+  "bigText": [
+   "h1.auth-h1 24px ×1"
+  ],
+  "nestedBoxes": [
+   "button. ×1"
+  ],
+  "errors": []
+ },
+ "admin-system-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "admin-system-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "login-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 5,
+   "14": 6,
+   "16": 2,
+   "24": 1
+  },
+  "bigText": [
+   "h2.text-2xl.font-medium 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "login-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 5,
+   "14": 6,
+   "16": 2,
+   "24": 1
+  },
+  "bigText": [
+   "h2.text-2xl.font-medium 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "updates-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "updates-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": [
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "how-to-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 5,
+   "12": 54,
+   "14": 10,
+   "15": 5,
+   "20": 1,
+   "12.5": 44
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "a.lx-tag ×3",
+   "span.lx-tag.ml-auto ×2"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "how-to-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 5,
+   "12": 54,
+   "14": 10,
+   "15": 5,
+   "20": 1,
+   "12.5": 44
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "a.lx-tag ×3",
+   "span.lx-tag.ml-auto ×2"
+  ],
+  "errors": [
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "join-beta-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "join-beta-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "terms-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "terms-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "swings-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "label \"Drawdown min %\" 10.5px",
+   "label \"Drawdown max %\" 10.5px",
+   "label \"SectorAll\" 10.5px",
+   "label \"Min score\" 10.5px",
+   "label \"Earnings within (days)\" 10.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 2,
+   "14": 1,
+   "24": 1,
+   "13.5": 1,
+   "10.5": 5
+  },
+  "bigText": [
+   "span.grad 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "swings-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [
+   "label \"Drawdown min %\" 10.5px",
+   "label \"Drawdown max %\" 10.5px",
+   "label \"SectorAll\" 10.5px",
+   "label \"Min score\" 10.5px",
+   "label \"Earnings within (days)\" 10.5px"
+  ],
+  "tinyCount": 5,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 4,
+   "12": 2,
+   "14": 1,
+   "24": 1,
+   "13.5": 1,
+   "10.5": 5
+  },
+  "bigText": [
+   "span.grad 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/user/tier",
+   "[harness] no fixture: /api/swings"
+  ]
+ },
+ "ask-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12.5": 2,
+   "13.5": 1
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/quantinum/ai/history"
+  ]
+ },
+ "ask-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12.5": 2,
+   "13.5": 1
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me",
+   "[harness] no fixture: /api/quantinum/ai/history"
+  ]
+ },
+ "privacy-1440-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "privacy-1440-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "errors": []
+ },
+ "desk-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-slug-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "desk-slug-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates",
+   "[harness] no fixture: /api/quantinum/ai/status",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "trader-setup-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "14": 3
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/auth/trader-setup/names",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "trader-setup-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 3,
+   "14": 3
+  },
+  "bigText": [],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/auth/trader-setup/names",
+   "[harness] no fixture: /api/desk/me"
+  ]
+ },
+ "admin-traders-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-sub \"Users\" top=6 bottom=23",
+   "a.ah-sub \"Invite codes\" top=6 bottom=23",
+   "a.ah-sub \"Waitlist\" top=6 bottom=23",
+   "a.ah-sub.on \"Trader books\" top=6 bottom=23"
+  ],
+  "offCentreCount": 4,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 18,
+   "13": 8,
+   "15": 1,
+   "20": 1,
+   "12.5": 8,
+   "11.5": 4
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×4",
+   "button.lx-btn ×3"
+  ],
+  "errors": []
+ },
+ "admin-traders-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-sub \"Users\" top=6 bottom=23",
+   "a.ah-sub \"Invite codes\" top=6 bottom=23",
+   "a.ah-sub \"Waitlist\" top=6 bottom=23",
+   "a.ah-sub.on \"Trader books\" top=6 bottom=23"
+  ],
+  "offCentreCount": 4,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 18,
+   "13": 8,
+   "15": 1,
+   "20": 1,
+   "12.5": 8,
+   "11.5": 4
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×4",
+   "button.lx-btn ×3"
+  ],
+  "errors": []
+ },
+ "admin-waitlist-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22",
+   "input 22×22",
+   "input 22×22"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-sub \"Users\" top=6 bottom=23",
+   "a.ah-sub \"Invite codes\" top=6 bottom=23",
+   "a.ah-sub.on \"Waitlist\" top=6 bottom=23",
+   "a.ah-sub \"Trader books\" top=6 bottom=23"
+  ],
+  "offCentreCount": 4,
+  "notFound": false,
+  "typeHist": {
+   "11": 10,
+   "12": 20,
+   "13": 7,
+   "15": 3,
+   "17": 4,
+   "20": 1,
+   "12.5": 21,
+   "11.5": 23
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×4",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×2"
+  ],
+  "errors": []
+ },
+ "admin-waitlist-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22",
+   "input 22×22",
+   "input 22×22"
+  ],
+  "smallCount": 3,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-sub \"Users\" top=6 bottom=23",
+   "a.ah-sub \"Invite codes\" top=6 bottom=23",
+   "a.ah-sub.on \"Waitlist\" top=6 bottom=23",
+   "a.ah-sub \"Trader books\" top=6 bottom=23"
+  ],
+  "offCentreCount": 4,
+  "notFound": false,
+  "typeHist": {
+   "11": 10,
+   "12": 20,
+   "13": 7,
+   "15": 3,
+   "17": 4,
+   "20": 1,
+   "12.5": 21,
+   "11.5": 23
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×4",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×2"
+  ],
+  "errors": []
+ },
+ "admin-roadmap-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-linkbtn \"Open /updates\" top=1 bottom=27"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "11": 10,
+   "12": 26,
+   "13": 8,
+   "15": 2,
+   "17": 4,
+   "20": 1,
+   "12.5": 17,
+   "11.5": 8
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×4",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×4"
+  ],
+  "errors": []
+ },
+ "admin-roadmap-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [
+   "input 22×22"
+  ],
+  "smallCount": 1,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [
+   "a.ah-linkbtn \"Open /updates\" top=1 bottom=27"
+  ],
+  "offCentreCount": 1,
+  "notFound": false,
+  "typeHist": {
+   "11": 10,
+   "12": 26,
+   "13": 8,
+   "15": 2,
+   "17": 4,
+   "20": 1,
+   "12.5": 17,
+   "11.5": 8
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×4",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×4"
+  ],
+  "errors": []
+ },
+ "admin-learning-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 3,
+   "13": 8,
+   "14": 1,
+   "15": 1,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/admin/learning"
+  ]
+ },
+ "admin-learning-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 2,
+   "12": 3,
+   "13": 8,
+   "14": 1,
+   "15": 1,
+   "20": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/admin/learning"
+  ]
+ },
+ "admin-system-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 45,
+   "12": 41,
+   "13": 23,
+   "15": 7,
+   "17": 12,
+   "20": 1,
+   "12.5": 120
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×12",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×2",
+   "button.lx-btn ×2"
+  ],
+  "errors": []
+ },
+ "admin-system-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "11": 45,
+   "12": 41,
+   "13": 23,
+   "15": 7,
+   "17": 12,
+   "20": 1,
+   "12.5": 120
+  },
+  "bigText": [
+   "div.lx-kpi-v 17px ×12",
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [
+   "span.lx-tag ×2",
+   "button.lx-btn ×2"
+  ],
+  "errors": []
+ },
+ "updates-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 1,
+   "13": 1,
+   "14": 1,
+   "15": 1,
+   "20": 1,
+   "13.5": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "updates-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 1,
+   "13": 1,
+   "14": 1,
+   "15": 1,
+   "20": 1,
+   "13.5": 1
+  },
+  "bigText": [
+   "h1.lx-page-title 20px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": [
+   "[harness] no fixture: /api/updates"
+  ]
+ },
+ "join-beta-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 4,
+   "14": 6,
+   "18": 1,
+   "20": 2
+  },
+  "bigText": [
+   "span.text-xl.font-bold 20px ×1",
+   "h1.text-xl.font-semibold 20px ×1",
+   "div.font-semibold.tracking-tight 18px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "join-beta-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 4,
+   "14": 6,
+   "18": 1,
+   "20": 2
+  },
+  "bigText": [
+   "span.text-xl.font-bold 20px ×1",
+   "h1.text-xl.font-semibold 20px ×1",
+   "div.font-semibold.tracking-tight 18px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "terms-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 7,
+   "14": 52,
+   "24": 1
+  },
+  "bigText": [
+   "h1.text-2xl.sm:text-3xl 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "terms-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 7,
+   "14": 52,
+   "24": 1
+  },
+  "bigText": [
+   "h1.text-2xl.sm:text-3xl 24px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "privacy-390-dark": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 2,
+   "14": 88,
+   "18": 1,
+   "24": 1
+  },
+  "bigText": [
+   "h1.text-2xl.sm:text-3xl 24px ×1",
+   "p.font-semibold.text-lg 18px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ },
+ "privacy-390-light": {
+  "docOverflow": 0,
+  "overflow": [],
+  "overflowCount": 0,
+  "small": [],
+  "smallCount": 0,
+  "tiny": [],
+  "tinyCount": 0,
+  "offCentre": [],
+  "offCentreCount": 0,
+  "notFound": false,
+  "typeHist": {
+   "12": 2,
+   "14": 88,
+   "18": 1,
+   "24": 1
+  },
+  "bigText": [
+   "h1.text-2xl.sm:text-3xl 24px ×1",
+   "p.font-semibold.text-lg 18px ×1"
+  ],
+  "nestedBoxes": [],
+  "errors": []
+ }
+}

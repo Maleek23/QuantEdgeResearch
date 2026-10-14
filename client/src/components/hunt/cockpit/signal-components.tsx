@@ -60,7 +60,7 @@ export function SignalComponents({
                 <span className="self-stretch" style={{ background: color }} />
                 <span className="min-w-0">
                   <span className="block truncate font-mono text-[10px] font-bold uppercase tracking-[0.11em] text-foreground/90">{layer.label || LAYER_TAG[layer.kind]}</span>
-                  <span className="block truncate font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{positive ? 'supports thesis' : 'argues against'}</span>
+                  <span className="block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{positive ? 'supports thesis' : 'argues against'}</span>
                 </span>
                 <span className="font-mono text-[11px] font-bold tabular-nums" style={{ color }}>{positive ? '+' : ''}{layer.points}</span>
                 <span className="pr-2 font-mono text-[10px] text-muted-foreground">{isOpen ? '−' : '+'}</span>

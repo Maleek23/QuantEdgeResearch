@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { getLogoSources, getSymbolInitials } from '@/lib/stock-logos';
 
 const SIZE = {
-  sm: 'w-6 h-6 text-[9px]',
+  sm: 'w-6 h-6 text-[10px]',
   md: 'w-8 h-8 text-[11px]',
   lg: 'w-10 h-10 text-xs',
 } as const;

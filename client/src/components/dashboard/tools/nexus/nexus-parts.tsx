@@ -9,6 +9,8 @@
  * request per refresh. Derivations (ranking, developing funnel, macro risk)
  * are pure functions of those responses — nothing is invented here.
  */
+import { checkPriceAgreement } from '@shared/price-agreement';
+import { PriceConflictNote } from '@/components/ui/price-conflict';
 import { WatchStar } from '@/components/watch/watch-star';
 import { TookItButton } from '@/components/journal/took-it-button';
 import { ageLabel } from '../flow/tape';
@@ -479,6 +481,13 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
   const dailyQ = useCandles(selected.symbol, '1D', true);
   const lastDaily = dailyQ.data?.bars?.length ? dailyQ.data.bars[dailyQ.data.bars.length - 1] : null;
   const extSession = lq?.price != null && lq.session != null && lq.session !== 'regular';
+  // One reference price (shared/price-agreement.ts): the live quote vs the chart's
+  // last daily bar. >5% apart in the regular session means one feed is stale —
+  // derived values (progress, level distances) are withheld and both are shown.
+  const agreement = checkPriceAgreement(extSession ? [] : [
+    { label: 'Live quote', price: lq?.price ?? null, asOf: lq?.asOf ?? null },
+    { label: 'Chart (last daily bar)', price: lastDaily?.close ?? null, asOf: lastDaily ? (typeof lastDaily.time === 'number' ? lastDaily.time * 1000 : null) : null },
+  ]);
   const regularCloseLine = extSession && lastDaily ? `Regular close ${money(lastDaily.close)} · ${barTimeLabel(lastDaily.time, '1D')} 16:00 ET` : null;
   // An option contract on an idea called outside the regular session was not
   // priced at the call (after-close options are gated) — say so.
@@ -486,7 +495,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
   const offHoursContract = selected.optionType != null && calledOutsideRegularSession(calledMs);
   // Flash on the price actually shown.
   const liveFlash = useTickFlash(live, { resetKey: selected.ideaId });
-  const progress = live != null && selected.targetPrice !== selected.entryPrice
+  const progress = agreement.ok && live != null && selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
     : null;
   const support = selected.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points);
@@ -503,7 +512,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
         <div>
-          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span>{!selected.isBotHeld && <TookItButton ideaId={selected.ideaId} symbol={selected.symbol} />}<AnalyzeWithQuantinum target={selected.ideaId.startsWith('spx-linked-')
+          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className="nxp-dir" title="Direction of the plan. Quality is the grade on the right, not this chip.">{positive ? '▲ Long' : '▼ Short'}</span>{!selected.isBotHeld && <TookItButton ideaId={selected.ideaId} symbol={selected.symbol} />}<AnalyzeWithQuantinum target={selected.ideaId.startsWith('spx-linked-')
             ? { kind: 'ticker', symbol: selected.symbol, label: `${selected.symbol} · SPX expression` }
             : { kind: 'setup', id: selected.ideaId, symbol: selected.symbol, label: `${selected.symbol} ${positive ? 'long' : 'short'} setup` }} /></div>
           <p className="nxp-times">
@@ -519,9 +528,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
           ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
           : <div><GradeBox grade={grade ?? gradePick(selected, gradeNow)} />
             <LegacyScoreDiagnostics rows={[
-              ['evidence (conviction points)', `${selected.convictionScore} pts · band ${selected.convictionBand}`],
-              ['evidence at publish', selected.publishedConvictionScore != null ? `${selected.publishedConvictionScore} pts${selected.publishedConvictionBand ? ` · band ${selected.publishedConvictionBand}` : ''}` : null],
-              ['evidence display scale', `${convictionPercent(selected.convictionScore)}/100`],
+              // One scale (/100) for every score in this box; raw points ride in brackets.
+              ['evidence now', `${convictionPercent(selected.convictionScore)}/100 (${selected.convictionScore} pts · band ${selected.convictionBand})`],
+              ['evidence at publish', selected.publishedConvictionScore != null ? `${convictionPercent(selected.publishedConvictionScore)}/100 (${selected.publishedConvictionScore} pts${selected.publishedConvictionBand ? ` · band ${selected.publishedConvictionBand}` : ''})` : null],
             ]} /></div>}
       </div>
 
@@ -537,6 +546,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
         ]} />
       </div>
 
+      {!agreement.ok && <PriceConflictNote agreement={agreement} />}
       <div className="nxp-levels">
         <div title={liveStamp ?? undefined}><span>{lq?.price ? <QuoteFreshChip q={lq} /> : boardPx ? 'Board price' : 'Live'}</span><strong className={liveFlash}>{live != null ? money(live) : '—'}</strong><small>{progress != null ? `${progress.toFixed(0)}% toward T1${liveStamp ? ` · ${liveStamp}` : ''}` : liveStamp}</small>{regularCloseLine && <small className="nxp-regular-close" style={{ display: 'block' }} title="Last regular-session (09:30–16:00 ET) daily close, from the chart's daily bars">{regularCloseLine}</small>}</div>
         <div><span><i className="nxp-sw accent" />{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
@@ -546,7 +556,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
 
-      <LevelsList symbol={selected.symbol} live={live ?? 0} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
+      <LevelsList symbol={selected.symbol} live={agreement.ok ? live ?? 0 : 0} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}
@@ -644,7 +654,8 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
       const r = await fetch(`/api/volume-read/${encodeURIComponent(symbol)}${triggeredAt ? `?at=${encodeURIComponent(triggeredAt)}` : ''}`, { credentials: 'include' });
       if (!r.ok) {
         const body = await r.json().catch(() => null);
-        throw new Error(`volume read HTTP ${r.status}${body?.error ? ` — ${body.error}` : ''}`);
+        // Member-facing copy stays plain; the status + server reason ride in the tooltip (item 9).
+        throw Object.assign(new Error('volume data isn’t available for this name right now'), { detail: `HTTP ${r.status}${body?.error ? ` — ${body.error}` : ''}` });
       }
       return r.json();
     },
@@ -655,8 +666,9 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
   const v = q.data;
   if (!v || v.label === 'unknown') {
     // Say WHY (the server's note names each source that failed) — not a bare "unavailable".
-    const why = q.isLoading ? null : v?.note ?? (q.error ? (q.error as Error).message : null);
-    return <p className="nxp-times" title={why ?? undefined}><span>Volume <strong>—</strong>{q.isLoading ? ' reading…' : ` unavailable${why ? ` — ${why}` : ''}`}</span></p>;
+    const why = q.isLoading ? null : q.error ? (q.error as Error).message : v?.note ? 'no intraday bars answered' : null;
+    const detail = q.error ? (q.error as Error & { detail?: string }).detail : v?.note;
+    return <p className="nxp-times" title={detail ?? undefined}><span>Volume <strong>—</strong>{q.isLoading ? ' reading…' : ` unavailable${why ? ` — ${why}` : ''}`}</span></p>;
   }
   const tone = v.label === 'heavy' || v.label === 'above normal' ? 'bull' : v.label === 'light' ? 'bear' : undefined;
   const age = v.asOf ? new Date(v.asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;

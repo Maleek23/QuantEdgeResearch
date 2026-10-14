@@ -8,6 +8,7 @@
  * unvalidated. No other score may be shown next to the chip.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { Fragment } from 'react';
 import {
   formatNexusGrade, gradeBreakdown, gradePick, gradeIdeaRow, nexusGradeCaveat, NEXUS_GRADE_CAVEAT, NEXUS_GRADE_LABEL,
   type IdeaRowLike, type NexusGrade, type NexusGradeLetter, type GradeInput,
@@ -66,10 +67,11 @@ export function LegacyScoreDiagnostics({ rows, children }: { rows: Array<[string
   return (
     <details className="legacy-score-diagnostics" style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', marginTop: 6 }}>
       <summary style={{ cursor: 'pointer' }}>diagnostics (unvalidated)</summary>
-      <div style={{ padding: '4px 0 0 10px', display: 'grid', gap: 2 }}>
-        {shown.map(([k, v]) => <div key={k}>{k}: <b style={{ color: 'var(--text-dim)' }}>{v}</b></div>)}
-        {children}
-        <div>These inputs are not the grade and were not validated as rankings (docs/SCORE_V2_STUDY.md).</div>
+      {/* Aligned key / value columns (audit 2026-10-07 #8). */}
+      <div style={{ padding: '4px 0 0 10px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 10, rowGap: 2 }}>
+        {shown.map(([k, v]) => <Fragment key={k}><span>{k}</span><b style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono, ui-monospace, monospace)', textAlign: 'right' }}>{v}</b></Fragment>)}
+        {children && <div style={{ gridColumn: '1 / -1' }}>{children}</div>}
+        <div style={{ gridColumn: '1 / -1' }}>These inputs are not the grade and were not validated as rankings (docs/SCORE_V2_STUDY.md).</div>
       </div>
     </details>
   );

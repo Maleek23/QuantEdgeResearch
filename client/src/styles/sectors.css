@@ -213,7 +213,7 @@
 @keyframes sx-flash-dn{0%{background:color-mix(in srgb,var(--sx-slide) 32%,transparent)}100%{background:transparent}}
 .sx-rmoves{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
 .sx-rmove{font:600 10.5px 'JetBrains Mono',monospace;white-space:nowrap}
-.sx-rmove small{font-size:9px;margin-left:1px;color:var(--text-mute)}
+.sx-rmove small{font-size:10px;margin-left:1px;color:var(--text-mute)}
 .sx-spark{display:block;overflow:visible}
 .sx-spark path{stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 .sx-spark.up path{stroke:var(--sx-climb)}

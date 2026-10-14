@@ -96,7 +96,7 @@ export function RecordCard({
         <span className="font-mono text-sm font-semibold tracking-[0.04em] text-foreground">{ticker}</span>
         {badge && (
           <span
-            className="rounded-[1px] border px-1.5 py-[3px] font-mono text-[9px] tracking-[0.14em]"
+            className="rounded-[1px] border px-1.5 py-[3px] font-mono text-[10px] tracking-[0.14em]"
             style={{ color: bc, borderColor: `color-mix(in srgb, ${bc} 45%, transparent)` }}
           >
             {badge}

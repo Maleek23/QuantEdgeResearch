@@ -55,8 +55,8 @@ html[data-mode=light] .nxf-pop{box-shadow:0 14px 36px rgba(15,23,42,.16)}
   .nxf-search input{font-size:16px}
   .nxf-row>.nxf-chip{order:2;height:44px;min-width:44px;padding:0 10px;font-size:13px}
   .nxf-count{order:3;margin-left:0}
-  .nxf-seg{order:4;flex:1 1 0;min-width:0}
-  .nxf-seg button{flex:1 1 0;min-width:0;height:44px;padding:0 4px;font-size:13px}
+  .nxf-seg{order:4;flex:1 1 auto;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none} /* wrap to its own line, then scroll — never clip (audit #10) */
+  .nxf-seg button{flex:1 0 auto;height:44px;padding:0 10px;font-size:13px}
   .nxf-more-l{display:none}
   .nxf-opt,.nxf-clear,.nxf-date{height:44px;font-size:14px}
   .nxr-row{padding:10px 8px;min-height:48px}

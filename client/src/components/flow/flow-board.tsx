@@ -80,7 +80,7 @@ function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; 
 
   const level = (label: string, value?: number, color = 'var(--text-mute)') => (
     <div style={{ minWidth: 92 }}>
-      <div style={{ fontSize: 8, letterSpacing: 1.1, color: 'var(--text-mute)' }}>{label}</div>
+      <div style={{ fontSize: 10, letterSpacing: 1.1, color: 'var(--text-mute)' }}>{label}</div>
       <div style={{ marginTop: 2, fontSize: 12, fontWeight: 700, color }}>{value != null && Number.isFinite(value) ? value.toFixed(2) : '—'}</div>
     </div>
   );
@@ -89,11 +89,11 @@ function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; 
     <div style={{ margin: '0 0 10px', padding: '12px 14px', border: '1px solid var(--nx-border, rgba(148,163,184,.14))', borderRadius: 8, background: 'linear-gradient(90deg, rgba(59,140,255,.055), rgba(7,12,20,.35))' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: 1.4, color: CYAN }}>INDEX 0DTE PULSE · SPX</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: 1.4, color: CYAN }}>INDEX 0DTE PULSE · SPX</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginTop: 4 }}>
             <strong style={{ fontSize: 18, color: biasColor }}>{direction.toUpperCase()}</strong>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--text)' }}>{score != null ? `${score}/100` : '—'}</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: gate === 'TRIGGERED' ? BULL : 'var(--amber)' }}>{gate}</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: gate === 'TRIGGERED' ? BULL : 'var(--amber)' }}>{gate}</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 18, overflowX: 'auto', fontFamily: "'JetBrains Mono',monospace" }}>
@@ -103,7 +103,7 @@ function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; 
           {level('UPPER 1σ', intel?.vwap?.upper1, BULL)}
           {level('KING NODE', magnet, 'var(--amber)')}
         </div>
-        <div style={{ minWidth: 180, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, lineHeight: 1.6 }}>
+        <div style={{ minWidth: 180, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, lineHeight: 1.6 }}>
           <div style={{ color: stream?.streamState === 'live' ? BULL : 'var(--amber)' }}>TAPE {stream?.streamState?.toUpperCase() ?? 'OFF'} · {stream?.printsHeld ?? 0} PRINTS</div>
           <div style={{ color: 'var(--text-mute)' }}>{scalps?.session?.isMarketOpen ? `${scalps.session.minutesToClose}m TO CLOSE` : 'SESSION CLOSED'} · {confidence}% agreement</div>
         </div>
@@ -459,7 +459,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           {/* ── market leaders — aggressor-inferred net premium, whole market ── */}
           {(leadersQ.data?.rows?.length ?? 0) > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', overflowX: 'auto', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.1))', marginBottom: 8 }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)', whiteSpace: 'nowrap' }} title="Provider-measured aggressor net premium (ask-side minus bid-side) — market-wide, ETFs excluded">
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)', whiteSpace: 'nowrap' }} title="Provider-measured aggressor net premium (ask-side minus bid-side) — market-wide, ETFs excluded">
                 Leaders · net premium
               </span>
               {leadersQ.data!.rows.slice(0, 14).map((r) => {
@@ -470,7 +470,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                     title={`${r.ticker}: net ${up ? '+' : '−'}$${(Math.abs(net) / 1e6).toFixed(1)}M aggressor premium today — click for workup`}
                     style={{ display: 'flex', gap: 5, alignItems: 'baseline', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', cursor: 'pointer', background: up ? 'rgba(52,211,153,0.07)' : 'rgba(255,107,61,0.07)', border: `1px solid ${up ? 'rgba(52,211,153,0.2)' : 'rgba(255,107,61,0.2)'}` }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, color: 'var(--text)' }}>{r.ticker}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
                   </button>
                 );
               })}

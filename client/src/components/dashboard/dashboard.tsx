@@ -84,7 +84,7 @@ class ToolBoundary extends Component<{ title: string; children: ReactNode }, { e
   componentDidCatch(err: Error, info: ErrorInfo) { console.warn('[dashboard] tool crashed', err, info.componentStack); }
   render() {
     if (this.state.err) {
-      return <QEError className="fd-m" title={`${this.props.title} hit an error`} message={`${this.state.err.message || 'It failed while drawing.'} Retry, or remove the tool and add it back.`} onRetry={() => this.setState({ err: null })} />;
+      return <QEError className="fd-m" title={`${this.props.title} hit an error`} message={<>It failed while drawing. Retry, or remove the tool and add it back.{this.state.err.message && <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer' }}>Details</summary><code style={{ wordBreak: 'break-all' }}>{this.state.err.message}</code></details>}</>} onRetry={() => this.setState({ err: null })} />;
     }
     return this.props.children;
   }
@@ -208,17 +208,6 @@ function ToolBody({ tool, flow }: { tool: PlacedTool; flow?: PageFlow }) {
   const C = def.Component;
   return (
     <div ref={ref} className={cn('fd-live', cue.up && 'more-up', cue.down && 'more-down')}>
-      {flow && (cue.down || cue.up || flow.expanded) ? (
-        <button type="button" className="fd-cue fd-expand" onClick={flow.onExpand} aria-expanded={flow.expanded}
-          aria-label={`${flow.expanded ? 'Shrink' : 'Expand'} ${def.title}`}
-          title={flow.expanded ? 'Back to the capped height' : 'Grow this tool to show everything — the page scrolls'}>
-          {flow.expanded ? '↑ show less' : '↓ expand'}
-        </button>
-      ) : cue.down && (
-        <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll down">
-          ↓ more
-        </button>
-      )}
       {live === 'live' ? (
         <ToolInstanceCtx.Provider value={tool.i}>
           <ToolBoundary title={def.title}>
@@ -231,6 +220,22 @@ function ToolBody({ tool, flow }: { tool: PlacedTool; flow?: PageFlow }) {
         <ToolSkeleton label="loads when scrolled into view" />
       ) : (
         <div className="fd-idle" role="status">Paused while off-screen. Resumes when you scroll back.</div>
+      )}
+      {/* Expand / more live in the tile's footer strip, never floating over the content (audit 2026-10-07 #14). */}
+      {((flow && (cue.down || cue.up || flow.expanded)) || cue.down) && (
+        <div className="fd-cue-foot">
+          {flow && (cue.down || cue.up || flow.expanded) ? (
+        <button type="button" className="fd-cue fd-expand" onClick={flow.onExpand} aria-expanded={flow.expanded}
+          aria-label={`${flow.expanded ? 'Shrink' : 'Expand'} ${def.title}`}
+          title={flow.expanded ? 'Back to the capped height' : 'Grow this tool to show everything — the page scrolls'}>
+          {flow.expanded ? '↑ show less' : '↓ expand'}
+        </button>
+      ) : cue.down && (
+        <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll down">
+          ↓ more
+        </button>
+      )}
+        </div>
       )}
     </div>
   );

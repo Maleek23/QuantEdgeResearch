@@ -152,7 +152,7 @@ export function HeatseekerToolbar({
                 type="button"
                 onClick={() => onModeChange('gex')}
                 className={cn(
-                  'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                  'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded transition-colors',
                   mode === 'gex'
                     ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
                     : 'text-muted-foreground hover:text-foreground'
@@ -164,7 +164,7 @@ export function HeatseekerToolbar({
                 type="button"
                 onClick={() => onModeChange('vex')}
                 className={cn(
-                  'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                  'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded transition-colors',
                   mode === 'vex'
                     ? 'bg-violet-400/15 text-violet-400'
                     : 'text-muted-foreground hover:text-foreground'
@@ -194,7 +194,7 @@ export function HeatseekerToolbar({
                 )}
                 {priceChangePct !== undefined && (
                   <span className={cn(
-                    'px-1 py-0.5 rounded text-[9px] font-bold',
+                    'px-1 py-0.5 rounded text-[10px] font-bold',
                     isUp ? 'bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)]' : 'bg-[var(--trade-bearish)]/15 text-[var(--trade-bearish)]'
                   )}>
                     ({isUp ? '+' : ''}{priceChangePct.toFixed(2)}%)
@@ -221,7 +221,7 @@ export function HeatseekerToolbar({
                   type="button"
                   onClick={() => onIntervalChange(iv)}
                   className={cn(
-                    'px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                    'px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase rounded transition-colors',
                     interval === iv
                       ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
                       : 'text-muted-foreground hover:text-muted-foreground'

@@ -225,23 +225,23 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           {/* Header bar — spot, contract, Greeks summary */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px] font-mono px-2 py-2 rounded bg-muted/20 border border-border/20">
             <div>
-              <div className="text-muted-foreground uppercase text-[9px]">Spot</div>
+              <div className="text-muted-foreground uppercase text-[10px]">Spot</div>
               <div className="text-foreground font-bold">${analysis.spotAtAnalysis.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-muted-foreground uppercase text-[9px]">Contract Mid</div>
+              <div className="text-muted-foreground uppercase text-[10px]">Contract Mid</div>
               <div className="text-foreground font-bold">${analysis.contractMid?.toFixed(2) ?? '—'}</div>
             </div>
             <div>
-              <div className="text-muted-foreground uppercase text-[9px]">Delta</div>
+              <div className="text-muted-foreground uppercase text-[10px]">Delta</div>
               <div className="text-foreground">{analysis.delta?.toFixed(2) ?? '—'}</div>
             </div>
             <div>
-              <div className="text-muted-foreground uppercase text-[9px]">Theta/day</div>
+              <div className="text-muted-foreground uppercase text-[10px]">Theta/day</div>
               <div className="text-foreground">-${Math.abs(analysis.theta ?? 0).toFixed(3)}</div>
             </div>
             <div>
-              <div className="text-muted-foreground uppercase text-[9px]">IV</div>
+              <div className="text-muted-foreground uppercase text-[10px]">IV</div>
               <div className="text-foreground">{((analysis.iv ?? 0) * 100).toFixed(0)}%</div>
             </div>
           </div>
@@ -403,35 +403,35 @@ function SuggestionCard({ s, symbol, onReanalyze }: {
     >
       {/* Tier + grade row */}
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`text-[9px] font-mono uppercase tracking-wider ${t.accent}`}>{t.label}</span>
+        <span className={`text-[10px] font-mono uppercase tracking-wider ${t.accent}`}>{t.label}</span>
         <GradePill grade={s.grade} />
       </div>
       {/* Strike · expiry · DTE · delta */}
       <div className="text-[13px] font-mono font-bold text-foreground">
         ${s.strike}{cp}
       </div>
-      <div className="text-[9px] font-mono text-muted-foreground mb-2">
+      <div className="text-[10px] font-mono text-muted-foreground mb-2">
         {fmtExpiry(s.expiry)} · {s.dte}DTE · Δ{s.delta.toFixed(2)} · ${s.entryPremium.toFixed(2)}
       </div>
       {/* Metrics grid */}
-      <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
+      <div className="grid grid-cols-3 gap-1.5 text-[10px] font-mono">
         <div>
-          <div className="text-muted-foreground uppercase text-[9px]">ROI@T1</div>
+          <div className="text-muted-foreground uppercase text-[10px]">ROI@T1</div>
           <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}`}>
             {s.roiAtT1Pct >= 0 ? '+' : ''}{s.roiAtT1Pct.toFixed(0)}%
           </div>
         </div>
         <div>
-          <div className="text-muted-foreground uppercase text-[9px]">R:R</div>
+          <div className="text-muted-foreground uppercase text-[10px]">R:R</div>
           <div className="font-bold text-foreground">{s.riskRewardRatio.toFixed(1)}x</div>
         </div>
         <div>
-          <div className="text-muted-foreground uppercase text-[9px]">BE</div>
+          <div className="text-muted-foreground uppercase text-[10px]">BE</div>
           <div className="font-bold text-foreground">${s.breakeven.toFixed(2)}</div>
         </div>
       </div>
       {s.rationale && (
-        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground leading-snug line-clamp-2">
+        <div className="mt-1.5 text-[10px] font-mono text-muted-foreground leading-snug line-clamp-2">
           {s.rationale}
         </div>
       )}
@@ -446,7 +446,7 @@ function PlanBox({ label, value, color }: { label: string; value: string; color:
     'text-foreground';
   return (
     <div className="px-2 py-1.5 rounded bg-muted/20 border border-border/20">
-      <div className="text-[9px] font-mono uppercase text-muted-foreground">{label}</div>
+      <div className="text-[10px] font-mono uppercase text-muted-foreground">{label}</div>
       <div className={`text-[11px] font-mono font-bold ${colorClass}`}>{value}</div>
     </div>
   );

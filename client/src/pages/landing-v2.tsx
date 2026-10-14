@@ -23,6 +23,7 @@
  * no profit or win-rate claims beyond the verified record; educational, not advice.
  * Styles: styles/landing-v2.css (dark-first, light equally finished).
  */
+import { SITE_DOMAIN, SUPPORT_EMAIL } from '@shared/site';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import '@/styles/nexus.css';
@@ -32,7 +33,7 @@ import { RealFrame, DESK_ROUTE, type RealDesk } from '@/components/landing/real-
 import DeskTour, { showDesk } from '@/components/landing/desk-tour';
 import { StatStrip, Findings, DataSources, AmbientGrid, useScrollReveal } from '@/components/landing/landing-proof';
 import { AnnouncementBar, LandingNav, CommandPalette, useCmdK } from '@/components/landing/landing-chrome';
-import { CHECKOUT_LIVE, PLANS, annualSavingsPct, type PricingPlan } from '@shared/pricing';
+import { CHECKOUT_LIVE, PLANS, PRICING_FINE_PRINT, annualSavingsPct, type PricingPlan } from '@shared/pricing';
 import { LANDING_FAQ } from '@shared/landing-faq';
 import { SEOHead } from '@/components/seo-head';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,7 +75,7 @@ const FEATURES: Array<{ id: string; eyebrow: string; title: string; body: string
 // answers as FAQPage JSON-LD on `/`, so the visible text and the schema match.
 const FAQ: [string, React.ReactNode][] = LANDING_FAQ.map(({ id, q, a }) => [q,
   id === 'cost'
-    ? <>QuantEdge is an invite-only beta. There is a Free plan with delayed data and limits; Advanced unlocks full access, still on delayed data with its age shown on every tile. Licensed real-time data is the Pro plan, coming soon — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>
+    ? <>QuantEdge is an invite-only beta. There is a Free plan with delayed data and limits; Advanced unlocks full access, still on delayed data with its age shown on every tile. Licensed real-time data is the Pro plan, coming soon — see <a href="#pricing">Pricing</a>. {CHECKOUT_LIVE ? <>Paid plans renew automatically each month or year until you cancel; cancel anytime by emailing <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</> : <>Paid plans are not on sale yet, so nothing is charged during the beta. Questions: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</>}</>
     : id === 'invite'
       ? <>{a.replace(/ Join the waitlist on the sign-up page\.$/, ' ')}<Link href="/signup">Join the waitlist on the sign-up page.</Link></>
       : a]);
@@ -216,7 +217,7 @@ function Pricing() {
           {PLANS.map((p) => <PlanCard key={p.id} plan={p} yearly={yearly} current={tier === p.id} busy={busy === p.id} onUpgrade={() => upgrade(p)} />)}
         </div>
         {err && <p className="lv2-err" role="alert">{err}</p>}
-        <p className="lv2-fine center">Paid plans renew automatically at the listed price each month or year until cancelled; cancel anytime by emailing support@quantedgelabs.net. Educational research only — not investment advice. Past performance does not guarantee future results.</p>
+        <p className="lv2-fine center">{PRICING_FINE_PRINT}</p>
       </div>
     </section>
   );
@@ -269,7 +270,7 @@ export default function LandingV2() {
           </div>
           <div className="lv2-wrap">
             <figure className="lv2-device" aria-label="NEXUS, the QuantEdge trading desk — the real app on sample data">
-              <div className="lp-frame-bar" aria-hidden="true"><span className="lp-dots"><i /><i /><i /></span><span className="lp-url">quantedgelabs.net/t</span></div>
+              <div className="lp-frame-bar" aria-hidden="true"><span className="lp-dots"><i /><i /><i /></span><span className="lp-url">{SITE_DOMAIN}/t</span></div>
               <div className="lv2-device-stage"><RealFrame desk="nexus" eager /></div>
               <span className="dk-badge">Sample data</span>
             </figure>
@@ -341,7 +342,7 @@ export default function LandingV2() {
             <header className="lv2-head">
               <p className="lv2-eyebrow">FAQ</p>
               <h2 id="lv2-faq-title">Questions, answered plainly.</h2>
-              <p className="lv2-lede">Still unsure? Ask in <a href={DISCORD_INVITE_URL ?? '/signup'} target={DISCORD_INVITE_URL ? '_blank' : undefined} rel="noopener noreferrer">the Discord</a> or email <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</p>
+              <p className="lv2-lede">Still unsure? Ask in <a href={DISCORD_INVITE_URL ?? '/signup'} target={DISCORD_INVITE_URL ? '_blank' : undefined} rel="noopener noreferrer">the Discord</a> or email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
             </header>
             <div className="lv2-faq-list">
               {FAQ.map(([q, a], i) => (

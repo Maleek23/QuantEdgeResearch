@@ -1,3 +1,4 @@
+import { SITE_URL } from '@shared/site';
 import { PUBLIC_PAGE_META } from "@shared/public-seo";
 export interface SEOMetadata {
   title: string;
@@ -205,7 +206,7 @@ export function generateBlogPostSEO(title: string, excerpt: string, slug: string
     description: excerpt.slice(0, 160),
     ogTitle: title,
     ogDescription: excerpt.slice(0, 160),
-    canonical: `https://quantedgelabs.net/blog/${slug}`,
+    canonical: `${SITE_URL}/blog/${slug}`,
     keywords: [
       "quantitative trading",
       "stock analysis",

@@ -106,7 +106,7 @@ export default function SetupAccount() {
           )}
           {!info && linkError && (
             <div className="text-center">
-              <Link href="/login"><Button variant="outline"><ArrowLeft className="h-4 w-4 mr-2" />Go to sign in</Button></Link>
+              <Button asChild variant="outline" className="min-h-[44px]"><Link href="/login"><ArrowLeft className="h-4 w-4 mr-2" />Go to sign in</Link></Button>
             </div>
           )}
         </CardContent>

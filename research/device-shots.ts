@@ -18,7 +18,7 @@ import { createRequire } from 'node:module';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const LABEL = process.argv[2] || 'shots';
-const OUT = path.join(ROOT, 'docs', 'screens', 'devices', LABEL);
+const OUT = process.env.SHOTS_OUT ? path.resolve(ROOT, process.env.SHOTS_OUT, LABEL) : path.join(ROOT, 'docs', 'screens', 'devices', LABEL);
 const BASE = process.env.SHOTS_BASE || 'http://127.0.0.1:5179';
 
 export const PAGES: Array<{ slug: string; path: string; admin?: boolean; out?: boolean }> = [
@@ -46,6 +46,20 @@ export const PAGES: Array<{ slug: string; path: string; admin?: boolean; out?: b
   { slug: 'signup', path: '/signup', out: true },
   { slug: 'login', path: '/login', out: true },
   { slug: 'how-to', path: '/how-to' },
+  { slug: 'swings', path: '/swings' },
+  { slug: 'ask', path: '/ask' },
+  { slug: 'desk', path: '/desk' },
+  { slug: 'desk-slug', path: '/desk/mine' },
+  { slug: 'trader-setup', path: '/trader-setup' },
+  { slug: 'admin-traders', path: '/admin/traders', admin: true },
+  { slug: 'admin-waitlist', path: '/admin/waitlist', admin: true },
+  { slug: 'admin-roadmap', path: '/admin/roadmap', admin: true },
+  { slug: 'admin-learning', path: '/admin/learning', admin: true },
+  { slug: 'admin-system', path: '/admin/system', admin: true },
+  { slug: 'updates', path: '/updates', out: true },
+  { slug: 'join-beta', path: '/join-beta', out: true },
+  { slug: 'terms', path: '/terms', out: true },
+  { slug: 'privacy', path: '/privacy', out: true },
 ];
 const SIZES = [
   { w: 360, h: 780, phone: true },
@@ -53,6 +67,7 @@ const SIZES = [
   { w: 390, h: 844, phone: true },
   { w: 768, h: 1024, phone: false, touch: true },
   { w: 1366, h: 768, phone: false },
+  { w: 1440, h: 900, phone: false },
 ];
 
 function loadPlaywright(): any {

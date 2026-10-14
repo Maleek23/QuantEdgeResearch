@@ -37,6 +37,7 @@ import type { LivePoint, SectorLive } from '@shared/sector-board-live';
 import { RotationIdeasPanel } from '@/components/sectors/rotation-ideas';
 import '@/styles/nexus.css';
 import '@/styles/sectors.css';
+import { rankMover } from '@shared/rank-move';
 
 // ─── payloads ────────────────────────────────────────────────────────────
 
@@ -205,8 +206,9 @@ export default function SectorsPage() {
 
 function HeroStats({ data, onOpen }: { data: BoardPayload; onOpen: (id: string) => void }) {
   const top = data.sectors.filter((s) => s.rank != null).slice(0, 3);
-  const climber = data.sectors.find((s) => s.id === data.climbers[0]);
-  const slider = data.sectors.find((s) => s.id === data.sliders[0]);
+  // A climb / slide needs a real rank change (shared/rank-move.ts) — never "#1 → #1".
+  const climber = rankMover(data.sectors, data.climbers, 'climb');
+  const slider = rankMover(data.sectors, data.sliders, 'slide');
   const confirms = data.sectors.filter((s) => s.overnight.flag === 'confirms').length;
   const fights = data.sectors.filter((s) => s.overnight.flag === 'fights').length;
   return (

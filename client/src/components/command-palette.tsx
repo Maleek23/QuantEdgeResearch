@@ -208,7 +208,7 @@ export function CommandPalette({ defaultOpen = false }: { defaultOpen?: boolean 
                 {t.hint && (
                   <span className="ml-2 text-[10px] text-muted-foreground">{t.hint}</span>
                 )}
-                <span className="ml-auto text-[9px] font-mono text-muted-foreground">
+                <span className="ml-auto text-[10px] font-mono text-muted-foreground">
                   ⌘{i + 1}
                 </span>
               </CommandItem>
@@ -257,7 +257,7 @@ export function CommandPalette({ defaultOpen = false }: { defaultOpen?: boolean 
                   {result.changePct >= 0 ? '+' : ''}{result.changePct.toFixed(2)}%
                 </span>
               )}
-              <span className="ml-auto text-[9px] font-mono text-muted-foreground">/r/{sym}</span>
+              <span className="ml-auto text-[10px] font-mono text-muted-foreground">/r/{sym}</span>
               <WatchStar sym={sym} size={12} />
             </CommandItem>
           )})}

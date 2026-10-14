@@ -34,6 +34,7 @@ import {
   exposureStrength, fmtGexB, fmtVexM, LEVEL_COLORS, rampColor, rampGradient, rampInk,
 } from './gex-colors';
 import { GxPop } from './gex-pop';
+import { snapshotDayNote } from '@shared/snapshot-day';
 
 /** 'gexAdj' = Δ-adjusted GEX (docs/GAMMA_RAW_VS_ADJUSTED.md) — same unit as 'gex'. */
 export type Metric = 'gex' | 'gexAdj' | 'vex';
@@ -375,7 +376,10 @@ export function GexStrikeMatrix({
   strikeBand,
   leading,
   spotInToolbar = true,
+  snapshotAt,
 }: {
+  /** chain snapshot time — when not today (ET) the grid says DTE is counted from that day */
+  snapshotAt?: string | number | null;
   /** every listed cell for the symbol (all expiries) — shares are of this book */
   cells: StrikeExpiryCell[];
   /** columns to show: [dte, label], ascending */
@@ -569,6 +573,7 @@ export function GexStrikeMatrix({
     </div>
   );
 
+  const snapNote = snapshotDayNote(snapshotAt ?? null);
   if (!model.strikes.length) {
     return (
       <div className="gx-wrap">
@@ -641,6 +646,7 @@ export function GexStrikeMatrix({
       }}
     >
       {toolbar}
+      {snapNote && <div className="gx-snap-note" role="note" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--amber)' }}>{snapNote}</div>}
       <div
         ref={setRef}
         className="gx-scroll"

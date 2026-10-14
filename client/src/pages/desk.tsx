@@ -51,7 +51,11 @@ export default function DeskPortal() {
   if (!role.enabled) {
     return (
       <LuxPage>
-        <LuxPageHeader section="Desk" title="Desk portals are off" purpose="The platform admin turns desk portals on (DESK_ADMINS)." />
+        <LuxPageHeader section="Desk" title="Desk pages aren’t open yet" purpose="Trader desk pages haven’t been switched on for this account. Your journal and the rest of the terminal work as usual." />
+        <div className="ah-acts" style={{ justifyContent: 'flex-start' }}>
+          <LuxButton onClick={() => setLocation('/today')}>Back to Today</LuxButton>
+          <LuxButton onClick={() => setLocation('/t?tab=journal')}>Open your journal</LuxButton>
+        </div>
       </LuxPage>
     );
   }
@@ -59,13 +63,19 @@ export default function DeskPortal() {
     return (
       <LuxPage>
         <LuxPageHeader section="Desk" title={role.isSuperAdmin ? 'Pick a desk' : 'You do not run a desk'}
-          purpose={role.isSuperAdmin ? 'Every trader book has a desk. Open one to see and manage it.' : 'Malik links your account to your trader book. Ask him, then reload.'} />
+          purpose={role.isSuperAdmin ? 'Every trader book has a desk. Open one to see and manage it.' : 'An admin links your account to your trader book. Ask the desk admin, then reload.'} />
         {role.isSuperAdmin && (
           <LuxPanel title="Desks">
             <div className="ah-acts" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               {role.desks.map((d) => <LuxButton key={d.slug} onClick={() => setLocation(`/desk/${d.slug}`)}>{d.name}</LuxButton>)}
             </div>
           </LuxPanel>
+        )}
+        {!role.isSuperAdmin && (
+          <div className="ah-acts" style={{ justifyContent: 'flex-start' }}>
+            <LuxButton onClick={() => window.location.reload()}>Reload</LuxButton>
+            <LuxButton onClick={() => setLocation('/t?tab=journal')}>Open your journal</LuxButton>
+          </div>
         )}
       </LuxPage>
     );
@@ -79,7 +89,7 @@ function Desk({ slug, superAdmin, desks }: { slug: string; superAdmin: boolean; 
   if (ov.isError) {
     return (
       <LuxPage>
-        <QEError title="This desk didn't load" message={/403/.test((ov.error as Error)?.message ?? '') ? 'This is not your desk.' : (ov.error as Error)?.message ?? ''} onRetry={() => void ov.refetch()} />
+        <QEError title="This desk didn't load" message={/403/.test((ov.error as Error)?.message ?? '') ? 'This is not your desk — you can only open the desk linked to your account.' : 'The desk server didn’t answer. Retry in a moment.'} onRetry={() => void ov.refetch()} />
       </LuxPage>
     );
   }

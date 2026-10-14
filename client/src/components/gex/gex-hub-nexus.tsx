@@ -224,13 +224,13 @@ export function GexHubNexus() {
                 <div style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', marginTop: 2 }}>
                   {reg.posture}
                 </div>
-                <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', marginTop: 2, fontFamily: "'JetBrains Mono',monospace" }}>
+                <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', marginTop: 2, fontFamily: "'JetBrains Mono',monospace" }}>
                   {reg.basis} · all listed expiries
                 </div>
               </div>
               <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                 {spot ? `$${spot.toFixed(2)}` : '—'}
-                <span style={{ display: 'block', fontSize: 'var(--fs-9, 9px)', marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 'var(--fs-9, 10px)', marginTop: 2 }}>
                   {snap.putWall != null && snap.callWall != null
                     ? (spot > snap.putWall && spot < snap.callWall
                       ? `inside $${Math.round(snap.putWall)}–$${Math.round(snap.callWall)}`
@@ -299,7 +299,7 @@ export function GexHubNexus() {
                 {(['gex', 'vex'] as const).map((m) => (
                   <button key={m} onClick={() => setRankMode(m)}
                     title={m === 'gex' ? 'Order by the scanner play score; badge shows the gamma regime' : 'Order by |net VEX| ($ per 1 IV point); badge shows its sign'}
-                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'color-mix(in srgb, var(--amber) 15%, transparent)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' : '1px solid var(--nx-border)' }}>
+                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 10px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'color-mix(in srgb, var(--amber) 15%, transparent)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' : '1px solid var(--nx-border)' }}>
                     {m}
                   </button>
                 ))}
@@ -385,7 +385,7 @@ export function GexHubNexus() {
               {WORKSPACES.map((w) => (
                 <button key={w.id} className={`view-btn${workspace === w.id ? ' active' : ''}`} style={{ background: workspace === w.id ? undefined : 'transparent', border: 'none', display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.15, gap: 1 }} onClick={() => setWorkspace(w.id)} title={`${w.label} — ${w.hint}`}>
                   <span>{w.label.toUpperCase()}</span>
-                  <span style={{ fontSize: 'var(--fs-9, 9px)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, opacity: 0.7 }}>{w.hint}</span>
+                  <span style={{ fontSize: 'var(--fs-9, 10px)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, opacity: 0.7 }}>{w.hint}</span>
                 </button>
               ))}
             </div>
@@ -546,7 +546,7 @@ export function GexHubNexus() {
           <div className="context-card">
             <div className="context-head">
               <div className="context-label">Key levels</div>
-              <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
+              <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
             </div>
             <div className="context-grid">
               <div className="context-item">
@@ -585,7 +585,7 @@ export function GexHubNexus() {
             <div className="context-card" title="Net GEX re-priced at hypothetical spots (every contract's gamma recomputed at each price, IV held). Where the curve crosses zero is the zero-gamma level.">
               <div className="context-head">
                 <div className="context-label">Gamma profile · if spot moved</div>
-                <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>net GEX $/1% vs price, ±20%</div>
+                <div style={{ fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>net GEX $/1% vs price, ±20%</div>
               </div>
               <GammaProfileChart snap={snap} spot={spot} zeroGamma={zeroGamma} />
             </div>

@@ -491,16 +491,16 @@ export function RotationMap({
                       {active.etf}
                     </span>
                     <span
-                      className="font-mono text-[9px] uppercase tracking-wider"
+                      className="font-mono text-[10px] uppercase tracking-wider"
                       style={{ color: tone }}
                     >
                       {QUAD[active.quad].label}
                     </span>
                   </div>
-                  <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                  <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                     {active.sector.name}
                   </div>
-                  <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[9px] tabular-nums text-muted-foreground">
+                  <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[10px] tabular-nums text-muted-foreground">
                     <span>
                       RS{" "}
                       <b className="font-semibold" style={{ color: tone }}>
@@ -703,7 +703,7 @@ function RotationTape({
               fill={tone}
             />
           </svg>
-          <div className="mt-1 flex items-center justify-between font-mono text-[9px] tabular-nums text-muted-foreground">
+          <div className="mt-1 flex items-center justify-between font-mono text-[10px] tabular-nums text-muted-foreground">
             <span>{tapeDate(points[0]?.at)}</span>
             <span>15m bars · includes post &amp; pre-market</span>
             <span>{tapeDate(latest?.at)}</span>

@@ -13,7 +13,8 @@ import { LANDING_FAQ } from '@shared/landing-faq';
 import { PUBLIC_PAGE_META as M } from '@shared/public-seo';
 import { PLANS } from '../shared/pricing';
 
-export const SITE_URL = 'https://quantedgelabs.net';
+export { SITE_URL } from '@shared/site';
+import { SITE_URL, SUPPORT_EMAIL } from '@shared/site';
 export const BRAND = 'QuantEdge Labs';
 
 export type SeoRoute = {
@@ -42,7 +43,7 @@ const organizationSchema = {
   url: SITE_URL,
   logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png`, width: 512, height: 512 },
   description: 'QuantEdge Labs builds QuantEdge, a trading research terminal for stocks, options and crypto.',
-  email: 'support@quantedgelabs.net',
+  email: SUPPORT_EMAIL,
   founder: { '@id': FOUNDER_ID },
   // TODO(operator): add the company's X/Twitter and LinkedIn page URLs when they exist.
   sameAs: ['https://discord.gg/ppjjxVfsc'],

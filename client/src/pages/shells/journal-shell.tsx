@@ -209,7 +209,7 @@ export default function JournalShell() {
         message={
           journalKey === 'mine' ? <>Your journal is empty. Import a broker CSV, connect Alpaca, or log a trade and the dashboard, calendar and reports fill in from your real fills.</>
           : journalKey === 'bot' ? <>Quantinum Bot's paper ledger has no positions yet{data.meta?.basis ? <> — {data.meta.basis}</> : null}.</>
-          : journalKey === 'desk' ? <>No published idea since the clean-era baseline could be scored as a trade{excluded ? ` (${excluded} held but not scorable — see the basis line)` : ''}.</>
+          : journalKey === 'desk' ? <>No desk ideas to show yet. Ideas appear here once they have a recorded entry and exit{excluded ? ` — ${excluded} are still waiting for one` : ''}.</>
           : <>{bookLabel}'s journal is empty.{canWrite ? ' Log a trade for them, or import a broker CSV.' : ` Only an admin or ${bookLabel} can add to it.`}</>
         }
         action={canWrite ? (
