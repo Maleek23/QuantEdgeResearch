@@ -97,6 +97,10 @@
 @media (max-width: 767px), (pointer: coarse) {
   .ah-check { min-height: 44px; }
   .ah-check input[type='checkbox'] { width: 22px; height: 22px; }
+  /* every admin checkbox / field reaches the touch floor, not just .ah-check rows */
+  .ah-root input[type='checkbox'] { width: 22px; height: 22px; margin: 11px; }
+  .ah-root .ah-input, .ah-root .ah-select, .ah-root input[type='text'], .ah-root input[type='email'], .ah-root input[type='search'] { min-height: 44px; }
+  .ah-root textarea.ah-input { min-height: 88px; }
 }
 /* untruncated: selects take the row width, status tags wrap instead of clipping (audit #18) */
 .ah-stack select { max-width: 100%; min-width: 0; }

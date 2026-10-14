@@ -178,7 +178,7 @@ export default function TraderSetup() {
           )}
 
           <div className="text-center pt-2">
-            <Link href="/login"><Button variant="outline" size="sm"><ArrowLeft className="h-4 w-4 mr-2" />Back to sign in</Button></Link>
+            <Button asChild variant="outline" size="sm" className="min-h-[44px]"><Link href="/login"><ArrowLeft className="h-4 w-4 mr-2" />Back to sign in</Link></Button>
           </div>
         </CardContent>
       </Card>
