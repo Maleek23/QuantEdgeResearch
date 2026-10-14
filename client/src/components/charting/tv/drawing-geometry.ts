@@ -15,43 +15,28 @@
  *   - Hit-testing is done in PIXEL space on the projected points.
  */
 
-export type DrawTool =
-  | 'trend' | 'ray' | 'hline' | 'hray' | 'vline' | 'rect' | 'channel'
-  | 'fib' | 'text' | 'arrow' | 'measure' | 'brush';
-export type ToolId = 'cursor' | DrawTool;
+import type { Anchor, ColorRole, DashStyle, Drawing, DrawTool } from '@shared/chart-drawings';
+import { sizeForRisk, DEFAULT_RISK_DOLLARS } from '@shared/position-sizing';
 
-/** Palette ROLES, resolved per visual mode at draw time — never a hex. */
-export type ColorRole = 'accent' | 'gain' | 'loss' | 'caution' | 'marker' | 'info' | 'text' | 'dim';
-export const COLOR_ROLES: ColorRole[] = ['accent', 'info', 'gain', 'loss', 'caution', 'marker', 'text', 'dim'];
-export const LINE_WIDTHS = [1, 2, 3, 4] as const;
-export type LineWidth = (typeof LINE_WIDTHS)[number];
-
-export interface Anchor { t: number; p: number }
-
-export interface Drawing {
-  id: string;
-  tool: DrawTool;
-  pts: Anchor[];
-  color: ColorRole;
-  width: LineWidth;
-  /** text tool: the label. */
-  text?: string;
-  /** arrow tool: which way the marker points. */
-  dir?: 'up' | 'down';
-  locked?: boolean;
-  hidden?: boolean;
-}
-
-/** Anchors each tool takes. 0 = freehand (brush: press, drag, release). */
-export const TOOL_POINTS: Record<DrawTool, number> = {
-  trend: 2, ray: 2, hline: 1, hray: 1, vline: 1, rect: 2, channel: 3,
-  fib: 2, text: 1, arrow: 1, measure: 2, brush: 0,
-};
+export type { Anchor, ColorRole, DashStyle, Drawing, DrawTool, LineWidth, ToolId, DrawingAlert } from '@shared/chart-drawings';
+export { COLOR_ROLES, LINE_WIDTHS, DASH_STYLES, FILL_STEPS, TOOL_POINTS, ALERTABLE } from '@shared/chart-drawings';
 
 export const DEFAULT_TOOL_COLOR: Record<DrawTool, ColorRole> = {
-  trend: 'accent', ray: 'accent', hline: 'caution', hray: 'caution', vline: 'dim', rect: 'info',
-  channel: 'accent', fib: 'marker', text: 'text', arrow: 'caution', measure: 'info', brush: 'marker',
+  trend: 'accent', ray: 'accent', extended: 'accent', hline: 'caution', hray: 'caution', vline: 'dim', rect: 'info',
+  channel: 'accent', fib: 'marker', fibext: 'marker', text: 'text', arrow: 'caution', measure: 'info', brush: 'marker',
+  long: 'gain', short: 'loss', pricelabel: 'info',
 };
+
+/** Default fill opacity per area tool (a drawing's own `fill` overrides). */
+export const DEFAULT_FILL: Partial<Record<DrawTool, number>> = { rect: 0.12, channel: 0.08, fib: 0.08, fibext: 0.06, measure: 0.14, long: 0.16, short: 0.16 };
+export const fillOf = (d: Drawing): number => d.fill ?? DEFAULT_FILL[d.tool] ?? 0;
+
+/** Canvas dash pattern for a style at a line width. */
+export function dashPattern(dash: DashStyle | undefined, width: number): number[] {
+  if (dash === 'dashed') return [6 + width * 2, 4 + width];
+  if (dash === 'dotted') return [Math.max(1, width), 3 + width];
+  return [];
+}
 
 /* ───────────────────────── time ↔ logical index ───────────────────────── */
 
@@ -274,6 +259,31 @@ function hitTestWith(pr: Projected, x: number, y: number, w: number, h: number, 
       return a && b && distToSegment(p, a, b) <= tol ? body : null;
     case 'ray':
       return a && b && distToSegment(p, a, rayEnd(a, b, w, h)) <= tol ? body : null;
+    case 'extended': {
+      if (!a || !b) return null;
+      const [e1, e2] = extendedEnds(a, b, w, h);
+      return distToSegment(p, e1, e2) <= tol ? body : null;
+    }
+    case 'fibext': {
+      if (!a || !b) return null;
+      const c = pts[2] ?? b;
+      const x1 = Math.min(a.x, b.x, c.x) - tol; const x2 = Math.max(a.x, b.x, c.x) + 80;
+      if (x < x1 || x > x2) return null;
+      const ys = pr.extra?.levelYs ?? [];
+      return ys.some((ly) => Math.abs(ly - y) <= tol) || distToSegment(p, a, b) <= tol || distToSegment(p, b, c) <= tol ? body : null;
+    }
+    case 'long':
+    case 'short': {
+      if (!a || !b) return null;
+      const s = pts[2] ?? b;
+      const top = Math.min(b.y, s.y, a.y); const bot = Math.max(b.y, s.y, a.y);
+      return x >= Math.min(a.x, b.x) - tol && x <= Math.max(a.x, b.x) + tol && y >= top - tol && y <= bot + tol ? body : null;
+    }
+    case 'pricelabel': {
+      if (!a) return null;
+      const tw = pr.extra?.textW ?? 70;
+      return x >= a.x - tol && x <= a.x + 14 + tw + tol && y >= a.y - 26 - tol && y <= a.y + tol ? body : null;
+    }
     case 'hline':
       return a && Math.abs(y - a.y) <= tol ? body : null;
     case 'hray':
@@ -352,9 +362,190 @@ export function translate(d: Drawing, dt: number, dp: number): Drawing {
   return { ...d, pts: d.pts.map((a) => ({ t: a.t + dt, p: a.p + dp })) };
 }
 
-/** Replace one anchor. */
+/** Replace one anchor. Position tools keep target and stop on one right edge. */
 export function moveAnchor(d: Drawing, index: number, to: Anchor): Drawing {
+  if ((d.tool === 'long' || d.tool === 'short') && d.pts.length >= 3 && index > 0) {
+    return { ...d, pts: d.pts.map((a, i) => (i === index ? to : i === 0 ? a : { t: to.t, p: a.p })) };
+  }
   return { ...d, pts: d.pts.map((a, i) => (i === index ? to : a)) };
+}
+
+/* ───────────────────────── extended line ───────────────────────── */
+
+/** Both viewport exits of the infinite line through a and b. */
+export function extendedEnds(a: Pt, b: Pt, w: number, h: number): [Pt, Pt] {
+  if (a.x === b.x && a.y === b.y) return [a, b];
+  return [rayEnd(b, a, w, h), rayEnd(a, b, w, h)];
+}
+
+/* ───────────────────────── Fibonacci extension ───────────────────────── */
+
+export const FIB_EXT_RATIOS = [0, 0.382, 0.618, 1, 1.272, 1.618, 2, 2.618] as const;
+
+/**
+ * Trend-based Fib extension (TradingView): swing a→b, retrace to c; level r
+ * sits at c + (b − a)·r, so 1 projects the full first leg from the pullback.
+ */
+export function fibExtLevels(a: number, b: number, c: number, ratios: readonly number[] = FIB_EXT_RATIOS): { ratio: number; price: number }[] {
+  return ratios.map((ratio) => ({ ratio, price: c + (b - a) * ratio }));
+}
+
+/* ───────────────────────── position (long / short) ───────────────────────── */
+
+export interface PositionStats {
+  side: 'long' | 'short';
+  entry: number; target: number; stop: number;
+  /** reward ÷ risk; null when risk is zero or the stop is on the wrong side. */
+  rr: number | null;
+  riskPer: number; rewardPer: number;
+  stopPct: number; targetPct: number;
+  /** Size at the risk budget (shared/position-sizing.ts — the desk's equal-risk rule). */
+  qty: number | null; riskDollars: number | null; rewardDollars: number | null; notional: number | null;
+  budget: number;
+  /** stop above entry on a long (or below on a short), or target the wrong way. */
+  invalid: string | null;
+}
+
+export function positionStats(d: Pick<Drawing, 'tool' | 'pts' | 'risk'>, budget = d.risk ?? DEFAULT_RISK_DOLLARS): PositionStats | null {
+  if ((d.tool !== 'long' && d.tool !== 'short') || d.pts.length < 3) return null;
+  const side = d.tool;
+  const entry = d.pts[0].p; const target = d.pts[1].p; const stop = d.pts[2].p;
+  const dir = side === 'long' ? 1 : -1;
+  const riskPer = (entry - stop) * dir;
+  const rewardPer = (target - entry) * dir;
+  const invalid = riskPer <= 0 ? `stop is ${side === 'long' ? 'above' : 'below'} the entry` : rewardPer <= 0 ? `target is ${side === 'long' ? 'below' : 'above'} the entry` : null;
+  const sized = riskPer > 0 ? sizeForRisk({ assetType: 'stock', entry, stop }, budget) : null;
+  const qty = sized && sized.ok ? sized.qty : null;
+  return {
+    side, entry, target, stop,
+    rr: riskPer > 0 ? rewardPer / riskPer : null,
+    riskPer, rewardPer,
+    stopPct: entry ? ((stop - entry) / entry) * 100 : 0,
+    targetPct: entry ? ((target - entry) / entry) * 100 : 0,
+    qty,
+    riskDollars: qty != null ? qty * Math.abs(riskPer) : null,
+    rewardDollars: qty != null ? qty * rewardPer : null,
+    notional: qty != null ? qty * entry : null,
+    budget,
+    invalid,
+  };
+}
+
+/**
+ * A new position drawn at `entry`: stop one `riskDist` away (the caller passes
+ * ~1.5× the recent average bar range), target at 2R, right edge `spanMs` later.
+ */
+export function newPositionAnchors(side: 'long' | 'short', entry: Anchor, riskDist: number, spanMs: number): Anchor[] {
+  const dir = side === 'long' ? 1 : -1;
+  const r = riskDist > 0 ? riskDist : Math.abs(entry.p) * 0.01 || 1;
+  return [
+    { t: entry.t, p: entry.p },
+    { t: entry.t + spanMs, p: entry.p + dir * 2 * r },
+    { t: entry.t + spanMs, p: entry.p - dir * r },
+  ];
+}
+
+/** Live P&L of a position at `price` (per share and at the size), or null. */
+export function positionPnl(s: PositionStats, price: number): { per: number; dollars: number | null; r: number | null } {
+  const per = (price - s.entry) * (s.side === 'long' ? 1 : -1);
+  return { per, dollars: s.qty != null ? per * s.qty : null, r: s.riskPer > 0 ? per / s.riskPer : null };
+}
+
+/* ───────────────────────── snapping to levels ───────────────────────── */
+
+export interface SnapLevel { price: number; label: string }
+
+/**
+ * Snap a price to the nearest level (GEX walls, zero-γ, Apex node, key levels)
+ * when it sits within `maxPx` pixels on screen. Returns the level used, if any.
+ */
+export function snapToLevels(price: number, y: number, levels: readonly SnapLevel[], priceToY: (p: number) => number | null, maxPx: number): { price: number; level: SnapLevel | null } {
+  let best: SnapLevel | null = null; let bestD = maxPx;
+  for (const l of levels) {
+    const ly = priceToY(l.price);
+    if (ly == null) continue;
+    const d = Math.abs(ly - y);
+    if (d <= bestD) { bestD = d; best = l; }
+  }
+  return best ? { price: best.price, level: best } : { price, level: null };
+}
+
+/** The level nearest a price (by distance in price), e.g. "alert on nearest node". */
+export function nearestLevel(price: number, levels: readonly SnapLevel[]): SnapLevel | null {
+  let best: SnapLevel | null = null; let bestD = Infinity;
+  for (const l of levels) {
+    const d = Math.abs(l.price - price);
+    if (Number.isFinite(d) && d < bestD) { bestD = d; best = l; }
+  }
+  return best;
+}
+
+/* ───────────────────────── set operations ───────────────────────── */
+
+/**
+ * Copies of the given drawings, nudged so they do not sit on the originals:
+ * `dt` later and `dp` up (the caller passes ~3 bars and ~2% of the visible
+ * price range). Alerts are not copied — a copy is a new, un-armed drawing.
+ */
+export function duplicateDrawings(list: readonly Drawing[], ids: readonly string[], dt: number, dp: number, mkId: () => string = newDrawingId): { next: Drawing[]; added: string[] } {
+  const want = new Set(ids);
+  const added: string[] = [];
+  const copies: Drawing[] = [];
+  for (const d of list) {
+    if (!want.has(d.id)) continue;
+    const id = mkId();
+    const { alert: _a, locked: _l, ...rest } = d;
+    copies.push({ ...translate(rest as Drawing, dt, dp), id });
+    added.push(id);
+  }
+  return { next: [...list, ...copies], added };
+}
+
+/** Patch every drawing in `ids` (style, lock, hide). Same array when nothing changes. */
+export function patchDrawings(list: readonly Drawing[], ids: readonly string[], patch: Partial<Drawing>): Drawing[] {
+  const want = new Set(ids);
+  let changed = false;
+  const next = list.map((d) => {
+    if (!want.has(d.id)) return d;
+    const n = { ...d, ...patch } as Drawing;
+    for (const k of Object.keys(patch) as (keyof Drawing)[]) if (patch[k] === undefined) delete n[k];
+    changed = true;
+    return n;
+  });
+  return changed ? next : (list as Drawing[]);
+}
+
+/** Remove `ids`, skipping locked drawings. */
+export function removeDrawings(list: readonly Drawing[], ids: readonly string[]): Drawing[] {
+  const want = new Set(ids);
+  const next = list.filter((d) => !want.has(d.id) || d.locked);
+  return next.length === list.length ? (list as Drawing[]) : next;
+}
+
+/** Shift-click: toggle one id in a selection, keeping order (last = primary). */
+export function toggleSelection(sel: readonly string[], id: string): string[] {
+  return sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id];
+}
+
+/** Human name of a drawing for lists and the mini-toolbar. */
+export const TOOL_LABEL: Record<DrawTool, string> = {
+  trend: 'Trend line', ray: 'Ray', extended: 'Extended line', hline: 'Horizontal line', hray: 'Horizontal ray', vline: 'Vertical line',
+  rect: 'Rectangle', channel: 'Parallel channel', fib: 'Fib retracement', fibext: 'Fib extension', text: 'Note', arrow: 'Arrow',
+  measure: 'Price range', brush: 'Brush', long: 'Long position', short: 'Short position', pricelabel: 'Price label',
+};
+
+export function describeDrawing(d: Drawing, fmt: (n: number) => string = (n) => n.toFixed(2)): string {
+  const [a, b] = d.pts;
+  switch (d.tool) {
+    case 'hline': case 'hray': case 'pricelabel': return `${TOOL_LABEL[d.tool]} ${fmt(a.p)}`;
+    case 'text': return `Note “${(d.text ?? '').slice(0, 24)}”`;
+    case 'long': case 'short': {
+      const s = positionStats(d);
+      return s ? `${TOOL_LABEL[d.tool]} ${fmt(s.entry)} · ${s.rr != null ? `${s.rr.toFixed(2)}R` : '—'}` : TOOL_LABEL[d.tool];
+    }
+    case 'vline': return TOOL_LABEL[d.tool];
+    default: return b ? `${TOOL_LABEL[d.tool]} ${fmt(a.p)} → ${fmt(b.p)}` : TOOL_LABEL[d.tool];
+  }
 }
 
 let seq = 0;

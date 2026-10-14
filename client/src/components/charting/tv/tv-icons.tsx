@@ -46,3 +46,18 @@ export const IconChevron = (p: P) => <svg {...base({ width: 10, height: 10, view
 export const IconClose = (p: P) => <svg {...base(p)}><path d="m4.5 4.5 9 9M13.5 4.5l-9 9" /></svg>;
 export const IconMore = (p: P) => <svg {...base(p)}><circle cx="4" cy="9" r="1" fill="currentColor" /><circle cx="9" cy="9" r="1" fill="currentColor" /><circle cx="14" cy="9" r="1" fill="currentColor" /></svg>;
 export const IconFlip = (p: P) => <svg {...base(p)}><path d="M6 3v12M6 3 3.5 5.5M6 3l2.5 2.5M12 15V3M12 15l-2.5-2.5M12 15l2.5-2.5" /></svg>;
+/* charting-pro additions */
+export const IconExtended = (p: P) => <svg {...base(p)}><path d="M1.5 16.5 16.5 1.5" /><circle cx="6" cy="12" r="1.5" /><circle cx="12" cy="6" r="1.5" /></svg>;
+export const IconFibExt = (p: P) => <svg {...base(p)}><path d="M2 3h14M2 7h14M2 11h14" /><path d="M3 15 7 9l3 3 5-8" strokeDasharray="1.5 2" /></svg>;
+export const IconLong = (p: P) => <svg {...base(p)}><rect x="3" y="2.5" width="12" height="7" rx="0.5" /><rect x="3" y="9.5" width="12" height="5" rx="0.5" strokeDasharray="1.5 1.5" /><path d="M6 7.5 9 4.5l3 3" /></svg>;
+export const IconShort = (p: P) => <svg {...base(p)}><rect x="3" y="3.5" width="12" height="5" rx="0.5" strokeDasharray="1.5 1.5" /><rect x="3" y="8.5" width="12" height="7" rx="0.5" /><path d="M6 10.5 9 13.5l3-3" /></svg>;
+export const IconPriceLabel = (p: P) => <svg {...base(p)}><path d="M3 14.5 6 10.5" /><circle cx="2.8" cy="14.8" r="1.2" /><rect x="6" y="4" width="10" height="6.5" rx="1.2" /></svg>;
+export const IconBell = (p: P) => <svg {...base(p)}><path d="M4.5 12.5V8a4.5 4.5 0 0 1 9 0v4.5l1.3 1.5H3.2Z" /><path d="M7.5 15.5a1.6 1.6 0 0 0 3 0" /></svg>;
+export const IconBellNode = (p: P) => <svg {...base(p)}><path d="M3.5 11.5V8a4 4 0 0 1 8 0v3.5l1.2 1.4H2.3Z" /><path d="M6 15a1.5 1.5 0 0 0 3 0" /><circle cx="14.5" cy="4" r="2.2" fill="currentColor" /></svg>;
+export const IconDuplicate = (p: P) => <svg {...base(p)}><rect x="6" y="6" width="9.5" height="9.5" rx="1.2" /><path d="M12 6V3.7c0-.7-.5-1.2-1.2-1.2H3.7c-.7 0-1.2.5-1.2 1.2v7.1c0 .7.5 1.2 1.2 1.2H6" /></svg>;
+export const IconList = (p: P) => <svg {...base(p)}><path d="M6.5 4.5h9M6.5 9h9M6.5 13.5h9" /><circle cx="3" cy="4.5" r="0.9" fill="currentColor" /><circle cx="3" cy="9" r="0.9" fill="currentColor" /><circle cx="3" cy="13.5" r="0.9" fill="currentColor" /></svg>;
+export const IconKeyboard = (p: P) => <svg {...base(p)}><rect x="1.5" y="4.5" width="15" height="9" rx="1.5" /><path d="M4.5 7.5h.01M7.5 7.5h.01M10.5 7.5h.01M13.5 7.5h.01M5.5 10.5h7" /></svg>;
+export const IconSearch = (p: P) => <svg {...base(p)}><circle cx="7.5" cy="7.5" r="4.8" /><path d="m11 11 5 5" /></svg>;
+export const IconShare = (p: P) => <svg {...base(p)}><path d="M9 11.5V2.5M5.8 5.5 9 2.3l3.2 3.2" /><path d="M5 8.5H3.5v7.5h11V8.5H13" /></svg>;
+export const IconDownload = (p: P) => <svg {...base(p)}><path d="M9 2.5v9M5.8 8.5 9 11.7l3.2-3.2M3 15.5h12" /></svg>;
+export const IconSnapLevels = (p: P) => <svg {...base(p)}><path d="M2 5h14M2 13h14" strokeDasharray="2 2" /><path d="M6 8.5V7a3 3 0 0 1 6 0v1.5M6 8.5h1.6M10.4 8.5H12" /></svg>;

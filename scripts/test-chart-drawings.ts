@@ -188,7 +188,9 @@ const P = (d: Drawing, pts: { x: number; y: number }[], extra?: Projected['extra
   deviceDrawingStore.save(scope, [d]);
   assert.deepEqual(deviceDrawingStore.load({ userId: 'u1', symbol: 'SPY' }), [d]);
   deviceDrawingStore.save(scope, []);
-  assert.equal(mem.size, 0, 'an empty list removes the key');
+  // charting-pro: an emptied set is KEPT with its time, so "I deleted everything" wins a cross-device sync.
+  assert.deepEqual(deviceDrawingStore.load(scope), [], 'an empty list loads empty');
+  assert.equal(JSON.parse(mem.get(drawingKey(scope))!).drawings.length, 0, 'an empty list is stored (stamped) rather than removed');
   const bad = sanitizeDrawings([
     null, 7, { id: 'a', tool: 'nope', pts: [{ t: 1, p: 1 }] }, { id: 'b', tool: 'trend', pts: [] },
     { id: 'c', tool: 'trend', pts: [{ t: 1, p: 1 }, { t: 'x', p: 2 }], color: '#ff0000', width: 9, text: 5 },

@@ -15,10 +15,20 @@
  * sheets; 1-tap interval chips sit in the status bar. Two-point tools are
  * tap-tap (or drag); touch gets finger-sized hit targets.
  *
- * Keyboard (chart focused or hovered): Alt+H horizontal line at the cursor ·
- * Alt+T trend line · Alt+V vertical line · Alt+F Fibonacci · Alt+J horizontal
- * ray · Alt+R reset view · Esc cancel / deselect · Del delete selected ·
- * Ctrl/⌘+Z undo · Ctrl/⌘+Y or ⇧Z redo · ←/→ pan · +/− zoom · 1–5 interval.
+ * Keyboard (chart focused or hovered) — the full list is the ? overlay
+ * (SHORTCUTS below): drawing tools on Alt+letter, Esc cancel / deselect,
+ * Del delete, ⌘/Ctrl+Z / Y undo / redo, ⌘/Ctrl+D duplicate, ⌘/Ctrl+A select
+ * all, Alt+S save snapshot, Alt+⇧+S copy snapshot, ←/→ pan, +/− zoom,
+ * 1–5 interval, ? help.
+ *
+ * Drawings (charting-pro, 2026-10-13): 17 tools incl. extended line, Fib
+ * extension, long / short position (sized at the desk's $500 / $1,000 risk),
+ * price label; multi-select (shift-click / long-press), group drag,
+ * duplicate, lock, hide, style (colour · width · dash · fill) from the
+ * floating mini-toolbar; magnet to O/H/L/C and snap to GEX walls / zero-γ /
+ * Apex node; cross alerts on lines (server/price-alerts.ts) + "alert on the
+ * nearest node"; synced per user × symbol to the server (drawing-store.ts).
+ * Snapshots include the drawings, legend and a branded footer (chart-snapshot.ts).
  *
  * Data is the same as the compact embed (chart-layers.ts hooks, identical
  * query keys, one live-bus subscription per symbol). Drawings persist per
@@ -38,28 +48,38 @@ import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { useVisualMode } from '@/lib/visual-mode';
-import { COLOR_ROLES, LINE_WIDTHS, newDrawingId, type ColorRole, type Drawing, type DrawTool, type ToolId } from './drawing-geometry';
+import {
+  TOOL_LABEL, describeDrawing, duplicateDrawings, nearestLevel, newDrawingId, patchDrawings, removeDrawings,
+  type Drawing, type DrawTool, type SnapLevel, type ToolId,
+} from './drawing-geometry';
+import { alertLineFor, crossed, linePriceAt, type ClockBasis } from '@shared/chart-drawings';
+import { RISK_PRESETS } from '@shared/position-sizing';
+import { TF_BAR_MS } from '@/components/charting/chart-engine';
+import { canvasToBlob, composeSnapshot, deliverSnapshot, snapshotFileName, type SnapAction } from './chart-snapshot';
+import { intervalName } from './custom-intervals';
+import { apiRequest } from '@/lib/queryClient';
+import { DrawingsPanel, IntervalMenu, MiniToolbar, ShortcutsHelp } from './tv-chart-panels';
 import { cleanCompareSymbol } from './indicators';
 import { deleteLayout, saveLayout, useChartLayouts, type ChartLayout } from './chart-layouts';
 import { useDrawings } from './use-drawings';
 import { TvPane, describeLayerHit, type TvPaneHandle } from './tv-pane';
 import {
-  IconArea, IconArrow, IconBars, IconBrush, IconCamera, IconCandles, IconChannel, IconChevron, IconClose, IconCursor,
-  IconEye, IconEyeOff, IconFib, IconFlip, IconFullscreen, IconHLine, IconHRay, IconIndicators, IconLine, IconLock, IconMagnet,
-  IconMeasure, IconMore, IconPanel, IconPencil, IconRay, IconRect, IconRedo, IconReplay, IconSettings, IconText, IconTrash,
-  IconTrend, IconUndo, IconUnlock, IconVLine, IconZoomIn, IconZoomOut,
+  IconArea, IconArrow, IconBars, IconBellNode, IconBrush, IconCamera, IconCandles, IconChannel, IconChevron, IconClose, IconCursor,
+  IconDownload, IconDuplicate, IconExtended, IconEye, IconEyeOff, IconFib, IconFibExt, IconFullscreen, IconHLine, IconHRay,
+  IconIndicators, IconKeyboard, IconLine, IconList, IconLock, IconLong, IconMagnet, IconMeasure, IconMore, IconPanel, IconPencil,
+  IconPriceLabel, IconRay, IconRect, IconRedo, IconReplay, IconSearch, IconSettings, IconShare, IconShort, IconSnapLevels, IconText,
+  IconTrash, IconTrend, IconUndo, IconUnlock, IconVLine, IconZoomIn, IconZoomOut,
 } from './tv-icons';
 import '@/styles/nexus.css';
 
 const LazyWatchlist = lazy(() => import('@/components/charting/chart-lab-nexus').then((m) => ({ default: m.ChartLabWatchlist })));
 
-const TFS: TfKey[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1D', '1W'];
+const isIntraday = (k: string) => (TF_BAR_MS[k] ?? 86_400_000) < 86_400_000;
 /** One-tap interval chips (TradingView's favourites row). */
 const TF_CHIPS: TfKey[] = ['1m', '5m', '15m', '1h', '1D'];
 /** TradingView's interval shorthand: D / W, so a daily chip never reads like the "1D" range button. */
 const CHIP_LABEL: Record<string, string> = { '1D': 'D', '1W': 'W', '4h': '4h', '30m': '30m' };
-const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
-const TF_NAME: Record<string, string> = { '1m': '1 minute', '5m': '5 minutes', '15m': '15 minutes', '30m': '30 minutes', '1h': '1 hour', '4h': '4 hours', '1D': '1 day', '1W': '1 week' };
+const TF_NAME = new Proxy({} as Record<string, string>, { get: (_t, k) => intervalName(String(k)) });
 const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
 /** Expiry horizon chips (shared/gex-horizon.ts) — short label + what it means. */
 const HORIZONS: { id: ChartHorizon; short: string; long: string; tag: string }[] = [
@@ -82,21 +102,36 @@ interface ToolDef { id: DrawTool; label: string; key?: string; Icon: (p: object)
 const TOOL_GROUPS: ToolDef[][] = [
   [
     { id: 'trend', label: 'Trend line', key: 'Alt+T', Icon: IconTrend },
-    { id: 'ray', label: 'Ray', Icon: IconRay },
+    { id: 'ray', label: 'Ray', key: 'Alt+Y', Icon: IconRay },
+    { id: 'extended', label: 'Extended line', key: 'Alt+E', Icon: IconExtended },
     { id: 'hline', label: 'Horizontal line', key: 'Alt+H', Icon: IconHLine },
     { id: 'hray', label: 'Horizontal ray', key: 'Alt+J', Icon: IconHRay },
     { id: 'vline', label: 'Vertical line', key: 'Alt+V', Icon: IconVLine },
-    { id: 'channel', label: 'Parallel channel', Icon: IconChannel },
+    { id: 'channel', label: 'Parallel channel', key: 'Alt+C', Icon: IconChannel },
   ],
   [
     { id: 'fib', label: 'Fib retracement', key: 'Alt+F', Icon: IconFib },
-    { id: 'rect', label: 'Rectangle', Icon: IconRect },
-    { id: 'brush', label: 'Brush', Icon: IconBrush },
-    { id: 'text', label: 'Text', Icon: IconText },
-    { id: 'arrow', label: 'Arrow marker', Icon: IconArrow },
-    { id: 'measure', label: 'Price range (measure)', Icon: IconMeasure },
+    { id: 'fibext', label: 'Fib extension', key: 'Alt+X', Icon: IconFibExt },
+    { id: 'rect', label: 'Rectangle', key: 'Alt+G', Icon: IconRect },
+    { id: 'measure', label: 'Price range (measure)', key: 'Alt+M', Icon: IconMeasure },
+  ],
+  [
+    { id: 'long', label: 'Long position', key: 'Alt+L', Icon: IconLong },
+    { id: 'short', label: 'Short position', key: 'Alt+K', Icon: IconShort },
+  ],
+  [
+    { id: 'text', label: 'Note', key: 'Alt+N', Icon: IconText },
+    { id: 'pricelabel', label: 'Price label', key: 'Alt+P', Icon: IconPriceLabel },
+    { id: 'arrow', label: 'Arrow marker', key: 'Alt+W', Icon: IconArrow },
+    { id: 'brush', label: 'Brush', key: 'Alt+B', Icon: IconBrush },
   ],
 ];
+/** Alt+letter → tool (event.code, so it works on macOS where Alt types symbols). */
+const TOOL_KEYS: Record<string, DrawTool> = Object.fromEntries(
+  TOOL_GROUPS.flat().filter((t) => t.key).map((t) => [`Key${t.key!.slice(-1)}`, t.id]),
+);
+const SNAP_KEY = 'qe-chart-snap-levels-v1';
+const readSnap = () => { try { return localStorage.getItem(SNAP_KEY) !== '0'; } catch { return true; } };
 const ALL_TOOLS = TOOL_GROUPS.flat();
 const TYPE_DEFS: { id: ChartType; label: string; Icon: (p: object) => JSX.Element }[] = [
   { id: 'candles', label: 'Candles', Icon: IconCandles },
@@ -105,7 +140,7 @@ const TYPE_DEFS: { id: ChartType; label: string; Icon: (p: object) => JSX.Elemen
   { id: 'area', label: 'Area', Icon: IconArea },
 ];
 
-type Menu = null | 'tf' | 'type' | 'ind' | 'settings' | 'draw';
+type Menu = null | 'tf' | 'type' | 'ind' | 'settings' | 'draw' | 'snap' | 'help';
 type Notice = { text: string; href?: string; file?: string } | null;
 
 export function TvChart({
@@ -139,7 +174,7 @@ export function TvChart({
     onTfChange?.(next);
   }, [controlledTf, ownsTf, onTfChange]);
   const tfLabel = TF_CONFIG[tf]?.label ?? tf;
-  const intraday = INTRADAY.has(tf);
+  const intraday = isIntraday(tf);
   const { range, extended } = prefs;
 
   const [rootRef, inView] = useInView<HTMLDivElement>();
@@ -338,19 +373,54 @@ export function TvChart({
   }, [prefs, now, visualMode]);
   const describeLayer = useCallback((hit: Parameters<typeof describeLayerHit>[0]) => describeLayerHit(hit, tk), [tk]);
 
+  /* ── dealer nodes: what drawings snap to and what "alert on nearest node" picks ── */
+  const [snapOn, setSnapOn] = useState(readSnap);
+  useEffect(() => { try { localStorage.setItem(SNAP_KEY, snapOn ? '1' : '0'); } catch { /* device only */ } }, [snapOn]);
+  const nodeLevels = useMemo((): SnapLevel[] => {
+    const out: SnapLevel[] = [];
+    const add = (price: number | null | undefined, label: string) => {
+      if (price == null || !Number.isFinite(price) || out.some((l) => Math.abs(l.price - price) < 1e-6)) return;
+      out.push({ price, label });
+    };
+    // The Apex node = the largest |GEX| strike of the current (or replay-cursor) snapshot.
+    if (gexRead?.top?.length) {
+      const apex = [...gexRead.top].sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex))[0];
+      add(apex.strike, `Apex node ${apex.strike}`);
+      for (const t of gexRead.top) add(t.strike, `GEX node ${t.strike}`);
+    }
+    for (const r of walls.rows) add(r.price, r.label.replace(/\s+/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()));
+    if (zeroGamma != null) add(zeroGamma, 'Zero-γ');
+    return out;
+  }, [gexRead, walls, zeroGamma]);
+  const snapLevels = useMemo((): SnapLevel[] => (snapOn ? [...nodeLevels, ...keyLevels.map((l) => ({ price: l.price, label: l.label }))] : []), [snapOn, nodeLevels, keyLevels]);
+
   /* ── drawings ── */
   const dr = useDrawings(userId, symbol);
   const selected = dr.selectedId ? dr.drawings.find((d) => d.id === dr.selectedId) ?? null : null;
+  const selection = useMemo(() => dr.drawings.filter((d) => dr.selectedIds.includes(d.id)), [dr.drawings, dr.selectedIds]);
+  /** Style / lock / hide every selected drawing at once (one undo step). */
   const updateSelected = useCallback((patch: Partial<Drawing>) => {
-    if (!selected) return;
-    dr.commit(dr.drawings.map((d) => (d.id === selected.id ? { ...d, ...patch } : d)));
-  }, [selected, dr]);
+    if (!dr.selectedIds.length) return;
+    dr.commit(patchDrawings(dr.drawings, dr.selectedIds, patch));
+  }, [dr]);
   const deleteSelected = useCallback(() => {
-    if (!selected || selected.locked) return false;
-    dr.commit(dr.drawings.filter((d) => d.id !== selected.id));
-    dr.setSelectedId(null);
+    if (!dr.selectedIds.length) return false;
+    const next = removeDrawings(dr.drawings, dr.selectedIds);
+    if (next === dr.drawings) return false; // all locked
+    dr.commit(next);
+    dr.setSelectedIds(dr.selectedIds.filter((id) => next.some((d) => d.id === id)));
     return true;
-  }, [selected, dr]);
+  }, [dr]);
+  const duplicateSelected = useCallback(() => {
+    if (!dr.selectedIds.length) return false;
+    const { dt, dp } = paneRef.current?.nudge() ?? { dt: 0, dp: 0 };
+    const { next, added } = duplicateDrawings(dr.drawings, dr.selectedIds, dt, dp);
+    dr.commit(next);
+    dr.setSelectedIds(added);
+    return true;
+  }, [dr]);
+  const [riskDollars, setRiskDollars] = useState<number>(RISK_PRESETS[0]);
+  const [listOpen, setListOpen] = useState(false);
   const onCommit = useCallback((next: Drawing[], select?: string | null) => {
     dr.commit(next);
     if (select !== undefined) dr.setSelectedId(select);
@@ -372,6 +442,63 @@ export function TvChart({
     dr.setSelectedId(d.id);
   }, [dr, pickTool]);
 
+  /* ── alerts on drawings (server/price-alerts.ts: Discord + the in-app pulse) ── */
+  const clockBasis: ClockBasis = !intraday ? 'days' : extended ? 'eth' : 'rth';
+  const armAlert = useCallback(async (d: Drawing) => {
+    const a = alertLineFor(d, clockBasis);
+    if (!a) { setNotice({ text: 'Alerts work on horizontal lines, rays, trend / extended lines and price labels' }); return; }
+    if (d.alert) {
+      // Disarm: drop the server alert, clear the bell.
+      if (d.alert.id) { try { await apiRequest('DELETE', `/api/alerts/level/${encodeURIComponent(d.alert.id)}`); } catch { /* already gone */ } }
+      dr.commit(patchDrawings(dr.drawings, [d.id], { alert: undefined }));
+      setNotice({ text: `Alert removed — ${TOOL_LABEL[d.tool]}` });
+      return;
+    }
+    const label = d.tool === 'pricelabel' && d.text ? d.text : TOOL_LABEL[d.tool];
+    try {
+      const r = await apiRequest('POST', '/api/alerts/level', { symbol, price: Number(a.price.toFixed(6)), line: a.line, drawingId: d.id, label });
+      const body = await r.json().catch(() => ({})) as { alert?: { id?: string; price?: number; direction?: string } };
+      dr.commit(patchDrawings(dr.drawings, [d.id], { alert: { id: body.alert?.id ?? null, armedAt: Date.now() } }));
+      setNotice({ text: `🔔 Alert armed — ${symbol} crossing ${body.alert?.direction ?? ''} ${a.line ? 'the trend line' : (body.alert?.price ?? a.price).toFixed(2)} · Discord + in-app` });
+    } catch {
+      // Keep a local bell: the in-chart cross check still fires while this chart is open.
+      dr.commit(patchDrawings(dr.drawings, [d.id], { alert: { id: null, armedAt: Date.now() } }));
+      setNotice({ text: '🔔 Alert set on this device only — the server alert could not be armed' });
+    }
+  }, [clockBasis, dr, symbol]);
+
+  const alertNearestNode = useCallback(async () => {
+    const px = lastCloseRef.current;
+    const node = px != null ? nearestLevel(px, nodeLevels) : null;
+    if (!node || px == null) { setNotice({ text: layersOk ? 'No dealer node on the chart yet — turn on walls or GEX orbs' : 'No options layers for this symbol' }); return; }
+    const d: Drawing = { id: newDrawingId(), tool: 'pricelabel', pts: [{ t: Date.now(), p: node.price }], color: 'caution', width: 1, text: node.label };
+    const next = [...dr.drawings, d];
+    dr.commit(next);
+    dr.setSelectedId(d.id);
+    await armAlert(d);
+  }, [nodeLevels, dr, armAlert, layersOk]);
+
+  /* in-chart cross check: a live tick through an alerted line says so here too */
+  const prevPx = useRef<number | null>(null);
+  useEffect(() => { prevPx.current = null; }, [symbol]);
+  useEffect(() => {
+    const px = liveTick?.price;
+    if (px == null || !Number.isFinite(px)) return;
+    const prev = prevPx.current; prevPx.current = px;
+    if (prev == null || prev === px) return;
+    const now = Date.now();
+    for (const d of dr.drawings) {
+      if (!d.alert || d.hidden) continue;
+      const a = alertLineFor(d, clockBasis);
+      if (!a) continue;
+      const level = a.line ? linePriceAt(a.line, now) : a.price;
+      if (level == null) continue;
+      const c = crossed(prev, px, level);
+      if (c) { setNotice({ text: `🔔 ${symbol} crossed ${c === 'up' ? 'above' : 'below'} ${describeDrawing(d)} — ${px.toFixed(2)}` }); break; }
+    }
+  }, [liveTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const snapRef = useRef<(a: SnapAction) => void>(() => {});
+
   /* ── keyboard ── */
   const hoverRef = useRef(false);
   useEffect(() => {
@@ -387,15 +514,18 @@ export function TvChart({
       const mod = e.metaKey || e.ctrlKey;
       let used = true;
       if (e.altKey && !mod) {
-        switch (e.code) {
-          case 'KeyH': placeHLineAtCursor(); break;
-          case 'KeyT': pickTool('trend'); break;
-          case 'KeyV': pickTool('vline'); break;
-          case 'KeyF': pickTool('fib'); break;
-          case 'KeyJ': pickTool('hray'); break;
-          case 'KeyR': paneRef.current?.reset(); break;
-          default: used = false;
-        }
+        if (e.code === 'KeyH' && !e.shiftKey) placeHLineAtCursor();
+        else if (e.code === 'KeyR') paneRef.current?.reset();
+        else if (e.code === 'KeyS') snapRef.current(e.shiftKey ? 'copy' : 'save');
+        else if (e.code === 'KeyA') { if (selected) void armAlert(selected); else void alertNearestNode(); }
+        else if (TOOL_KEYS[e.code]) pickTool(TOOL_KEYS[e.code]);
+        else used = false;
+      } else if (!mod && !e.altKey && e.key === '?') {
+        setMenu((m) => (m === 'help' ? null : 'help'));
+      } else if (mod && !e.shiftKey && (e.key === 'd' || e.key === 'D')) {
+        used = duplicateSelected();
+      } else if (mod && (e.key === 'a' || e.key === 'A')) {
+        dr.setSelectedIds(dr.drawings.filter((d) => !d.hidden).map((d) => d.id));
       } else if (mod && (e.key === 'z' || e.key === 'Z')) {
         if (e.shiftKey) dr.redo(); else dr.undo();
       } else if (mod && (e.key === 'y' || e.key === 'Y')) {
@@ -405,7 +535,8 @@ export function TvChart({
         else if (menu) setMenu(null);
         else if (tool !== 'cursor') setTool('cursor');
         else if (pseudoFull) setPseudoFull(false);
-        else if (dr.selectedId) dr.setSelectedId(null);
+        else if (listOpen) setListOpen(false);
+        else if (dr.selectedIds.length) dr.setSelectedId(null);
         else used = false; // let the expanded modal close
       } else if (!mod && (e.key === 'Delete' || e.key === 'Backspace')) {
         used = deleteSelected();
@@ -424,35 +555,30 @@ export function TvChart({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dr, menu, tool, deleteSelected, pickTool, placeHLineAtCursor, rootRef, pseudoFull, setTf]);
+  }, [dr, menu, tool, deleteSelected, duplicateSelected, pickTool, placeHLineAtCursor, rootRef, pseudoFull, setTf, selected, armAlert, alertNearestNode, listOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── snapshot / fullscreen ── */
-  /* Snapshot: a data-URL <a download> does nothing in iOS home-screen apps and
-     in-app browsers. Phones and tablets get the share sheet (Save Image /
-     Files / Messages); elsewhere a blob download, and when even that cannot
-     save, the image opens in a new tab to long-press / right-click save. */
-  const snapshot = useCallback(async () => {
-    const canvas = paneRef.current?.screenshot();
-    if (!canvas) return;
-    const name = `${symbol}-${tf}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.png`;
-    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
-    if (!blob) { setNotice({ text: 'Snapshot failed — the chart could not be captured' }); return; }
-    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-    if (coarse && typeof File !== 'undefined' && nav.share) {
-      const file = new File([blob], name, { type: 'image/png' });
-      if (nav.canShare?.({ files: [file] })) {
-        try { await nav.share({ files: [file], title: `${symbol} ${tfLabel}` }); setNotice({ text: 'Snapshot ready to save or send' }); return; }
-        catch (e) { if ((e as Error)?.name === 'AbortError') return; /* fall through to a download */ }
-      }
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name; a.rel = 'noopener';
-    document.body.appendChild(a); a.click(); a.remove();
-    setNotice({ text: `Snapshot saved — ${name}`, href: url, file: name });
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }, [symbol, tf, tfLabel]);
+  /* Snapshot: candles + indicators + layers + DRAWINGS (top layer) + legend +
+     branded footer, composed at the device pixel ratio (chart-snapshot.ts).
+     Copy → clipboard; Save → download (phones: the share sheet, since a
+     download does nothing in iOS home-screen apps); Share → share sheet. */
+  const logoRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => { const img = new Image(); img.src = '/gamma-mark.svg'; logoRef.current = img; }, []);
+  const snapshot = useCallback(async (action: SnapAction = 'save') => {
+    setMenu(null);
+    const cap = paneRef.current?.capture();
+    if (!cap) { setNotice({ text: 'Snapshot failed — the chart is not ready' }); return; }
+    const pal = chartPalette(rootRef.current);
+    const cs = rootRef.current ? getComputedStyle(rootRef.current) : null;
+    const tok = (n: string, fb: string) => cs?.getPropertyValue(n).trim() || fb;
+    const meta = { symbol, tfLabel, at: replay.on && cutoff != null ? cutoff : Date.now(), extra: replay.on ? 'replay' : undefined };
+    const out = composeSnapshot(cap.canvas, cap.cssW, meta, cap.legend, {
+      bg: tok('--lx-surface', pal.surface), panel: tok('--lx-surface-2', pal.surface), text: pal.text, mute: pal.dim, accent: pal.accent, line: tok('--lx-line', pal.dim),
+    }, { logo: logoRef.current });
+    const res = await deliverSnapshot(action, canvasToBlob(out), snapshotFileName(meta), `${symbol} ${tfLabel}`);
+    setNotice(res.ok && 'href' in res && res.href ? { text: res.text, href: res.href, file: res.file } : { text: res.text });
+  }, [symbol, tfLabel, rootRef, replay.on, cutoff]);
+  snapRef.current = (a) => { void snapshot(a); };
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
     const on = () => setNativeFull((doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null) === rootRef.current);
@@ -554,7 +680,10 @@ export function TvChart({
 
   /* ── menus ── */
   const toggleMenu = (m: Menu) => setMenu((cur) => (cur === m ? null : m));
-  const menuRow = (checked: boolean, onChange: (v: boolean) => void, label: string, sub: string | null, swatch?: string) => (
+  const [indQ, setIndQ] = useState('');
+  useEffect(() => { if (menu !== 'ind') setIndQ(''); }, [menu]);
+  const q = indQ.trim().toLowerCase();
+  const menuRow = (checked: boolean, onChange: (v: boolean) => void, label: string, sub: string | null, swatch?: string) => (q && !`${label} ${sub ?? ''}`.toLowerCase().includes(q) ? null :
     <label className="tv-mrow">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span className="tv-mlabel"><span>{swatch && <i style={{ background: swatch }} />}{label}</span>{sub && <small>{sub}</small>}</span>
@@ -577,7 +706,15 @@ export function TvChart({
   };
 
   const indicatorsMenu = (
-    <div className="tv-menu tv-menu-ind" role="menu" aria-label="Indicators and layers">
+    <div className={`tv-menu tv-menu-ind${q ? ' tv-searching' : ''}`} role="menu" aria-label="Indicators and layers">
+      <label className="tv-isearch">
+        <IconSearch />
+        <input
+          className="tv-text-in" value={indQ} onChange={(e) => setIndQ(e.target.value)} placeholder="Search indicators & layers"
+          aria-label="Search indicators and layers" autoFocus={typeof matchMedia !== 'undefined' && matchMedia('(pointer: fine)').matches}
+          autoCorrect="off" spellCheck={false} enterKeyHint="search"
+        />
+      </label>
       <div className="tv-mhead">Dealer positioning</div>
       {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk.call)}
       {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk.pos)}
@@ -628,7 +765,10 @@ export function TvChart({
       <div className="tv-mactions tv-phone-only tv-mactions-top">
         <button type="button" className="tv-btn" disabled={!dr.canRedo} onClick={() => dr.redo()}>Redo</button>
         <button type="button" className={`tv-btn${replay.on ? ' on' : ''}`} disabled={sessionBars.length < 3} onClick={startReplay}>{replay.on ? 'Exit replay' : 'Replay'}</button>
-        <button type="button" className="tv-btn" onClick={() => { setMenu(null); void snapshot(); }}>Snapshot</button>
+        <button type="button" className="tv-btn" onClick={() => void snapshot('save')}>Save image</button>
+        <button type="button" className="tv-btn" onClick={() => void snapshot('copy')}>Copy image</button>
+        {typeof navigator !== 'undefined' && 'share' in navigator && <button type="button" className="tv-btn" onClick={() => void snapshot('share')}>Share…</button>}
+        <button type="button" className={`tv-btn${listOpen ? ' on' : ''}`} onClick={() => { setMenu(null); setListOpen((v) => !v); }}>Drawings ({dr.drawings.length})</button>
         <button type="button" className={`tv-btn${isFull ? ' on' : ''}`} onClick={toggleFull}>{isFull ? 'Exit full screen' : 'Full screen'}</button>
       </div>
       <div className="tv-mhead tv-phone-only">Chart type</div>
@@ -649,6 +789,13 @@ export function TvChart({
         <button type="button" className={extended ? 'on' : ''} aria-pressed={extended} disabled={!intraday} onClick={() => set('extended', true)}>ETH</button>
       </div>
       {menuRow(prefs.magnet, (v) => set('magnet', v), 'Magnet', 'crosshair and drawing points snap to O/H/L/C')}
+      {menuRow(snapOn, setSnapOn, 'Snap to dealer levels', 'drawing points snap to walls, zero-γ, the Apex node and key levels')}
+      <div className="tv-mseg-row">
+        <span className="tv-mseg-label">Risk</span>
+        <div className="tv-seg" role="radiogroup" aria-label="Position tool risk">
+          {RISK_PRESETS.map((r) => <button type="button" role="radio" aria-checked={riskDollars === r} key={r} className={riskDollars === r ? 'on' : ''} title={`New long / short positions size to $${r} risk`} onClick={() => setRiskDollars(r)}>${r.toLocaleString('en-US')}</button>)}
+        </div>
+      </div>
       {menuRow(stayDrawing, setStayDrawing, 'Stay in drawing mode', 'keep the tool after placing a drawing')}
       <LayoutsSection prefs={{ ...prefs, tf }} onApply={applyLayout} />
       <div className="tv-mactions">
@@ -656,17 +803,9 @@ export function TvChart({
         {onOpenChartPage && <button type="button" className="tv-btn" onClick={onOpenChartPage} title="Open this symbol and timeframe on the CHART tab">Chart page ↗</button>}
         {onOpenLab && <button type="button" className="tv-btn" onClick={onOpenLab} title="Chart Lab: published levels, watchlist, ES translation">Chart Lab ↗</button>}
       </div>
-      <div className="tv-mhead tv-desk">Shortcuts</div>
-      <dl className="tv-keys tv-desk">
-        <dt>Alt+H</dt><dd>Horizontal line at cursor</dd>
-        <dt>Alt+T / V / F / J</dt><dd>Trend · vertical · Fib · h-ray</dd>
-        <dt>Esc</dt><dd>Cancel / deselect</dd>
-        <dt>Del</dt><dd>Delete selected drawing</dd>
-        <dt>{MOD}+Z / {MOD}+Y</dt><dd>Undo / redo</dd>
-        <dt>← → · + −</dt><dd>Pan · zoom</dd>
-        <dt>Alt+R</dt><dd>Reset view</dd>
-        <dt>1 … 5</dt><dd>Interval {TF_CHIPS.join(' · ')}</dd>
-      </dl>
+      <div className="tv-mactions tv-desk">
+        <button type="button" className="tv-btn" onClick={() => setMenu('help')} title="Keyboard shortcuts (?)"><IconKeyboard width={14} height={14} /> Keyboard shortcuts <kbd>?</kbd></button>
+      </div>
     </div>
   );
 
@@ -687,7 +826,10 @@ export function TvChart({
       <button type="button" className={`tv-tool${prefs.magnet ? ' on' : ''}`} aria-pressed={prefs.magnet} aria-label="Magnet mode" title="Magnet — snap to O/H/L/C" onClick={() => set('magnet', !prefs.magnet)}><IconMagnet /><span className="tv-tool-name">Magnet</span></button>
       <button type="button" className={`tv-tool${allLocked ? ' on' : ''}`} aria-pressed={allLocked} aria-label="Lock all drawings" title="Lock all drawings" onClick={() => setAllLocked((v) => !v)}>{allLocked ? <IconLock /> : <IconUnlock />}<span className="tv-tool-name">Lock all</span></button>
       <button type="button" className={`tv-tool${allHidden ? ' on' : ''}`} aria-pressed={allHidden} aria-label="Hide all drawings" title="Hide all drawings" onClick={() => setAllHidden((v) => !v)}>{allHidden ? <IconEyeOff /> : <IconEye />}<span className="tv-tool-name">Hide all</span></button>
-      <button type="button" className="tv-tool" aria-label="Remove all drawings" title="Remove all drawings (undo brings them back)" disabled={!dr.drawings.length} onClick={() => { dr.commit([]); dr.setSelectedId(null); }}><IconTrash /><span className="tv-tool-name">Remove all</span></button>
+      <button type="button" className={`tv-tool${snapOn ? ' on' : ''}`} aria-pressed={snapOn} aria-label="Snap to dealer levels" title="Snap points to walls · zero-γ · Apex node · key levels" onClick={() => setSnapOn((v) => !v)}><IconSnapLevels /><span className="tv-tool-name">Snap levels</span></button>
+      <button type="button" className="tv-tool" aria-label="Alert on the nearest dealer node (Alt+A)" title="Alert on the nearest node — Alt+A" onClick={() => { setMenu(null); void alertNearestNode(); }}><IconBellNode /><span className="tv-tool-name">Alert nearest node</span></button>
+      <button type="button" className={`tv-tool${listOpen ? ' on' : ''}`} aria-pressed={listOpen} aria-label="Drawings list" title="Drawings list" onClick={() => { setMenu(null); setListOpen((v) => !v); }}><IconList /><span className="tv-tool-name">Drawings</span></button>
+      <button type="button" className="tv-tool" aria-label="Remove all drawings" title="Remove all drawings (undo brings them back)" disabled={!dr.drawings.length} onClick={() => { dr.commit(dr.drawings.filter((d) => d.locked)); dr.setSelectedId(null); }}><IconTrash /><span className="tv-tool-name">Remove all</span></button>
     </>
   );
 
@@ -719,15 +861,7 @@ export function TvChart({
           <button type="button" className={`tv-tb tv-tf${menu === 'tf' ? ' on' : ''}`} onClick={() => toggleMenu('tf')} aria-haspopup="menu" aria-expanded={menu === 'tf'} aria-label={`Timeframe: ${TF_NAME[tf] ?? tf}`} title="Timeframe">
             <b>{tfLabel}</b><IconChevron />
           </button>
-          {menu === 'tf' && (
-            <div className="tv-menu tv-menu-tf" role="menu" aria-label="Timeframe">
-              {TFS.map((k) => (
-                <button type="button" role="menuitemradio" aria-checked={tf === k} key={k} className={`tv-mitem${tf === k ? ' on' : ''}`} onClick={() => { setTf(k); setMenu(null); }}>
-                  <span>{TF_NAME[k]}</span><b>{TF_CONFIG[k].label}</b>
-                </button>
-              ))}
-            </div>
-          )}
+          {menu === 'tf' && <IntervalMenu tf={tf} onPick={(k) => { setTf(k); setMenu(null); }} onError={(t) => setNotice({ text: t })} />}
         </div>
         {tfChips('tv-chips-top')}
         <div className="tv-pop tv-desk-flex">
@@ -780,10 +914,22 @@ export function TvChart({
           </button>
           {menu === 'settings' && settingsMenu}
         </div>
-        <button type="button" className="tv-tb tv-desk-flex" onClick={() => void snapshot()} aria-label="Take a snapshot (PNG)" title="Snapshot — save a PNG"><IconCamera /></button>
+        <button type="button" className={`tv-tb tv-desk-flex${listOpen ? ' on' : ''}`} aria-pressed={listOpen} onClick={() => setListOpen((v) => !v)} aria-label="Drawings list" title="Drawings list"><IconList /></button>
+        <div className="tv-pop tv-desk-flex">
+          <button type="button" className={`tv-tb${menu === 'snap' ? ' on' : ''}`} onClick={() => toggleMenu('snap')} aria-haspopup="menu" aria-expanded={menu === 'snap'} aria-label="Snapshot" title="Snapshot — chart, drawings, legend and footer (Alt+S)"><IconCamera /></button>
+          {menu === 'snap' && (
+            <div className="tv-menu tv-menu-right tv-menu-snap" role="menu" aria-label="Snapshot">
+              <button type="button" role="menuitem" className="tv-mitem" onClick={() => void snapshot('copy')}><IconDuplicate /><span>Copy image</span><b>Alt+⇧+S</b></button>
+              <button type="button" role="menuitem" className="tv-mitem" onClick={() => void snapshot('save')}><IconDownload /><span>Save image</span><b>Alt+S</b></button>
+              {typeof navigator !== 'undefined' && 'share' in navigator && <button type="button" role="menuitem" className="tv-mitem" onClick={() => void snapshot('share')}><IconShare /><span>Share…</span></button>}
+              <small className="tv-msub">Candles, indicators, layers, drawings and the legend, with a {symbol} · {tfLabel} · ET footer.</small>
+            </div>
+          )}
+        </div>
+        <button type="button" className="tv-tb tv-desk-flex" onClick={() => setMenu('help')} aria-label="Keyboard shortcuts (?)" title="Keyboard shortcuts — ?"><IconKeyboard /></button>
         <button type="button" className={`tv-tb tv-desk-flex${isFull ? ' on' : ''}`} onClick={toggleFull} aria-label={isFull ? 'Exit fullscreen' : 'Fullscreen'} title={isFull ? 'Exit fullscreen' : 'Fullscreen'}><IconFullscreen /></button>
       </div>
-      {menu && menu !== 'draw' && <div className="tv-scrim" onClick={() => setMenu(null)} />}
+      {menu && menu !== 'draw' && menu !== 'help' && <div className="tv-scrim" onClick={() => setMenu(null)} />}
 
       {replay.on && sessionBars.length > 2 && (
         <div className="tv-replay" role="group" aria-label="Replay controls">
@@ -851,6 +997,10 @@ export function TvChart({
             layers={layers}
             drawings={dr.drawings}
             selectedId={dr.selectedId}
+            selectedIds={dr.selectedIds}
+            onSelectIds={dr.setSelectedIds}
+            snapLevels={snapLevels}
+            riskDollars={riskDollars}
             allHidden={allHidden}
             allLocked={allLocked}
             tool={tool}
@@ -861,43 +1011,17 @@ export function TvChart({
             describeLayer={describeLayer}
           />
 
-          {/* ── floating toolbar for the selected drawing ── */}
+          {/* ── floating mini-toolbar: edits every selected drawing ── */}
           {selected && !allHidden && (
-            <div className="tv-float" role="toolbar" aria-label="Selected drawing">
-              <span className="tv-float-name">{ALL_TOOLS.find((t) => t.id === selected.tool)?.label}</span>
-              <div className="tv-swatches" role="radiogroup" aria-label="Colour">
-                {COLOR_ROLES.map((r) => (
-                  <button type="button" key={r} role="radio" aria-checked={selected.color === r} aria-label={`Colour ${r}`} title={r}
-                    className={`tv-sw${selected.color === r ? ' on' : ''}`} style={{ background: `var(--tv-${r})` }}
-                    onClick={() => updateSelected({ color: r as ColorRole })} />
-                ))}
-              </div>
-              <div className="tv-widths" role="radiogroup" aria-label="Line width">
-                {LINE_WIDTHS.map((w) => (
-                  <button type="button" key={w} role="radio" aria-checked={selected.width === w} aria-label={`Width ${w}px`} title={`${w}px`} className={`tv-w${selected.width === w ? ' on' : ''}`} onClick={() => updateSelected({ width: w })}>
-                    <i style={{ height: w }} />
-                  </button>
-                ))}
-              </div>
-              {selected.tool === 'text' && (
-                <input
-                  className="tv-text-in" aria-label="Text" value={selected.text ?? ''} maxLength={200}
-                  autoFocus={editText === selected.id}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) => updateSelected({ text: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { (e.target as HTMLInputElement).blur(); setEditText(null); } }}
-                />
-              )}
-              {selected.tool === 'arrow' && (
-                <button type="button" className="tv-tb" aria-label="Flip arrow" title="Flip up / down" onClick={() => updateSelected({ dir: selected.dir === 'down' ? 'up' : 'down' })}><IconFlip /></button>
-              )}
-              <button type="button" className={`tv-tb${selected.locked ? ' on' : ''}`} aria-pressed={!!selected.locked} aria-label={selected.locked ? 'Unlock drawing' : 'Lock drawing'} title={selected.locked ? 'Unlock' : 'Lock'} onClick={() => updateSelected({ locked: !selected.locked || undefined })}>{selected.locked ? <IconLock /> : <IconUnlock />}</button>
-              <button type="button" className="tv-tb" aria-label="Delete drawing (Del)" title="Delete — Del" disabled={!!selected.locked} onClick={deleteSelected}><IconTrash /></button>
-            </div>
+            <MiniToolbar
+              selection={selection} primary={selected} editText={editText} setEditText={setEditText}
+              onPatch={updateSelected} onDelete={deleteSelected} onDuplicate={duplicateSelected}
+              onAlert={() => void armAlert(selected)} onClear={() => dr.setSelectedId(null)}
+            />
           )}
           {tool !== 'cursor' ? (
             <div className="tv-hint" role="status">
-              {ALL_TOOLS.find((t) => t.id === tool)?.label}: {tool === 'brush' ? 'press and drag' : 'click / tap each point'} · Esc to cancel
+              {ALL_TOOLS.find((t) => t.id === tool)?.label}: {tool === 'brush' ? 'press and drag' : tool === 'long' || tool === 'short' ? `click the entry — sized at $${riskDollars.toLocaleString('en-US')} risk` : tool === 'fibext' ? 'swing start, swing end, then the pullback' : tool === 'channel' ? 'two points for the line, a third for the width' : 'click / tap each point'}{snapOn && snapLevels.length ? ' · snaps to dealer levels' : ''} · Esc to cancel
             </div>
           ) : notice ? (
             <div className="tv-hint tv-notice" role="status">
@@ -910,6 +1034,18 @@ export function TvChart({
           )}
         </div>
 
+        {listOpen && (
+          <DrawingsPanel
+            symbol={symbol} drawings={dr.drawings} selectedIds={dr.selectedIds} sync={dr.sync} signedIn={userId !== 'anon'}
+            allHidden={allHidden} allLocked={allLocked}
+            onSelect={(id, add) => dr.setSelectedIds(add ? (dr.selectedIds.includes(id) ? dr.selectedIds.filter((x) => x !== id) : [...dr.selectedIds, id]) : [id])}
+            onPatch={(ids, patch) => dr.commit(patchDrawings(dr.drawings, ids, patch))}
+            onRemove={(ids) => { dr.commit(removeDrawings(dr.drawings, ids)); }}
+            onAlert={(d) => void armAlert(d)}
+            onToggleAllHidden={() => setAllHidden((v) => !v)} onToggleAllLocked={() => setAllLocked((v) => !v)}
+            onClose={() => setListOpen(false)}
+          />
+        )}
         {onSymbolChange && prefs.watchlist && (
           <aside className="tv-side" aria-label="Watchlist">
             <div className="tv-side-head"><span>Watchlist</span><button type="button" className="tv-tb" onClick={() => set('watchlist', false)} aria-label="Close watchlist panel" title="Close"><IconClose /></button></div>
@@ -939,6 +1075,8 @@ export function TvChart({
           <button type="button" onClick={() => paneRef.current?.autoScale()} title="Auto-fit the price scale to the visible bars">auto</button>
         </div>
       </div>
+
+      {menu === 'help' && <ShortcutsHelp onClose={() => setMenu(null)} />}
 
       {/* ── phone: drawing sheet ── */}
       {menu === 'draw' && (
@@ -1147,6 +1285,36 @@ html[data-mode=light] .tv-wm{opacity:.09}
 .tv-w i{display:block;width:14px;background:var(--tv-fg);border-radius:2px}
 .tv-w.on{background:var(--tv-hi)}
 .tv-text-in{height:26px;width:150px;padding:0 6px;border:1px solid var(--tv-line-hi);border-radius:4px;background:var(--tv-bg);color:var(--tv-fg);font:500 12px 'JetBrains Mono',monospace}
+.tv-isearch{display:flex;align-items:center;gap:6px;padding:2px 4px 6px;color:var(--tv-mute)}
+.tv-isearch .tv-text-in{flex:1;width:auto;min-width:0}
+.tv-searching .tv-mhead,.tv-searching .tv-mseg-row,.tv-searching .tv-cmp,.tv-searching .tv-msub{display:none}
+.tv-menu-tf{width:240px}
+.tv-tfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:2px 4px 4px}
+.tv-menu-snap{width:260px}
+.tv-menu-snap .tv-mitem b,.tv-menu-tf .tv-mitem b{color:var(--tv-mute);font-weight:600}
+kbd{display:inline-block;min-width:18px;padding:0 5px;border:1px solid var(--tv-line-hi);border-bottom-width:2px;border-radius:4px;background:var(--tv-bg);color:var(--tv-fg);font:600 11px/1.5 'JetBrains Mono',monospace;text-align:center}
+.tv-mactions .tv-btn kbd{margin-left:6px}
+.tv-help{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1003;width:min(760px,calc(100vw - 32px));max-height:min(86dvh,720px);overflow-y:auto;padding:14px 16px;background:var(--tv-panel);border:1px solid var(--tv-line-hi);border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.55);outline:none}
+.tv-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 20px}
+.tv-help .tv-keys{grid-template-columns:minmax(120px,auto) 1fr;gap:5px 12px}
+.tv-help .tv-keys dd{color:var(--tv-fg)}
+.tv-float .tv-seg{padding:1px}
+.tv-float .tv-seg button{height:24px;min-width:40px}
+.tv-w.tv-fill i{width:14px;border-radius:2px;background:var(--tv-fg)}
+.tv-w svg{color:var(--tv-fg)}
+.tv-dlist{width:clamp(260px,24vw,340px)}
+.tv-dlist-actions{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;border-bottom:1px solid var(--tv-line)}
+.tv-drow{display:flex;align-items:center;gap:0;padding:0 4px 0 0;border-bottom:1px solid color-mix(in srgb,var(--tv-line) 60%,transparent)}
+.tv-drow.on{background:var(--tv-hi)}
+.tv-drow-hidden .tv-drow-main span{opacity:.5;text-decoration:line-through}
+.tv-drow-main{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border:0;background:transparent;color:var(--tv-fg);font:500 12px 'JetBrains Mono',monospace;text-align:left;cursor:pointer}
+.tv-drow-main i{flex:none;width:8px;height:8px;border-radius:50%}
+.tv-drow-main span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-drow .tv-tb{min-width:28px;height:28px;padding:0 4px}
+.tv-dlist-empty{margin:12px;font-size:12px;line-height:1.5;color:var(--tv-mute)}
+.tv-dlist-foot{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--tv-line);font-size:11px;color:var(--tv-mute)}
+.tv-syncdot{width:7px;height:7px;border-radius:50%;background:var(--tv-dim)}
+.tv-sync-synced{background:var(--tv-gain)}.tv-sync-syncing{background:var(--tv-caution)}.tv-sync-offline{background:var(--tv-loss)}
 .tv-hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);z-index:7;padding:4px 10px;border-radius:4px;background:var(--tv-panel);border:1px solid var(--tv-line);font-size:11px;color:var(--tv-mute);pointer-events:none;white-space:nowrap}
 .tv-side{width:clamp(240px,22vw,320px);flex:none;display:flex;flex-direction:column;border-left:1px solid var(--tv-line);background:var(--tv-panel);min-height:0}
 .tv-side-head{display:flex;align-items:center;justify-content:space-between;padding:3px 4px 3px 10px;border-bottom:1px solid var(--tv-line);font-size:12px;color:var(--tv-mute)}
@@ -1219,6 +1387,14 @@ html[data-mode=light] .tv-wm{opacity:.09}
   .tv-swatches::-webkit-scrollbar{display:none}
   .tv-w{width:32px;height:32px}
   .tv-side{position:absolute;inset:0 0 0 auto;width:min(86vw,320px);z-index:8;box-shadow:-12px 0 30px rgba(0,0,0,.5)}
+  .tv-dlist{width:min(92vw,360px)}
+  .tv-drow-main{height:44px}
+  .tv-drow .tv-tb{min-width:40px;height:40px}
+  .tv-dlist-actions .tv-btn{height:40px}
+  .tv-help{top:auto;bottom:0;left:0;right:0;transform:none;width:auto;max-height:84dvh;border-radius:12px 12px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .tv-help-grid{grid-template-columns:1fr}
+  .tv-float .tv-seg button{height:40px}
+  .tv-tfgrid .tv-btn{height:44px}
   .tv-hint{bottom:8px}
 }
 `;

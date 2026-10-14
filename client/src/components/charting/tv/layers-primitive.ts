@@ -18,6 +18,7 @@ import type {
   IChartApi, ISeriesApi, ISeriesPrimitive, ISeriesPrimitiveAxisView, IPrimitivePaneRenderer,
   IPrimitivePaneView, Logical, SeriesAttachedParameter, SeriesType, Time,
 } from 'lightweight-charts';
+import { candleRects, fitText, labelCandidates, placeLabel, type Rect } from './label-layout';
 import type { Candle, Zone } from '@/components/charting/chart-engine';
 import type { GexMetric, GexMode } from '@/components/charting/chart-prefs';
 import { fmtUsd, type DpLevel, type FlowPrint, type OverlayPayload } from '@/components/charting/chart-layers';
@@ -65,6 +66,8 @@ export interface LayersInput {
   /** Carry the latest nodes forward past the last candle, dimmer. */
   project?: boolean;
   em?: EmDraw | null;
+  /** Prices that carry a price-line title at the right edge (walls, levels): captions keep clear. */
+  tagPrices?: number[];
 }
 
 export type LayerHit =
@@ -291,7 +294,9 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       const c = this.colors();
       const w = mediaSize.width; const h = mediaSize.height;
+      this.chartH = h;
       this.frame = { dp: [], flow: this.frame.flow, lines: [], rMax: 3, spacing: 6, proj: null };
+      this.placed = [];
       ctx.save();
 
       for (const z of zones) {
@@ -476,8 +481,14 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       ctx.globalAlpha = 0.35; ctx.strokeStyle = c.text ?? apexC; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
       ctx.beginPath(); ctx.moveTo(xL + spacing / 2, 0); ctx.lineTo(xL + spacing / 2, h); ctx.stroke(); ctx.setLineDash([]);
       if (this.input.labels !== false && slots >= 8) {
-        ctx.globalAlpha = 0.75; ctx.fillStyle = c.text ?? apexC; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
-        ctx.fillText('current nodes carried forward · not a forecast', xL + spacing, 12);
+        ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+        // Never clipped at the right edge: the full caption, the short one, or none.
+        const cap = fitText('current nodes carried forward · not a forecast', 'carried fwd · not a forecast', w - 6 - (xL + spacing), (t) => ctx.measureText(t).width);
+        if (cap) {
+          ctx.globalAlpha = 0.75; ctx.fillStyle = c.text ?? apexC;
+          ctx.fillText(cap, xL + spacing, 12);
+          this.placed.push({ x: xL + spacing, y: 3, w: ctx.measureText(cap).width, h: 11 });
+        }
       }
       ctx.globalAlpha = 1;
     }
@@ -501,27 +512,62 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
         if (!chosen.some((q) => Math.abs(q.x - pa.x) < 110 && Math.abs(q.y - pa.y) < 16)) chosen.push({ ...pa, tag: 'now' });
       }
       const kindLabel = metric === 'vex' ? 'VEX' : 'GEX';
-      for (const p of chosen) this.apexLabel(ctx, p.x, p.y, `Apex ${fmtStrike(p.strike)} · ${kindLabel} ${fmtUsd(p.g, true)}${p.tag ? ` · ${p.tag}` : ''}`, apexC, c.panel, w);
+      // Labels go beside the node, never over a candle or a wall tag: candles in view are obstacles.
+      const cols: { x: number; yHigh: number; yLow: number }[] = [];
+      for (let i = from; i <= to; i++) {
+        const b = bars[i]; const x = this.xOf(i);
+        const yh = series.priceToCoordinate(b.clampedHigh ? Math.max(b.open, b.close) : b.high);
+        const yl = series.priceToCoordinate(b.clampedLow ? Math.min(b.open, b.close) : b.low);
+        if (x == null || yh == null || yl == null) continue;
+        cols.push({ x, yHigh: yh, yLow: yl });
+      }
+      const obstacles: Rect[] = [...candleRects(cols, Math.max(1.5, spacing * 0.45)), ...this.tagRects(w), ...this.placed];
+      for (const p of chosen) {
+        const text = `Apex ${fmtStrike(p.strike)} · ${kindLabel} ${fmtUsd(p.g, true)}${p.tag ? ` · ${p.tag}` : ''}`;
+        ctx.font = '700 10px "JetBrains Mono", monospace';
+        const tw = ctx.measureText(text).width + 10;
+        const spot = placeLabel(labelCandidates(p.x, p.y, tw, 15), obstacles, { x: 2, y: 2, w: w - 4, h: h - 4 });
+        if (!spot) continue; // no clean spot: the glowing ring alone marks the Apex node
+        obstacles.push(spot); this.placed.push(spot);
+        this.apexLabel(ctx, spot, text, apexC, c.panel, p.x, p.y);
+      }
     }
     this.orbsDrawn = drawn;
   }
 
-  private apexLabel(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, color: string, panel: string, w: number) {
+  private apexLabel(ctx: CanvasRenderingContext2D, r: Rect, text: string, color: string, panel: string, nx: number, ny: number) {
     ctx.font = '700 10px "JetBrains Mono", monospace';
-    const tw = ctx.measureText(text).width + 10;
-    let lx = x + 9; if (lx + tw > w - 4) lx = x - 9 - tw;
-    const ly = Math.max(9, y - 10);
+    // a hairline leader from the node to the label it moved away from
+    ctx.globalAlpha = 0.6; ctx.strokeStyle = color; ctx.lineWidth = 1;
+    const lx = r.x > nx ? r.x : r.x + r.w; const ly = Math.max(r.y, Math.min(r.y + r.h, ny));
+    ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(lx, ly); ctx.stroke();
     ctx.globalAlpha = 0.92; ctx.fillStyle = panel;
     ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') ctx.roundRect(lx, ly - 7, tw, 15, 3); else ctx.rect(lx, ly - 7, tw, 15);
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(r.x, r.y, r.w, r.h, 3); else ctx.rect(r.x, r.y, r.w, r.h);
     ctx.fill();
     ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, lx + 5, ly + 0.5);
+    ctx.fillText(text, r.x + 5, r.y + r.h / 2 + 0.5);
     ctx.textBaseline = 'alphabetic';
   }
 
+  /** Caption boxes drawn this frame (captions + Apex labels keep clear of each other). */
+  private placed: Rect[] = [];
+
+  /** Where the wall / level price-line titles sit (right edge of the pane) — labels keep off them. */
+  private tagRects(w: number): Rect[] {
+    const s = this.series;
+    if (!s) return [];
+    const out: Rect[] = [];
+    for (const p of this.input.tagPrices ?? []) {
+      const y = s.priceToCoordinate(p);
+      if (y != null) out.push({ x: w - 150, y: y - 9, w: 150, h: 18 });
+    }
+    return out;
+  }
+
   /** Expected move: today / this-week priced ranges (fixed lines) + the forward cone. */
+  private chartH = 0;
   private drawEm(ctx: CanvasRenderingContext2D, w: number, spacing: number) {
     const em = this.input.em; const series = this.series;
     if (!em || !series) return;
@@ -567,9 +613,23 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
         ctx.globalAlpha = 0.5; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
         for (const pts of [up, dn]) { ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
         ctx.setLineDash([]);
-        const [ex, ey] = dn[dn.length - 1];
-        ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'right';
-        ctx.fillText('priced range (options) · √t cone, modelled', Math.min(ex, w - 4), ey + 12);
+        // Caption at the cone's OPEN end, under the lower edge, left-aligned — clear of the
+        // wall / level tags on the right edge and of the carried-forward caption at the top.
+        ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+        const k0 = Math.min(dn.length - 1, Math.max(1, Math.round(dn.length * 0.12)));
+        const [cx, cy] = dn[k0];
+        const avail = w - 8 - cx;
+        const txt = fitText('priced range (options) · √t cone, modelled', '√t cone · modelled', avail, (t) => ctx.measureText(t).width);
+        if (txt) {
+          const tw = ctx.measureText(txt).width;
+          const box = placeLabel([{ x: cx, y: cy + 4, w: tw, h: 11 }, { x: cx, y: up[k0][1] - 15, w: tw, h: 11 }], [...this.tagRects(w), ...this.placed], { x: 0, y: 0, w: w - 2, h: this.chartH });
+          if (box) {
+            ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.textBaseline = 'top';
+            ctx.fillText(txt, box.x, box.y);
+            ctx.textBaseline = 'alphabetic';
+            this.placed.push(box);
+          }
+        }
       }
     }
     ctx.globalAlpha = 1;

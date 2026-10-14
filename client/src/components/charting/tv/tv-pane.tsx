@@ -25,9 +25,10 @@ import type { ChartType, RangeKey, ScaleMode } from '@/components/charting/chart
 import { etInfo, fmtVol, etClock, fmtUsd, shortDate } from '@/components/charting/chart-layers';
 import { useVisualMode } from '@/lib/visual-mode';
 import {
-  DEFAULT_TOOL_COLOR, TOOL_POINTS, logicalToTime, medianBarMs, moveAnchor, newDrawingId, snapToOhlc,
-  timeToLogical, tolFor, type Anchor, type ColorRole, type Drawing, type ToolId,
+  DEFAULT_TOOL_COLOR, TOOL_POINTS, logicalToTime, medianBarMs, moveAnchor, newDrawingId, newPositionAnchors, snapToLevels, snapToOhlc,
+  timeToLogical, toggleSelection, tolFor, type Anchor, type ColorRole, type Drawing, type SnapLevel, type ToolId,
 } from './drawing-geometry';
+import { readLegend, type LegendLine } from './chart-snapshot';
 import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indicators';
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
@@ -145,7 +146,10 @@ export interface TvPaneHandle {
   pan(dir: 1 | -1): void;
   reset(): void;
   autoScale(): void;
-  screenshot(): HTMLCanvasElement | null;
+  /** Chart canvas WITH the top layer (drawings) + CSS width + the legend as painted — chart-snapshot.ts composes the PNG. */
+  capture(): { canvas: HTMLCanvasElement; cssW: number; legend: LegendLine[][] } | null;
+  /** Visible span: ~3 bars and ~2% of the price range, for nudging duplicates. */
+  nudge(): { dt: number; dp: number };
   /** Data point under the pointer (for Alt+H at the cursor), when over the pane. */
   pointerAnchor(): Anchor | null;
   cancelDraft(): boolean;
@@ -188,10 +192,17 @@ export interface TvPaneProps {
   layers: Omit<LayersInput, 'bars' | 'zones' | 'cutoff'>;
   drawings: Drawing[];
   selectedId: string | null;
+  selectedIds: string[];
   allHidden: boolean;
   allLocked: boolean;
   tool: ToolId;
   onSelect: (id: string | null) => void;
+  /** Shift-click / long-press on a selection: the whole multi-selection. */
+  onSelectIds: (ids: string[]) => void;
+  /** Snap drawing points to these prices (GEX walls, zero-γ, Apex node, key levels) when on. */
+  snapLevels: SnapLevel[];
+  /** $ risk new position tools are sized at. */
+  riskDollars: number;
   /** A finished edit. `select` selects the new/edited drawing. */
   onCommit: (next: Drawing[], select?: string | null) => void;
   /** A drawing was placed with a tool (the toolbar returns to the cursor). */
@@ -207,9 +218,10 @@ const DEFAULT_BARS: Record<string, number> = { '1m': 240, '5m': 160, '15m': 140,
 export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(props, ref) {
   const {
     symbol, tf, tfLabel, intraday, history, extended, cutoff, liveOn, range, fitKey, chartType, scale, magnet,
-    showVolume, showMA, showEMA, showVWAP, compare, levels, zones, layers, drawings, selectedId, allHidden, allLocked, tool,
-    onSelect, onCommit, onToolDone, legendExtras, describeLayer, extBars, volumeLabel, proxyLabel,
+    showVolume, showMA, showEMA, showVWAP, compare, levels, zones, layers, drawings, selectedId, selectedIds, allHidden, allLocked, tool,
+    onSelect, onSelectIds, onCommit, onToolDone, legendExtras, describeLayer, extBars, volumeLabel, proxyLabel, snapLevels, riskDollars,
   } = props;
+  const legendRef = useRef<HTMLDivElement>(null);
   const [mode] = useVisualMode();
   const hostRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -435,7 +447,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     }
     vwapRef.current?.setData(showVWAP && intraday && n ? line(calcSessionVWAP(bars, (t) => etInfo(t).date)) : []);
     // primitives
-    drawPrim.set({ times, barMs });
+    drawPrim.set({ times, barMs, lastPrice: n ? bars[n - 1].close : null });
     const last = bars[n - 1];
     countPrim.set(last ? { time: last.time, close: last.close, up: n > 1 ? last.close >= bars[n - 2].close : last.close >= last.open } : null, tf, barMs, liveOn && cutoff == null);
     if (!legend.get().hovering) legend.set({ bar: last ?? null, prevClose: n > 1 ? bars[n - 2].close : null, hovering: false });
@@ -506,23 +518,28 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   }, [levels, mode, chartType, dataTick]);
 
   /* layers + drawings state into the primitives */
-  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff }); }, [layerPrim, layers, bars, zones, cutoff, mode]);
+  const tagPrices = useMemo(() => levels.map((l) => l.price), [levels]);
+  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff, tagPrices }); }, [layerPrim, layers, bars, zones, cutoff, mode, tagPrices]);
 
   /* ── pointer: place, select, drag ── */
   const toolRef = useRef(tool); toolRef.current = tool;
   const interact = useRef<{
     draft: Drawing | null;
-    drag: { id: string; part: 'body' | number; x0: number; y0: number; orig: Drawing; moved: boolean; preview: Drawing | null } | null;
+    drag: { id: string; part: 'body' | number; x0: number; y0: number; orig: Drawing; moved: boolean; preview: Drawing | null; group: Drawing[]; groupPreview: Drawing[] | null } | null;
     down: { x: number; y: number; placedOnDown: boolean } | null;
     pointer: { x: number; y: number } | null;
-  }>({ draft: null, drag: null, down: null, pointer: null });
+    /** Touch long-press: a finger held still on a drawing selects it (and then drags it). */
+    press: { timer: ReturnType<typeof setTimeout>; x: number; y: number; id: string; part: 'body' | number; pointerId: number } | null;
+    /** Fingers on the chart: a second one cancels any drawing gesture (pinch / two-finger pan stay the chart's). */
+    touches: Set<number>;
+  }>({ draft: null, drag: null, down: null, pointer: null, press: null, touches: new Set() });
 
   useEffect(() => {
     // A drag in flight keeps its preview when a re-render lands mid-gesture.
     const dg = interact.current.drag;
-    const list = dg?.preview ? drawings.map((d) => (d.id === dg.id ? dg.preview! : d)) : drawings;
-    drawPrim.set({ drawings: list, selectedId, allHidden });
-  }, [drawPrim, drawings, selectedId, allHidden, mode]);
+    const list = dg?.groupPreview ? mergeById(drawings, dg.groupPreview) : drawings;
+    drawPrim.set({ drawings: list, selectedId, selectedIds, allHidden });
+  }, [drawPrim, drawings, selectedId, selectedIds, allHidden, mode]);
 
   useEffect(() => { drawPrim.locked = allLocked; }, [drawPrim, allLocked]);
 
@@ -558,8 +575,13 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       const bar = barsRef.current[Math.round(l)];
       price = snapToOhlc(p, bar, (v) => s.priceToCoordinate(v), y, 28);
     }
+    // GEX walls / zero-γ / Apex node / key levels pull harder than O/H/L/C when close.
+    if (snapLevels.length) {
+      const hit = snapToLevels(p, y, snapLevels, (v) => s.priceToCoordinate(v), drawPrim.touchUi ? 18 : 10);
+      if (hit.level) price = hit.price;
+    }
     return { t, p: price };
-  }, [magnet]);
+  }, [magnet, snapLevels, drawPrim]);
 
   const disableScroll = (off: boolean) => {
     if (toolRef.current !== 'cursor') return; // already off while a tool is armed
@@ -595,11 +617,35 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     onToolDone(d);
   };
 
+  const cancelPress = () => {
+    const it = interact.current;
+    if (it.press) { clearTimeout(it.press.timer); it.press = null; }
+  };
+  const startDrag = (d: Drawing, part: 'body' | number, x: number, y: number, pointerId: number) => {
+    const it = interact.current;
+    disableScroll(true);
+    try { hostRef.current?.setPointerCapture?.(pointerId); } catch { /* pointer gone */ }
+    // Dragging the body of a drawing that is part of a multi-selection moves the whole group.
+    const group = part === 'body' && selectedIds.length > 1 && selectedIds.includes(d.id)
+      ? drawings.filter((v) => selectedIds.includes(v.id) && !v.locked)
+      : [d];
+    it.drag = { id: d.id, part, x0: x, y0: y, orig: d, moved: false, preview: null, group, groupPreview: null };
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const { x, y } = local(e);
-    if (!inPane(x, y)) return;
     const it = interact.current;
+    if (e.pointerType === 'touch') {
+      it.touches.add(e.pointerId);
+      if (it.touches.size > 1) {
+        // Second finger: pinch / two-finger pan belong to the chart. Drop any drawing gesture.
+        cancelPress();
+        if (it.drag) { it.drag = null; disableScroll(false); drawPrim.set({ drawings }); }
+        return;
+      }
+    }
+    if (!inPane(x, y)) return;
     it.pointer = { x, y };
     const touchUi = e.pointerType !== 'mouse';
     if (drawPrim.touchUi !== touchUi) { drawPrim.touchUi = touchUi; drawPrim.set({}); }
@@ -621,6 +667,14 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       if (!it.draft) {
         const d: Drawing = { id: newDrawingId(), tool: t, pts: [a], color: DEFAULT_TOOL_COLOR[t], width: t === 'hline' || t === 'hray' || t === 'vline' ? 1 : 2 };
         if (t === 'text') d.text = 'Text';
+        if (t === 'long' || t === 'short') {
+          // Stop ~1.5× the recent average bar range away, target 2R, ~20 bars wide.
+          const bs = barsRef.current.slice(-14);
+          const avgRange = bs.length ? bs.reduce((s2, b) => s2 + (b.high - b.low), 0) / bs.length : a.p * 0.01;
+          d.pts = newPositionAnchors(t, a, avgRange * 1.5, 20 * barMsRef.current);
+          d.risk = riskDollars;
+          d.width = 1;
+        }
         if (t === 'arrow') {
           const bar = barsRef.current[Math.round(timeToLogical(timesRef.current, a.t, barMsRef.current))];
           d.dir = bar && a.p < (bar.high + bar.low) / 2 ? 'up' : 'down';
@@ -644,11 +698,33 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     if (hit) {
       const d = drawings.find((v) => v.id === hit.id);
       if (!d) return;
-      onSelect(d.id);
+      const part: 'body' | number = hit.part.kind === 'handle' ? hit.part.index : 'body';
+      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+        // Shift / ⌘-click: add to or remove from the selection, no drag.
+        onSelectIds(toggleSelection(selectedIds, d.id));
+        it.down = null;
+        return;
+      }
+      if (e.pointerType === 'touch' && !selectedIds.includes(d.id)) {
+        // A finger on an unselected drawing: a long press selects it; a swipe pans the chart as usual.
+        cancelPress();
+        it.press = {
+          x, y, id: d.id, part, pointerId: e.pointerId,
+          timer: setTimeout(() => {
+            const p2 = interact.current.press;
+            if (!p2) return;
+            interact.current.press = null;
+            navigator.vibrate?.(12);
+            onSelectIds(selectedIds.length ? [...selectedIds.filter((s2) => s2 !== d.id), d.id] : [d.id]);
+            interact.current.down = null;
+            if (!d.locked) startDrag(d, p2.part, p2.x, p2.y, p2.pointerId);
+          }, 420),
+        };
+        return;
+      }
+      if (!selectedIds.includes(d.id) || selectedIds.length < 2) onSelect(d.id);
       if (d.locked) return;
-      disableScroll(true);
-      hostRef.current?.setPointerCapture?.(e.pointerId);
-      it.drag = { id: d.id, part: hit.part.kind === 'handle' ? hit.part.index : 'body', x0: x, y0: y, orig: d, moved: false, preview: null };
+      startDrag(d, part, x, y, e.pointerId);
     }
   };
 
@@ -656,6 +732,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     const { x, y } = local(e);
     const it = interact.current;
     it.pointer = { x, y };
+    if (it.press && Math.hypot(x - it.press.x, y - it.press.y) > 8) cancelPress(); // a swipe, not a press
     if (it.draft) {
       if (it.draft.tool === 'brush') {
         if (!it.down) return;
@@ -677,26 +754,33 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       const s = mainRef.current; const chart = chartRef.current;
       if (!s || !chart) return;
       let next: Drawing;
+      let group: Drawing[];
       if (dg.part === 'body') {
         const l0 = chart.timeScale().coordinateToLogical(dg.x0); const l1 = chart.timeScale().coordinateToLogical(x);
-        const dl = l0 != null && l1 != null ? (dg.orig.tool === 'brush' ? l1 - l0 : Math.round(l1 - l0)) : 0;
         const dy = y - dg.y0;
-        next = {
-          ...dg.orig,
-          pts: dg.orig.pts.map((a) => {
-            const ay = s.priceToCoordinate(a.p);
-            const np = ay == null ? a.p : s.coordinateToPrice(ay + dy);
-            const nl = timeToLogical(timesRef.current, a.t, barMsRef.current) + dl;
-            return { t: logicalToTime(timesRef.current, nl, barMsRef.current), p: np ?? a.p };
-          }),
+        const shift = (src: Drawing): Drawing => {
+          const dl = l0 != null && l1 != null ? (src.tool === 'brush' ? l1 - l0 : Math.round(l1 - l0)) : 0;
+          return {
+            ...src,
+            pts: src.pts.map((a) => {
+              const ay = s.priceToCoordinate(a.p);
+              const np = ay == null ? a.p : s.coordinateToPrice(ay + dy);
+              const nl = timeToLogical(timesRef.current, a.t, barMsRef.current) + dl;
+              return { t: logicalToTime(timesRef.current, nl, barMsRef.current), p: np ?? a.p };
+            }),
+          };
         };
+        group = dg.group.map(shift);
+        next = group.find((g) => g.id === dg.id) ?? shift(dg.orig);
       } else {
         const a = toAnchor(x, y);
         if (!a) return;
         next = moveAnchor(dg.orig, dg.part, a);
+        group = [next];
       }
       dg.preview = next;
-      drawPrim.set({ drawings: drawings.map((d) => (d.id === dg.id ? next : d)) });
+      dg.groupPreview = group;
+      drawPrim.set({ drawings: mergeById(drawings, group) });
       return;
     }
     if (e.pointerType === 'mouse' && toolRef.current === 'cursor') {
@@ -707,6 +791,14 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const onPointerUp = (e: React.PointerEvent) => {
     const { x, y } = local(e);
     const it = interact.current;
+    it.touches.delete(e.pointerId);
+    if (it.press) {
+      // Lifted before the long press fired: a plain tap on a drawing selects it.
+      const p2 = it.press; cancelPress();
+      if (Math.hypot(x - p2.x, y - p2.y) < 8 && e.type === 'pointerup') onSelect(p2.id);
+      it.down = null;
+      return;
+    }
     const down = it.down;
     it.down = null;
     hostRef.current?.releasePointerCapture?.(e.pointerId);
@@ -730,15 +822,14 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     if (it.drag) {
       const dg = it.drag; it.drag = null;
       disableScroll(false);
-      if (dg.moved && dg.preview) {
-        const cur = dg.preview;
-        onCommit(drawings.map((d) => (d.id === dg.id ? cur : d)), dg.id);
+      if (dg.moved && dg.groupPreview) {
+        onCommit(mergeById(drawings, dg.groupPreview), dg.group.length > 1 ? undefined : dg.id);
       }
       return;
     }
     // a click / tap on empty chart clears the selection; a tap shows the layer tooltip
     if (down && Math.hypot(x - down.x, y - down.y) < 5 && toolRef.current === 'cursor') {
-      if (selectedId) onSelect(null);
+      if (selectedId || selectedIds.length) onSelect(null);
       if (e.pointerType !== 'mouse') showTip(x, y, true);
     }
   };
@@ -746,6 +837,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   // A finger lifting fires pointerleave right after pointerup: only the mouse
   // leaving hides the tooltip (a tap's tooltip stays until the next tap).
   const onPointerLeave = (e: React.PointerEvent) => { interact.current.pointer = null; if (e.pointerType === 'mouse') hideTip(); };
+  useEffect(() => () => cancelPress(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── imperative handle ── */
   useImperativeHandle(ref, () => ({
@@ -771,7 +863,20 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       applyDefaultRange(chart, barsRef.current, tf, intraday, range);
     },
     autoScale() { chartRef.current?.priceScale('right').applyOptions({ autoScale: true }); },
-    screenshot() { return chartRef.current?.takeScreenshot() ?? null; },
+    capture() {
+      const chart = chartRef.current; const host = hostRef.current;
+      if (!chart || !host) return null;
+      // true = include the TOP layer: the drawings live there (the old snapshot left them out).
+      const canvas = chart.takeScreenshot(true, false);
+      return { canvas, cssW: host.clientWidth, legend: readLegend(legendRef.current) };
+    },
+    nudge() {
+      const chart = chartRef.current; const s = mainRef.current;
+      const h = chart?.paneSize(0).height ?? 0;
+      const top = s?.coordinateToPrice(0); const bot = s?.coordinateToPrice(h);
+      const dp = top != null && bot != null ? Math.abs(top - bot) * 0.03 : 0;
+      return { dt: 3 * barMsRef.current, dp };
+    },
     pointerAnchor() {
       const p = interact.current.pointer;
       if (!p || !inPane(p.x, p.y)) return null;
@@ -813,13 +918,20 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
         <span className="tv-wm-tf">{tfLabel}</span>
         <img className="tv-gamma-wm" src="/gamma-mark.svg" alt="" draggable={false} />
       </div>
-      <Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} volumeLabel={volumeLabel} proxyLabel={proxyLabel} />
+      <div ref={legendRef} style={{ display: 'contents' }}><Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} volumeLabel={volumeLabel} proxyLabel={proxyLabel} /></div>
       <div className="tv-tip" ref={tipRef} role="tooltip" />
     </div>
   );
 });
 
 /* ───────────────────────── helpers ───────────────────────── */
+
+/** Replace drawings by id (drag previews of one or many). */
+function mergeById(list: Drawing[], repl: Drawing[]): Drawing[] {
+  if (!repl.length) return list;
+  const m = new Map(repl.map((d) => [d.id, d]));
+  return list.map((d) => m.get(d.id) ?? d);
+}
 
 /** TV-like opening frame: the last session(s) intraday, ~a year of dailies. */
 function applyDefaultRange(chart: IChartApi, bars: Candle[], tf: string, intraday: boolean, range: RangeKey) {

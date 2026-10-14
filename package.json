@@ -68,6 +68,7 @@
     "test:chart": "tsx scripts/test-chart-guard.ts && tsx scripts/test-chart-drawings.ts && tsx scripts/test-chart-tools.ts && tsx scripts/test-spx-chart.ts",
     "test:spx-chart": "tsx scripts/test-spx-chart.ts",
     "test:chart-orbs": "tsx scripts/test-chart-orbs.ts",
+    "test:charting-pro": "tsx scripts/test-charting-pro.ts",
     "test:publish-gates": "tsx scripts/test-publish-gates.ts",
     "test:nexus-detail": "tsx scripts/test-nexus-detail.ts",
     "test:setup-lifecycle": "tsx scripts/test-setup-lifecycle.ts",
