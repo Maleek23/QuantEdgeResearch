@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef } from 'react';
 import type { GEXSnapshot, StrikeExpiryCell } from '@shared/gex-types';
-import { exposureText, fmtGexB, fmtVexM } from './gex-colors';
+import { LEVEL_COLORS, exposureText, fmtGexB, fmtVexM } from './gex-colors';
 import { fmtCell, cellValue, GAMMA_VIEWS, type CellMetric, type GammaView } from './gex-model';
 import { LEVEL_LABELS, type GammaMetricLevels } from '@shared/gex-adjusted';
 
@@ -69,15 +69,15 @@ export function DealerStructureRail({ snap, spot, zeroGamma, negGamma, names = f
   return (
     <div style={{ margin: '10px 0 4px', padding: '14px 10px 4px', position: 'relative' }}>
       <div style={{ position: 'relative', height: 6, borderRadius: 3, background: flip != null ? `linear-gradient(90deg, color-mix(in srgb, ${leftNeg ? 'var(--red)' : 'var(--cyan)'} 32%, transparent) ${X(flip)}, color-mix(in srgb, ${leftNeg ? 'var(--cyan)' : 'var(--red)'} 32%, transparent) ${X(flip)})` : `color-mix(in srgb, ${negGamma ? 'var(--red)' : 'var(--cyan)'} 15%, transparent)` }} title="Bar colour: blue = positive-gamma side (dealers stabilise), vermilion = negative-gamma side (dealers amplify)">
-        {snap.putWall != null && <div title={`Put wall $${snap.putWall}`} style={{ position: 'absolute', left: X(snap.putWall), top: -4, width: 2, height: 14, background: 'var(--red)', boxShadow: '0 0 6px var(--red)' }} />}
-        {flip != null && <div title={`Zero-gamma level $${flip.toFixed(2)}`} style={{ position: 'absolute', left: X(flip), top: -6, width: 2, height: 18, background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />}
-        {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--cyan)', boxShadow: '0 0 6px var(--cyan)' }} />}
+        {snap.putWall != null && <div title={`Put wall $${snap.putWall}`} style={{ position: 'absolute', left: X(snap.putWall), top: -4, width: 2, height: 14, background: LEVEL_COLORS.putWall, boxShadow: '0 0 6px var(--red)' }} />}
+        {flip != null && <div title={`Zero-gamma level $${flip.toFixed(2)}`} style={{ position: 'absolute', left: X(flip), top: -6, width: 2, height: 18, background: LEVEL_COLORS.zeroGamma, boxShadow: '0 0 8px var(--amber)' }} />}
+        {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: LEVEL_COLORS.callWall, boxShadow: '0 0 6px var(--cyan)' }} />}
         {spot > 0 && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: 'var(--text)', boxShadow: '0 0 8px rgba(255,255,255,0.5)', transform: 'translateX(-4px)' }} />}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: mono, fontSize: 'var(--fs-9, 10px)', color: 'var(--text-mute)' }}>
-        <span style={{ color: 'var(--red)' }}>{names ? 'put wall' : `P ${snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}`}</span>
-        <span style={{ color: 'var(--amber)' }}>{names ? 'zero-γ' : `zero-γ ${flip != null ? `$${flip.toFixed(1)}` : '—'}`}</span>
-        <span style={{ color: 'var(--cyan-bright)' }}>{names ? 'call wall' : `C ${snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}`}</span>
+        <span style={{ color: LEVEL_COLORS.putWall }}>{names ? 'put wall' : `P ${snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}`}</span>
+        <span style={{ color: LEVEL_COLORS.zeroGamma }}>{names ? 'zero-γ' : `zero-γ ${flip != null ? `$${flip.toFixed(1)}` : '—'}`}</span>
+        <span style={{ color: LEVEL_COLORS.callWall }}>{names ? 'call wall' : `C ${snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}`}</span>
       </div>
     </div>
   );
