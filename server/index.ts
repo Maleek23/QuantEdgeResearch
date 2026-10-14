@@ -71,6 +71,8 @@ app.use(['/api/journal/import-csv', '/api/journal/trade', '/api/journal/notes'],
 // Discord imports upload a whole DiscordChatExporter file (JSON/CSV) for preview.
 app.use('/api/journal/discord/preview', express.json({ limit: '12mb' }));
 app.use('/api/journal/discord/forum/preview', express.json({ limit: '40mb' }));
+// Chart drawings: a symbol's set can hold long brush strokes (sanitised + capped server side).
+app.use('/api/chart/drawings', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(cookieParser());

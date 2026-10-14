@@ -552,6 +552,9 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   if (hp) return json(200, mockHistory(decodeURIComponent(hp[1]).toUpperCase(), url.searchParams.get('range') ?? '1mo', url.searchParams.get('interval') ?? '5m'));
   const co = p.match(/^\/api\/chart\/overlays\/([^/]+)/);
   if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575, url.searchParams.get('horizon') ?? 'all')); }
+  // Chart drawings: nothing stored server-side in the harness (the device copy is what shows).
+  const cd = p.match(/^\/api\/chart\/drawings\/([^/]+)/);
+  if (cd) return json(200, { symbol: decodeURIComponent(cd[1]).toUpperCase(), drawings: [], updatedAt: 0, source: 'test_harness_fixture' });
   const em = p.match(/^\/api\/chart\/expected-move\/([^/]+)/);
   if (em) { const sym = decodeURIComponent(em[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockExpectedMove(sym, h[h.length - 1]?.close || 575)); }
   if (p === '/api/flow/tape') return json(200, mockFlowTape(url.searchParams.get('symbol')));

@@ -5500,10 +5500,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!symbol || !Number.isFinite(price) || price <= 0) {
         return res.status(400).json({ error: "symbol and a positive price are required" });
       }
-      const { addAlert } = await import("./price-alerts");
+      const { addAlert, parseAlertLine } = await import("./price-alerts");
       const { getRealtimeQuote } = await import("./realtime-pricing-service");
       const q = await getRealtimeQuote(symbol, "stock").catch(() => null);
-      const alert = await addAlert(symbol, price, Number((q as any)?.price) || null);
+      // Chart drawings: an optional sloped line + the drawing id / label (server/price-alerts.ts).
+      const line = req.body?.line != null ? parseAlertLine(req.body.line) : null;
+      if (req.body?.line != null && !line) return res.status(400).json({ error: "line must be { t1, p1, t2, p2, extend, basis } with positive prices" });
+      const alert = await addAlert(symbol, price, Number((q as any)?.price) || null, {
+        line,
+        drawingId: typeof req.body?.drawingId === "string" ? req.body.drawingId : undefined,
+        label: typeof req.body?.label === "string" ? req.body.label : undefined,
+        userId: (req.session as any)?.userId ?? null,
+      });
       res.json({ ok: true, alert });
     } catch (error) {
       res.status(500).json({ error: "Failed to arm alert" });
@@ -15722,6 +15730,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registered before /api/quantinum/:symbol so "ai" is never read as a ticker.
   // Flag QUANTINUM_AI=admin (default) | all | off; quota + spend cap inside.
   { const { registerQuantinumAiRoutes } = await import('./quantinum-ai-routes'); registerQuantinumAiRoutes(app, requireBetaAccess, requireAdminJWT); }
+
+  // ── CHART DRAWINGS — per user × symbol, so drawings follow the user across devices (server/chart-drawings-store.ts) ──
+  { const { registerChartDrawingRoutes } = await import('./chart-drawings-store'); registerChartDrawingRoutes(app, requireBetaAccess); }
 
   // ── QUANTEDGE LABS DISCORD — lifecycle cards, per-channel on/off (admin) ──
   // server/discord-lifecycle.ts. Master switch is env DISCORD_LIFECYCLE (default on).

@@ -118,7 +118,7 @@ export function useCandles(rawSymbol: string, tf: string, enabled = true) {
   const cfg = TF_CONFIG[tf];
   const tol = WICK_TOLERANCE[tf] ?? 0.05;
   return useQuery<CandleSeries>({
-    queryKey: ['/api/historical-prices', symbol, cfg.range, cfg.interval, 'chartlab'],
+    queryKey: ['/api/historical-prices', symbol, cfg.range, cfg.interval, cfg.aggregateMinutes ?? 0, 'chartlab'],
     queryFn: async () => {
       const r = await fetch(`/api/historical-prices/${encodeURIComponent(symbol)}?range=${cfg.range}&interval=${cfg.interval}`, { credentials: 'include' });
       if (!r.ok) throw new Error('history failed');

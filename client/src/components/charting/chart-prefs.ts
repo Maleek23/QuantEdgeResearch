@@ -29,6 +29,10 @@
  */
 import { useSyncExternalStore } from 'react';
 import { TF_CONFIG } from '@/components/charting/chart-engine';
+import { restoreCustomIntervals } from '@/components/charting/tv/custom-intervals';
+
+// Custom intervals (2m, 3h …) must be in TF_CONFIG before a saved `tf` is validated.
+restoreCustomIntervals();
 
 export type GexMode = 'bubbles' | 'lines' | 'off';
 /** Which exposure the nodes show: dealer gamma, vanna, or both (VEX as rings). */

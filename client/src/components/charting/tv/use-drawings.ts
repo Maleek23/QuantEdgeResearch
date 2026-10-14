@@ -1,13 +1,14 @@
 /**
  * useDrawings — one symbol's drawings for one user: load from the active
- * DrawingStore, commit (persist + undo step), undo / redo, selection.
+ * DrawingStore (device copy at once, server copy when it lands), commit
+ * (persist + undo step), undo / redo, selection (one or many).
  * Drag previews never come through here — the pane moves the primitive
  * directly and commits once on release, so one drag = one undo step.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Drawing } from './drawing-geometry';
 import { History } from './drawing-history';
-import { getDrawingStore } from './drawing-store';
+import { getDrawingStore, type SyncStatus } from './drawing-store';
 
 export interface DrawingsApi {
   drawings: Drawing[];
@@ -16,15 +17,19 @@ export interface DrawingsApi {
   redo: () => boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** The primary selection (the last one picked) — the mini-toolbar edits all of `selectedIds`. */
   selectedId: string | null;
+  selectedIds: string[];
   setSelectedId: (id: string | null) => void;
+  setSelectedIds: (ids: string[]) => void;
+  sync: SyncStatus;
 }
 
 export function useDrawings(userId: string, symbol: string): DrawingsApi {
   const store = getDrawingStore();
   const scope = useMemo(() => ({ userId, symbol: symbol.toUpperCase() }), [userId, symbol]);
   const [drawings, setDrawings] = useState<Drawing[]>(() => store.load(scope));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSel] = useState<string[]>([]);
   const [, bump] = useState(0);
   const ref = useRef(drawings);
   const hist = useRef(new History<Drawing[]>());
@@ -33,8 +38,11 @@ export function useDrawings(userId: string, symbol: string): DrawingsApi {
     const load = () => { const d = store.load(scope); ref.current = d; setDrawings(d); };
     load();
     hist.current.clear();
-    setSelectedId(null);
-    return store.subscribe(scope, load);
+    setSel([]);
+    return store.subscribe(scope, () => {
+      // A server copy landing replaces the set: undo steps refer to the old one.
+      const d = store.load(scope); ref.current = d; setDrawings(d); hist.current.clear(); bump((n) => n + 1);
+    });
   }, [store, scope]);
 
   const apply = useCallback((next: Drawing[]) => {
@@ -63,12 +71,17 @@ export function useDrawings(userId: string, symbol: string): DrawingsApi {
     return true;
   }, [apply]);
 
-  // A selection that no longer exists (undo removed it) clears itself.
-  const sel = selectedId && drawings.some((d) => d.id === selectedId) ? selectedId : null;
+  // A selection that no longer exists (undo removed it) drops out.
+  const live = useMemo(() => selectedIds.filter((id) => drawings.some((d) => d.id === id)), [selectedIds, drawings]);
+  const setSelectedId = useCallback((id: string | null) => setSel(id ? [id] : []), []);
+  const setSelectedIds = useCallback((ids: string[]) => setSel(ids), []);
 
   return {
     drawings, commit, undo, redo,
     canUndo: hist.current.canUndo, canRedo: hist.current.canRedo,
-    selectedId: sel, setSelectedId,
+    selectedId: live.length ? live[live.length - 1] : null,
+    selectedIds: live,
+    setSelectedId, setSelectedIds,
+    sync: store.status?.(scope) ?? { state: 'device', at: null },
   };
 }
