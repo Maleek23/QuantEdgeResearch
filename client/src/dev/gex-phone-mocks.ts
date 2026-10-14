@@ -23,10 +23,12 @@ const labelFor = (dte: number) => { const d = new Date(NOW + dte * 86_400_000); 
 /** listed expiries: dailies for two weeks (no weekends), then monthlies/quarterlies */
 const DTES = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 21, 28, 45, 77, 105, 168];
 
-const BOOKS: Record<string, { spot: number; step: number; half: number; scale: number; seed: number; chg: number }> = {
+/** flip: zero-γ as a multiple of spot (default 0.9935); bias: shifts the book short (−) so Trinity shows a mixed read. */
+const BOOKS: Record<string, { spot: number; step: number; half: number; scale: number; seed: number; chg: number; flip?: number; bias?: number }> = {
   SPY: { spot: 668.42, step: 1, half: 30, scale: 1, seed: 7, chg: 0.62 },
   SPX: { spot: 6697.8, step: 5, half: 30, scale: 9, seed: 11, chg: 0.58 },
-  QQQ: { spot: 601.15, step: 1, half: 30, scale: 0.7, seed: 23, chg: -0.41 },
+  QQQ: { spot: 601.15, step: 1, half: 30, scale: 0.7, seed: 23, chg: -0.41, flip: 1.008 },
+  IWM: { spot: 247.6, step: 1, half: 24, scale: 0.3, seed: 37, chg: -0.85, flip: 1.004, bias: -1 },
   NVDA: { spot: 186.3, step: 2.5, half: 24, scale: 0.35, seed: 31, chg: 1.9 },
   TSLA: { spot: 438.9, step: 5, half: 24, scale: 0.3, seed: 41, chg: -2.3 },
 };
@@ -46,7 +48,7 @@ function matrixFor(sym: string): StrikeExpiryCell[] {
       // calls above spot (+), puts below (−); a big round-number node each side
       const bell = Math.exp(-((m * 100) ** 2) / (2 * (1.6 + dte * 0.25) ** 2));
       const round = strike % (b.step * 10) === 0 ? 2.4 : strike % (b.step * 5) === 0 ? 1.5 : 1;
-      const sign = m > 0.002 ? 1 : m < -0.002 ? -1 : (r() > 0.5 ? 1 : -1);
+      const sign = (b.bias ?? 0) < 0 && m > 0.002 && m < 0.03 ? -1 : m > 0.002 ? 1 : m < -0.002 ? -1 : (r() > 0.5 ? 1 : -1);
       const noise = 0.55 + r() * 0.9;
       const g = sign * bell * round * noise * decay * 0.42 * b.scale * (sign < 0 ? 1.15 : 1);
       if (Math.abs(g) < 1e-5 && r() > 0.3) continue; // sparse far wings
@@ -75,7 +77,7 @@ function snapshotFor(sym: string, cells: StrikeExpiryCell[]): GEXSnapshot {
   const gross = cells.reduce((s, c) => s + Math.abs(c.netGEX), 0);
   const callGEX = cells.filter((c) => c.netGEX > 0).reduce((s, c) => s + c.netGEX, 0);
   const putGEX = cells.filter((c) => c.netGEX < 0).reduce((s, c) => s + c.netGEX, 0);
-  const zeroGamma = +(b.spot * 0.9935).toFixed(2);
+  const zeroGamma = +(b.spot * (b.flip ?? 0.9935)).toFixed(2);
   const gammaProfile = Array.from({ length: 41 }, (_, i) => {
     const s = b.spot * (0.8 + i * 0.01);
     return { spot: +s.toFixed(2), netGEX: +(Math.tanh((s - zeroGamma) / (b.spot * 0.02)) * Math.abs(totalGEX) * 1.4).toFixed(4) };

@@ -59,7 +59,7 @@ export function pageContextLine(c: PageContext): string {
 
 // ─── slash commands ─────────────────────────────────────────
 
-export const ANALYST_COMMANDS = ['levels', 'flow', 'setup', 'indices', 'sector', 'news', 'record'] as const;
+export const ANALYST_COMMANDS = ['levels', 'flow', 'setup', 'indices', 'trinity', 'sector', 'news', 'record'] as const;
 export type AnalystCommand = (typeof ANALYST_COMMANDS)[number];
 
 export interface CommandSpec { name: AnalystCommand; usage: string; hint: string; arg: 'symbol' | 'symbol-or-id' | 'name' | 'none' | 'symbol-or-pattern'; required: boolean }
@@ -68,6 +68,7 @@ export const COMMAND_SPECS: readonly CommandSpec[] = [
   { name: 'flow', usage: '/flow [sym]', hint: 'Options tape today, filtered to your timeframe', arg: 'symbol', required: false },
   { name: 'setup', usage: '/setup [sym|id]', hint: 'The NEXUS setup: plan, grade, lifecycle + its verified record', arg: 'symbol-or-id', required: false },
   { name: 'indices', usage: '/indices', hint: 'SPX · SPY · QQQ — do they agree?', arg: 'none', required: false },
+  { name: 'trinity', usage: '/trinity', hint: 'SPY · QQQ · IWM gamma — regime, flips, walls: do they agree?', arg: 'none', required: false },
   { name: 'sector', usage: '/sector <name>', hint: 'One sector from the sector board', arg: 'name', required: true },
   { name: 'news', usage: '/news [sym]', hint: 'Last 24h headlines', arg: 'symbol', required: false },
   { name: 'record', usage: '/record [sym|pattern]', hint: 'Verified outcomes, e.g. "/record A long breakout"', arg: 'symbol-or-pattern', required: false },
@@ -89,9 +90,9 @@ export function parseSlash(text: string): SlashParse {
   const t = String(text ?? '').trim();
   if (!t.startsWith('/')) return null;
   const m = /^\/([a-z]+)(?:\s+([\s\S]*))?$/i.exec(t);
-  if (!m) return { ok: false, error: 'Unknown command. Try /levels, /flow, /setup, /indices, /sector, /news or /record.' };
+  if (!m) return { ok: false, error: 'Unknown command. Try /levels, /flow, /setup, /indices, /trinity, /sector, /news or /record.' };
   const name = m[1].toLowerCase();
-  if (!(ANALYST_COMMANDS as readonly string[]).includes(name)) return { ok: false, error: `Unknown command /${name}. Try /levels, /flow, /setup, /indices, /sector, /news or /record.` };
+  if (!(ANALYST_COMMANDS as readonly string[]).includes(name)) return { ok: false, error: `Unknown command /${name}. Try /levels, /flow, /setup, /indices, /trinity, /sector, /news or /record.` };
   const spec = COMMAND_SPECS.find((s) => s.name === name)!;
   const raw = (m[2] ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
   if (spec.required && !raw) return { ok: false, error: `${spec.usage} needs an argument.` };

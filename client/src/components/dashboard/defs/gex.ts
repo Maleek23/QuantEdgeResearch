@@ -66,6 +66,13 @@ export const GEX_TOOLS: ToolDef[] = [
     defaultSize: { w: 5, h: 14 }, minSize: { w: 4, h: 8 }, Component: lazyTool(() => import('../tools/gex/squeeze-radar-tool'), 'SqueezeRadarTool'),
   },
   {
+    id: 'gex-trinity', category: 'GEX', title: 'Trinity · SPY QQQ IWM',
+    what: 'SPY, QQQ and IWM dealer maps side by side over one expiry horizon (optional SPX): net GEX / VEX ladder around spot, flip, walls, Apex node, regime and distance to flip, plus a one-line agreement read. Tap an index to focus every GEX tool on it.',
+    units: 'GEX $/1% move, VEX $/IV pt, % from spot', source: ENGINE,
+    backing: 'GexTrinityTool (tools/gex/trinity-tool.tsx) + trinityAgreement (shared/gex-trinity.ts) ← GET /api/gex-vex/terminal/:symbol?horizon=',
+    ageInside: true, defaultSize: { w: 12, h: 11 }, minSize: { w: 6, h: 8 }, Component: lazyTool(() => import('../tools/gex/trinity-tool'), 'GexTrinityTool'),
+  },
+  {
     id: 'gex-hub', category: 'GEX', title: 'GEX Hub (all-in-one)',
     what: 'The previous GEX page in one tile: ranked list, near-term map, strike × expiry surface and context rail.',
     units: 'GEX $/1% move, VEX $/IV pt', source: ENGINE, backing: 'GexHubNexus (components/gex/gex-hub-nexus.tsx)',
@@ -99,5 +106,13 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
     ['gex-levels', 8, 0, 4, 7],
     ['gex-setups', 8, 7, 4, 6],
     ['gex-regime', 8, 13, 4, 5],
+  ],
+}, {
+  // Index agreement desk: the three index maps on top, the focused one's matrix + levels below.
+  id: 'trinity', name: 'Trinity',
+  tools: [
+    ['gex-trinity', 0, 0, 12, 11],
+    ['gex-matrix', 0, 11, 8, 7],
+    ['gex-levels', 8, 11, 4, 7],
   ],
 }];

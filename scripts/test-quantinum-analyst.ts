@@ -126,7 +126,7 @@ async function main() {
   ok(parseSlash('/bogus x') && !(parseSlash('/bogus x') as any).ok, 'unknown command rejected');
   ok(!(parseSlash('/sector') as any).ok, '/sector requires a name');
   eq((parseSlash('/levels nvda') as any).cmd.arg, 'nvda', 'arg captured');
-  eq(suggestCommands('/').length, 7, 'autocomplete lists all 7 on "/"');
+  eq(suggestCommands('/').length, 8, 'autocomplete lists all 8 on "/"');
   eq(suggestCommands('/se').map((s) => s.name).join(','), 'setup,sector', 'autocomplete prefix');
   eq(suggestCommands('/levels NVDA').length, 0, 'no suggestions once an arg is typed');
   const r0 = resolveCommandArg({ command: 'levels', arg: null }, page);

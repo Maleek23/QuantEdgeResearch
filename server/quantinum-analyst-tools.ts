@@ -24,6 +24,7 @@ import type { LevelMap } from '@shared/levels/level-math';
 import type { TapePayload } from './flow-tape';
 import type { IdeaRow } from './quantinum-ai-context';
 import { loadDeskVerifyLedger } from './desk-verify-ledger';
+import { TRINITY_SYMBOLS, trinityAgreement, type TrinityInput } from '@shared/gex-trinity';
 
 export interface GexBucketRead {
   callWall: number | null; putWall: number | null; gammaFlipPrice: number | null; maxGammaStrike: number | null; totalGEX: number; expirationsCount: number;
@@ -277,6 +278,35 @@ async function indicesTool(ctx: Ctx): Promise<AnalystCard> {
   return card(ctx, b, 'Indices · SPX SPY QQQ', null, 'ok', agree && sameSign ? 'SPX, SPY and QQQ agree.' : 'The indices do not agree.');
 }
 
+// ─── /trinity ───────────────────────────────────────────────
+// Same agreement function as the GEX workspace Trinity tool (shared/gex-trinity.ts).
+async function trinityTool(ctx: Ctx): Promise<AnalystCard> {
+  const b = new CardBuilder();
+  const w = HORIZON_WINDOWS[ctx.horizon];
+  const syms = [...TRINITY_SYMBOLS];
+  const all = await Promise.all(syms.map((s) => settle(ctx.deps.getGexBuckets(s))));
+  const inputs: TrinityInput[] = [];
+  const srcOf: Record<string, string> = {};
+  all.forEach((g, i) => {
+    const sym = syms[i];
+    const k = g?.byDte?.[w.gexBucket];
+    if (!g || !k) return;
+    srcOf[sym] = b.src(`tri.${sym}`, `${sym} GEX ${w.gexBucket}`, `GEX DTE buckets (${g.source ?? 'source unknown'}) · ${k.expirationsCount} expiries`, g.asOf);
+    inputs.push({ symbol: sym, spot: g.spot, flip: k.gammaFlipPrice, callWall: k.callWall, putWall: k.putWall, maxGamma: k.maxGammaStrike, netGex: k.totalGEX });
+  });
+  if (inputs.length < 2) return card(ctx, b, 'Trinity · SPY QQQ IWM', null, 'unavailable', 'Fewer than two index GEX reads available — agreement not in the data.');
+  const a = trinityAgreement(inputs);
+  const pctTxt = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
+  b.table = {
+    columns: ['Index', 'Regime', 'vs flip', 'Flip dist', 'Walls'],
+    rows: a.reads.map((r) => ({ key: r.symbol, cells: [r.symbol, `${r.regime} gamma`, r.side, pctTxt(r.flipDistPct), r.wall], src: srcOf[r.symbol] ?? '' })),
+  };
+  b.fact('trinity.verdict', 'Agreement', a.verdict, b.sources[0]?.key ?? '');
+  if (inputs.length < 3) b.notes.push(`Only ${inputs.length} of 3 indices read.`);
+  b.notes.push(`Horizon: ${w.label} (${w.gexBucket} GEX bucket). Flip within ±0.15% = "on its flip"; wall within ±0.25% = "at its wall".`);
+  return card(ctx, b, 'Trinity · SPY QQQ IWM', null, 'ok', a.sentence);
+}
+
 // ─── /sector ────────────────────────────────────────────────
 function sectorMatch(s: SectorRead, q: string): number {
   const id = s.id.toLowerCase(), label = s.label.toLowerCase(), etf = (s.etf ?? '').toLowerCase();
@@ -333,6 +363,7 @@ export async function runAnalystCommand(
     case 'flow': return { ok: true, card: await flowTool(ctx, a.symbol!) };
     case 'setup': return { ok: true, card: await setupTool(ctx, a.symbol, a.id) };
     case 'indices': return { ok: true, card: await indicesTool(ctx) };
+    case 'trinity': return { ok: true, card: await trinityTool(ctx) };
     case 'sector': return { ok: true, card: await sectorTool(ctx, a.text!) };
     case 'news': return { ok: true, card: await newsTool(ctx, a.symbol!) };
     case 'record': return { ok: true, card: await recordTool(ctx, a.text, a.symbol) };
