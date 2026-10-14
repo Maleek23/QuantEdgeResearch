@@ -20,6 +20,7 @@
  *  - Features marked `soon` must render with a "Soon" tag and are not sold as delivered.
  */
 
+import { SUPPORT_EMAIL } from './site';
 import type { SubscriptionTier } from './schema';
 
 export type PlanId = Exclude<SubscriptionTier, 'admin'>;
@@ -146,9 +147,17 @@ export function annualPerMonth(p: Pick<Plan, 'annual'>): number {
 }
 
 /** Legal line to render under the plans. Keep in sync with the compliance review. */
-export const PRICING_FINE_PRINT =
-  'Paid plans renew automatically at the listed price each month or year until cancelled; cancel anytime by emailing support@quantedgelabs.net. ' +
+// While checkout is off nothing is sold, so nothing renews — the renewal terms
+// print only once paid plans are on sale (audit 2026-10-07 #20: the landing said
+// both "paid plans aren't on sale" and "paid plans renew automatically").
+export const RENEWAL_TERMS = `Paid plans renew automatically at the listed price each month or year until cancelled; cancel anytime by emailing ${SUPPORT_EMAIL}.`;
+export const PRICING_FINE_PRINT_LIVE =
+  `${RENEWAL_TERMS} ` +
   'Founder prices hold for 12 months from the first payment. Prices buy access to research tools and data, not results. ' +
+  'Educational research only — not investment advice. Past performance does not guarantee future results.';
+export const PRICING_FINE_PRINT_BETA =
+  `Paid plans are not on sale yet — nothing is charged during the beta. Questions: ${SUPPORT_EMAIL}. ` +
+  'Prices buy access to research tools and data, not results. ' +
   'Educational research only — not investment advice. Past performance does not guarantee future results.';
 
 // ── Landing-page adapters ────────────────────────────────────────────────
@@ -161,3 +170,6 @@ export type PricingPlan = Plan;
  * While off, paid plans show their price and route to the beta waitlist.
  */
 export const CHECKOUT_LIVE = false;
+
+/** Legal line under the plans: renewal terms only when checkout is live. */
+export const PRICING_FINE_PRINT = CHECKOUT_LIVE ? PRICING_FINE_PRINT_LIVE : PRICING_FINE_PRINT_BETA;

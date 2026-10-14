@@ -51,6 +51,31 @@ export const GLOSSARY = {
     term: 'Options flow',
     short: 'Large or unusual options orders as they print. It shows where money went, not why — many are hedges.',
   },
+  // UI audit 2026-10-07 #22 — terms members met with no explanation.
+  'king-node': {
+    term: 'King node (max γ)',
+    short: 'The single strike with the most dealer gamma. Price is often pulled toward it and pins there, especially near expiry.',
+  },
+  'delta-adjusted': {
+    term: 'Δ-adjusted GEX',
+    short: 'Gamma exposure re-measured for a real ±1% move, with each option’s delta re-priced. It can move the walls a strike or two versus the raw estimate.',
+  },
+  'naive-oi': {
+    term: 'Dealer sign assumption',
+    short: 'We assume dealers are long the calls and short the puts customers trade. Real dealer positions aren’t published, so the sign is an estimate.',
+  },
+  'validation-hold': {
+    term: 'Validation hold',
+    short: 'Not enough outcomes are fully recorded yet to quote a win rate. The counts are shown, but they are not a performance claim.',
+  },
+  'win-loss': {
+    term: 'W–L count',
+    short: 'Wins and losses among trades that have finished. 37W–51L means 37 reached their target and 51 hit their stop.',
+  },
+  'engine-blind': {
+    term: 'Index engine status',
+    short: 'Whether the 0DTE index engine has fresh SPY options data. “Blind” means its data is too old to trust during the session, so it posts no index ideas until it catches up.',
+  },
 } as const satisfies Record<string, GlossaryEntry>;
 
 export type GlossaryKey = keyof typeof GLOSSARY;
