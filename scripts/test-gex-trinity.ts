@@ -101,6 +101,8 @@ const ix = (symbol: string, spot: number, flip: number | null, cw: number | null
   ok(!/trin-ladder|ladderWindow|trin-fill/.test(tool), 'bar ladders removed');
   ok(tool.includes('useSyncedScroll') && tool.includes('strikeBand={band}'), 'shared ±% band + synced scroll');
   ok(tool.includes('trin-switch') && tool.includes('onTouchEnd'), 'phone: segmented switch + swipe');
+  ok(tool.includes('useCentreSpot') && /useCentreSpot\(gridRef, `\$\{viewKey\}\|\$\{pick\}`/.test(tool) && /viewKey = `[^`]*range[^`]*horizon/.test(tool), 'spot re-centred on load, index switch, range / horizon change');
+  ok(tool.includes('trin-sheet') && tool.includes('More controls'), 'phone: compact row + ⋯ sheet');
   ok(tool.includes("'SPX'") && tool.includes('Reference only'), '+SPX optional reference pane');
 
   console.log(`gex-trinity: ${n} assertions passed`);

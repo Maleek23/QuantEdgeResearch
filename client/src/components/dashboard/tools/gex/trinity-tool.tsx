@@ -88,14 +88,14 @@ const px = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ?
  * Sync the panes' heatmap scrollers by scroll FRACTION: every pane shows the
  * same ±% band around its own spot, so equal fractions ≈ equal % from spot.
  */
-function useSyncedScroll(root: RefObject<HTMLElement>, key: string) {
+function useSyncedScroll(root: RefObject<HTMLElement>, key: string, suspended: RefObject<boolean>) {
   useEffect(() => {
     const el = root.current;
     if (!el) return;
     let lock = false;
     const onScroll = (e: Event) => {
       const src = e.target as HTMLElement;
-      if (lock || !src.classList?.contains('gx-scroll')) return;
+      if (lock || suspended.current || !src.classList?.contains('gx-scroll')) return;
       const range = src.scrollHeight - src.clientHeight;
       if (range <= 0) return;
       const f = src.scrollTop / range;
@@ -107,7 +107,27 @@ function useSyncedScroll(root: RefObject<HTMLElement>, key: string) {
     };
     el.addEventListener('scroll', onScroll, true);
     return () => el.removeEventListener('scroll', onScroll, true);
-  }, [root, key]);
+  }, [root, key, suspended]);
+}
+
+/**
+ * Centre the SPOT row in every pane: uses each heatmap's own jump-to-spot
+ * control (the matrix's centring, not a re-implementation), with the scroll
+ * sync suspended so one pane's centring does not drag the others.
+ * Re-runs on load (as panes finish loading), index switch, range / horizon /
+ * window / metric change.
+ */
+function useCentreSpot(root: RefObject<HTMLElement>, key: string, ready: string, suspended: { current: boolean }) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    suspended.current = true;
+    const run = () => el.querySelectorAll<HTMLButtonElement>('.trin-pane .gx-jump').forEach((b) => b.click());
+    const t1 = window.setTimeout(run, 120);
+    const t2 = window.setTimeout(run, 450); // after the matrix re-fits its row height
+    const t3 = window.setTimeout(() => { suspended.current = false; }, 650);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); suspended.current = false; };
+  }, [root, key, ready, suspended]);
 }
 
 export function GexTrinityTool() {
@@ -148,7 +168,9 @@ export function GexTrinityTool() {
   });
 
   const gridRef = useRef<HTMLDivElement>(null);
-  useSyncedScroll(gridRef, `${symbols.join()}|${metric}|${bucket}|${range}|${horizon}|${narrow}`);
+  const syncOff = useRef(false);
+  const viewKey = `${symbols.join()}|${metric}|${view}|${bucket}|${range}|${horizon}|${narrow}`;
+  useSyncedScroll(gridRef, viewKey, syncOff);
 
   // phone: one pane at a time; swipe switches
   const pick = symbols.includes(phonePick) ? phonePick : symbols[0];
@@ -158,22 +180,12 @@ export function GexTrinityTool() {
     setPhonePick(symbols[(i + d + symbols.length) % symbols.length]);
   }, [symbols, pick]);
   const shown = narrow ? [pick] : symbols;
+  const loadedKey = qs.map((q) => (q.data ? 1 : 0)).join('');
+  useCentreSpot(gridRef, `${viewKey}|${pick}`, loadedKey, syncOff);
+  const [more, setMore] = useState(false);
 
-  return (
-    <div className={`gx-tool gx-col trin${narrow ? ' trin-phone' : ''}`}>
-      <div className="trin-pin">
-        <AgreementStrip agree={agree} loading={qs.every((q) => q.isLoading)} />
-        <div className="gx-controls trin-controls">
-          {narrow && (
-            <div className="of-seg trin-switch" role="tablist" aria-label="Index">
-              {symbols.map((s) => <button key={s} type="button" role="tab" aria-selected={s === pick} className={s === pick ? 'on' : ''} onClick={() => setPhonePick(s)}>{s}</button>)}
-            </div>
-          )}
-          <div className="of-seg" role="group" aria-label="Metric">
-            {(['gex', 'vex'] as const).map((m) => (
-              <button key={m} type="button" className={metric === m ? 'on' : ''} aria-pressed={metric === m} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>
-            ))}
-          </div>
+  const secondary = (
+    <>
           {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} />}
           <div className="of-seg" role="group" aria-label="Days to expiry">
             {DTE_BUCKETS.map((b) => (
@@ -193,6 +205,30 @@ export function GexTrinityTool() {
           <div className="of-seg" role="group" aria-label="SPX pane">
             <button type="button" className={withSpx ? 'on' : ''} aria-pressed={withSpx} onClick={() => setWithSpx(!withSpx)} title="Add SPX (reference only — not part of the agreement read)">+SPX</button>
           </div>
+    </>
+  );
+
+  return (
+    <div className={`gx-tool gx-col trin${narrow ? ' trin-phone' : ''}`}>
+      <div className="trin-pin">
+        <AgreementStrip agree={agree} loading={qs.every((q) => q.isLoading)} />
+        <div className="gx-controls trin-controls">
+          {narrow && (
+            <div className="of-seg trin-switch" role="tablist" aria-label="Index">
+              {symbols.map((s) => <button key={s} type="button" role="tab" aria-selected={s === pick} className={s === pick ? 'on' : ''} onClick={() => setPhonePick(s)}>{s}</button>)}
+            </div>
+          )}
+          <div className="of-seg" role="group" aria-label="Metric">
+            {(['gex', 'vex'] as const).map((m) => (
+              <button key={m} type="button" className={metric === m ? 'on' : ''} aria-pressed={metric === m} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>
+            ))}
+          </div>
+          {narrow ? (
+            <>
+              <button type="button" className="fd-btn trin-more" aria-expanded={more} aria-label="More controls" onClick={() => setMore((v) => !v)}>⋯</button>
+              {more && <div className="trin-sheet" role="dialog" aria-label="Trinity controls">{secondary}</div>}
+            </>
+          ) : secondary}
         </div>
       </div>
 

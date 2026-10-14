@@ -51,13 +51,13 @@ const pw = loadPlaywright();
       await page.waitForTimeout(1500);
       await page.evaluate(() => document.querySelector('[data-testid="trinity-agreement"]')?.scrollIntoView({ block: 'start' }));
     }
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
     const file = path.join(OUT, `trinity-${w}.png`);
     await page.screenshot({ path: file, fullPage: false });
     const check = await page.evaluate(() => ({
       overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
       sentence: document.querySelector('.trin-sentence')?.textContent ?? null,
-      cards: document.querySelectorAll('.trin-pane').length, heatmaps: document.querySelectorAll('.trin-pane .gx-scroll').length,
+      cards: document.querySelectorAll('.trin-pane').length, heatmaps: document.querySelectorAll('.trin-pane .gx-scroll').length, spotOffscreen: document.querySelectorAll('.trin-pane .gx-jump.off').length, ctrlOverflow: [...document.querySelectorAll('.trin-controls')].some((c) => c.scrollWidth > c.clientWidth + 1),
     }));
     console.log(w, JSON.stringify(check), '→', path.relative(process.cwd(), file));
     await ctx.close();
