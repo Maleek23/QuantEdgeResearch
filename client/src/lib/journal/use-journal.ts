@@ -202,10 +202,10 @@ export function deskSizingText(dv: ReturnType<typeof applyDeskView>): string | n
   const r = `$${s.riskDollars.toLocaleString('en-US')}`;
   return [
     s.mode === 'risk'
-      ? `Risk-sized: every idea risks ${r} to its stop — shares = ${r} ÷ |entry − stop|; contracts = ${r} ÷ ((premium − premium stop) × 100), premium stop = the plan's, else −40% 0DTE / −50% swing. `
+      ? `Risk-sized: every idea risks ${r} to its stop — contracts = ${r} ÷ ((premium − premium stop) × 100), premium stop = the plan's, else −40% 0DTE / −50% swing. `
         + (dv.scaled ? `${dv.scaled} idea${dv.scaled === 1 ? '' : 's'} where 1 unit risks more than ${r} sized fractionally ("scaled"). ` : '')
         + (dv.capped.count ? `${dv.capped.count} loss${dv.capped.count === 1 ? '' : 'es'} worse than the stop capped at −risk (assumes the stop filled; uncapped ${usd0(dv.capped.uncappedPnL)} → ${usd0(dv.capped.cappedPnL)}). ` : '')
-      : 'Unit-sized: 1 contract per option idea; $1,000 notional per stock idea. ',
+      : 'Unit-sized: 1 contract per option idea. ',
     dv.view === 'managed' ? 'Managed replay — replayed with current exit rules — not live fills. ' : '',
     dv.skipped.length ? `Not in this view: ${dv.skipped.map((x) => `${x.count} ${x.reason}`).join('; ')}. ` : '',
     'Journal win = positive closed P&L under the exits shown.',

@@ -308,7 +308,6 @@ const PORTFOLIO_METADATA: Record<string, { name: string; emoji: string }> = {
 
 const CHANNEL_HEADERS = {
   OPTIONS_TRADES: '📈 #OPTIONS-TRADES',
-  STOCK_SHARES: '💵 #STOCK-SHARES',
   TRADE_ALERTS: '📊 #TRADE-ALERTS',
   QUANTBOT: '✨ #QUANTBOT',
   LOTTO: '🎰 #LOTTO',

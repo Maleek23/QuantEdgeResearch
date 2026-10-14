@@ -793,7 +793,7 @@ export function TvChart({
       <div className="tv-mseg-row">
         <span className="tv-mseg-label">Risk</span>
         <div className="tv-seg" role="radiogroup" aria-label="Position tool risk">
-          {RISK_PRESETS.map((r) => <button type="button" role="radio" aria-checked={riskDollars === r} key={r} className={riskDollars === r ? 'on' : ''} title={`New long / short positions size to $${r} risk`} onClick={() => setRiskDollars(r)}>${r.toLocaleString('en-US')}</button>)}
+          {RISK_PRESETS.map((r) => <button type="button" role="radio" aria-checked={riskDollars === r} key={r} className={riskDollars === r ? 'on' : ''} title={`New long / short positions size option contracts to $${r} risk`} onClick={() => setRiskDollars(r)}>${r.toLocaleString('en-US')}</button>)}
         </div>
       </div>
       {menuRow(stayDrawing, setStayDrawing, 'Stay in drawing mode', 'keep the tool after placing a drawing')}
@@ -1014,6 +1014,7 @@ export function TvChart({
           {/* ── floating mini-toolbar: edits every selected drawing ── */}
           {selected && !allHidden && (
             <MiniToolbar
+              symbol={symbol} spot={lastClose}
               selection={selection} primary={selected} editText={editText} setEditText={setEditText}
               onPatch={updateSelected} onDelete={deleteSelected} onDuplicate={duplicateSelected}
               onAlert={() => void armAlert(selected)} onClear={() => dr.setSelectedId(null)}
@@ -1021,7 +1022,7 @@ export function TvChart({
           )}
           {tool !== 'cursor' ? (
             <div className="tv-hint" role="status">
-              {ALL_TOOLS.find((t) => t.id === tool)?.label}: {tool === 'brush' ? 'press and drag' : tool === 'long' || tool === 'short' ? `click the entry — sized at $${riskDollars.toLocaleString('en-US')} risk` : tool === 'fibext' ? 'swing start, swing end, then the pullback' : tool === 'channel' ? 'two points for the line, a third for the width' : 'click / tap each point'}{snapOn && snapLevels.length ? ' · snaps to dealer levels' : ''} · Esc to cancel
+              {ALL_TOOLS.find((t) => t.id === tool)?.label}: {tool === 'brush' ? 'press and drag' : tool === 'long' || tool === 'short' ? `click the entry — sized in option contracts at $${riskDollars.toLocaleString('en-US')} risk` : tool === 'fibext' ? 'swing start, swing end, then the pullback' : tool === 'channel' ? 'two points for the line, a third for the width' : 'click / tap each point'}{snapOn && snapLevels.length ? ' · snaps to dealer levels' : ''} · Esc to cancel
             </div>
           ) : notice ? (
             <div className="tv-hint tv-notice" role="status">
@@ -1284,6 +1285,9 @@ html[data-mode=light] .tv-wm{opacity:.09}
 .tv-w{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:0;border-radius:3px;background:transparent;cursor:pointer}
 .tv-w i{display:block;width:14px;background:var(--tv-fg);border-radius:2px}
 .tv-w.on{background:var(--tv-hi)}
+.tv-poscontract{display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex-basis:100%}
+.tv-poscontract select{height:26px;padding:0 4px;border:1px solid var(--tv-line-hi);border-radius:4px;background:var(--tv-bg);color:var(--tv-fg);font:500 12px 'JetBrains Mono',monospace}
+.tv-poscontract .tv-msub{flex-basis:100%}
 .tv-text-in{height:26px;width:150px;padding:0 6px;border:1px solid var(--tv-line-hi);border-radius:4px;background:var(--tv-bg);color:var(--tv-fg);font:500 12px 'JetBrains Mono',monospace}
 .tv-isearch{display:flex;align-items:center;gap:6px;padding:2px 4px 6px;color:var(--tv-mute)}
 .tv-isearch .tv-text-in{flex:1;width:auto;min-width:0}

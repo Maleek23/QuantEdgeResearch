@@ -144,7 +144,7 @@ export default function TradesView() {
                     <button type="button" className="jr-cell-btn jr-sym" onClick={(e) => { e.stopPropagation(); openTrade(t.id, order); }}
                       aria-label={`Open ${t.symbol} ${t.direction} trade details`}>{t.symbol}</button>{' '}
                     {t.assetType === 'option' && <span className="jr-chip opt">{(t.row.optionType ?? '').toUpperCase()} {t.row.strikePrice ?? ''}</span>}
-                    {t.row.instrumentLabel && <span className="jr-chip" title="A stock engine's idea — published and scored on the underlying by design (shared/options-only.ts)">{t.row.instrumentLabel}</span>}
+                    {t.row.instrumentLabel && <span className="jr-chip" title="How this row is priced (shared/options-only.ts) — options only; legacy shares ideas are listed under excluded, never here">{t.row.instrumentLabel}</span>}
                     {t.row.notes && <span className="jr-mute" title="Has notes"> ✎</span>}
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>

@@ -676,7 +676,7 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
     <p className="nxp-times" title={`Time-of-day matched vs the prior ${v.baselineSessions} sessions · ${v.source ?? 'yahoo 5m'} bars, regular session only${v.note ? ` · ${v.note}` : ''}`}>
       <span>Volume <strong className={tone}>{v.label}</strong>{v.sessionClosed ? ' (completed session)' : ''}</span>
       <span> · {v.sessionClosed ? 'closing 15m' : 'last 15m'} <strong>{fmtX(v.recentRvol)}</strong> normal</span>
-      <span> · {v.sessionClosed ? 'full day' : 'day so far'} <strong>{fmtX(v.sessionRvol)}</strong> ({fmtVol(v.sessionVolume)} sh)</span>
+      <span> · {v.sessionClosed ? 'full day' : 'day so far'} <strong>{fmtX(v.sessionRvol)}</strong> ({fmtVol(v.sessionVolume)} vol)</span>
       {v.trigger && <span> · trigger bar <strong>{fmtX(v.trigger.rvol)}</strong></span>}
       {age && <span> · {v.sessionClosed ? 'last bar' : 'as of'} {age} ET</span>}
     </p>

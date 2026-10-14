@@ -171,7 +171,7 @@ export interface SetupRow {
   gaps: string[];
 }
 
-/** One NEXUS setup of any day. Shares ideas are labelled "Shares idea"; contract-less option ideas "contract not recorded". Pure. */
+/** One NEXUS setup of any day. Legacy shares ideas are labelled "Shares idea (legacy, not in the options book)"; contract-less option ideas "contract not recorded". Pure. */
 export function toSetupRow(r: IdeaRowLike): SetupRow {
   const gap = contractGap(r);
   const isOpt = String(r.assetType) === 'option' && !gap;
@@ -192,7 +192,7 @@ export function toSetupRow(r: IdeaRowLike): SetupRow {
     entry: num(r.entryPrice), target: num(r.targetPrice), stop: num(r.stopLoss),
     entryPremium: isOpt ? num(r.entryPremium) : null, exitPremium: isOpt ? num(r.exitPremium) : null,
     resultPct,
-    resultBasis: isOpt ? 'contract premium (entry → exit premium)' : intent === 'option' ? `no result — ${CONTRACT_NOT_RECORDED}` : 'underlying % (shares idea)',
+    resultBasis: isOpt ? 'contract premium (entry → exit premium)' : intent === 'option' ? `no result — ${CONTRACT_NOT_RECORDED}` : 'underlying % (shares idea — legacy, not in the options book)',
     outcome: { status: String(r.outcomeStatus ?? 'open'), label: ow.label, tone: ow.tone },
     gaps,
   };

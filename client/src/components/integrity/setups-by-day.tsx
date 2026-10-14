@@ -76,7 +76,7 @@ export function SetupsByDay() {
           </table>
         </div>
       ))}
-      {q.data && <span className="ix-src">{q.data.source} · read {new Date(q.data.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })} ET · result: option = contract premium, shares idea = underlying % (hover)</span>}
+      {q.data && <span className="ix-src">{q.data.source} · read {new Date(q.data.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })} ET · result: option = contract premium; legacy shares ideas = underlying %, not in the options book (hover)</span>}
     </div>
   );
 }

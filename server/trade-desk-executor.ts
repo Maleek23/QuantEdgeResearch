@@ -284,6 +284,11 @@ async function validateSignalForExecution(signal: TradeDeskSignal): Promise<{
 // ============================================
 
 async function executeSignal(signal: TradeDeskSignal): Promise<boolean> {
+  // Options only (operator 2026-10-14: "no shares at all") — a stock signal is never executed as shares.
+  if (signal.assetType !== 'option') {
+    logger.info(`[EXECUTOR] Skipping ${signal.symbol}: not an option idea — options only, never shares`);
+    return false;
+  }
   // Validate
   const validation = await validateSignalForExecution(signal);
   if (!validation.valid) {

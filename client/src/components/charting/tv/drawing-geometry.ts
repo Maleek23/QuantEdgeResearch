@@ -16,7 +16,8 @@
  */
 
 import type { Anchor, ColorRole, DashStyle, Drawing, DrawTool } from '@shared/chart-drawings';
-import { sizeForRisk, DEFAULT_RISK_DOLLARS } from '@shared/position-sizing';
+import { DEFAULT_RISK_DOLLARS } from '@shared/position-sizing';
+import { positionContractPnl, positionContractStats, type PositionContract, type PositionContractStats } from '@shared/position-contract';
 
 export type { Anchor, ColorRole, DashStyle, Drawing, DrawTool, LineWidth, ToolId, DrawingAlert } from '@shared/chart-drawings';
 export { COLOR_ROLES, LINE_WIDTHS, DASH_STYLES, FILL_STEPS, TOOL_POINTS, ALERTABLE } from '@shared/chart-drawings';
@@ -395,39 +396,46 @@ export function fibExtLevels(a: number, b: number, c: number, ratios: readonly n
 export interface PositionStats {
   side: 'long' | 'short';
   entry: number; target: number; stop: number;
-  /** reward ÷ risk; null when risk is zero or the stop is on the wrong side. */
+  /** Underlying reward ÷ risk; null when risk is zero or the stop is on the wrong side. */
   rr: number | null;
   riskPer: number; rewardPer: number;
   stopPct: number; targetPct: number;
-  /** Size at the risk budget (shared/position-sizing.ts — the desk's equal-risk rule). */
-  qty: number | null; riskDollars: number | null; rewardDollars: number | null; notional: number | null;
+  /** Whole OPTION CONTRACTS at the risk budget (shared/position-contract.ts) — never shares. null until a contract is picked. */
+  qty: number | null;
+  /** $ lost at the stop / gained at the target on the contracts (premium mapped by delta / BS, as the budget contract). */
+  riskDollars: number | null; rewardDollars: number | null;
+  /** Contract debit (whole position). */
+  debit: number | null;
   budget: number;
-  /** stop above entry on a long (or below on a short), or target the wrong way. */
+  /** The option sizing, or null when no contract is picked yet. */
+  opt: PositionContractStats | null;
+  /** stop above entry on a long (or below on a short), or target the wrong way, or the contract cannot be sized. */
   invalid: string | null;
 }
 
-export function positionStats(d: Pick<Drawing, 'tool' | 'pts' | 'risk'>, budget = d.risk ?? DEFAULT_RISK_DOLLARS): PositionStats | null {
+export function positionStats(d: Pick<Drawing, 'tool' | 'pts' | 'risk' | 'contract'>, budget = d.risk ?? DEFAULT_RISK_DOLLARS, symbol = ''): PositionStats | null {
   if ((d.tool !== 'long' && d.tool !== 'short') || d.pts.length < 3) return null;
   const side = d.tool;
   const entry = d.pts[0].p; const target = d.pts[1].p; const stop = d.pts[2].p;
   const dir = side === 'long' ? 1 : -1;
   const riskPer = (entry - stop) * dir;
   const rewardPer = (target - entry) * dir;
-  const invalid = riskPer <= 0 ? `stop is ${side === 'long' ? 'above' : 'below'} the entry` : rewardPer <= 0 ? `target is ${side === 'long' ? 'below' : 'above'} the entry` : null;
-  const sized = riskPer > 0 ? sizeForRisk({ assetType: 'stock', entry, stop }, budget) : null;
-  const qty = sized && sized.ok ? sized.qty : null;
+  const geomInvalid = riskPer <= 0 ? `stop is ${side === 'long' ? 'above' : 'below'} the entry` : rewardPer <= 0 ? `target is ${side === 'long' ? 'below' : 'above'} the entry` : null;
+  const opt = !geomInvalid && d.contract ? positionContractStats({ symbol, side, entry, stop, target, contract: d.contract, risk: budget }) : null;
+  const sized = opt && !opt.invalid ? opt : null;
   return {
     side, entry, target, stop,
     rr: riskPer > 0 ? rewardPer / riskPer : null,
     riskPer, rewardPer,
     stopPct: entry ? ((stop - entry) / entry) * 100 : 0,
     targetPct: entry ? ((target - entry) / entry) * 100 : 0,
-    qty,
-    riskDollars: qty != null ? qty * Math.abs(riskPer) : null,
-    rewardDollars: qty != null ? qty * rewardPer : null,
-    notional: qty != null ? qty * entry : null,
+    qty: sized ? sized.qty : null,
+    riskDollars: sized ? sized.riskDollars : null,
+    rewardDollars: sized ? sized.rewardT1 : null,
+    debit: sized ? sized.debit : null,
     budget,
-    invalid,
+    opt,
+    invalid: geomInvalid ?? opt?.invalid ?? null,
   };
 }
 
@@ -445,10 +453,11 @@ export function newPositionAnchors(side: 'long' | 'short', entry: Anchor, riskDi
   ];
 }
 
-/** Live P&L of a position at `price` (per share and at the size), or null. */
-export function positionPnl(s: PositionStats, price: number): { per: number; dollars: number | null; r: number | null } {
+/** Live P&L of a position at `price`: underlying move per unit, option $ on the contracts, R. */
+export function positionPnl(s: PositionStats, price: number, contract?: PositionContract | null): { per: number; dollars: number | null; r: number | null } {
   const per = (price - s.entry) * (s.side === 'long' ? 1 : -1);
-  return { per, dollars: s.qty != null ? per * s.qty : null, r: s.riskPer > 0 ? per / s.riskPer : null };
+  const dollars = contract && s.opt && !s.opt.invalid ? positionContractPnl(s.opt, contract, s.entry, price) : null;
+  return { per, dollars, r: s.riskPer > 0 ? per / s.riskPer : null };
 }
 
 /* ───────────────────────── snapping to levels ───────────────────────── */

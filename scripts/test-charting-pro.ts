@@ -1,7 +1,7 @@
 /**
  * Charting-pro checks (2026-10-13) — the pure logic behind the pro chart:
  *   geometry of the new tools (extended line, Fib extension, long / short
- *   position with $500 / $1,000 sizing, price label), snapping (O/H/L/C and
+ *   position sized in option contracts at $500 / $1,000, price label), snapping (O/H/L/C and
  *   dealer levels), selection ops (duplicate, patch, remove, toggle),
  *   undo / redo over drawing sets, serialisation + sanitising, the
  *   device-vs-server sync rule and synced store, the trading clock that
@@ -18,6 +18,7 @@ import {
   patchDrawings, positionPnl, positionStats, removeDrawings, snapToLevels, snapToOhlc, toggleSelection, dashPattern, fillOf,
   type Drawing, type Projected,
 } from '../client/src/components/charting/tv/drawing-geometry';
+import { chainChoices, suggestPositionContract } from '../shared/position-contract';
 import { History } from '../client/src/components/charting/tv/drawing-history';
 import { createSyncedDrawingStore, drawingKey, type KV } from '../client/src/components/charting/tv/drawing-store';
 import {
@@ -59,23 +60,56 @@ async function main() {
     near(down[3].price, 94, 1e-9, 'a down-leg projects down');
   });
 
-  await t('long position: R:R and $500 / $1,000 equal-risk sizing (shared/position-sizing.ts)', () => {
+  // Position tool sizes in OPTION CONTRACTS only (operator 2026-10-14: no shares at all).
+  const CALL = { optionType: 'call' as const, strike: 100, expiry: '2026-10-23', dte: 9, mid: 2, spot: 100, delta: 0.5, gamma: 0.05, iv: null };
+  const PUT = { ...CALL, optionType: 'put' as const, strike: 50, spot: 50, delta: -0.5, mid: 1 };
+  await t('long position: no contract → not sized, never shares', () => {
     const d = D('long', [{ t: 0, p: 100 }, { t: 9, p: 106 }, { t: 9, p: 97 }]);
     const s = positionStats(d, 500)!;
     assert.equal(s.side, 'long'); near(s.rr!, 2); near(s.riskPer, 3); near(s.rewardPer, 6);
-    assert.equal(s.qty, 166, 'floor(500 / 3)'); near(s.riskDollars!, 498); near(s.rewardDollars!, 996);
+    assert.equal(s.qty, null, 'no shares fallback'); assert.equal(s.opt, null); assert.equal(s.riskDollars, null);
     near(s.stopPct, -3); near(s.targetPct, 6); assert.equal(s.invalid, null);
-    assert.equal(positionStats(d, 1000)!.qty, 333);
-    assert.equal(positionStats({ ...d, risk: 1000 })!.qty, 333, 'the drawing remembers its risk');
-    const p = positionPnl(s, 101.5); near(p.per, 1.5); near(p.dollars!, 249); near(p.r!, 0.5);
+    assert.ok(!('notional' in s), 'no share notional');
   });
 
-  await t('short position mirrors; a stop on the wrong side is flagged, not sized', () => {
-    const s = positionStats(D('short', [{ t: 0, p: 50 }, { t: 9, p: 46 }, { t: 9, p: 52 }]), 1000)!;
-    assert.equal(s.qty, 500); near(s.rr!, 2); near(positionPnl(s, 49).per, 1);
+  await t('long position on a call: whole contracts at the $ risk, premiums mapped by delta+½gamma', () => {
+    const d = { ...D('long', [{ t: 0, p: 100 }, { t: 9, p: 106 }, { t: 9, p: 97 }]), contract: CALL };
+    const s = positionStats(d, 500, 'AAPL')!;
+    assert.equal(s.qty, 2, 'floor(500 / 200) contracts'); near(s.debit!, 400);
+    near(s.opt!.premEntry, 2); near(s.opt!.premT1, Math.max(6, 2 + 0.5 * 6 + 0.5 * 0.05 * 36), 1e-6, "never below intrinsic"); near(s.opt!.premStop, 0.73, 1e-6, "rounded to the cent");
+    near(s.riskDollars!, 2 * (2 - s.opt!.premStop) * 100); near(s.rewardDollars!, 2 * (s.opt!.premT1 - 2) * 100);
+    assert.match(s.opt!.label, /^AAPL 10\/23 100C$/);
+    assert.equal(positionStats({ ...d, risk: 1000 }, undefined, 'AAPL')!.qty, 5, 'the drawing remembers its risk');
+    const p = positionPnl(s, 101.5, CALL); near(p.per, 1.5); near(p.r!, 0.5); assert.ok(p.dollars! > 0);
+  });
+
+  await t('short position mirrors on a put; a stop on the wrong side is flagged, not sized', () => {
+    const s = positionStats({ ...D('short', [{ t: 0, p: 50 }, { t: 9, p: 46 }, { t: 9, p: 52 }]), contract: PUT }, 1000)!;
+    assert.equal(s.qty, 10); near(s.rr!, 2); near(positionPnl(s, 49, PUT).per, 1);
+    const wrong = positionStats({ ...D('short', [{ t: 0, p: 50 }, { t: 9, p: 46 }, { t: 9, p: 52 }]), contract: { ...PUT, optionType: 'call' as const } }, 1000)!;
+    assert.match(wrong.invalid!, /needs a put/); assert.equal(wrong.qty, null);
+    const pricey = positionStats({ ...D('long', [{ t: 0, p: 100 }, { t: 9, p: 106 }, { t: 9, p: 97 }]), contract: { ...CALL, mid: 8 } }, 500)!;
+    assert.match(pricey.invalid!, /more than the \$500 risk/); assert.equal(pricey.qty, null);
     const bad = positionStats(D('long', [{ t: 0, p: 100 }, { t: 9, p: 106 }, { t: 9, p: 101 }]))!;
     assert.match(bad.invalid!, /stop is above/); assert.equal(bad.qty, null); assert.equal(bad.rr, null);
     assert.equal(positionStats(D('trend', [{ t: 0, p: 1 }, { t: 1, p: 2 }])), null);
+  });
+
+  await t('position contract: budget-contract default from the chain; no liquid row → reason, no shares', () => {
+    const rows = [95, 100, 105, 110].map((k) => ({ type: 'call' as const, strike: k, expiry: '2026-10-23', bid: Math.max(0.2, 100 - k + 2) - 0.05, ask: Math.max(0.2, 100 - k + 2) + 0.05, delta: Math.max(0.1, 0.5 - (k - 100) * 0.05), gamma: 0.04, iv: null, openInterest: 5000, volume: 2000, dte: 9 }));
+    const ok = suggestPositionContract({ symbol: 'AAPL', side: 'long', spot: 100, entry: 100, stop: 97, target: 106, risk: 500, rows, nowMs: Date.parse('2026-10-14T15:00:00Z') });
+    if (ok.ok) { assert.equal(ok.contract.optionType, 'call'); assert.ok(ok.contract.mid * 100 <= 500); } else assert.match(ok.reason, /No liquid contract/);
+    const none = suggestPositionContract({ symbol: 'AAPL', side: 'long', spot: 100, entry: 100, stop: 97, target: 106, risk: 500, rows: [], nowMs: 0 });
+    assert.equal(none.ok, false); if (!none.ok) { assert.match(none.reason, /No liquid contract/); assert.match(none.reason, /never sizes in shares/); }
+    assert.deepEqual(chainChoices(rows, 'call').map((x) => x.expiry), ['2026-10-23']);
+    assert.equal(chainChoices(rows, 'put').length, 0);
+  });
+
+  await t('position contract survives the sanitiser; junk is dropped', () => {
+    const [d] = sanitizeDrawings([{ id: 'p1', tool: 'long', pts: [{ t: 0, p: 100 }, { t: 9, p: 106 }, { t: 9, p: 97 }], color: 'accent', width: 2, contract: CALL }]);
+    assert.equal(d.contract?.strike, 100);
+    const [j] = sanitizeDrawings([{ id: 'p2', tool: 'long', pts: [{ t: 0, p: 100 }], color: 'accent', width: 2, contract: { optionType: 'stock', strike: 1 } }]);
+    assert.equal(j.contract, undefined);
   });
 
   await t('new position: stop one risk away, target 2R, shared right edge', () => {

@@ -294,7 +294,7 @@ export async function batchVolatilityAnalysis(symbols: string[]): Promise<Map<st
  * Determines best instrument and strategy based on regime + volatility
  */
 export interface StrategyRecommendation {
-  instrument: 'options_buy' | 'options_sell' | 'shares' | 'futures';
+  instrument: 'options_buy' | 'options_sell' | 'futures'; // options only — never shares (operator 2026-10-14)
   strategy: string;
   confidence: number;
   reasoning: string[];
@@ -306,7 +306,7 @@ export function selectStrategy(
   assetType: 'stock' | 'etf' | 'futures' | 'crypto'
 ): StrategyRecommendation {
   const reasoning: string[] = [];
-  let instrument: StrategyRecommendation['instrument'] = 'shares';
+  let instrument: StrategyRecommendation['instrument'] = 'options_buy';
   let strategy = 'Hold';
   let confidence = 50;
 
@@ -329,15 +329,15 @@ export function selectStrategy(
         confidence = 75;
         reasoning.push('✅ Uptrend + Low IV → Buy calls for convexity');
       } else if (ivRank > 70 || ivVsRv === 'expensive') {
-        // High IV + uptrend = Shares or bull put spreads
-        instrument = 'shares';
-        strategy = 'Long Shares (Trend, avoid expensive options)';
+        // High IV + uptrend = call debit spread (short leg offsets expensive vega)
+        instrument = 'options_buy';
+        strategy = 'Call Debit Spread (Trend, expensive vol)';
         confidence = 65;
-        reasoning.push('⚠️ Uptrend but expensive options → Use shares');
+        reasoning.push('⚠️ Uptrend but expensive options → call debit spread');
       } else {
-        // Normal IV + uptrend = Shares or modest call exposure
-        instrument = assetType === 'futures' ? 'futures' : 'shares';
-        strategy = 'Trend Following';
+        // Normal IV + uptrend = modest call exposure
+        instrument = assetType === 'futures' ? 'futures' : 'options_buy';
+        strategy = assetType === 'futures' ? 'Trend Following' : 'Long Calls (Trend Following)';
         confidence = 70;
         reasoning.push('📈 Uptrend with fair IV → Trend follow');
       }
@@ -357,8 +357,8 @@ export function selectStrategy(
         confidence = 60;
         reasoning.push('📉 Downtrend + expensive IV → Sell calls');
       } else {
-        instrument = 'shares';
-        strategy = 'Short Shares or Puts';
+        instrument = 'options_buy';
+        strategy = 'Long Puts';
         confidence = 60;
         reasoning.push('📉 Downtrend with fair IV');
       }
@@ -388,11 +388,11 @@ export function selectStrategy(
         confidence = 70;
         reasoning.push('📊 Ranging + high IV → Sell premium');
       } else {
-        // Range-bound + low IV = Mean reversion with shares
-        instrument = 'shares';
-        strategy = 'Mean Reversion';
+        // Range-bound + low IV = mean reversion with defined-risk options
+        instrument = 'options_buy';
+        strategy = 'Mean Reversion (debit spread toward the range middle)';
         confidence = 60;
-        reasoning.push('📊 Ranging + low IV → Mean revert with shares');
+        reasoning.push('📊 Ranging + low IV → mean revert with a debit spread');
       }
       break;
   }

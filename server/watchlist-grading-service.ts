@@ -1039,7 +1039,8 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
           : currentPrice - (atr * targetMultiplier);
         riskRewardRatio = targetMultiplier;
         
-        sizeLabel = `${shares} shares @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)}`;
+        // Options only: the write gate publishes this on a contract (budget contract) or withholds it — never shares.
+        sizeLabel = `ATR stop $${atr.toFixed(2)} — sized in option contracts at publish`;
       }
       
       // Build analysis from grade inputs with position sizing

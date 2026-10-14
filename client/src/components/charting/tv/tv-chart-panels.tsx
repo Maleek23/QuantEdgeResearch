@@ -10,9 +10,11 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { TF_CONFIG } from '@/components/charting/chart-engine';
 import {
   ALERTABLE, COLOR_ROLES, DASH_STYLES, FILL_STEPS, LINE_WIDTHS, TOOL_LABEL, describeDrawing, fillOf, positionStats,
-  type ColorRole, type DashStyle, type Drawing, type DrawTool,
+  type PositionStats, type ColorRole, type DashStyle, type Drawing, type DrawTool,
 } from './drawing-geometry';
 import { RISK_PRESETS } from '@shared/position-sizing';
+import { rowToPositionContract, type PositionContract } from '@shared/position-contract';
+import type { BudgetChainRow } from '@shared/budget-contract';
 import type { SyncStatus } from './drawing-store';
 import { INTERVAL_PRESETS, addCustomInterval, customIntervals, intervalName, parseInterval, removeCustomInterval } from './custom-intervals';
 import {
@@ -65,14 +67,14 @@ export function IntervalMenu({ tf, onPick, onError }: { tf: string; onPick: (k: 
 
 /* ───────────────────────── mini toolbar ───────────────────────── */
 
-export function MiniToolbar({ selection, primary, editText, setEditText, onPatch, onDelete, onDuplicate, onAlert, onClear }: {
-  selection: Drawing[]; primary: Drawing; editText: string | null; setEditText: (v: string | null) => void;
+export function MiniToolbar({ symbol, spot, selection, primary, editText, setEditText, onPatch, onDelete, onDuplicate, onAlert, onClear }: {
+  symbol: string; spot: number | null; selection: Drawing[]; primary: Drawing; editText: string | null; setEditText: (v: string | null) => void;
   onPatch: (p: Partial<Drawing>) => void; onDelete: () => void; onDuplicate: () => void; onAlert: () => void; onClear: () => void;
 }) {
   const many = selection.length > 1;
   const allLocked = selection.every((d) => d.locked);
   const anyArea = selection.some((d) => AREA_TOOLS.has(d.tool));
-  const pos = !many && (primary.tool === 'long' || primary.tool === 'short') ? positionStats(primary) : null;
+  const pos = !many && (primary.tool === 'long' || primary.tool === 'short') ? positionStats(primary, undefined, symbol) : null;
   return (
     <div className="tv-float" role="toolbar" aria-label={many ? `${selection.length} drawings selected` : `Selected: ${TOOL_LABEL[primary.tool]}`}>
       <span className="tv-float-name">{many ? `${selection.length} selected` : TOOL_LABEL[primary.tool]}</span>
@@ -130,6 +132,7 @@ export function MiniToolbar({ selection, primary, editText, setEditText, onPatch
           {RISK_PRESETS.map((r) => <button type="button" role="radio" aria-checked={(primary.risk ?? RISK_PRESETS[0]) === r} key={r} className={(primary.risk ?? RISK_PRESETS[0]) === r ? 'on' : ''} title={`Size to $${r} risk`} onClick={() => onPatch({ risk: r })}>${r >= 1000 ? `${r / 1000}k` : r}</button>)}
         </div>
       )}
+      {pos && <PositionContractPicker symbol={symbol} spot={spot} d={primary} stats={pos} onPatch={onPatch} />}
       {!many && ALERTABLE.has(primary.tool) && (
         <button type="button" className={`tv-tb${primary.alert ? ' on' : ''}`} aria-pressed={!!primary.alert} aria-label={primary.alert ? 'Remove alert' : 'Alert when price crosses (Alt+A)'} title={primary.alert ? 'Alert armed — click to remove' : 'Alert on cross — Alt+A'} onClick={onAlert}><IconBell /></button>
       )}
@@ -137,6 +140,76 @@ export function MiniToolbar({ selection, primary, editText, setEditText, onPatch
       <button type="button" className="tv-tb" aria-label="Hide" title="Hide (the drawings list shows it again)" onClick={() => { onPatch({ hidden: true }); onClear(); }}><IconEyeOff /></button>
       <button type="button" className={`tv-tb${allLocked ? ' on' : ''}`} aria-pressed={allLocked} aria-label={allLocked ? 'Unlock' : 'Lock'} title={allLocked ? 'Unlock' : 'Lock'} onClick={() => onPatch({ locked: allLocked ? undefined : true })}>{allLocked ? <IconLock /> : <IconUnlock />}</button>
       <button type="button" className="tv-tb" aria-label="Delete (Del)" title="Delete — Del" disabled={allLocked} onClick={onDelete}><IconTrash /></button>
+    </div>
+  );
+}
+
+/* ───────────────────────── position contract picker ───────────────────────── */
+
+interface ChainResp { rows: BudgetChainRow[]; choices: { expiry: string; dte: number; strikes: number[] }[]; suggestion: PositionContract | null; reason: string | null; spot?: number; source?: string; asOf?: string }
+
+/**
+ * The position tool sizes in OPTION CONTRACTS only: call (long) / put (short),
+ * expiry + strike from the live chain; default = the budget-contract pick at the
+ * drawing's $ risk. No liquid contract → says so; never a shares fallback.
+ */
+export function PositionContractPicker({ symbol, spot, d, stats, onPatch }: {
+  symbol: string; spot: number | null; d: Drawing; stats: PositionStats; onPatch: (p: Partial<Drawing>) => void;
+}) {
+  const [chain, setChain] = useState<ChainResp | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const risk = d.risk ?? RISK_PRESETS[0];
+  const key = `${symbol}|${d.id}|${d.tool}|${risk}`;
+  const keyRef = useRef('');
+  useEffect(() => {
+    if (keyRef.current === key) return;
+    keyRef.current = key;
+    const qs = new URLSearchParams({ side: d.tool === 'short' ? 'short' : 'long', entry: String(stats.entry), stop: String(stats.stop), target: String(stats.target), risk: String(risk) });
+    if (spot != null && spot > 0) qs.set('spot', String(spot));
+    let live = true;
+    setErr(null);
+    fetch(`/api/chart/position-chain/${encodeURIComponent(symbol)}?${qs}`, { credentials: 'include' })
+      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'chain unavailable'); return j as ChainResp; })
+      .then((j) => {
+        if (!live) return;
+        setChain(j);
+        const wrongSide = d.contract && (d.contract.optionType === 'call') !== (d.tool === 'long');
+        if ((!d.contract || wrongSide) && j.suggestion) onPatch({ contract: j.suggestion });
+      })
+      .catch((e: Error) => { if (live) setErr(`${e.message} — not sized (options only, never shares).`); });
+    return () => { live = false; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const c = d.contract;
+  const pickRow = (expiry: string, strike: number) => {
+    const row = chain?.rows.find((r) => r.expiry.slice(0, 10) === expiry && r.strike === strike);
+    const pc = row ? rowToPositionContract(row, chain?.spot ?? spot ?? stats.entry, chain?.source, chain?.asOf) : null;
+    if (pc) onPatch({ contract: pc });
+  };
+  const exp = chain?.choices.find((x) => x.expiry === c?.expiry) ?? chain?.choices[0];
+  const o = stats.opt;
+  const age = c?.asOf ? Math.max(0, Math.round((Date.now() - Date.parse(c.asOf)) / 60000)) : null;
+  return (
+    <div className="tv-poscontract" role="group" aria-label="Option contract for this position">
+      <span className="tv-dim">{d.tool === 'long' ? 'Call' : 'Put'}</span>
+      {chain && chain.choices.length > 0 && (
+        <>
+          <select aria-label="Expiry" value={exp?.expiry ?? ''} onChange={(e) => { const x = chain.choices.find((y) => y.expiry === e.target.value); if (x) { const k = c ? x.strikes.reduce((a, b) => (Math.abs(b - c.strike) < Math.abs(a - c.strike) ? b : a), x.strikes[0]) : x.strikes[0]; pickRow(x.expiry, k); } }}>
+            {chain.choices.map((x) => <option key={x.expiry} value={x.expiry}>{x.expiry.slice(5)} · {x.dte}d</option>)}
+          </select>
+          <select aria-label="Strike" value={c && exp?.strikes.includes(c.strike) ? String(c.strike) : ''} onChange={(e) => exp && pickRow(exp.expiry, Number(e.target.value))}>
+            {!(c && exp?.strikes.includes(c.strike)) && <option value="">strike</option>}
+            {exp?.strikes.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </>
+      )}
+      <small className="tv-msub">
+        {err ? err
+          : !chain ? 'loading chain…'
+          : o && !o.invalid ? `${o.qty}× ${o.label} · debit $${Math.round(o.debit).toLocaleString('en-US')} · stop $${o.premStop.toFixed(2)} / T1 $${o.premT1.toFixed(2)} · R:R ${o.rr != null ? o.rr.toFixed(2) : '—'} · risk −$${Math.round(o.riskDollars).toLocaleString('en-US')}${age != null ? ` · quote ${age}m old` : ''}`
+          : o?.invalid ? `⚠ ${o.invalid}`
+          : chain.reason ?? 'Pick a contract to size this position.'}
+      </small>
     </div>
   );
 }

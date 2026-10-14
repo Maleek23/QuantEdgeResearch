@@ -28,6 +28,7 @@ import {
 } from './journal-row-maps';
 import { loadDeskVerifyLedger, loadRetroOptionsLedger } from './desk-verify-ledger';
 import { PNL_TRUTH_VERSION, ageText } from '@shared/journal-pnl-truth';
+import { splitLegacySharesRows } from '@shared/options-only';
 import {
   journalKindOf, traderOwnerId, traderSlugOf,
   type JournalKey, type JournalSourceMeta, type DeskVerificationMeta, type JournalExcludedRow,
@@ -302,7 +303,13 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
   const retro = loadRetroOptionsLedger();
   const split = verifyDeskRows(pairs, ledger, retro?.byId ?? null);
   const verification = { ...deskVerificationMeta(split, ledger, includeUnverified), retroLedger: retro ? { asOf: retro.asOf, path: retro.path, records: retro.byId.size } : null };
-  const rows = includeUnverified ? [...split.counted, ...split.unverified] : split.counted;
+  // No shares anywhere: rows still stock after verification go to the excluded list only.
+  const legacy = splitLegacySharesRows(includeUnverified ? [...split.counted, ...split.unverified] : split.counted);
+  const rows = legacy.kept;
+  for (const { row: r, reason } of legacy.excluded) {
+    excluded.set(reason, (excluded.get(reason) ?? 0) + 1);
+    excludedRows.push({ id: r.id, symbol: r.symbol, entryTime: String(r.entryTime ?? ''), reason });
+  }
   const t = verification.truth;
   const now = Date.now();
   const usd = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;

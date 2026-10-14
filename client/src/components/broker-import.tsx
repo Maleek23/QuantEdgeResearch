@@ -512,7 +512,7 @@ function PositionRow({ position }: { position: Position }) {
             )}
           </div>
           <span className="text-xs text-muted-foreground">
-            {position.quantity} shares @ ${safeToFixed(position.costBasis / Math.abs(position.quantity) / (position.isOption ? 100 : 1), 2)}
+            {position.quantity} {position.isOption ? 'contracts' : 'shares'} @ ${safeToFixed(position.costBasis / Math.abs(position.quantity) / (position.isOption ? 100 : 1), 2)}
           </span>
         </div>
       </div>

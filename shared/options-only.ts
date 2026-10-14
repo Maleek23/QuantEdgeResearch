@@ -48,7 +48,10 @@ export const OPTION_INTENT_SIGNAL = 'instrument_intent:option';
 export const LEGACY_CONVERSION_SIGNALS: readonly string[] = ['underlying_only:no_entry_premium', 'underlying_only:no_liquid_contract'];
 export const OPTIONS_ONLY_WITHHELD_CODE = 'options_only_no_tradable_contract';
 export const BUDGET_PROMOTED_SIGNAL = 'contract:budget_promoted';
-export const SHARES_IDEA_LABEL = 'Legacy shares idea';
+/** The ONLY place a legacy stock row is named — the journal's excluded list (never the headline / activity feed). */
+export const SHARES_IDEA_LABEL = 'Shares idea (legacy, not in the options book)';
+/** Excluded-list reason for an option idea a legacy fallback stored as shares (no contract recorded). */
+export const CONVERTED_SHARES_LABEL = 'Option idea stored as shares (legacy, contract never recorded — not in the options book)';
 export const CONTRACT_NOT_RECORDED = 'contract not recorded';
 
 export type InstrumentIntent = 'option' | 'shares' | 'crypto' | 'future' | 'other';
@@ -121,7 +124,7 @@ export function contractGap(row: ContractRow): string | null {
   return null;
 }
 
-/** One instrument label for every surface: "Option", "Shares idea", "Contract not recorded", … Pure. */
+/** One instrument label for every surface: "Option", the legacy shares label, "Contract not recorded", "Crypto", … Pure. */
 export function instrumentLabel(row: ContractRow): string {
   const intent = instrumentIntent(row);
   if (intent === 'option') return contractGap(row) ? 'Contract not recorded' : 'Option';
@@ -129,6 +132,24 @@ export function instrumentLabel(row: ContractRow): string {
   if (intent === 'crypto') return 'Crypto';
   if (intent === 'future') return 'Future';
   return String(row.assetType ?? 'unknown');
+}
+
+/**
+ * No shares anywhere (operator 2026-10-14): a journal row that is STILL a stock
+ * position after verification (a legacy shares idea with no verified options
+ * view, or an option idea a legacy fallback stored as shares) leaves the trade
+ * list / activity feed / headline and goes to the excluded list with its legacy
+ * label. Option, crypto and future rows pass through. Pure.
+ */
+export function splitLegacySharesRows<T extends { assetType?: string | null; instrumentLabel?: string | null }>(rows: T[]): { kept: T[]; excluded: { row: T; reason: string }[] } {
+  const kept: T[] = [];
+  const excluded: { row: T; reason: string }[] = [];
+  for (const r of rows) {
+    const a = String(r.assetType ?? '').toLowerCase();
+    if (a === 'stock' || a === 'penny_stock') excluded.push({ row: r, reason: r.instrumentLabel === SHARES_IDEA_LABEL ? SHARES_IDEA_LABEL : CONVERTED_SHARES_LABEL });
+    else kept.push(r);
+  }
+  return { kept, excluded };
 }
 
 // ── budget contract promotion (pure) ────────────────────────────────────────

@@ -175,27 +175,6 @@ export function formatVolume(volume: number): string {
   }
 }
 
-export function calculatePositionSize(
-  entryPrice: number,
-  stopLoss: number,
-  capitalAllocated: number,
-  maxRiskPercent: number
-): { shares: number; riskAmount: number; riskPercent: number } {
-  // Protect against division by zero
-  const safeEntryPrice = entryPrice || 1;
-  const entryStopDiff = Math.abs(safeEntryPrice - stopLoss) || 0.01;
-  const stopLossPercent = Math.abs((stopLoss - safeEntryPrice) / safeEntryPrice) * 100;
-  const maxRiskAmount = capitalAllocated * (maxRiskPercent / 100);
-  const shares = Math.floor(maxRiskAmount / entryStopDiff);
-  const actualRiskAmount = shares * entryStopDiff;
-  const actualRiskPercent = capitalAllocated > 0 ? (actualRiskAmount / capitalAllocated) * 100 : 0;
-
-  return {
-    shares,
-    riskAmount: actualRiskAmount,
-    riskPercent: actualRiskPercent,
-  };
-}
 export type TradeSignal = {
   status: 'ENTRY ZONE' | 'HOLDING' | 'TAKE PROFIT' | 'STOP OUT' | 'BREAKOUT' | 'INVALIDATED' | 'MONITORING';
   color: 'green' | 'blue' | 'yellow' | 'red' | 'purple' | 'gray';

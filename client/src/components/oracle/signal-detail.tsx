@@ -461,7 +461,8 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
     : g.risk;
   const costPerUnit = isOption ? premium * 100 : (live || pick.entryPrice);
 
-  const sized = account > 0 && g.risk > 0;
+  // Options only (operator 2026-10-14): a signal without a priced contract is never sized in shares.
+  const sized = account > 0 && g.risk > 0 && isOption;
   const units = sized ? Math.max(0, Math.floor(riskBudget / Math.max(riskPerUnit, 0.01))) : 0;
   const cost = units * costPerUnit;
   const pctOfAccount = account > 0 ? (cost / account) * 100 : 0;
@@ -472,7 +473,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
     : units * g.reward;
 
   const overAllocated = pctOfAccount > 100;
-  const unitLabel = isOption ? (units === 1 ? 'contract' : 'contracts') : 'shares';
+  const unitLabel = units === 1 ? 'contract' : 'contracts';
 
   // Rendered through the shared Readout so the whole rail is one block repeated,
   // not four bespoke panels — see templates/kit.tsx for why that is the actual
@@ -482,7 +483,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
       title="Risk & Size"
       meta={sized ? (rule.basis === 'allocation' ? 'allocation' : 'risk budget') : 'at entry'}
       value={sized ? units : g.rr.toFixed(2)}
-      qualifier={sized ? `${unitLabel} · ${g.rr.toFixed(2)}:1` : ': 1 — set account size to size it'}
+      qualifier={sized ? `${unitLabel} · ${g.rr.toFixed(2)}:1` : !isOption ? ': 1 — no priced contract, not sized (options only)' : ': 1 — set account size to size it'}
       valueTone={sized && units === 0 ? 'time' : 'structural'}
       className={className}
     >
@@ -545,7 +546,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
             {units === 0 && isOption
               ? `Too big for this account. One contract costs $${costPerUnit.toFixed(0)} and commits $${riskPerUnit.toFixed(0)} — ${(riskPerUnit / Math.max(riskBudget, 0.01)).toFixed(1)}× your $${riskBudget.toFixed(0)} ${rule.basis === 'allocation' ? 'per-idea capital' : 'options budget'}. Look at a cheaper strike or further expiry.`
               : units === 0
-                ? `Too big for this account. One share risks $${riskPerUnit.toFixed(2)} against a $${riskBudget.toFixed(0)} budget.`
+                ? `No priced contract — not sized (options only, never shares).`
                 : `This size costs more than your whole account — scale down.`}
           </p>
         )}
@@ -714,7 +715,7 @@ export function ContextPanel({
         <p className="text-body leading-snug text-foreground/85">
           <span className="font-mono font-bold" style={{ color: pick.direction === 'long' ? BULL : BEAR }}>{dir} {pick.symbol}</span>
           {' '}— {pick.convictionBand}-band ({bandStrength(pick.convictionBand)}), {pick.layerCount ?? pick.layers?.length ?? 0} layers.
-          {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.
+          {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} on the underlying.
           {aligns !== undefined && regime && <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>}
         </p>
         {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground">{clarifyOracleNarrative(pick.thesis)}</p>}

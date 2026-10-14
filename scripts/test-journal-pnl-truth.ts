@@ -13,7 +13,7 @@ import { bsDelta, bsPrice, impliedVol } from '../shared/iv-fill';
 import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
 import { ledgerEntryOf } from '../server/desk-verify-ledger';
 import { incrementalIds } from '../research/verify-nexus-book-sources';
-import { isOptionIntendedWrite, instrumentLabel } from '../shared/options-only';
+import { isOptionIntendedWrite, instrumentLabel, splitLegacySharesRows, SHARES_IDEA_LABEL, CONVERTED_SHARES_LABEL } from '../shared/options-only';
 import { applyDeskView, type DeskViewRow } from '../shared/desk-view';
 import { verifyCommand, retroCommand, ledgerIsStale } from '../server/journal-verify-job';
 
@@ -197,7 +197,7 @@ t('every automated equity idea is option-intended at the write; crypto stays cry
   assert.equal(isOptionIntendedWrite({ source: 'quant', assetType: 'penny_stock' }), true);
   assert.equal(isOptionIntendedWrite({ source: 'crypto_engine', assetType: 'crypto' }), false);
   assert.equal(isOptionIntendedWrite({ source: 'quant', assetType: 'option' }), false);
-  assert.equal(instrumentLabel({ source: 'market_scanner', assetType: 'stock' }), 'Legacy shares idea');
+  assert.equal(instrumentLabel({ source: 'market_scanner', assetType: 'stock' }), 'Shares idea (legacy, not in the options book)');
 });
 t('wiring: storage uses the v2 rule; leaders never publishes a shares idea; job registered', () => {
 
@@ -210,6 +210,24 @@ t('wiring: storage uses the v2 rule; leaders never publishes a shares idea; job 
   assert.match(retroScript, /READ ONLY/);
   assert.equal(/\b(UPDATE|INSERT INTO|DELETE FROM|TRUNCATE|ALTER TABLE)\b/.test(retroScript.replace(/\/\*[\s\S]*?\*\//g, '')), false, 'no write SQL in the converter');
   assert.match(rd('client/src/lib/journal/use-journal.ts'), /matchesJournalFilters\(r, filters\) && r\.verification\?\.status !== 'unverified'/, 'call accuracy on the headline set');
+});
+
+t('no shares anywhere: rows still stock leave the trade list for the excluded list; crypto stays', () => {
+  const rows = [
+    { id: 'a', assetType: 'option', instrumentLabel: null },
+    { id: 'b', assetType: 'stock', instrumentLabel: 'Shares idea (legacy, not in the options book)' },
+    { id: 'c', assetType: 'stock', instrumentLabel: null },
+    { id: 'd', assetType: 'crypto', instrumentLabel: null },
+    { id: 'e', assetType: 'option', instrumentLabel: 'Options view (rule-picked, verified)' },
+  ];
+  const s = splitLegacySharesRows(rows);
+  assert.deepEqual(s.kept.map((r) => r.id), ['a', 'd', 'e']);
+  assert.deepEqual(s.excluded.map((x) => [x.row.id, x.reason]), [
+    ['b', SHARES_IDEA_LABEL], ['c', CONVERTED_SHARES_LABEL],
+  ]);
+  assert.match(SHARES_IDEA_LABEL, /legacy, not in the options book/);
+  const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  assert.match(rd('server/journal-sources.ts'), /splitLegacySharesRows\(/, 'desk loader routes stock rows to the excluded list');
 });
 
 console.log(`\n${n} journal-pnl-truth checks passed`);

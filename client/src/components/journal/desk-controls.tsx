@@ -38,7 +38,7 @@ export function DeskControls({ prefs, setPrefs, data }: {
           ))}
           <button type="button" aria-pressed={customOpen} onClick={() => setCustomOpen(true)}>CUSTOM</button>
           <button type="button" aria-pressed={s.mode === 'unit'} onClick={() => { setCustomOpen(false); setSizing({ mode: 'unit', riskDollars: 0 }); }}
-            title="1 contract per option idea; $1,000 notional per stock idea — risk varies with the stop">UNIT</button>
+            title="1 contract per option idea — risk varies with the stop">UNIT</button>
         </div>
         {customOpen && (
           <form className="jr-desk-custom" onSubmit={(e) => { e.preventDefault(); if (customVal != null) setSizing({ mode: 'risk', riskDollars: customVal }); }}>

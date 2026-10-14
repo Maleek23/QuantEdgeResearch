@@ -47,6 +47,8 @@ export interface Drawing {
   dir?: 'up' | 'down';
   /** long / short position: the $ risk the size is computed at. */
   risk?: number;
+  /** long / short position: the option contract it is sized on (never shares — shared/position-contract.ts). */
+  contract?: PositionContract;
   locked?: boolean;
   hidden?: boolean;
   alert?: DrawingAlert;
@@ -63,6 +65,26 @@ export const TOOL_POINTS: Record<DrawTool, number> = {
 export const ALERTABLE: ReadonlySet<DrawTool> = new Set<DrawTool>(['hline', 'hray', 'trend', 'ray', 'extended', 'pricelabel']);
 
 /* ───────────────────────── sanitiser ───────────────────────── */
+// (type-only import kept here so the file header stays first)
+import type { PositionContract } from './position-contract';
+
+/** A stored position contract, or null when malformed. */
+export function sanitizePositionContract(raw: unknown): PositionContract | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const c = raw as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  if (c.optionType !== 'call' && c.optionType !== 'put') return null;
+  const strike = n(c.strike); const mid = n(c.mid); const spot = n(c.spot); const delta = n(c.delta); const dte = n(c.dte);
+  if (!(strike! > 0) || !(mid! > 0) || !(spot! > 0) || delta == null || dte == null || dte < 0) return null;
+  if (typeof c.expiry !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(c.expiry)) return null;
+  const out: PositionContract = { optionType: c.optionType, strike: strike!, expiry: c.expiry.slice(0, 10), dte: dte!, mid: mid!, spot: spot!, delta };
+  if (n(c.gamma) != null) out.gamma = n(c.gamma);
+  if (n(c.iv) != null) out.iv = n(c.iv);
+  if (typeof c.occ === 'string') out.occ = c.occ.slice(0, 40);
+  if (typeof c.source === 'string') out.source = c.source.slice(0, 40);
+  if (typeof c.asOf === 'string') out.asOf = c.asOf.slice(0, 40);
+  return out;
+}
 
 const TOOLS = new Set(Object.keys(TOOL_POINTS));
 export const MAX_DRAWINGS_PER_SYMBOL = 300;
@@ -94,6 +116,8 @@ export function sanitizeDrawings(raw: unknown): Drawing[] {
     if (typeof d.text === 'string') clean.text = d.text.slice(0, 200);
     if (d.dir === 'up' || d.dir === 'down') clean.dir = d.dir;
     if (typeof d.risk === 'number' && Number.isFinite(d.risk) && d.risk > 0) clean.risk = Math.min(1_000_000, d.risk);
+    const pc = sanitizePositionContract(d.contract);
+    if (pc && (clean.tool === 'long' || clean.tool === 'short')) clean.contract = pc;
     if (d.locked === true) clean.locked = true;
     if (d.hidden === true) clean.hidden = true;
     const al = d.alert as Record<string, unknown> | undefined;

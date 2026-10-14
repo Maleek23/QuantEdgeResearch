@@ -366,10 +366,9 @@ export interface TradeStructure {
   riskReward: number;
   positionSize: {
     riskPercent: number;
-    shares: number;
     dollarRisk: number;
   };
-  structure: string; // e.g., "long shares", "call spread", "short put"
+  structure: string; // options only (operator 2026-10-14): e.g. "long call", "call debit spread", "long put"
   timeframe: string;
   invalidation: string;
 }
@@ -1237,11 +1236,11 @@ export function generateTradeStructure(
   // Position sizing (risk 2% of account)
   const riskPercent = 2;
   const dollarRisk = accountSize * (riskPercent / 100);
-  const shares = Math.floor(dollarRisk / riskPerShare);
   const riskReward = (targets[0].price - entryPrice) / riskPerShare;
 
   // Determine structure type
-  let structure = direction === 'long' ? 'Long shares' : 'Short shares';
+  // Options only — never shares (operator 2026-10-14).
+  let structure = direction === 'long' ? 'Long call' : 'Long put';
   if (fundamental.asset === 'options') {
     structure = direction === 'long' 
       ? 'Long call or call debit spread' 
@@ -1272,7 +1271,6 @@ export function generateTradeStructure(
     riskReward: Math.abs(riskReward),
     positionSize: {
       riskPercent,
-      shares,
       dollarRisk,
     },
     structure,

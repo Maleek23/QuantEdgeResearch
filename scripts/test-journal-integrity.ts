@@ -31,7 +31,7 @@ t('legacy underlying-only signal marks a converted quant row', () => {
 t('legacy market_scanner stock row is a Legacy shares idea (history kept as published)', () => {
   const r = { source: 'market_scanner', assetType: 'stock', qualitySignals: ['breakout'] };
   assert.equal(instrumentIntent(r), 'shares');
-  assert.equal(instrumentLabel(r), 'Legacy shares idea');
+  assert.equal(instrumentLabel(r), 'Shares idea (legacy, not in the options book)');
   assert.equal(contractGap(r), null);
 });
 t('producer fallback carries the option-intent signal', () => {
@@ -139,7 +139,7 @@ t('MSTR 157.5C: play shows the mismatch, never a silent "win"', () => {
   assert.equal(p.peak!.premium, 2.62);
 });
 t('setup row labels instruments', () => {
-  assert.equal(toSetupRow({ id: 'x', symbol: 'TENB', source: 'leaders', assetType: 'stock', timestamp: '2026-10-09T19:03:41Z', percentGain: 1.2 }).instrument, 'Legacy shares idea');
+  assert.equal(toSetupRow({ id: 'x', symbol: 'TENB', source: 'leaders', assetType: 'stock', timestamp: '2026-10-09T19:03:41Z', percentGain: 1.2 }).instrument, 'Shares idea (legacy, not in the options book)');
   const s = toSetupRow({ id: 'y', symbol: 'GOOGL', source: 'zero_dte_flow', assetType: 'stock', timestamp: '2026-10-07T13:56:00Z', percentGain: 0.3 });
   assert.equal(s.contract, 'contract not recorded');
   assert.equal(s.resultPct, null, 'no shares % on an option idea');
@@ -180,11 +180,11 @@ t('option with no premium → contract not recorded', () => {
   const r = mapDeskIdea({ ...base, source: 'gex_scanner', assetType: 'option', optionType: 'put', strikePrice: 345, expiryDate: '2026-10-07' });
   assert.match((r as any).excluded, /^contract not recorded — no entry premium/);
 });
-t('legacy shares idea renders with the "Legacy shares idea" label', () => {
+t('legacy shares idea renders with the legacy shares label', () => {
   const r = mapDeskIdea({ ...base, source: 'market_scanner', catalyst: 'Day mover' });
   assert.ok('row' in r);
-  assert.equal((r as any).row.instrumentLabel, 'Legacy shares idea');
-  assert.match((r as any).row.notes, /^Legacy shares idea/);
+  assert.equal((r as any).row.instrumentLabel, 'Shares idea (legacy, not in the options book)');
+  assert.match((r as any).row.notes, /^Shares idea \(legacy, not in the options book\)/);
 });
 
 console.log(`\n${n} journal-integrity checks passed`);

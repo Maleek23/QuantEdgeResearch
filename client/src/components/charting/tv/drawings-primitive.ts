@@ -431,7 +431,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     const last = this.state.lastPrice;
     if (last != null) {
       const ly = this.y(last);
-      const pnl = positionPnl(st, last);
+      const pnl = positionPnl(st, last, d.contract);
       if (ly != null && Number.isFinite(pnl.per)) {
         ctx.globalAlpha = 0.85; ctx.setLineDash([2, 3]); ctx.strokeStyle = pnl.per >= 0 ? c.gain : c.loss;
         ctx.beginPath(); ctx.moveTo(x0, ly); ctx.lineTo(x1, ly); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
@@ -439,11 +439,16 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     }
     ctx.font = FONT;
     const money = (v: number | null) => (v == null ? '—' : `$${Math.round(Math.abs(v)).toLocaleString('en-US')}`);
-    const tgtTxt = `Target ${fmt.format(st.target)} (${st.targetPct >= 0 ? '+' : ''}${st.targetPct.toFixed(2)}%) · ${money(st.rewardDollars)}`;
-    const stopTxt = `Stop ${fmt.format(st.stop)} (${st.stopPct >= 0 ? '+' : ''}${st.stopPct.toFixed(2)}%) · −${money(st.riskDollars)}`;
-    let midTxt = st.invalid ? `⚠ ${st.invalid}` : `${st.side === 'long' ? 'Long' : 'Short'} ${st.qty != null ? `${st.qty.toLocaleString('en-US')} sh` : '—'} · R:R ${st.rr != null ? st.rr.toFixed(2) : '—'} · risk $${st.budget.toLocaleString('en-US')}`;
-    if (last != null && !st.invalid) {
-      const pnl = positionPnl(st, last);
+    const o = st.opt;
+    const prem = (v: number | null | undefined) => (v == null ? '—' : `$${v.toFixed(2)}`);
+    const tgtTxt = `Target ${fmt.format(st.target)} (${st.targetPct >= 0 ? '+' : ''}${st.targetPct.toFixed(2)}%)${o ? ` · opt ${prem(o.premT1)} · +${money(st.rewardDollars)}` : ''}`;
+    const stopTxt = `Stop ${fmt.format(st.stop)} (${st.stopPct >= 0 ? '+' : ''}${st.stopPct.toFixed(2)}%)${o ? ` · opt ${prem(o.premStop)} · −${money(st.riskDollars)}` : ''}`;
+    // Sized in OPTION CONTRACTS only — never shares. No contract → say so.
+    let midTxt = st.invalid ? `⚠ ${st.invalid}`
+      : !o ? `${st.side === 'long' ? 'Long' : 'Short'} · pick a ${st.side === 'long' ? 'call' : 'put'} to size · R:R ${st.rr != null ? st.rr.toFixed(2) : '—'}`
+      : `${st.qty}× ${o.label.replace(/^\S+\s/, '')} @ ${prem(o.premEntry)} · debit ${money(st.debit)} · R:R ${o.rr != null ? o.rr.toFixed(2) : '—'} · risk $${st.budget.toLocaleString('en-US')}`;
+    if (last != null && !st.invalid && o) {
+      const pnl = positionPnl(st, last, d.contract);
       midTxt += ` · open ${pnl.dollars != null ? `${pnl.dollars >= 0 ? '+' : '−'}$${Math.round(Math.abs(pnl.dollars)).toLocaleString('en-US')}` : '—'}${pnl.r != null ? ` (${pnl.r >= 0 ? '+' : ''}${pnl.r.toFixed(2)}R)` : ''}`;
     }
     const tag = (txt: string, y: number, bg: string, above: boolean) => {

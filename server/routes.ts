@@ -15620,6 +15620,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Expected move unavailable' });
     }
   });
+  // CHART position tool — the live chain + the budget-contract default for a
+  // drawn long / short (shared/position-contract.ts). Options only: no liquid
+  // contract → { suggestion: null, reason } and the chart says so (never shares).
+  app.get("/api/chart/position-chain/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { canonicalChartSymbol } = await import('@shared/index-symbols');
+      const symbol = canonicalChartSymbol(String(req.params.symbol ?? ''));
+      if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+      const q = (k: string) => { const n = Number(req.query[k]); return Number.isFinite(n) && n > 0 ? n : null; };
+      const side = req.query.side === 'short' ? 'short' : 'long';
+      const entry = q('entry'); const stop = q('stop'); const target = q('target');
+      const spot = q('spot') ?? entry;
+      const risk = q('risk') ?? 500;
+      if (entry == null || stop == null || target == null || spot == null) return res.status(400).json({ error: 'entry, stop and target are required' });
+      const { loadBudgetChain } = await import('./lib/budget-contract-attach');
+      const { suggestPositionContract, chainChoices } = await import('@shared/position-contract');
+      const nowMs = Date.now();
+      const chain = await loadBudgetChain(symbol, 60, nowMs);
+      res.setHeader('Cache-Control', 'no-store');
+      if (!chain || !chain.rows.length) return res.json({ symbol, side, rows: [], choices: [], suggestion: null, reason: 'No option chain for this symbol right now — the position is not sized (options only, never shares).' });
+      const type = side === 'long' ? 'call' : 'put';
+      const rows = chain.rows.filter((r) => r.type === type);
+      const sug = suggestPositionContract({ symbol, side, spot, entry, stop, target, risk, rows, nowMs, source: chain.source, asOf: chain.asOf });
+      res.json({
+        symbol, side, spot, source: chain.source, asOf: chain.asOf,
+        rows, choices: chainChoices(rows, type),
+        suggestion: sug.ok ? sug.contract : null,
+        reason: sug.ok ? null : sug.reason,
+      });
+    } catch (error: any) {
+      logger.warn(`[CHART-POSITION-CHAIN] failed: ${error?.message}`);
+      res.status(500).json({ error: 'Option chain unavailable — the position is not sized.' });
+    }
+  });
   app.get("/api/bullflow/leaders", async (_req, res) => {
     try {
       const bf = await import("./bullflow-service");
