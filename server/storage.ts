@@ -566,7 +566,7 @@ export interface IStorage {
   deleteTradeIdea(id: string): Promise<boolean>;
   cleanupStaleTradeIdeas(): Promise<number>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined>;
-  updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined>;
+  updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain' | 'entryPremium'>>): Promise<TradeIdea | undefined>;
   getOpenTradeIdeas(): Promise<TradeIdea[]>;
   getTradeIdeasByFilters(filters: { assetType?: string; outcomeStatus?: string; limit?: number }): Promise<TradeIdea[]>;
   getPerformanceStats(): Promise<PerformanceStats>;
@@ -1745,7 +1745,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain' | 'entryPremium'>>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
     
@@ -2951,6 +2951,26 @@ export class DatabaseStorage implements IStorage {
       void recordWithheldIdea(sourced as any, OPTIONS_ONLY_WITHHELD_CODE, optionFallbackWhy);
       throw new Error(`Withheld trade idea: ${OPTIONS_ONLY_WITHHELD_CODE}: ${optionFallbackWhy}`);
     }
+    // ENTRY PREMIUM TRUTH (shared/entry-premium-truth.ts): the entry premium is the
+    // contract's LIVE quote at publish (≤60 s, live feed) — never a delayed-chain /
+    // prior-session mark (2026-10-14 SPY 777C published $2.72 vs $0.635 live).
+    // Runs before the premium plan so T1/T2/stop map from the corrected entry.
+    if (
+      !ALWAYS_INSERT.has(src) &&
+      (idea as any).sessionContext !== "backfill" &&
+      (idea as any).status !== "draft" &&
+      String((idea as any).assetType) === "option"
+    ) {
+      const { applyEntryPremiumGate } = await import("./lib/entry-premium-gate");
+      const eg = await applyEntryPremiumGate(idea as any);
+      if (eg.stamp?.action === "withheld") {
+        const { ENTRY_PREMIUM_WITHHELD_CODE } = await import("@shared/entry-premium-truth");
+        void recordWithheldIdea(idea as any, ENTRY_PREMIUM_WITHHELD_CODE, eg.stamp.reason);
+        logger.warn(`[ENTRY-PREMIUM] WITHHELD ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${eg.stamp.reason}`);
+        throw new Error(`Withheld trade idea: ${ENTRY_PREMIUM_WITHHELD_CODE}: ${eg.stamp.reason}`);
+      }
+      idea = eg.idea as InsertTradeIdea;
+    }
     // PREMIUM PLAN (shared/premium-outcome.ts): the underlying T1/T2/stop mapped to
     // the contract's premium ONCE, at publish — the tracker judges the option on it.
     if (String((idea as any).assetType) === "option" && (idea as any).status !== "draft") {
@@ -3253,7 +3273,7 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain' | 'entryPremium'>>): Promise<TradeIdea | undefined> {
     const existing = await this.getTradeIdeaById(id);
     if (!existing) return undefined;
     
