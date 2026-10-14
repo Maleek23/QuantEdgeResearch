@@ -67,7 +67,10 @@ export function OnboardingHost() {
 
   // One-time profile sheet.
   // Only inside the app (terminal, Today, desks) — never over the landing page or other public pages.
-  const inApp = /^\/(t|today|desk)(\/|$)/.test(path.split('?')[0]);
+  // Never inside an embedded frame (the landing page's real-UI mockups load the app in iframes)
+  // or the dev harness — only a real signed-in app window gets the sheet and tours.
+  const embedded = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  const inApp = !embedded && /^\/(t|today|desk)(\/|$)/.test(path.split('?')[0]);
   const needsProfile = inApp && ob.signedIn && !ob.loading && !ob.profile && !ob.progress.profileSheetDismissedAt;
   useEffect(() => {
     if (!needsProfile) return;
