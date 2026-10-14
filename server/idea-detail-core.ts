@@ -46,7 +46,9 @@ export interface IdeaDetailResponse {
   status: ReturnType<typeof ideaStatusChip>;
   record: IdeaDetailRecord;
   /** Contract premium judged on its own 1-minute bars (shared/premium-outcome.ts); null when no bars answered. */
-  premium: (PremiumOutcome & { asOf: string | null; lastPremium: number | null; source: string | null }) | null;
+  premium: (PremiumOutcome & { asOf: string | null; lastPremium: number | null; source: string | null; trough?: { premium: number; atMs: number } | null }) | null;
+  /** Verify-ledger chip (shared/nexus-pnl.ts verificationOf). */
+  verification?: import("@shared/nexus-pnl").PnlVerification;
   premiumNote: string | null;
   /** "SPX thesis · traded on SPY 770P" when an index thesis is expressed on SPY. */
   thesisLabel: string | null;

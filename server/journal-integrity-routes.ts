@@ -94,7 +94,25 @@ export function registerJournalIntegrityRoutes(app: Express, requireBetaAccess: 
     if (!b) return res.status(400).json({ error: 'date must be YYYY-MM-DD' });
     try {
       const rows = await rowsBetween(b.fromIso, b.toIso);
-      const setups = rows.filter((r) => !['manual', 'user'].includes(String(r.source ?? '').toLowerCase())).map(toSetupRow);
+      // NEXUS P&L per day (shared/nexus-pnl.ts, computed on the client at the $500/$1,000 toggle):
+      // the contract fields, budget contract, recorded peak and verify-ledger chip ride along.
+      const { readBudgetContract } = await import('@shared/budget-contract');
+      const { parsePeak } = await import('@shared/option-peak');
+      const { ideaVerification } = await import('./idea-verification');
+      const setups = rows.filter((r) => !['manual', 'user'].includes(String(r.source ?? '').toLowerCase())).map((r) => {
+        const x = r as IdeaRowLike & Record<string, any>;
+        const pk = parsePeak(x.outcomeNotes);
+        const resolved = String(x.outcomeStatus ?? 'open') !== 'open';
+        return {
+          ...toSetupRow(r),
+          pnlInput: {
+            assetType: x.assetType ?? null, optionType: x.optionType ?? null, strikePrice: x.strikePrice ?? null, expiryDate: x.expiryDate ?? null,
+            entryPremium: x.entryPremium ?? null, exitPremium: x.exitPremium ?? null, outcomeStatus: x.outcomeStatus ?? 'open', exitDate: x.exitDate ?? null,
+            budgetContract: readBudgetContract(x.convergenceSignalsJson), peak: pk ? { premium: pk.premium, atMs: pk.atMs } : null,
+          },
+          verification: resolved ? ideaVerification(String(x.id)) : null,
+        };
+      });
       res.json({ date, asOf: new Date().toISOString(), setups, source: 'trade_ideas rows published that ET day; outcomes as recorded by the tracker' });
     } catch (err) {
       res.status(500).json({ error: 'setups by day failed', message: (err as Error).message });

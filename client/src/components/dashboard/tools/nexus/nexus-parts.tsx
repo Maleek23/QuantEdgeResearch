@@ -10,6 +10,8 @@
  * are pure functions of those responses — nothing is invented here.
  */
 import { checkPriceAgreement } from '@shared/price-agreement';
+import type { ReactNode } from 'react';
+import { NexusPnlBlock } from './nexus-pnl';
 import { PriceConflictNote } from '@/components/ui/price-conflict';
 import { WatchStar } from '@/components/watch/watch-star';
 import { TookItButton } from '@/components/journal/took-it-button';
@@ -265,7 +267,7 @@ export function gradeTitle(g: NexusGrade): string {
   return nexusGradeTitle(g);
 }
 
-export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number }) {
+export function SetupRow({ pick, selected, onSelect, rotation, life, now, pnl }: { pick: ConvictionPick; selected: boolean; onSelect: () => void; rotation?: RotationTag | null; life?: SetupLife; now?: number; /** NEXUS P&L chip (nexus-pnl.tsx PnlChipView). */ pnl?: ReactNode }) {
   const t = now ?? Date.now();
   const line = life ? lifecycleLine(pick, life, t) : null;
   // Live re-grade on the same lifecycle read the board order uses (lib/setup-lifecycle.ts boardOrder).
@@ -277,7 +279,7 @@ export function SetupRow({ pick, selected, onSelect, rotation, life, now }: { pi
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}${life ? ` nxp-life-${life.life.state}` : ''}`} onClick={onSelect} title={title || undefined}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
       <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} />{pick.spxMirror && <span className={`nxp-spx-chip ${pick.spxMirror.status}`} title={spxMirrorChipTitle(pick.spxMirror)}>SPX</span>}{rotation && <span className={`nxp-rot ${rotation.tag}`} title={`${rotation.label} is ${rotation.stage} ${rotation.side} (sector ignition, measuring)`}>{rotation.tag === 'with' ? '↗ with rotation' : '↘ against rotation'}</span>}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small>{line && <small className={`nxp-life nxp-life-tag-${life!.life.state}`}>{line.text}</small>}{grade && whyShort(grade) && <small className="nxp-why" title={`Why this grade: ${whyRankedHere(grade)}`}>{whyShort(grade)}</small>}</span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} title={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(grade)}/100 — ${nexusGradeCaveat(grade)}`} aria-label={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(grade)} of 100, ${nexusGradeCaveat(grade)}`}>{grade.letter} <b>{grade.score}</b>{grade.action?.state === 'not_actionable' && <small className="nxp-grade-state"> · not now</small>}</span> : '—'}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small></span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : grade ? <span className={`nxp-grade nxp-grade-${grade.letter}`} title={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(grade)}/100 — ${nexusGradeCaveat(grade)}`} aria-label={`${NEXUS_GRADE_LABEL} ${formatNexusGrade(grade)} of 100, ${nexusGradeCaveat(grade)}`}>{grade.letter} <b>{grade.score}</b>{grade.action?.state === 'not_actionable' && <small className="nxp-grade-state"> · not now</small>}</span> : '—'}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${publishStamp((pick.calledAt ?? pick.generatedAt)!, now ?? Date.now())}` : ''}</small>{pnl}</span>
       <ChevronRight size={14} />
     </button>
   );
@@ -533,6 +535,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, l
               ['evidence at publish', selected.publishedConvictionScore != null ? `${convictionPercent(selected.publishedConvictionScore)}/100 (${selected.publishedConvictionScore} pts${selected.publishedConvictionBand ? ` · band ${selected.publishedConvictionBand}` : ''})` : null],
             ]} /></div>}
       </div>
+
+      {/* NEXUS P&L (shared/nexus-pnl.ts): status-aware, options-only, whole contracts at the $500 / $1,000 budget. */}
+      {!selected.isBotHeld && !selected.ideaId.startsWith('spx-linked-') && <NexusPnlBlock pick={selected} />}
 
       <div className="nxp-chart-card">
         {/* Levels live in ONE place — the card below (price, context, R, progress).

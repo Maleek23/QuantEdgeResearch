@@ -46,6 +46,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useSetupLifecycles } from '@/lib/setup-lifecycle';
 import { dayHeading, etDay, filterBoardByDay, type DayChip, type DayFilter } from '@shared/setup-lifecycle';
 import { useTraderCalls } from '@/lib/trader-calls';
+import { NexusMarksContext, pickPnl, useNexusMarks, usePnlBudget } from '@/lib/nexus-pnl';
+import { summarizeDay } from '@shared/nexus-pnl';
+import { NexusDayStrip, PnlChipView } from './nexus-pnl';
 import './nexus-tools.css';
 
 /* ── shared selection ── */
@@ -271,6 +274,18 @@ export function NexusBoardTool() {
       return true;
     });
   }, [resolvedQ.data, day, side, query, cryptoOnly, spxOnly]);
+  // ── NEXUS P&L (shared/nexus-pnl.ts): one batched marks request for every open setup on the board ──
+  const [budget, setBudget] = usePnlBudget();
+  const setupPicks = useMemo(() => all.filter((p) => !p.isBotHeld && !p.ideaId.startsWith('spx-linked-')), [all]);
+  const markKeys = useMemo(() => setupPicks.map((p) => pickPnl(p, budget, () => null, null, now)).filter((x) => x.status === 'open' && x.tradable).map((x) => x.tradable!.key), [setupPicks, budget, now]);
+  const marksQ = useNexusMarks(markKeys);
+  const pnlById = useMemo(() => new Map(setupPicks.map((p) => [p.ideaId, pickPnl(p, budget, marksQ.markOf, null, now)])), [setupPicks, budget, marksQ.markOf, now]);
+  const resolvedPnl = useMemo(() => (resolvedQ.data?.ideas ?? []).map((r) => ({ r, pnl: resolvedIdeaPnl(r, budget, now) })), [resolvedQ.data, budget, now]);
+  const daySummary = useMemo(() => summarizeDay([
+    ...setupPicks.map((p) => ({ id: p.ideaId, symbol: p.symbol, pnl: pnlById.get(p.ideaId)! })).filter((x) => x.pnl.status !== 'waiting'),
+    ...resolvedPnl.map(({ r, pnl }) => ({ id: r.ideaId, symbol: r.symbol, pnl })),
+  ]), [setupPicks, pnlById, resolvedPnl]);
+  const loadingMarks = useMemo(() => Array.from(pnlById.values()).filter((p) => p.loadingMark).length, [pnlById]);
   useApplyUrlSelection(all, !!convictions.data);
   useBookReport(convictions, `${rows.length} open${resolved.length ? ` · ${resolved.length} resolved today` : ''}`);
   const blocked = bookGate(convictions, 'live book');
@@ -288,7 +303,7 @@ export function NexusBoardTool() {
     const open = expandedId === pick.ideaId;
     return (
       <div key={pick.ideaId} className={`nxp-acc ${open ? 'open' : ''}`}>
-        <SetupRow pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId}
+        <SetupRow pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} pnl={pnlById.get(pick.ideaId) ? <PnlChipView p={pnlById.get(pick.ideaId)!} now={now} /> : undefined}
           onSelect={() => { select.setup(pick); setAskFocusSetup(open ? null : { id: pick.ideaId, symbol: pick.symbol }); setExpandedId(open ? null : pick.ideaId); }} />
         {open && <div className="nxp-acc-body nxd nxd-detail" data-testid="nexus-inline-detail"><DetailSetup id={pick.ideaId} tab={inlineTab} onTab={setInlineTab} /></div>}
       </div>
@@ -309,12 +324,14 @@ export function NexusBoardTool() {
     if (p.view !== undefined) setView(p.view);
   };
   const resetAll = () => onFilter({ ...BOARD_FILTER_DEFAULTS, day: 'all' });
-  const resolvedBlock = resolved.length > 0 ? <ResolvedToday ideas={resolved} /> : null;
+  const resolvedBlock = resolved.length > 0 ? <ResolvedToday ideas={resolved} budget={budget} now={now} /> : null;
   return (
+    <NexusMarksContext.Provider value={marksQ.markOf}>
     <div className="fd-fill nxd nxd-board">
       {/* NEXUS workspace: the tracked row and rotation strip are tiles of their own; the board carries them only when they are not placed */}
       {!dash.hasTool('nexus-tracked') && <TrackedRow picks={all} onFilter={(sym) => onFilter({ query: query === sym ? '' : sym, side: 'all', rank: 'all', cryptoOnly: false, withRotation: false, day: 'all' })} />}
       {!dash.hasTool('nexus-rotation') && <div style={{ padding: '6px 8px 0' }}><RotationStrip compact /></div>}
+      <NexusDayStrip s={daySummary} budget={budget} onBudget={setBudget} label="Today" loading={loadingMarks} timingMs={marksQ.data?.clientMs ?? null} />
       <BoardFilterBar state={fstate} onChange={onFilter} count={rows.length} counts={byDay.counts} staleHidden={byDay.staleHidden} earliest={earliest} today={today} />
       <DetailHint />
       {blocked ?? (rows.length === 0
@@ -335,6 +352,17 @@ export function NexusBoardTool() {
                 </section>
               ))}{resolvedBlock}</div>)}
     </div>
+    </NexusMarksContext.Provider>
+  );
+}
+
+/** A resolved-today row's realized P&L (budget contract when the primary is over budget). */
+function resolvedIdeaPnl(r: ResolvedIdea, budget: number, now: number) {
+  return pickPnl(
+    { ideaId: r.ideaId, symbol: r.symbol, assetType: r.assetType, optionType: r.optionType, strikePrice: r.strikePrice, expiryDate: r.expiryDate, entryPremium: r.entryPremium, budgetContract: r.budgetContract ?? null },
+    budget, null,
+    { outcomeStatus: r.outcomeStatus, resolutionReason: r.resolutionReason, exitPremium: r.exitPremium, exitDate: r.exitDate, optionPercentGain: r.optionPercentGain, peak: r.peak ?? null },
+    now,
   );
 }
 
@@ -349,13 +377,15 @@ function useResolvedToday() {
 }
 const pctText = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? null : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
 const etHm = (iso: string) => { const t = Date.parse(iso); return Number.isFinite(t) ? new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'; };
-function ResolvedToday({ ideas }: { ideas: ResolvedIdea[] }) {
+function ResolvedToday({ ideas, budget, now }: { ideas: ResolvedIdea[]; budget: number; now: number }) {
   return (
     <section className="nxr" aria-label="Resolved today">
       <div className="nxr-head"><span>Resolved today</span><span>{ideas.length}</span></div>
       {ideas.map((r) => {
         const c = outcomeChip(r);
-        const pnl = pctText(r.optionPercentGain ?? r.percentGain);
+        const money = resolvedIdeaPnl(r, budget, now);
+        // Realized $ on the tradable contract; the % fallback only when no $ can be priced.
+        const pnl = money.pnl == null ? pctText(r.optionPercentGain ?? r.percentGain) : null;
         const onPremium = r.optionPercentGain != null;
         return (
           <Link key={r.ideaId} href={`/r/${encodeURIComponent(r.symbol)}`} className="nxr-row" title={`${c.title}${c.at ? ` at ${c.at} ET` : ''} — open ${r.symbol}`}>
@@ -365,7 +395,7 @@ function ResolvedToday({ ideas }: { ideas: ResolvedIdea[] }) {
             </span>
             <span className="nxr-side">
               <span className={`nxr-chip ${c.tone}`} aria-label={`${c.title}${c.at ? ` at ${c.at} Eastern` : ''}`}>{c.label}{c.at ? ` ${c.at}` : ''}</span>
-              {pnl && <span className="nxr-pnl" title={`P&L on the ${onPremium ? 'contract premium' : 'underlying'}`}>{pnl} {onPremium ? 'prem' : 'und'}</span>}
+              {money.pnl != null ? <PnlChipView p={money} now={now} /> : pnl && <span className="nxr-pnl" title={`P&L on the ${onPremium ? 'contract premium' : 'underlying'} — ${money.reason ?? 'no $ at this budget'}`}>{pnl} {onPremium ? 'prem' : 'und'}</span>}
             </span>
           </Link>
         );

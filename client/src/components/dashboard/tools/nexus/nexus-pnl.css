@@ -1,0 +1,55 @@
+/* NEXUS P&L — chip, detail block, day strip (nexus-pnl.tsx). Colour by sign only. */
+.nxpl-chip{display:inline-flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.15;font-family:'JetBrains Mono',ui-monospace,monospace;white-space:nowrap}
+.nxpl-chip b{font-size:11px;font-weight:700;color:var(--text-dim)}
+.nxpl-chip small{font-size:9.5px;font-weight:500;color:var(--text-mute)}
+.nxpl-chip.gain b,.nxpl-day .gain,.nxpl-cells .t-gain strong{color:var(--gain,var(--green))}
+.nxpl-chip.loss b,.nxpl-day .loss,.nxpl-cells .t-loss strong{color:var(--loss,var(--red))}
+.nxpl-chip.muted b{color:var(--text-mute);font-weight:600}
+.nxpl-chip.loading b{font-style:italic}
+.nxpl-day .muted,.nxpl-day .flat{color:var(--text-dim)}
+
+.nxpl-budget{display:inline-flex;border:1px solid var(--nx-border);border-radius:4px;overflow:hidden}
+.nxpl-budget button{all:unset;cursor:pointer;padding:2px 7px;font:600 10px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+.nxpl-budget button.on{background:var(--nx-border-hi,var(--nx-border));color:var(--text)}
+.nxpl-budget button:focus-visible{outline:2px solid var(--text-dim);outline-offset:-2px}
+
+.nxpl-block{margin:8px 0 10px;padding:8px 10px 6px;border:1px solid var(--nx-border);border-radius:6px;background:var(--bg-2)}
+.nxpl-block-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font:700 10px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.nxpl-block-sum{display:flex;align-items:center;gap:10px;margin:6px 0}
+.nxpl-block-sum .nxpl-chip{flex-direction:row;align-items:baseline;gap:8px}
+.nxpl-block-sum .nxpl-chip b{font-size:15px}
+.nxpl-block-sum .nxpl-chip small{font-size:10.5px}
+.nxpl-vchip{padding:1px 7px;border:1px solid var(--nx-border-hi,var(--nx-border));border-radius:10px;font:700 10px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-dim)}
+.nxpl-vchip.verified{border-style:solid;color:var(--text)}
+.nxpl-vchip.corrected{border-style:dashed;color:var(--text)}
+.nxpl-vchip.muted{border-style:dashed;color:var(--text-mute)}
+.nxpl-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px}
+.nxpl-cells>div{display:flex;flex-direction:column;min-width:0}
+.nxpl-cells span{font:600 9.5px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mute)}
+.nxpl-cells strong{font:700 12.5px 'JetBrains Mono',ui-monospace,monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nxpl-cells small{font:500 10px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nxpl-none,.nxpl-foot{margin:4px 0 0;font:500 10.5px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+
+.nxpl-day{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin:6px 8px 2px;padding:7px 10px;border:1px solid var(--nx-border);border-radius:6px;background:var(--bg-2);font-family:'JetBrains Mono',ui-monospace,monospace}
+.nxpl-day-main{display:flex;align-items:baseline;gap:10px;min-width:0;flex-wrap:wrap}
+.nxpl-day-label{font:700 10px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.nxpl-day-main>strong{font-size:16px;font-weight:800}
+.nxpl-day-split{display:inline-flex;gap:10px;font-size:10.5px;color:var(--text-mute)}
+.nxpl-day-split em{font-style:normal;color:var(--text-mute)}
+.nxpl-day-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:10.5px;color:var(--text-mute)}
+.nxpl-loading{font-style:italic}
+.nxpl-journal{color:var(--text-dim);text-decoration:underline;text-underline-offset:2px}
+.nxpl-timing{opacity:.7}
+.nxp-row-status .nxpl-chip{margin-top:2px}
+
+@media (max-width:767px){
+  .nxpl-chip b{font-size:12.5px}
+  .nxpl-chip small{font-size:11px}
+  .nxpl-day{margin:6px 0 2px}
+  .nxpl-day-main>strong{font-size:18px}
+  .nxpl-day-split,.nxpl-day-meta{font-size:12px}
+  .nxpl-budget button{padding:6px 10px;font-size:12px}
+  .nxpl-cells{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nxpl-cells strong{font-size:13.5px}
+  .nxpl-cells small,.nxpl-none,.nxpl-foot{font-size:11.5px}
+}

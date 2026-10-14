@@ -33,7 +33,10 @@ export interface IdeaDetailPayload {
     t1HitAt: number | null; t2HitAt: number | null; stopHitAt: number | null;
     peak: { premium: number; atMs: number } | null; bars: number; basis: string;
     asOf: string | null; lastPremium: number | null; source: string | null;
+    trough?: { premium: number; atMs: number } | null;
   } | null;
+  /** Verify-ledger chip (shared/nexus-pnl.ts). */
+  verification?: import("@shared/nexus-pnl").PnlVerification;
   premiumNote: string | null;
   thesisLabel: string | null;
   zeroDte: boolean;

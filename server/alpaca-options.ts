@@ -451,6 +451,46 @@ export async function getAlpacaContractQuote(occ: string, feed: 'indicative' | '
   return { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed, via: 'snapshot' };
 }
 
+/**
+ * MANY contracts' quotes in as few requests as possible (NEXUS / journal marks,
+ * server/option-marks-batch.ts): OPRA latest-quotes first (when entitled), then
+ * ONE indicative snapshot request per 100 contracts for whatever OPRA did not
+ * answer. Same budget/queue as every Alpaca call. Index roots (SPX/SPXW/…) are
+ * skipped — Alpaca lists no index options; callers fall through per contract.
+ */
+export async function getAlpacaContractQuotesBatch(occs: string[]): Promise<Map<string, AlpacaContractQuote>> {
+  const out = new Map<string, AlpacaContractQuote>();
+  if (!isAlpacaOptionsConfigured()) return out;
+  const want = Array.from(new Set(occs.map((o) => o.toUpperCase().replace(/^O:/, '')))).filter((sym) => {
+    const p = parseOcc(sym);
+    return !!p && !['SPX', 'SPXW', 'VIX', 'NDX', 'RUT'].includes(p.root);
+  });
+  const chunks = (xs: string[]) => { const c: string[][] = []; for (let i = 0; i < xs.length; i += 100) c.push(xs.slice(i, i + 100)); return c; };
+  const high = isPriority();
+  if (Date.now() >= opraUnavailableUntil) {
+    for (const part of chunks(want)) {
+      const qs = new URLSearchParams({ symbols: part.join(','), feed: 'opra' });
+      const { status, json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/quotes/latest?${qs}`, () => high);
+      if (status === 401 || status === 403) { opraUnavailableUntil = Date.now() + 5 * 60_000; break; }
+      for (const sym of part) {
+        const q = json?.quotes?.[sym];
+        const bid = num(q?.bp), ask = num(q?.ap);
+        if ((bid ?? 0) > 0 || (ask ?? 0) > 0) out.set(sym, { occ: sym, bid, ask, last: null, quoteTime: q?.t ?? null, feed: 'opra', via: 'latest_quote' });
+      }
+    }
+  }
+  for (const part of chunks(want.filter((s) => !out.has(s)))) {
+    const qs = new URLSearchParams({ symbols: part.join(','), feed: 'indicative' });
+    const { json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/snapshots?${qs}`, () => high);
+    for (const sym of part) {
+      const s = json?.snapshots?.[sym];
+      const bid = num(s?.latestQuote?.bp), ask = num(s?.latestQuote?.ap), last = num(s?.latestTrade?.p);
+      if ((bid ?? 0) > 0 || (ask ?? 0) > 0) out.set(sym, { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed: 'indicative', via: 'snapshot' });
+    }
+  }
+  return out;
+}
+
 export interface AlpacaOptionBar { t: number; o: number; h: number; l: number; c: number; v: number }
 
 /**

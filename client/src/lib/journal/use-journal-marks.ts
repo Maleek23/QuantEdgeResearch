@@ -31,7 +31,7 @@ export const MARKS_POLL_MS = 30_000;
  */
 export function useJournalMarks(key: JournalKey, openCount: number, rows?: readonly { id: string; quantity: number; riskBasis?: { unitQty: number } | null; sizedAs?: unknown }[]) {
   const eligible = key === 'mine' || key === 'desk' || key.startsWith('trader:');
-  const q = useQuery<{ marks: Record<string, LiveMark>; asOf: string }>({
+  const q = useQuery<{ marks: Record<string, LiveMark>; asOf: string; pending?: string[] }>({
     queryKey: ['/api/journal/marks', key],
     queryFn: async () => {
       const res = await fetch(`/api/journal/marks?journal=${encodeURIComponent(key)}`, { credentials: 'include' });
@@ -39,7 +39,8 @@ export function useJournalMarks(key: JournalKey, openCount: number, rows?: reado
       return res.json();
     },
     enabled: eligible && openCount > 0,
-    refetchInterval: key === 'desk' ? 60_000 : MARKS_POLL_MS,
+    // Progressive fill: rows the server could not mark inside its budget come back as `pending` — re-ask soon (served from its cache).
+    refetchInterval: (qq) => ((qq.state.data?.pending?.length ?? 0) > 0 ? 3_000 : key === 'desk' ? 60_000 : MARKS_POLL_MS),
     refetchIntervalInBackground: false,
     staleTime: MARKS_POLL_MS - 1_000,
   });

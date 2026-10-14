@@ -32930,12 +32930,21 @@ Use this checklist before entering any trade:
         entryPremium: tradeIdeas.entryPremium, exitPremium: tradeIdeas.exitPremium, percentGain: tradeIdeas.percentGain,
         optionPercentGain: tradeIdeas.optionPercentGain, outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason,
         timestamp: tradeIdeas.timestamp, exitDate: tradeIdeas.exitDate,
+        convergenceSignalsJson: tradeIdeas.convergenceSignalsJson, outcomeNotes: tradeIdeas.outcomeNotes,
       }).from(tradeIdeas).where(and(
         gte(tradeIdeas.exitDate, since),
         ne(tradeIdeas.outcomeStatus, 'open' as any),
         notInArray(tradeIdeas.source, ['manual', 'user'] as any),
       )).orderBy(desc(tradeIdeas.exitDate)).limit(300);
-      const ideas = resolvedToday(rows.filter((r) => r.exitDate) as any[], now);
+      // NEXUS P&L (shared/nexus-pnl.ts): the budget contract, recorded peak and verify-ledger chip ride along.
+      const { readBudgetContract } = await import('@shared/budget-contract');
+      const { parsePeak } = await import('@shared/option-peak');
+      const { ideaVerification } = await import('./idea-verification');
+      const ideas = resolvedToday(rows.filter((r) => r.exitDate) as any[], now).map((r: any) => {
+        const { convergenceSignalsJson, outcomeNotes, ...rest } = r;
+        const pk = parsePeak(outcomeNotes);
+        return { ...rest, budgetContract: readBudgetContract(convergenceSignalsJson), peak: pk ? { premium: pk.premium, atMs: pk.atMs } : null, verification: ideaVerification(r.ideaId) };
+      });
       res.json({ ideas, asOf: new Date(now).toISOString() });
     } catch (e: any) {
       logger.warn(`[NEXUS] resolved-today failed: ${e?.message ?? e}`);
@@ -32959,11 +32968,16 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Batched, cached contract marks for NEXUS P&L (server/option-marks-batch.ts) — same cache as the journal's.
+  {
+    const { registerNexusMarksRoutes } = await import('./option-marks-batch');
+    registerNexusMarksRoutes(app, requireBetaAccess);
+  }
   app.get("/api/journal/marks", requireBetaAccess, async (req, res) => {
     try {
       const { journalActor, resolveJournal, JournalAccessError } = await import('./journal-sources');
       const { parseJournalKey } = await import('@shared/journal-sources');
-      const { liveMarksFor } = await import('./journal-marks');
+      const { liveMarksWithin } = await import('./journal-marks');
       try {
         const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
         let rows: any[];
@@ -32983,8 +32997,10 @@ Use this checklist before entering any trade:
         } else {
           return res.json({ marks: {}, asOf: new Date().toISOString(), note: 'The Quantinum Bot book carries its own ledger marks.' });
         }
-        const marks = await liveMarksFor(rows as any);
-        res.json({ marks, asOf: new Date().toISOString() });
+        // Batched + cached + time-budgeted (server/journal-marks.ts liveMarksWithin): never blocks
+        // on the slowest contract; unsettled rows come back as `pending` and the client re-asks.
+        const { marks, pending, timing } = await liveMarksWithin(rows as any, undefined, { budgetMs: 1500 });
+        res.json({ marks, pending, asOf: new Date().toISOString(), timing });
       } catch (err) {
         if (err instanceof JournalAccessError) return res.status(err.status).json({ error: err.message });
         throw err;

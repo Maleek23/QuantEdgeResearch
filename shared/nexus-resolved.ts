@@ -38,6 +38,10 @@ export interface ResolvedIdea {
   timestamp: string;
   /** Resolution time (ISO). */
   exitDate: string;
+  /** NEXUS P&L (shared/nexus-pnl.ts): budget contract, recorded peak, verify-ledger chip. */
+  budgetContract?: import('./nexus-pnl').BudgetContractLike | null;
+  peak?: { premium: number; atMs: number } | null;
+  verification?: import('./nexus-pnl').PnlVerification;
 }
 
 export type OutcomeTone = 'win' | 'loss' | 'flat';

@@ -50,7 +50,11 @@ async function premiumFor(idea: any, nowMs: number): Promise<{ premium: IdeaDeta
     const final = resolved || nowMs >= expiryEnd;
     const judged = judgePremiumOutcome(cb.bars, plan, entryMs, toMs, { final, source: cb.source });
     const last = cb.bars[cb.bars.length - 1];
-    return out({ ...judged, asOf: new Date(last.t).toISOString(), lastPremium: last.c, source: cb.occ ? `${cb.occ} · ${cb.source}` : cb.source }, null);
+    // MAE: lowest premium from entry to the exit (or now) — NEXUS P&L block (shared/nexus-pnl.ts).
+    const troughTo = judged.exitAtMs != null ? judged.exitAtMs + 60_000 : toMs;
+    let trough: { premium: number; atMs: number } | null = null;
+    for (const b of cb.bars) if (b.t >= entryMs && b.t < troughTo && Number.isFinite(b.l) && b.l > 0 && (!trough || b.l < trough.premium)) trough = { premium: Math.round(b.l * 100) / 100, atMs: b.t };
+    return out({ ...judged, trough, asOf: new Date(last.t).toISOString(), lastPremium: last.c, source: cb.occ ? `${cb.occ} · ${cb.source}` : cb.source }, null);
   } catch (e: any) {
     logger.warn('[idea-detail] premium bars failed', { id: idea.id, error: e?.message });
     return { premium: null, note: 'contract bars unavailable' };
@@ -62,7 +66,8 @@ export async function ideaDetailFor(id: string, nowMs = Date.now()): Promise<Ide
   const idea = await storage.getTradeIdeaById(id);
   if (!idea) return null;
   const { premium, note } = await premiumFor(idea, nowMs);
-  return buildIdeaDetail(idea, premium, note, nowMs);
+  const { ideaVerification } = await import('./idea-verification');
+  return { ...buildIdeaDetail(idea, premium, note, nowMs), verification: ideaVerification(String(idea.id)) };
 }
 
 export function registerIdeaDetailRoutes(app: Express, gate: RequestHandler): void {

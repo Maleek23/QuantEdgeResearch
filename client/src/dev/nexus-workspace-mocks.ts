@@ -39,10 +39,11 @@ const SPOTS: Record<string, { spot: number; chg: number; sector: string }> = {
 };
 /** "Resolved today" (shared/nexus-resolved.ts): the TSLA 380P that hit T1 at 10:05 stays on the board. */
 function resolvedToday() {
-  const r = (o: Record<string, unknown>) => ({ assetType: 'option', source: 'zero_dte_flow', optionType: 'put', expiryDate: iso(0).slice(0, 10), targetPrice: null, stopLoss: null, entryPremium: null, exitPremium: null, percentGain: null, optionPercentGain: null, resolutionReason: null, ...o });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- fixture rows
+  const r = (o: Record<string, unknown>): Record<string, any> => ({ assetType: 'option', source: 'zero_dte_flow', optionType: 'put', expiryDate: iso(0).slice(0, 10), targetPrice: null, stopLoss: null, entryPremium: null, exitPremium: null, percentGain: null, optionPercentGain: null, resolutionReason: null, ...o });
   return { asOf: iso(0), ideas: [
-    r({ ideaId: 'rv-1', symbol: 'TSLA', direction: 'short', strikePrice: 380, entryPrice: 384.2, exitPrice: 381.1, entryPremium: 1.12, exitPremium: 1.71, optionPercentGain: 52.7, outcomeStatus: 'hit_target', resolutionReason: 'auto_target_hit', timestamp: iso(48 * MIN), exitDate: iso(22 * MIN) }),
-    r({ ideaId: 'rv-2', symbol: 'AMD', direction: 'long', source: 'zero_dte_desk', optionType: 'call', strikePrice: 165, entryPrice: 164.4, exitPrice: 163.6, optionPercentGain: -40, outcomeStatus: 'hit_stop', resolutionReason: 'auto_stop_hit', timestamp: iso(70 * MIN), exitDate: iso(35 * MIN) }),
+    r({ ideaId: 'rv-1', symbol: 'TSLA', direction: 'short', strikePrice: 380, entryPrice: 384.2, exitPrice: 381.1, entryPremium: 1.12, exitPremium: 1.71, optionPercentGain: 52.7, outcomeStatus: 'hit_target', resolutionReason: 'auto_target_hit', timestamp: iso(48 * MIN), exitDate: iso(22 * MIN), peak: { premium: 2.15, atMs: NOW - 15 * MIN }, verification: { status: 'verified', detail: 'recorded P&L matched the contract bars', ledgerAsOf: iso(16 * HOUR) } }),
+    r({ ideaId: 'rv-2', symbol: 'AMD', direction: 'long', source: 'zero_dte_desk', optionType: 'call', strikePrice: 165, entryPrice: 164.4, exitPrice: 163.6, entryPremium: 2.1, exitPremium: 1.26, optionPercentGain: -40, outcomeStatus: 'hit_stop', resolutionReason: 'auto_stop_hit', timestamp: iso(70 * MIN), exitDate: iso(35 * MIN), peak: { premium: 2.32, atMs: NOW - 60 * MIN } }),
     r({ ideaId: 'rv-3', symbol: 'JPM', direction: 'long', source: 'quant', assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null, entryPrice: 300.1, exitPrice: 300.6, percentGain: 0.17, outcomeStatus: 'expired', resolutionReason: 'auto_time_stop', timestamp: iso(5 * HOUR), exitDate: iso(10 * MIN) }),
   ] };
 }
@@ -93,6 +94,16 @@ export function pick(n: number, [symbol, direction, score, band, source, state, 
   };
 }
 
+function budgetFixture(p: ReturnType<typeof pick>) {
+  const strike = p.direction === 'long' ? p.strikePrice + 15 : p.strikePrice - 15;
+  const entry = 3.4;
+  return {
+    v: 'budget-v1', symbol: p.symbol, label: `${p.symbol} ${strike}${p.optionType === 'put' ? 'P' : 'C'}`, optionType: p.optionType, strike, expiry: p.expiryDate, dte: p.optionDte,
+    occ: null, qty: 1, entryPremium: entry, debit: 340, budget: 500, delta: 0.3, premiumT1: 5.1, premiumT2: 6.8, premiumStop: 1.7,
+    payoffAtT1: 170, payoffPerDollar: 0.5, riskToStop: 170, mapping: 'fixture', rationale: 'fixture', liquidity: null, chosenAt: p.generatedAt, source: 'fixture',
+  };
+}
+
 const convictions = () => ({
   generatedAt: iso(40_000),
   marketContext: { regime: 'risk-on', riskSentiment: 'constructive', preferredDirection: 'long', score: 64, vixLevel: 16.4, reasons: ['Breadth improving: 62% above 50-day', 'Semis leading, energy lagging', '10Y easing from 4.21%'] },
@@ -100,7 +111,8 @@ const convictions = () => ({
   geopolitical: { risk: 'low', activeScenarios: [] },
   totalCandidatesScanned: 812,
   picks: [
-    ...SETUPS.map((s, n) => pick(n, s)),
+    // TSLA / MSFT: one primary contract costs more than $500 → the budget contract carries the P&L (shared/budget-contract.ts).
+    ...SETUPS.map((s, n) => { const p = pick(n, s); return p.symbol === 'TSLA' || p.symbol === 'MSFT' ? { ...p, budgetContract: budgetFixture(p) } : p; }),
     { ...pick(20, ['QQQ', 'long', 0, 'B', 'bot', 'executed', 6 * 60]), ideaId: 'fx-bot-qqq', isBotHeld: true, botOwner: 'Quantinum Bot', quantity: 4, unrealizedPnl: 312, unrealizedPnlPercent: 18.4, heldSince: iso(26 * HOUR), currentPremium: 7.1, premiumTarget: 9.4, premiumStop: 4.2, premiumMarkedAt: iso(2 * MIN) },
   ],
 });
@@ -205,8 +217,8 @@ function history(sym: string, interval: string) {
 }
 
 /** Exported for /dev/zerodte (its Details sheet reuses the NEXUS Setup Detail). */
-export function nexusMockRoute(path: string): unknown | undefined { return route(path); }
-function route(path: string): unknown | undefined {
+export function nexusMockRoute(path: string, body?: unknown): unknown | undefined { return route(path, body); }
+function route(path: string, body?: unknown): unknown | undefined {
   const [p, q = ''] = path.split('?');
   const qs = new URLSearchParams(q);
   let m: RegExpMatchArray | null;
@@ -226,8 +238,67 @@ function route(path: string): unknown | undefined {
   if ((m = p.match(/^\/api\/historical-prices\/([^/]+)$/))) return history(decodeURIComponent(m[1]).toUpperCase(), qs.get('interval') ?? '1d');
   if (p === '/api/watchlist') return Object.keys(SPOTS).map((symbol) => ({ symbol }));
   if (p === '/api/health') return { status: 'ok', timestamp: new Date().toISOString() };
+  if (p === '/api/nexus/marks') return marks(body);
+  if ((m = p.match(/^\/api\/ideas\/([^/]+)\/detail$/))) return ideaDetail(decodeURIComponent(m[1]));
+  if (p === '/api/setups/by-day') return setupsByDay(qs.get('date') ?? iso(0).slice(0, 10));
+  if (p === '/api/integrity/data-health') return { days: [], totals: { missing_contract: 0, stale_outcome: 0, mismatch: 0, unpriced_outcome: 0 }, rows: 0, asOf: iso(0), source: 'fixture' };
   return undefined;
 }
+
+/* ── NEXUS P&L fixtures (shared/nexus-pnl.ts) ── */
+/** Contract mid for a key: entry premium ± a deterministic move; TSLA is "slow" (pending on the first ask → progressive fill). */
+let marksCalls = 0;
+function marks(body: unknown) {
+  marksCalls++;
+  const keys: string[] = Array.isArray((body as { contracts?: unknown })?.contracts) ? (body as { contracts: string[] }).contracts : [];
+  const out: Record<string, unknown> = {};
+  const pending: string[] = [];
+  for (const k of keys) {
+    const [sym] = k.slice(2).split('|');
+    if (sym === 'TSLA' && marksCalls < 2) { pending.push(k); continue; }
+    const pk = convictions().picks.find((x) => `O:${x.symbol}|${x.expiryDate}|${x.optionType}|${x.strikePrice}` === k || (x as { budgetContract?: { strike: number; expiry: string; optionType: string } }).budgetContract && `O:${x.symbol}|${(x as any).budgetContract.expiry}|${(x as any).budgetContract.optionType}|${(x as any).budgetContract.strike}` === k);
+    const bc = (pk as any)?.budgetContract;
+    const entry = bc && k.endsWith(`|${bc.strike}`) && k.includes(bc.expiry) ? bc.entryPremium : pk?.entryPremium ?? 2;
+    const move = sym === 'NVDA' ? 0.34 : sym === 'TSLA' ? -0.22 : sym === 'PLTR' ? 0.12 : 0.05;
+    out[k] = { price: +(entry * (1 + move)).toFixed(2), asOf: iso(sym === 'PLTR' ? 7 * MIN : 18_000), source: sym === 'PLTR' ? 'alpaca-indicative' : 'alpaca-opra', delayed: sym === 'PLTR', basis: 'contract' };
+  }
+  return { marks: out, pending, unquoted: [], asOf: iso(0), timing: { totalMs: 140, batchMs: 120, keys: keys.length, cached: 0, batched: keys.length - pending.length, perKey: pending.length, pending: pending.length } };
+}
+
+const ledger = (status: 'verified' | 'corrected' | 'unverified', detail: string) => ({ status, detail, ledgerAsOf: iso(16 * HOUR) });
+
+function ideaDetail(id: string) {
+  const r = resolvedToday().ideas.find((x) => x.ideaId === id);
+  const p = convictions().picks.find((x) => x.ideaId === id);
+  const base = p ?? (r ? { ...pick(30, [String(r.symbol), r.direction as Dir, 70, 'B', String(r.source), 'closed', 60]), ideaId: id, strikePrice: r.strikePrice, entryPremium: r.entryPremium, optionType: r.optionType, expiryDate: r.expiryDate } : null);
+  if (!base) return undefined;
+  const entry = Number(base.entryPremium ?? 1);
+  const peakPrem = +(entry * (p ? 1.62 : 1.92)).toFixed(2);
+  return {
+    ideaId: id, pick: base,
+    status: r ? { code: r.outcomeStatus, label: r.outcomeStatus === 'hit_target' ? 'Hit T1' : 'Stopped', tone: r.outcomeStatus === 'hit_target' ? 'gain' : 'loss' } : { code: 'open', label: 'Open', tone: 'live' },
+    record: { outcomeStatus: r?.outcomeStatus ?? 'open', resolutionReason: r?.resolutionReason ?? null, exitPrice: r?.exitPrice ?? null, exitDate: r?.exitDate ?? null, entryPremium: entry, exitPremium: r?.exitPremium ?? null, optionPercentGain: r?.optionPercentGain ?? null, percentGain: null, peak: { premium: peakPrem, at: iso(30 * MIN), basis: 'bar' }, notes: null },
+    premium: { status: r ? r.outcomeStatus : 'open', exitPremium: r?.exitPremium ?? null, exitAtMs: r ? Date.parse(String(r.exitDate)) : null, optionPercentGain: r?.optionPercentGain ?? null, t1HitAt: null, t2HitAt: null, stopHitAt: null, peak: { premium: peakPrem, atMs: NOW - 30 * MIN }, trough: { premium: +(entry * 0.86).toFixed(2), atMs: NOW - 70 * MIN }, bars: 212, basis: 'fixture bars', asOf: iso(2 * MIN), lastPremium: null, source: 'fixture' },
+    premiumNote: null, thesisLabel: null, zeroDte: false, family: null, source: base.source, asOf: iso(0),
+    verification: r ? ledger(r.ideaId === 'rv-1' ? 'verified' : 'unverified', r.ideaId === 'rv-1' ? 'recorded P&L matched the contract bars' : 'not bar-checked yet (nightly verify 17:30 ET)') : undefined,
+  };
+}
+
+function setupsByDay(date: string) {
+  const rv = resolvedToday().ideas;
+  const row = (r: any, extra: Record<string, unknown> = {}) => ({
+    id: r.ideaId, symbol: r.symbol, source: r.source, instrument: r.assetType === 'option' ? 'Option' : 'Shares idea', direction: r.direction,
+    contract: r.assetType === 'option' ? `${r.strikePrice}${String(r.optionType).startsWith('p') ? 'P' : 'C'} ${r.expiryDate}` : null,
+    calledAt: r.timestamp, calledEt: etHmOf(r.timestamp), entry: r.entryPrice, target: r.targetPrice, stop: r.stopLoss,
+    entryPremium: r.entryPremium, exitPremium: r.exitPremium, resultPct: r.optionPercentGain ?? r.percentGain, resultBasis: 'fixture',
+    outcome: { status: r.outcomeStatus, label: r.outcomeStatus.replace('_', ' '), tone: (r.optionPercentGain ?? r.percentGain ?? 0) > 0 ? 'win' : (r.optionPercentGain ?? r.percentGain ?? 0) < 0 ? 'loss' : 'flat' }, gaps: [],
+    pnlInput: { assetType: r.assetType, optionType: r.optionType, strikePrice: r.strikePrice, expiryDate: r.expiryDate, entryPremium: r.entryPremium, exitPremium: r.exitPremium, outcomeStatus: r.outcomeStatus, exitDate: r.exitDate, budgetContract: r.budgetContract ?? null, peak: r.peak ?? null },
+    verification: r.verification ?? null, ...extra,
+  });
+  const open = convictions().picks.filter((x) => !(x as { isBotHeld?: boolean }).isBotHeld).slice(0, 4).map((x) => row({ ...x, timestamp: x.calledAt, outcomeStatus: 'open', exitPremium: null, exitDate: null, percentGain: null, optionPercentGain: null }));
+  return { date, asOf: iso(0), setups: [...rv.map((r) => row(r)), ...open], source: 'fixture' };
+}
+const etHmOf = (isoStr: string) => new Date(isoStr).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
 
 export function installNexusWorkspaceMocks() {
   try {
@@ -243,7 +314,9 @@ export function installNexusWorkspaceMocks() {
     const u = new URL(url, window.location.origin);
     if (u.origin !== window.location.origin || !u.pathname.startsWith('/api/')) return real(input, init);
     await new Promise((r) => setTimeout(r, 60));
-    const body = route(u.pathname + u.search);
+    let sent: unknown;
+    try { sent = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined; } catch { /* not JSON */ }
+    const body = route(u.pathname + u.search, sent);
     if (body === undefined) return new Response(JSON.stringify({ error: 'not mocked in /dev/nexus-workspace' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
