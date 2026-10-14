@@ -10,7 +10,9 @@ import {
 } from '../shared/nexus-pnl';
 import { wholeContractPnl } from '../shared/journal-pnl-truth';
 import { instrumentKey, liveMarksWithin, quotesWithin, _clearMarkCache, type MarkQuote } from '../server/journal-marks';
-import { cleanKeys, occOfKey } from '../server/option-marks-batch';
+import { cleanKeys, occOfKey, lastTradesWithin } from '../server/option-marks-batch';
+import { pickPnl } from '../client/src/lib/nexus-pnl';
+import { isLegacySharesIdea } from '../shared/options-only';
 
 let n = 0;
 const t = async (name: string, fn: () => void | Promise<void>) => { await fn(); n++; console.log(`  ✓ ${name}`); };
@@ -185,6 +187,39 @@ const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
     assert.match(parts, /<NexusPnlBlock pick=\{selected\} \/>/);
     assert.match(fs.readFileSync('client/src/components/integrity/setups-by-day.tsx', 'utf8'), /NexusDayStrip/);
     assert.match(fs.readFileSync('package.json', 'utf8'), /"test:nexus-pnl"/);
+  });
+
+  console.log('after hours / no quote → last trade (operator 2026-10-14)');
+  await t('a last-trade mark prices unrealized and is labelled, not live', () => {
+    const tr = tradableContract({ symbol: 'NOW', assetType: 'option', optionType: 'call', strikePrice: 900, expiryDate: '2026-10-17', entryPremium: 2.0 }, 500);
+    const p = nexusPnl({ state: 'open', tradable: tr, mark: { price: 2.16, asOf: '2026-10-14T19:34:00Z', delayed: true, source: 'last 1m bar · alpaca:1Min', kind: 'last-trade' }, nowMs: NOW + 3_600_000 * 3 });
+    assert.equal(p.markKind, 'last-trade');
+    assert.equal(p.pnl, 32);
+    const c = pnlChip(p, NOW);
+    assert.match(c.sub ?? '', /last trade 3:34 PM ET/);
+    assert.match(c.title, /not a live quote/);
+  });
+  await t('pickPnl: unquoted budget contract falls back to its tracked last mark; primary to the idea\'s last bar', () => {
+    const bc = { optionType: 'call' as const, strike: 50, expiry: '2026-10-17', entryPremium: 1.0, premiumStop: 0.5, tracking: { lastMark: 1.2, lastMarkAt: Date.parse('2026-10-14T19:59:00Z') } };
+    const pb = pickPnl({ symbol: 'X', assetType: 'option', optionType: 'call', strikePrice: 50, expiryDate: '2026-10-17', entryPremium: 9.0, lifecycleState: 'triggered', budgetContract: bc }, 500, () => null, null, NOW);
+    assert.equal(pb.markKind, 'last-trade'); assert.equal(pb.premium, 1.2);
+    const pp = pickPnl({ symbol: 'X', assetType: 'option', optionType: 'call', strikePrice: 50, expiryDate: '2026-10-17', entryPremium: 2.0, lifecycleState: 'triggered' }, 500, () => null, { lastTrade: { premium: 2.5, atMs: NOW - 60_000 } }, NOW);
+    assert.equal(pp.markKind, 'last-trade'); assert.equal(pp.premium, 2.5);
+    const none = pickPnl({ symbol: 'X', assetType: 'option', optionType: 'call', strikePrice: 50, expiryDate: '2026-10-17', entryPremium: 2.0, lifecycleState: 'triggered' }, 500, () => null, null, NOW);
+    assert.equal(none.reason, 'no contract mark');
+  });
+  await t('server last-trade lookup: settled inside the budget → mark; null → unquoted (cached)', async () => {
+    const k1 = 'O:AAA|2026-10-17|call|10', k2 = 'O:BBB|2026-10-17|put|20';
+    const r = await lastTradesWithin([k1, k2], NOW, async (k) => (k === k1 ? { price: 1.11, asOf: iso(0), source: 'test', delayed: true, basis: 'contract', kind: 'last-trade' } : null));
+    assert.equal(r.marks.get(k1)?.price, 1.11);
+    assert.ok(!r.marks.has(k2));
+    assert.deepEqual(r.pending, []);
+  });
+  await t('legacy shares ideas are off NEXUS (bot positions are not ideas)', () => {
+    assert.equal(isLegacySharesIdea({ assetType: 'stock' }), true);
+    assert.equal(isLegacySharesIdea({ assetType: 'penny_stock' }), true);
+    assert.equal(isLegacySharesIdea({ assetType: 'option' }), false);
+    assert.equal(isLegacySharesIdea({ assetType: 'stock', isBotHeld: true }), false);
   });
 
   console.log(`\n${n} checks passed`);

@@ -11,6 +11,7 @@
  */
 import { checkPriceAgreement } from '@shared/price-agreement';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { NexusPnlBlock } from './nexus-pnl';
 import { PriceConflictNote } from '@/components/ui/price-conflict';
 import { WatchStar } from '@/components/watch/watch-star';
@@ -358,7 +359,9 @@ function RunUpLine({ ideaId }: { ideaId: string }) {
 /* ── structural level map (server/levels/level-map.ts) — measuring, not validated ── */
 interface LevelClusterWire { price: number; low: number; high: number; score: number; kinds: string[]; label: string; members: Array<{ price: number; kind: string; label: string; source: string; asOf: string }> }
 interface LevelMapWire { symbol: string; asOf: string; last: number | null; tolerance?: number; clusters: LevelClusterWire[]; notes: string[]; snapEnabled: boolean }
+const LEVELS_COLLAPSED = 5;
 function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; live: number; entry: number; stop: number; target: number }) {
+  const [showAll, setShowAll] = useState(false);
   const q = useQuery<LevelMapWire>({
     queryKey: ['/api/levels', symbol],
     queryFn: () => get<LevelMapWire>(`/api/levels/${encodeURIComponent(symbol)}`),
@@ -379,6 +382,12 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
     .filter((c) => (c.score >= 2 && c.price >= lo - pad && c.price <= hi + pad) || uses(c))
     .sort((a, b) => b.price - a.price)
     .slice(0, 12);
+  // Collapsed by default (operator 2026-10-14): the 5 levels nearest the price
+  // price-ordered; "show all" opens the full list.
+  const ref = live > 0 ? live : entry;
+  const near = new Set(rows.slice().sort((a, b) => Math.abs(a.price - ref) - Math.abs(b.price - ref)).slice(0, LEVELS_COLLAPSED).map((c) => c.price));
+  const shown = showAll ? rows : rows.filter((c) => near.has(c.price));
+  const hidden = rows.length - shown.length;
   const at = levelsAsOfLabel(m);
   return (
     <div className="nxp-levels-map" style={{ margin: '10px 2px 0', fontSize: 12 }}>
@@ -387,7 +396,7 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
         ? <p style={{ color: 'var(--nx-muted, #8a93a6)', margin: '4px 0' }}>No confluent level between the stop and T1 — the plan's numbers are formula levels, not structure.</p>
         : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>
-            {rows.map((c) => {
+            {shown.map((c) => {
               const used = uses(c);
               const dist = live > 0 ? ((c.price - live) / live) * 100 : null;
               const tip = c.members.map((l) => `${l.label} $${l.price.toFixed(2)} — ${l.source}`).join(' | ');
@@ -403,6 +412,10 @@ function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; liv
             })}
           </tbody>
         </table>}
+      {(hidden > 0 || showAll) && rows.length > LEVELS_COLLAPSED && <button type="button" className="nxp-levels-more" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}
+        style={{ margin: '4px 0 0', padding: '2px 0', border: 0, background: 'none', color: 'var(--nx-accent, #3b8cff)', font: 'inherit', fontSize: 11, cursor: 'pointer' }}>
+        {showAll ? `Show ${LEVELS_COLLAPSED} nearest` : `Show all ${rows.length} levels`}
+      </button>}
       <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--nx-muted, #8a93a6)' }}>
         Yahoo 5-min + daily bars; volume profile is bar-approximated; GEX / dark-pool only when already cached. Hover a row for each level's source.
       </p>

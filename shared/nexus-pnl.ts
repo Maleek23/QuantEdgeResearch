@@ -144,7 +144,11 @@ export function pnlStateOf(p: { lifecycleState?: string | null; outcomeStatus?: 
   return 'waiting';
 }
 
-export interface MarkLike { price: number; asOf: string; delayed: boolean; source: string }
+export interface MarkLike {
+  price: number; asOf: string; delayed: boolean; source: string;
+  /** 'last-trade': no live quote — the contract's last 1-min trade bar close at `asOf` (after hours / unquoted). */
+  kind?: 'quote' | 'last-trade';
+}
 
 export interface PremiumPoint { premium: number; atMs: number | null }
 
@@ -158,6 +162,8 @@ export interface NexusPnl {
   premium: number | null;
   premiumAtMs: number | null;
   premiumKind: 'mark' | 'exit' | null;
+  /** Open marks only: a live quote, or the last 1-min trade bar when nothing quoted. */
+  markKind: 'quote' | 'last-trade' | null;
   /** Mark only: feed is delayed / older than MARK_STALE_MS. */
   delayed: boolean;
   stale: boolean;
@@ -185,7 +191,7 @@ export interface PnlArgs {
 /** One setup's P&L. Pure. */
 export function nexusPnl(a: PnlArgs): NexusPnl {
   const base: NexusPnl = {
-    v: NEXUS_PNL_VERSION, status: a.state, reason: null, tradable: null, premium: null, premiumAtMs: null, premiumKind: null,
+    v: NEXUS_PNL_VERSION, status: a.state, reason: null, tradable: null, premium: null, premiumAtMs: null, premiumKind: null, markKind: null,
     delayed: false, stale: false, source: null, loadingMark: false, pnl: null, pct: null, r: null, peak: null, trough: null,
   };
   if (!a.tradable.ok) return { ...base, status: a.state === 'waiting' ? 'waiting' : 'none', reason: a.tradable.reason };
@@ -204,7 +210,7 @@ export function nexusPnl(a: PnlArgs): NexusPnl {
     const at = Date.parse(a.mark.asOf);
     px = a.mark.price;
     Object.assign(base, {
-      premium: px, premiumAtMs: Number.isFinite(at) ? at : null, premiumKind: 'mark', source: a.mark.source,
+      premium: px, premiumAtMs: Number.isFinite(at) ? at : null, premiumKind: 'mark', markKind: a.mark.kind ?? 'quote', source: a.mark.source,
       delayed: !!a.mark.delayed, stale: !Number.isFinite(at) || a.nowMs - at > MARK_STALE_MS,
     });
   } else {
@@ -231,6 +237,12 @@ export function ageShort(atMs: number | null, nowMs: number): string {
   return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : s < 86_400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86_400)}d`;
 }
 
+/** "3:34 PM" in ET, or null. Pure. */
+export function etClock(atMs: number | null): string | null {
+  if (atMs == null || !Number.isFinite(atMs)) return null;
+  return new Date(atMs).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+}
+
 export type PnlTone = 'gain' | 'loss' | 'flat' | 'muted';
 export interface PnlChip { text: string; sub: string | null; tone: PnlTone; title: string }
 
@@ -243,6 +255,13 @@ export function pnlChip(p: NexusPnl, nowMs: number): PnlChip {
   if (p.status === 'none') return { text: 'no P&L', sub: p.reason, tone: 'muted', title: p.reason ?? 'no P&L' };
   if (p.loadingMark) return { text: 'loading mark', sub: t ? `${t.qty}× ${t.label}` : null, tone: 'muted', title: `Fetching the contract mark… ${size}` };
   if (p.pnl == null || p.pct == null) return { text: p.status === 'open' ? 'no mark' : 'no exit', sub: p.reason, tone: 'muted', title: `${p.reason ?? ''}${size ? ` — ${size}` : ''}` };
+  if (p.status === 'open' && p.markKind === 'last-trade') {
+    const at = etClock(p.premiumAtMs);
+    return {
+      text: `${usd(p.pnl)} ${pctText(p.pct)}`, sub: `unrealized · last trade${at ? ` ${at} ET` : ''}`, tone,
+      title: `Unrealized on the LAST TRADE, not a live quote: ${size}. Last 1-min bar close $${p.premium!.toFixed(2)}${at ? ` at ${at} ET` : ''} (${p.source ?? 'bars'}) vs entry $${t!.entryPremium.toFixed(2)}. No venue quoted the contract.`,
+    };
+  }
   if (p.status === 'open') {
     const age = ageShort(p.premiumAtMs, nowMs);
     const flags = [p.delayed ? 'delayed' : null, p.stale ? 'stale' : null].filter(Boolean).join(' · ');
@@ -268,13 +287,15 @@ export interface DaySummary {
   /** Resolved rows with no exit premium, or ideas with no tradable contract. */
   unpriced: number;
   staleMarks: number;
+  /** Open rows priced from the contract's last trade (no live quote) — in unrealized, labelled. */
+  lastTradeMarks: number;
   best: { id: string; symbol: string; pnl: number; kind: 'realized' | 'unrealized' } | null;
   worst: { id: string; symbol: string; pnl: number; kind: 'realized' | 'unrealized' } | null;
 }
 
 /** Sum a day of setups: realized (closed) + unrealized (open, marked). Pure. */
 export function summarizeDay(rows: readonly DayRow[]): DaySummary {
-  const s: DaySummary = { realized: 0, unrealized: 0, total: 0, wins: 0, losses: 0, flat: 0, open: 0, waiting: 0, unmarked: 0, unpriced: 0, staleMarks: 0, best: null, worst: null };
+  const s: DaySummary = { realized: 0, unrealized: 0, total: 0, wins: 0, losses: 0, flat: 0, open: 0, waiting: 0, unmarked: 0, unpriced: 0, staleMarks: 0, lastTradeMarks: 0, best: null, worst: null };
   for (const { id, symbol, pnl: p } of rows) {
     if (p.status === 'waiting') { s.waiting++; continue; }
     // Shares ideas are outside the options book — not "unpriced", just not counted.
@@ -282,7 +303,8 @@ export function summarizeDay(rows: readonly DayRow[]): DaySummary {
     if (p.status === 'open') {
       s.open++;
       if (p.pnl == null) { s.unmarked++; continue; }
-      if (p.stale) s.staleMarks++;
+      if (p.markKind === 'last-trade') s.lastTradeMarks++;
+      else if (p.stale) s.staleMarks++;
       s.unrealized += p.pnl;
     } else {
       if (p.pnl == null) { s.unpriced++; continue; }

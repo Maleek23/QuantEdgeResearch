@@ -152,6 +152,17 @@ export function splitLegacySharesRows<T extends { assetType?: string | null; ins
   return { kept, excluded };
 }
 
+/**
+ * A legacy shares idea (stock / penny_stock) — hidden from the NEXUS board,
+ * its day P&L strip and "Resolved today" (operator 2026-10-14); it lives only
+ * in the journal's excluded list. Bot-held positions are not ideas. Pure.
+ */
+export function isLegacySharesIdea(row: { assetType?: string | null; isBotHeld?: boolean | null }): boolean {
+  if (row.isBotHeld) return false;
+  const a = String(row.assetType ?? '').toLowerCase();
+  return a === 'stock' || a === 'penny_stock';
+}
+
 // ── budget contract promotion (pure) ────────────────────────────────────────
 
 export interface PromotableBudgetContract {

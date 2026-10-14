@@ -49,6 +49,7 @@ import { useTraderCalls } from '@/lib/trader-calls';
 import { NexusMarksContext, pickPnl, useNexusMarks, usePnlBudget } from '@/lib/nexus-pnl';
 import { summarizeDay } from '@shared/nexus-pnl';
 import { NexusDayStrip, PnlChipView } from './nexus-pnl';
+import { isLegacySharesIdea } from '@shared/options-only';
 import './nexus-tools.css';
 
 /* ── shared selection ── */
@@ -145,7 +146,8 @@ function useSetupBook() {
   const convictions = useNexusConvictions();
   const spySource = spySourceOf(convictions.data?.picks);
   const spx = useSpxExpression(spySource);
-  const all = useMemo(() => withSpxRow(convictions.data?.picks, spySource, spx.data), [convictions.data, spySource, spx.data]);
+  // Options book only: legacy shares ideas live in the journal's excluded list, never on NEXUS.
+  const all = useMemo(() => withSpxRow(convictions.data?.picks, spySource, spx.data).filter((p) => !isLegacySharesIdea(p)), [convictions.data, spySource, spx.data]);
   return { convictions, spx, all };
 }
 
@@ -267,6 +269,7 @@ export function NexusBoardTool() {
     if (!showsResolvedToday(day)) return [];
     const q = query.trim().toUpperCase();
     return (resolvedQ.data?.ideas ?? []).filter((r) => {
+      if (isLegacySharesIdea(r)) return false;
       if (side !== 'all' && r.direction !== side) return false;
       if (q && !r.symbol.toUpperCase().includes(q)) return false;
       if (cryptoOnly && String(r.assetType).toLowerCase() !== 'crypto') return false;
@@ -280,7 +283,7 @@ export function NexusBoardTool() {
   const markKeys = useMemo(() => setupPicks.map((p) => pickPnl(p, budget, () => null, null, now)).filter((x) => x.status === 'open' && x.tradable).map((x) => x.tradable!.key), [setupPicks, budget, now]);
   const marksQ = useNexusMarks(markKeys);
   const pnlById = useMemo(() => new Map(setupPicks.map((p) => [p.ideaId, pickPnl(p, budget, marksQ.markOf, null, now)])), [setupPicks, budget, marksQ.markOf, now]);
-  const resolvedPnl = useMemo(() => (resolvedQ.data?.ideas ?? []).map((r) => ({ r, pnl: resolvedIdeaPnl(r, budget, now) })), [resolvedQ.data, budget, now]);
+  const resolvedPnl = useMemo(() => (resolvedQ.data?.ideas ?? []).filter((r) => !isLegacySharesIdea(r)).map((r) => ({ r, pnl: resolvedIdeaPnl(r, budget, now) })), [resolvedQ.data, budget, now]);
   const daySummary = useMemo(() => summarizeDay([
     ...setupPicks.map((p) => ({ id: p.ideaId, symbol: p.symbol, pnl: pnlById.get(p.ideaId)! })).filter((x) => x.pnl.status !== 'waiting'),
     ...resolvedPnl.map(({ r, pnl }) => ({ id: r.ideaId, symbol: r.symbol, pnl })),
@@ -293,18 +296,25 @@ export function NexusBoardTool() {
   const topId = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' }, life)[0]?.ideaId, [all, life]);
   const activeId = sel?.kind === 'setup' ? sel.id : sel == null ? topId : undefined;
   const phone = usePhone();
-  // Phone: the detail is a section further down the one-column page — a row tap brings it into view.
+  // One detail, never two (operator 2026-10-14 "redundant design"): when the Setup
+  // Detail tool is on the workspace, a row click SELECTS into it (row highlights,
+  // the tool scrolls to top on selection change). The inline accordion exists only
+  // where that tool is not visible beside the board — phone (one column, the
+  // detail is far below) or a workspace the user removed the tool from.
+  const inlineDetail = phone || !dash.hasTool(DETAIL_ID);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [inlineTab, setInlineTab] = useState<DetailTab>('overview');
-  const toDetail = () => { if (phone) window.requestAnimationFrame(() => document.querySelector('[data-tool="nexus-detail"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
-  const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
-  // Tap a setup → its details open right under the row (tap again to collapse). No jump elsewhere.
+  const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) select.setup(p); };
   const row = (pick: ConvictionPick) => {
-    const open = expandedId === pick.ideaId;
+    const open = inlineDetail && expandedId === pick.ideaId;
     return (
       <div key={pick.ideaId} className={`nxp-acc ${open ? 'open' : ''}`}>
         <SetupRow pick={pick} life={life.get(pick.ideaId)} now={now} rotation={rotationTagFor(rotMap, pick.symbol, pick.direction, pick.source)} selected={activeId === pick.ideaId} pnl={pnlById.get(pick.ideaId) ? <PnlChipView p={pnlById.get(pick.ideaId)!} now={now} /> : undefined}
-          onSelect={() => { select.setup(pick); setAskFocusSetup(open ? null : { id: pick.ideaId, symbol: pick.symbol }); setExpandedId(open ? null : pick.ideaId); }} />
+          onSelect={() => {
+            select.setup(pick);
+            setAskFocusSetup(open ? null : { id: pick.ideaId, symbol: pick.symbol });
+            if (inlineDetail) setExpandedId(open ? null : pick.ideaId);
+          }} />
         {open && <div className="nxp-acc-body nxd nxd-detail" data-testid="nexus-inline-detail"><DetailSetup id={pick.ideaId} tab={inlineTab} onTab={setInlineTab} /></div>}
       </div>
     );

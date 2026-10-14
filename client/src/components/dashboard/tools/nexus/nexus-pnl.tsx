@@ -6,7 +6,7 @@
  */
 import { Link } from 'wouter';
 import { useMemo } from 'react';
-import { ageShort, pctText, pnlChip, usd, type DaySummary, type NexusPnl, type PnlBudget, type PnlVerification } from '@shared/nexus-pnl';
+import { ageShort, etClock, pctText, pnlChip, usd, type DaySummary, type NexusPnl, type PnlBudget, type PnlVerification } from '@shared/nexus-pnl';
 import { PNL_BUDGETS } from '@shared/nexus-pnl';
 import { pickPnl, useBoardMarkOf, useNexusMarks, usePnlBudget, type PnlPickLike, type PnlRecordLike } from '@/lib/nexus-pnl';
 import { useIdeaDetail } from '@/components/ideas/idea-detail-by-id';
@@ -58,6 +58,9 @@ export function NexusPnlBlock({ pick }: { pick: PnlPickLike & { ideaId: string }
     optionPercentGain: d.record.optionPercentGain,
     peak: d.premium?.peak ? { premium: d.premium.peak.premium, atMs: d.premium.peak.atMs } : d.record.peak ? { premium: d.record.peak.premium, at: d.record.peak.at } : null,
     trough: d.premium?.trough ?? null,
+    lastTrade: d.premium?.lastPremium != null && d.premium.lastPremium > 0
+      ? { premium: d.premium.lastPremium, atMs: d.premium.asOf ? Date.parse(d.premium.asOf) : null, source: d.premium.source ? `last 1m bar · ${d.premium.source}` : 'last 1m bar' }
+      : null,
   } : null;
   // Key for the own-marks fallback (detail opened without the board: /idea/:id, tool detail on its own).
   const probe = pickPnl(pick, budget, () => null, rec, now);
@@ -79,13 +82,17 @@ export function NexusPnlBlock({ pick }: { pick: PnlPickLike & { ideaId: string }
   const label = p.status === 'waiting' ? 'Not triggered' : open ? 'Unrealized' : 'Realized';
   const markLine = p.loadingMark ? 'loading mark…'
     : p.premium == null ? (p.reason ?? '—')
+    : p.markKind === 'last-trade' ? `${prem(p.premium)}${etClock(p.premiumAtMs) ? ` · ${etClock(p.premiumAtMs)} ET` : ''}`
     : `${prem(p.premium)} · ${p.premiumKind === 'exit' ? `exit ${etHm(p.premiumAtMs) ?? ''} ET` : `mark ${ageShort(p.premiumAtMs, now)} old${p.delayed ? ' · delayed' : ''}${p.stale ? ' · stale' : ''}`}`;
+  // Peak: the stored option-peak tracking (budget contract) or the idea's bar read —
+  // "reading bars…" only while that read is in flight; it always resolves to a value or a reason.
+  const peakNote = stored.isLoading ? 'reading bars…' : stored.isError ? 'bar read failed — no peak' : d?.premiumNote ?? 'no peak recorded';
   const cells: Array<[string, string, string | null, string?]> = [
     ['Entry premium', prem(t.entryPremium), `${t.label}${t.basis === 'budget' ? ' · budget contract' : ''}`],
     ['Qty · debit', `${t.qty} × · $${t.debit.toLocaleString('en-US')}`, `at $${t.budget.toLocaleString('en-US')} budget`],
-    [open ? 'Current premium' : p.status === 'resolved' ? 'Exit premium' : 'Current premium', p.status === 'waiting' ? '—' : markLine, p.source ?? null],
+    [open ? (p.markKind === 'last-trade' ? 'Last trade (no live quote)' : 'Current premium') : p.status === 'resolved' ? 'Exit premium' : 'Current premium', p.status === 'waiting' ? '—' : markLine, p.source ?? null],
     [label, p.pnl == null ? '—' : usd(p.pnl), p.pct == null ? null : pctText(p.pct), toneCls(p.pnl)],
-    ['Peak premium', p.peak ? prem(p.peak.premium) : '—', p.peak ? `${pctText(p.peak.pct)}${p.peak.atMs ? ` · ${etHm(p.peak.atMs)} ET` : ''}` : stored.isLoading ? 'reading bars…' : 'no peak recorded', p.peak ? toneCls(p.peak.pct) : undefined],
+    ['Peak premium', p.peak ? prem(p.peak.premium) : '—', p.peak ? `${pctText(p.peak.pct)}${p.peak.atMs ? ` · ${etHm(p.peak.atMs)} ET` : ''}` : peakNote, p.peak ? toneCls(p.peak.pct) : undefined],
     ['MFE / MAE', `${p.peak ? usd(p.peak.pnl) : '—'} / ${p.trough ? usd(p.trough.pnl) : '—'}`, p.trough ? `low ${prem(p.trough.premium)} (${pctText(p.trough.pct)})` : 'best / worst open P&L'],
     ['R multiple', p.r == null ? '—' : `${p.r >= 0 ? '+' : ''}${p.r.toFixed(2)}R`, `stop ${prem(t.premiumStop)} · ${t.stopBasis}`, toneCls(p.r)],
   ];
@@ -113,7 +120,7 @@ export function NexusDayStrip({ s, budget, onBudget, label, loading, timingMs }:
         <strong className={toneCls(s.total)}>{s.realized === 0 && s.unrealized === 0 && s.wins + s.losses + s.open === 0 ? '$0' : usd(s.total)}</strong>
         <span className="nxpl-day-split">
           <span>realized <b className={toneCls(s.realized)}>{usd(s.realized)}</b></span>
-          <span>unrealized <b className={toneCls(s.unrealized)}>{usd(s.unrealized)}</b>{s.staleMarks ? <em title="marks older than 5 min"> · {s.staleMarks} stale</em> : null}</span>
+          <span>unrealized <b className={toneCls(s.unrealized)}>{usd(s.unrealized)}</b>{s.staleMarks ? <em title="marks older than 5 min"> · {s.staleMarks} stale</em> : null}{s.lastTradeMarks ? <em title="no live quote — priced at the contract's last 1-min trade (time shown on each row)"> · {s.lastTradeMarks} at last trade</em> : null}</span>
         </span>
       </div>
       <div className="nxpl-day-meta">

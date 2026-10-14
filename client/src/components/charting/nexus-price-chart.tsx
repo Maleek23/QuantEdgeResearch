@@ -315,20 +315,9 @@ export function NexusPriceChart({
     else handled = false;
     if (handled) e.preventDefault();
   };
-  const srTable = candles?.length ? (
-    <table className="sr-only">
-      <caption>{symbol} · {TF_CONFIG[tf].label} · most recent {Math.min(20, candles.length)} bars</caption>
-      <thead><tr><th scope="col">Time</th><th scope="col">Open</th><th scope="col">High</th><th scope="col">Low</th><th scope="col">Close</th><th scope="col">Volume</th></tr></thead>
-      <tbody>
-        {candles.slice(-20).reverse().map((c) => (
-          <tr key={c.time}><td>{barTimeLabel(c.time, tf)}</td><td>{c.open.toFixed(2)}</td><td>{renderedCandleRange(c).high.toFixed(2)}</td><td>{renderedCandleRange(c).low.toFixed(2)}</td><td>{c.close.toFixed(2)}</td><td>{c.volume}</td></tr>
-        ))}
-        {levels.filter((l) => Number.isFinite(l.price)).map((l) => (
-          <tr key={`lv-${l.label}-${l.price}`}><th scope="row">{l.label}</th><td colSpan={5}>{l.price.toFixed(2)}</td></tr>
-        ))}
-      </tbody>
-    </table>
-  ) : null;
+  // No raw OHLC table (operator 2026-10-14: a 20-row table under the chart was noise
+  // when the sr-only class did not apply). Screen readers get a11ySummary on the
+  // chart surface; sighted users get the one-line OHLC legend.
 
   const chartBody = (
     <>
@@ -532,7 +521,6 @@ export function NexusPriceChart({
           : { height: Math.max(height, 380), flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(59,140,255,0.08))' }}
       >
         {chartBody}
-        {srTable}
       </div>
 
       {/* mini-expand: same chart, big, over a blurred backdrop. A separate

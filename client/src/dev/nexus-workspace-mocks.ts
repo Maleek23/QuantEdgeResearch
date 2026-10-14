@@ -113,6 +113,8 @@ const convictions = () => ({
   picks: [
     // TSLA / MSFT: one primary contract costs more than $500 → the budget contract carries the P&L (shared/budget-contract.ts).
     ...SETUPS.map((s, n) => { const p = pick(n, s); return p.symbol === 'TSLA' || p.symbol === 'MSFT' ? { ...p, budgetContract: budgetFixture(p) } : p; }),
+    // Legacy shares idea (operator 2026-10-14): NEXUS hides it — journal excluded list only.
+    { ...pick(21, ['NVDA', 'long', 60, 'B', 'quant', 'triggered', 90]), ideaId: 'fx-caci-shares', symbol: 'CACI', sector: 'Defense', assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null, entryPremium: null, optionDte: null },
     { ...pick(20, ['QQQ', 'long', 0, 'B', 'bot', 'executed', 6 * 60]), ideaId: 'fx-bot-qqq', isBotHeld: true, botOwner: 'Quantinum Bot', quantity: 4, unrealizedPnl: 312, unrealizedPnlPercent: 18.4, heldSince: iso(26 * HOUR), currentPremium: 7.1, premiumTarget: 9.4, premiumStop: 4.2, premiumMarkedAt: iso(2 * MIN) },
   ],
 });
@@ -256,6 +258,13 @@ function marks(body: unknown) {
   for (const k of keys) {
     const [sym] = k.slice(2).split('|');
     if (sym === 'TSLA' && marksCalls < 2) { pending.push(k); continue; }
+    // No venue quote (after hours): the server answers with the contract's last 1-min trade bar.
+    if (sym === 'PLTR') {
+      const pk0 = convictions().picks.find((x) => x.symbol === 'PLTR');
+      const last = new Date(NOW); last.setUTCHours(19, 34, 0, 0);
+      out[k] = { price: +(((pk0?.entryPremium as number) ?? 2) * 1.08).toFixed(2), asOf: last.toISOString(), source: 'last 1m bar · alpaca:1Min', delayed: true, basis: 'contract', kind: 'last-trade' };
+      continue;
+    }
     const pk = convictions().picks.find((x) => `O:${x.symbol}|${x.expiryDate}|${x.optionType}|${x.strikePrice}` === k || (x as { budgetContract?: { strike: number; expiry: string; optionType: string } }).budgetContract && `O:${x.symbol}|${(x as any).budgetContract.expiry}|${(x as any).budgetContract.optionType}|${(x as any).budgetContract.strike}` === k);
     const bc = (pk as any)?.budgetContract;
     const entry = bc && k.endsWith(`|${bc.strike}`) && k.includes(bc.expiry) ? bc.entryPremium : pk?.entryPremium ?? 2;

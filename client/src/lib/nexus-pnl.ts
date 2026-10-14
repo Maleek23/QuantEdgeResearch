@@ -119,6 +119,8 @@ export interface PnlRecordLike {
   entryPremium?: number | null;
   peak?: { premium: number; atMs?: number | null; at?: string | null } | null;
   trough?: { premium: number; atMs?: number | null } | null;
+  /** Primary contract's last 1-min trade bar (idea detail premium read) — the mark when nothing quotes. */
+  lastTrade?: { premium: number; atMs: number | null; source?: string | null } | null;
 }
 
 export function isZeroDtePick(p: PnlPickLike, nowMs: number): boolean {
@@ -156,6 +158,15 @@ export function pickPnl(pick: PnlPickLike, budget: number, markOf: ((key: string
     if (rec?.peak) peak = { premium: rec.peak.premium, atMs: msOf(rec.peak) };
     if (rec?.trough) trough = { premium: rec.trough.premium, atMs: msOf(rec.trough) };
   }
-  const mark = state === 'open' && tradable.ok ? (markOf ? markOf(tradable.key) : 'loading') : null;
+  let mark: MarkLike | 'loading' | null = state === 'open' && tradable.ok ? (markOf ? markOf(tradable.key) : 'loading') : null;
+  // No live quote → the contract's last trade (labelled 'last-trade', never shown as live):
+  // budget contract from its own tracking, primary from the idea's 1-min bars.
+  if (state === 'open' && tradable.ok && mark === null) {
+    const tr = pick.budgetContract?.tracking;
+    const lt = tradable.basis === 'budget'
+      ? (tr?.lastMark != null && tr.lastMark > 0 ? { premium: tr.lastMark, atMs: tr.lastMarkAt ?? null, source: 'budget contract tracking' } : null)
+      : (rec?.lastTrade && rec.lastTrade.premium > 0 ? rec.lastTrade : null);
+    if (lt) mark = { price: lt.premium, asOf: lt.atMs != null ? new Date(lt.atMs).toISOString() : '', delayed: true, source: lt.source ?? 'last 1m bar', kind: 'last-trade' };
+  }
   return nexusPnl({ state, tradable, mark, exit, peak, trough, nowMs });
 }
