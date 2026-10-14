@@ -8,6 +8,7 @@ import { parseRunner, readRunnerPolicy, runnerAppliesTo, runnerLine, withRunnerT
 import { zeroDteKindOf } from "@shared/bot-sleeves";
 import { judgePremiumOutcome, premiumConsistent, premiumPlanFor, type PremiumOutcome } from "@shared/premium-outcome";
 import { shortDatedReason } from "@shared/short-dated-option";
+import { guardEntryAgainstBars, type EntryGuard } from "@shared/entry-premium-truth";
 import { readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { exceedsOptionValue, fillOnStrikeScale, safeIntrinsic } from "@shared/option-value-bounds";
 import { expiryDay, optionExpiryCloseMs } from "@shared/option-expiry";
@@ -393,6 +394,7 @@ class PerformanceValidationService {
         // are judged on the CONTRACT's own 1-minute bars against the premium plan
         // mapped at publish. The underlying touch only says "look now".
         let premiumJudged = false;
+        let entryPremiumRepriced: number | null = null;
         if (
           ideaForResult?.assetType === 'option' && result.outcomeStatus && result.outcomeStatus !== 'open' &&
           !optionExpiryAttempted && typeof ideaForResult.entryPremium === 'number' && ideaForResult.entryPremium > 0 &&
@@ -402,6 +404,17 @@ class PerformanceValidationService {
             console.warn(`  ⚠️ premium judge failed for ${ideaForResult.symbol}: ${err?.message ?? err}`);
             return null;
           });
+          if (v?.entryRepriced) {
+            // Never score an instant stop off an untradeable entry: the entry becomes
+            // the first real 1-min bar close at/after publish (flag entry_repriced).
+            ideaForResult.entryPremium = v.entryRepriced.entry;
+            entryPremiumRepriced = v.entryRepriced.entry;
+            outcomeNotes = appendNote(outcomeNotes ?? ideaForResult.outcomeNotes, v.entryRepriced.note);
+            console.warn(`  🚩 [ENTRY-REPRICED] ${ideaForResult.symbol} ${ideaId}: ${v.entryRepriced.note}`);
+          }
+          if (v && v.status === 'open' && v.entryRepriced) {
+            await storage.updateTradeIdeaPerformance(ideaId, { entryPremium: v.entryRepriced.entry, outcomeNotes: outcomeNotes ?? undefined });
+          }
           if (v && v.status === 'open') {
             console.log(`  ⏳ ${ideaForResult.symbol} ${ideaId}: underlying says ${result.outcomeStatus}, contract premium has not reached T1/stop (${v.basis}) — kept open`);
             continue;
@@ -558,6 +571,7 @@ class PerformanceValidationService {
           // 💵 Real option contract P&L (option ideas only)
           exitPremium: ideaForResult?.assetType === 'option' && result.outcomeStatus !== 'open' ? exitPremium : undefined,
           optionPercentGain: ideaForResult?.assetType === 'option' && result.outcomeStatus !== 'open' ? optionPercentGain : undefined,
+          ...(entryPremiumRepriced != null ? { entryPremium: entryPremiumRepriced } : {}),
         });
 
         // QuantEdge Labs Discord: edit the idea's card + one exit reply (no card → no-op).
@@ -730,7 +744,7 @@ class PerformanceValidationService {
    * Null when no contract bars answered (the caller keeps the touch-pricing path
    * and the premium invariant).
    */
-  private async premiumVerdict(idea: TradeIdea, result: any): Promise<PremiumOutcome | null> {
+  private async premiumVerdict(idea: TradeIdea, result: any): Promise<(PremiumOutcome & { entryRepriced?: EntryGuard }) | null> {
     const plan = premiumPlanFor(idea as any, { zeroDte: !!shortDatedReason(idea as any, Date.now()) });
     if (!plan) return null;
     const strike = Number((idea as any).strikePrice);
@@ -746,9 +760,28 @@ class PerformanceValidationService {
     const toMs = final && Number.isFinite(exitMs) ? Math.min(exitMs, nowMs) : nowMs;
     if (toMs <= entryMs) return null;
     const type = String((idea as any).optionType ?? '').toLowerCase().startsWith('p') ? 'put' : 'call';
-    const cb = await contractMinuteBars({ symbol: idea.symbol, expiry: day, optionType: type, strike, fromMs: entryMs, toMs, nowMs });
+    // ENTRY GUARD (shared/entry-premium-truth.ts): bars from PUBLISH so the first
+    // 5 minutes after publish say whether the recorded entry was ever tradeable.
+    const pubMs = Date.parse(String((idea as any).timestamp ?? ''));
+    const fromMs = Number.isFinite(pubMs) ? Math.min(pubMs, entryMs) : entryMs;
+    const cb = await contractMinuteBars({ symbol: idea.symbol, expiry: day, optionType: type, strike, fromMs, toMs, nowMs });
     if (!cb.bars.length) return null;
-    return judgePremiumOutcome(cb.bars, plan, entryMs, toMs, { final, source: cb.source });
+    let usePlan = plan;
+    let entryRepriced: EntryGuard | null = null;
+    if (Number.isFinite(pubMs) && process.env.ENTRY_PREMIUM_GUARD !== 'off') {
+      const g = guardEntryAgainstBars(Number(idea.entryPremium), cb.bars, pubMs);
+      if (g.repriced) {
+        const cs = (idea as any).convergenceSignalsJson && typeof (idea as any).convergenceSignalsJson === 'object' ? { ...(idea as any).convergenceSignalsJson } : {};
+        delete cs.premiumPlan; delete cs.budgetContract;
+        const p2 = premiumPlanFor({ ...(idea as any), entryPremium: g.entry, convergenceSignalsJson: cs }, { zeroDte: !!shortDatedReason(idea as any, nowMs) });
+        if (p2) { usePlan = p2; entryRepriced = g; }
+      }
+    }
+    // Judge from the later of entry and the re-priced entry bar (never before the fill).
+    const judgeFrom = entryRepriced?.barAtMs != null ? Math.max(entryMs, entryRepriced.barAtMs + 60_000) : entryMs;
+    if (toMs <= judgeFrom) return null;
+    const v = judgePremiumOutcome(cb.bars, usePlan, judgeFrom, toMs, { final, source: cb.source });
+    return entryRepriced ? { ...v, entryRepriced } : v;
   }
 
   /**
