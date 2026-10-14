@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { FLIP_ON_PCT, clauseFor, ladderWindow, readIndex, regimeOf, trinityAgreement, type TrinityInput } from '../shared/gex-trinity';
+import { FLIP_ON_PCT, clauseFor, readIndex, regimeOf, trinityAgreement, type TrinityInput } from '../shared/gex-trinity';
 import { parseSlash, suggestCommands } from '../shared/quantinum-analyst';
 import { parseHorizon } from '../shared/quantinum-horizon';
 import { runAnalystCommand, type AnalystDeps, type GexBuckets } from '../server/quantinum-analyst-tools';
@@ -63,16 +63,6 @@ const ix = (symbol: string, spot: number, flip: number | null, cw: number | null
   ok(/not in the data/.test(none.sentence), 'says so instead of guessing');
   eq(clauseFor(readIndex(ix('SPY', 600, 590, 610, 580, 1)), 'long'), 'SPY above flip', 'same regime → flip side');
 
-  // ladder window
-  const nodes = Array.from({ length: 41 }, (_, i) => ({ strike: 580 + i, gex: i === 3 ? 0 : (i - 20) / 10, vex: i === 3 ? 0 : 1 }));
-  const w = ladderWindow(nodes, 600.4, 15);
-  eq(w.length, 15, '15 rows');
-  ok(w[0].strike < 600.4 && w[w.length - 1].strike > 600.4, 'window straddles spot');
-  ok(w.every((x, i) => i === 0 || x.strike > w[i - 1].strike), 'ascending');
-  eq(ladderWindow(nodes, 1000, 5).map((x) => x.strike), [616, 617, 618, 619, 620], 'clamped at the top');
-  eq(ladderWindow(nodes, null, 5), [], 'no spot → no ladder');
-  ok(!ladderWindow(nodes, 583, 41).some((x) => x.strike === 583), 'empty strikes dropped');
-
   // /trinity — same agreement function behind Ask Quantinum
   ok(suggestCommands('/tr').some((s) => s.name === 'trinity'), '/trinity autocompletes');
   const p = parseSlash('/trinity');
@@ -103,10 +93,15 @@ const ix = (symbol: string, spot: number, flip: number | null, cw: number | null
   const root = process.cwd();
   const defs = fs.readFileSync(path.join(root, 'client/src/components/dashboard/defs/gex.ts'), 'utf8');
   ok(defs.includes("id: 'gex-trinity'") && defs.includes("'GexTrinityTool'"), 'tool registered in the GEX workspace');
-  ok(/id: 'trinity', name: 'Trinity'/.test(defs) && defs.includes("['gex-trinity', 0, 0, 12, 11]"), 'Trinity default layout');
+  ok(/id: 'trinity', name: 'Trinity'/.test(defs) && defs.includes("['gex-trinity', 0, 0, 12, 12]") && defs.includes("['gex-levels', 0, 12, 12, 6]") && !/'trinity'[\s\S]*'gex-matrix', 0, 11/.test(defs), 'Trinity layout = Trinity full width + Key Levels below');
   const tool = fs.readFileSync(path.join(root, 'client/src/components/dashboard/tools/gex/trinity-tool.tsx'), 'utf8');
   ok(tool.includes('LEVEL_COLORS') && !/--(gain|loss)\b|text-(green|red)-/.test(tool), 'GEX tokens, not gain/loss colours');
   ok(tool.includes('horizon=${horizon}'), 'terminal read with the shared horizon');
+  ok(/import \{ GexStrikeMatrix \} from '@\/components\/gex\/gex-strike-grid'/.test(tool) && tool.includes('<GexStrikeMatrix'), 'reuses the workspace heatmap component (no fork)');
+  ok(!/trin-ladder|ladderWindow|trin-fill/.test(tool), 'bar ladders removed');
+  ok(tool.includes('useSyncedScroll') && tool.includes('strikeBand={band}'), 'shared ±% band + synced scroll');
+  ok(tool.includes('trin-switch') && tool.includes('onTouchEnd'), 'phone: segmented switch + swipe');
+  ok(tool.includes("'SPX'") && tool.includes('Reference only'), '+SPX optional reference pane');
 
   console.log(`gex-trinity: ${n} assertions passed`);
 })().catch((e) => { console.error(e); process.exit(1); });

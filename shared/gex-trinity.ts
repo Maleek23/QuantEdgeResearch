@@ -162,25 +162,3 @@ export function trinityAgreement(inputs: TrinityInput[]): TrinityAgreement {
   const lead = regime === 'all-long' ? 'Mixed (all long gamma)' : regime === 'all-short' ? 'Mixed (all short gamma)' : 'Mixed';
   return { regime, flips, verdict: 'Mixed', reads, terms: [...terms], sentence: `${lead}: ${clauses.join(', ')}.` };
 }
-
-/* ── mini ladder window (pure, shared with the tests) ── */
-
-export interface LadderNode { strike: number; gex: number; vex: number }
-
-/**
- * The `rows` strikes nearest spot (by listed strike), ascending, from per-strike
- * horizon nodes. Strikes with no exposure at all are dropped first so the
- * window spends its rows on the book, not on empty listings.
- */
-export function ladderWindow(nodes: LadderNode[], spot: number | null, rows = 15): LadderNode[] {
-  const live = nodes.filter((n) => Number.isFinite(n.strike) && (n.gex !== 0 || n.vex !== 0));
-  if (!live.length || !fin(spot)) return [];
-  const sorted = [...live].sort((a, b) => a.strike - b.strike);
-  let at = sorted.findIndex((n) => n.strike >= spot);
-  if (at < 0) at = sorted.length - 1;
-  const half = Math.floor(rows / 2);
-  let lo = Math.max(0, at - half);
-  const hi = Math.min(sorted.length, lo + rows);
-  lo = Math.max(0, hi - rows);
-  return sorted.slice(lo, hi);
-}

@@ -57,7 +57,7 @@ const pw = loadPlaywright();
     const check = await page.evaluate(() => ({
       overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
       sentence: document.querySelector('.trin-sentence')?.textContent ?? null,
-      cards: document.querySelectorAll('.trin-card').length,
+      cards: document.querySelectorAll('.trin-pane').length, heatmaps: document.querySelectorAll('.trin-pane .gx-scroll').length,
     }));
     console.log(w, JSON.stringify(check), '→', path.relative(process.cwd(), file));
     await ctx.close();

@@ -1,43 +1,30 @@
-/* GEX Trinity (trinity-tool.tsx) — tokens only (nexus vars); colours of data come from gex-colors.ts. */
-.flowdash .trin{display:flex;flex-direction:column;min-height:0;overflow:auto}
-.flowdash .trin-agree{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;border-bottom:1px solid var(--nx-border);font:500 12px Inter,system-ui,sans-serif;color:var(--text)}
+/* GEX Trinity (trinity-tool.tsx) — layout only; the heatmaps are GexStrikeMatrix with its own styles. */
+.flowdash .trin{display:flex;flex-direction:column;min-height:0}
+.flowdash .trin-pin{flex:none}
+.flowdash .trin-agree{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;border-bottom:1px solid var(--nx-border);font:500 12px Inter,system-ui,sans-serif;color:var(--text)}
 .flowdash .trin-verdict{flex:none;padding:2px 8px;border:1px solid var(--nx-border-hi);border-radius:999px;font:700 11px var(--fd-mono);letter-spacing:.02em;white-space:nowrap}
 .flowdash .trin-sentence{flex:1 1 280px;min-width:0;line-height:1.4}
 .flowdash .trin-terms{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:11px;color:var(--text-dim)}
-.flowdash .trin-pills{display:flex;gap:6px}
-.flowdash .trin-pill{border:1px solid var(--nx-border-hi);background:transparent;border-radius:6px;padding:2px 6px;font:700 11px var(--fd-mono);cursor:pointer}
 .flowdash .trin-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px}
 .flowdash .trin-grid.trin-n4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.flowdash .trin-card{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--nx-border);border-radius:8px;background:color-mix(in srgb,var(--text) 2%,transparent);cursor:pointer;outline:none}
-.flowdash .trin-card:hover{border-color:var(--nx-border-hi)}
-.flowdash .trin-card:focus-visible{box-shadow:0 0 0 2px var(--cyan)}
-.flowdash .trin-card.on{border-color:var(--cyan);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 50%,transparent)}
-.flowdash .trin-card.ref{border-style:dashed}
-.flowdash .trin-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 10px 4px}
+.flowdash .trin-grid.trin-n1{grid-template-columns:minmax(0,1fr)}
+.flowdash .trin-pane{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--nx-border);border-radius:8px;overflow:hidden}
+.flowdash .trin-pane.on{border-color:var(--cyan)}
+.flowdash .trin-pane.ref{border-style:dashed}
+.flowdash .trin-pane .matrix-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
+.flowdash .trin-head{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:6px 10px;border-bottom:1px solid var(--nx-border);cursor:pointer;outline:none}
+.flowdash .trin-head:hover{background:color-mix(in srgb,var(--text) 4%,transparent)}
+.flowdash .trin-head:focus-visible{box-shadow:inset 0 0 0 2px var(--cyan)}
 .flowdash .trin-sym{font:700 14px var(--fd-mono);color:var(--text)}
 .flowdash .trin-spot{font:600 12.5px var(--fd-mono);color:var(--text-dim)}
 .flowdash .trin-chip{padding:1px 6px;border:1px solid;border-radius:999px;font:700 10.5px var(--fd-mono);white-space:nowrap}
+.flowdash .trin-flipd{font:500 11px var(--fd-mono);color:var(--text-dim);white-space:nowrap}
+.flowdash .trin-flipd b{color:var(--text)}
 .flowdash .trin-age{margin-left:auto;font:500 10.5px var(--fd-mono);color:var(--text-mute);white-space:nowrap}
-.flowdash .trin-stats{display:flex;flex-wrap:wrap;gap:3px 12px;padding:0 10px 6px;font:500 11px var(--fd-mono);color:var(--text-dim)}
-.flowdash .trin-stats span{white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
-.flowdash .trin-stats i{display:inline-block;width:7px;height:7px;border-radius:2px}
-.flowdash .trin-stats b{color:var(--text)}
-.flowdash .trin-stats em{font-style:normal;color:var(--text-mute)}
-.flowdash .trin-note{padding:2px 10px 6px;font:500 10.5px var(--fd-mono);color:var(--text-mute)}
-.flowdash .trin-empty{padding:16px 10px}
-.flowdash .trin-ladder{flex:1;min-height:0;display:flex;flex-direction:column;padding:2px 8px 8px;overflow:auto}
-.flowdash .trin-row{display:grid;grid-template-columns:56px 1fr 74px;align-items:center;gap:6px;height:17px;font:500 10.5px var(--fd-mono);color:var(--text-dim)}
-.flowdash .trin-k{text-align:right}
-.flowdash .trin-bar{position:relative;height:11px}
-.flowdash .trin-mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--nx-border-hi)}
-.flowdash .trin-fill{position:absolute;top:0;bottom:0;border-radius:2px}
-.flowdash .trin-tags{display:flex;gap:3px;overflow:hidden}
-.flowdash .trin-tags em{font-style:normal;font-weight:700;font-size:9.5px;padding:0 3px;border:1px solid;border-radius:3px;line-height:13px}
-.flowdash .trin-spotline{position:relative;height:0;margin:3px 0;border-top:1px dashed}
-.flowdash .trin-spotline span{position:absolute;right:0;top:-8px;padding:0 4px;background:var(--nx-panel,var(--bg,#0b0e14));font:700 10px var(--fd-mono);color:var(--text)}
-.flowdash .trin-legend{margin-top:6px;font:500 10px var(--fd-mono);color:var(--text-mute)}
-/* phone: compact header, cards swipe sideways (scroll-snap) — every card stays reachable */
+.flowdash .trin-note{flex:none;padding:4px 10px;font:500 10.5px var(--fd-mono);color:var(--text-mute)}
+/* phone: strip + controls pinned, one heatmap at a time (switch / swipe) */
+.flowdash .trin-phone .trin-pin{position:sticky;top:0;z-index:3;background:var(--nx-panel,var(--bg,#0b0e14))}
 .flowdash .trin-phone .trin-sentence{flex-basis:100%;font-size:12.5px}
-.flowdash .trin-phone .trin-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding:8px 16px;scrollbar-width:none}
-.flowdash .trin-phone .trin-card{flex:0 0 86%;scroll-snap-align:center}
-.flowdash .trin-phone .trin-row{height:20px;font-size:11.5px}
+.flowdash .trin-phone .trin-grid{padding:8px 0;min-height:70vh}
+.flowdash .trin-phone .trin-pane{min-height:66vh}
+.flowdash .trin-phone .trin-switch button{min-width:56px;height:34px;font-size:12px}
