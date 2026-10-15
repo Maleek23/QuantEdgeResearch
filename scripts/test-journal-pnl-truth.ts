@@ -11,8 +11,9 @@ import {
   rewritesOutcome, oversizeForReview, OVERSIZE_REVIEW_MULTIPLE,
 } from '../shared/journal-pnl-truth';
 import { bsDelta, bsPrice, impliedVol } from '../shared/iv-fill';
-import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, NEVER_TRIGGERED_REASON, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
+import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, NEVER_TRIGGERED_REASON, UNMEASURED_EXPIRY_REASON, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
 import { loadLedgerAuditFixture, toDeskIdea } from './lib/ledger-audit-cases';
+import { fetchDeskExpiryPrints } from '../server/journal-expiry-settle';
 import { ledgerEntryOf } from '../server/desk-verify-ledger';
 import { incrementalIds } from '../research/verify-nexus-book-sources';
 import { isOptionIntendedWrite, instrumentLabel, splitLegacySharesRows, SHARES_IDEA_LABEL, CONVERTED_SHARES_LABEL } from '../shared/options-only';
@@ -285,5 +286,49 @@ t('the never-triggered class: every closed prod row still pending_trigger / inva
   assert.ok('row' in mapDeskIdea({ ...base, executionState: null }), 'legacy row without an audit state: the bar verifier decides (never_triggered → bar_mismatch)');
   assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: { verdict: 'MISMATCH', recordedPnL: -50, recomputedPnL: 0, bugClass: 'never_triggered', reason: 'x' } }).counted, false);
 });
+
+console.log('ledger audit 2026-10-15 — fix 4 (expired without exit → intrinsic at the 16:00 ET close, computed view)');
+await (async () => {
+  const fx = loadLedgerAuditFixture();
+  // SPY 780P 10-07 as an expired row with no measured exit (the 392-row class).
+  const base = { ...toDeskIdea(fx.cases.spy_780p.idea), exitPremium: null, optionPercentGain: null, exitDate: null, outcomeStatus: 'expired', resolutionReason: 'auto_expired' };
+  t('no print → still excluded (labelled), never a made-up 0', () => {
+    const m = mapDeskIdea(base);
+    assert.ok('excluded' in m && m.excluded === UNMEASURED_EXPIRY_REASON);
+  });
+  t('ITM put settles at strike − close; exit time = 16:00 ET of expiry in UTC; notes say computed view', () => {
+    const ctx = { expiryPrint: (sym: string, day: string) => (sym === 'SPY' && day === '2026-10-07' ? { open: 778, close: 776.5, source: 'yahoo' } : null), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    const m = mapDeskIdea(base, ctx);
+    assert.ok('row' in m);
+    assert.equal(m.row.exitPrice, 3.5);
+    assert.equal(m.row.exitTime, '2026-10-07T20:00:00.000Z');
+    assert.equal(m.row.realizedPnL, Math.round((3.5 - Number(base.entryPremium)) * 100 * 100) / 100);
+    assert.match(m.row.notes ?? '', /expiry settled at intrinsic \$3\.50 — SPY close 776\.5 on 2026-10-07 \(16:00 ET; yahoo\) — computed view, nothing written/);
+  });
+  t('OTM expires worthless (−premium); SPX settles on ^GSPC (PM, SPXW)', () => {
+    const ctx = { expiryPrint: (sym: string) => (sym === 'SPY' ? { open: 790, close: 790 } : sym === '^GSPC' ? { open: 7790, close: 7790 } : null), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    const m = mapDeskIdea(base, ctx);
+    assert.ok('row' in m && m.row.exitPrice === 0 && m.row.realizedPnL === -Math.round(Number(base.entryPremium) * 100));
+    const spx = { ...toDeskIdea(fx.cases.spx_7775p_1005.idea), exitPremium: null, optionPercentGain: null, exitDate: null, outcomeStatus: 'expired' };
+    const s2 = mapDeskIdea(spx, ctx);
+    assert.ok('row' in s2 && s2.row.exitPrice === 0, 'SPX 7775P vs ^GSPC 7790 close → worthless');
+  });
+  t('a time exit BEFORE expiry is not settled at expiry; an unexpired contract is not settled; never-triggered stays out', () => {
+    const ctx = { expiryPrint: () => ({ open: 770, close: 770 }), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    assert.ok('excluded' in mapDeskIdea({ ...base, exitDate: '2026-10-06T19:00:00Z' }, ctx), 'horizon exit a day before expiry');
+    assert.ok('excluded' in mapDeskIdea({ ...base, expiryDate: '2026-11-20' }, ctx), 'not yet expired');
+    const nt = mapDeskIdea({ ...base, executionState: 'invalidated' }, ctx);
+    assert.ok('excluded' in nt && nt.excluded === NEVER_TRIGGERED_REASON, 'fix 6 wins over fix 4');
+  });
+  const prints = await fetchDeskExpiryPrints([
+    { symbol: 'SPX', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-05' },
+    { symbol: 'SPY', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+    { symbol: 'SPY', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+    { symbol: 'AAPL', assetType: 'stock', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+  ], async (sym, _kind, days) => new Map(days.map((d) => [d, { open: 1, close: sym === '^GSPC' ? 7700 : 700, source: 'stub' }])));
+  t('the loader fetches one print per (settlement symbol, day); SPX → ^GSPC; stock rows ignored', () => {
+    assert.deepEqual([...prints.keys()].sort(), ['SPY|2026-10-07', '^GSPC|2026-10-05']);
+  });
+})();
 
 console.log(`\n${n} journal-pnl-truth checks passed`);

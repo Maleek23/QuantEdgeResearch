@@ -19,7 +19,7 @@ import {
   journalNotes, tradeIdeas, traders,
   type JournalTrade, type Trader,
 } from '@shared/schema';
-import { OUTCOME_BASELINE_DATE } from '@shared/constants';
+import { isUnmeasuredExpiry, OUTCOME_BASELINE_DATE } from '@shared/constants';
 import { auditBotOptionFill } from '@shared/bot-fill-verification';
 import { peakLine, readPeakSignal } from '@shared/option-peak';
 import {
@@ -286,8 +286,13 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
   const pairs: { idea: DeskIdea; row: JournalWireRow }[] = [];
   const excluded = new Map<string, number>();
   const excludedRows: JournalExcludedRow[] = [];
+  // Fix 4 (ledger audit 2026-10-15): expired-without-exit options settle at intrinsic from the
+  // expiry day's 16:00 ET close — computed here, never written. Bounded wait; misses stay excluded.
+  const { fetchDeskExpiryPrints } = await import('./journal-expiry-settle');
+  const prints = await fetchDeskExpiryPrints(ideas.filter((i) => isUnmeasuredExpiry(i as any)) as any[]).catch(() => new Map());
+  const mapCtx = { expiryPrint: (sym: string, day: string) => prints.get(`${sym}|${day}`) ?? null };
   for (const i of ideas) {
-    const res = mapDeskIdea(i as DeskIdea);
+    const res = mapDeskIdea(i as DeskIdea, mapCtx);
     if ('row' in res) pairs.push({ idea: i as DeskIdea, row: res.row });
     else {
       excluded.set(res.excluded, (excluded.get(res.excluded) ?? 0) + 1);

@@ -10,6 +10,8 @@ import { parseRunner, runnerLine } from '@shared/runner-policy';
 import type { JournalTrade } from '@shared/schema';
 import type { DeskUnverifiedItem, DeskVerificationMeta } from '@shared/journal-sources';
 import { isUnmeasuredExpiry } from '@shared/constants';
+import { intrinsicValue, settlementUnderlying, type ExpiryPrint } from '@shared/journal-expiry';
+import { optionExpiryCloseMs } from '@shared/option-expiry';
 import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
 import { captureRatio } from '@shared/exit-policy';
 import {
@@ -112,6 +114,12 @@ export type DeskLedgerEntry = TruthLedgerEntry;
 export interface DeskLedger { asOf: string; path: string; byId: Map<string, DeskLedgerEntry> }
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
+/** Any parseable timestamp (incl. "…-05:00" offsets the tracker wrote) → UTC ISO; unparseable → as given. */
+export const isoUtc = (v: string | null | undefined): string | null => {
+  if (v == null || v === '') return null;
+  const t = Date.parse(String(v));
+  return Number.isFinite(t) ? new Date(t).toISOString() : String(v);
+};
 export const minutesBetween = (a: string, b: string | null | undefined) => {
   if (!b) return null;
   const d = (Date.parse(b) - Date.parse(a)) / 60_000;
@@ -198,13 +206,49 @@ export function neverEnteredState(i: Pick<DeskIdea, 'executionState'>): boolean 
 
 export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
 
+export const UNMEASURED_EXPIRY_REASON = 'expired without a measured exit';
+
+/**
+ * Ledger audit 2026-10-15 fix 4: expired-without-exit option rows are SETTLED in the
+ * computed view at intrinsic from the expiry day's 16:00 ET close (no DB write).
+ * The loader supplies the underlying's daily print per (settlement symbol, day);
+ * server/journal-expiry-settle.ts fetchDeskExpiryPrints builds it.
+ */
+export interface DeskMapContext {
+  expiryPrint?: (settlementSymbol: string, day: string) => ExpiryPrint | null | undefined;
+  nowMs?: number;
+}
+
+/** The settlement root of a desk idea's contract (SPX desk ideas are PM-settled SPXW weeklies / 0DTE). */
+export function deskSettlementRoot(symbol: string): string {
+  const s = String(symbol ?? '').toUpperCase();
+  return s === 'SPX' ? 'SPXW' : s === 'NDX' ? 'NDXP' : s === 'RUT' ? 'RUTW' : s;
+}
+
+/** Fix 4: intrinsic settlement of an expired option idea from the 16:00 ET close, or null. Pure. */
+export function deskExpirySettlement(a: { symbol: string; optionType: string | null; strike: number | null; expiryDate: string | null },
+  ctx: DeskMapContext | undefined): { exit: number; S: number; exitTime: string; settlementSymbol: string; field: 'open' | 'close'; source: string; approximate: string | null } | null {
+  const day = String(a.expiryDate ?? '').slice(0, 10);
+  if (!ctx?.expiryPrint || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !(a.strike != null && a.strike > 0) || !a.optionType) return null;
+  const closeMs = optionExpiryCloseMs(day);
+  if (!Number.isFinite(closeMs) || (ctx.nowMs ?? Date.now()) < closeMs) return null;
+  const su = settlementUnderlying(deskSettlementRoot(a.symbol), day);
+  if (!su) return null;
+  const pr = ctx.expiryPrint(su.symbol, day);
+  const raw = pr ? (su.field === 'open' ? pr.open : pr.close) : null;
+  if (!(raw != null && raw > 0)) return null;
+  const S = Math.round(raw * su.scale * 100) / 100;
+  const t = String(a.optionType).toLowerCase().startsWith('p') ? 'put' : 'call';
+  return { exit: intrinsicValue(t, a.strike, S), S, exitTime: new Date(closeMs).toISOString(), settlementSymbol: su.symbol, field: su.field, source: pr?.source ?? 'daily bar', approximate: su.approximate ?? null };
+}
+
 /**
  * One idea → one journal row. Options: 1 contract at the recorded entry premium,
  * exited at the recorded exit premium (or entry × the recorded contract %).
  * Stock/crypto/futures: $1,000 notional at the published entry. Anything that
  * cannot be scored is returned as an exclusion reason — never as a 0 P&L.
  */
-export function mapDeskIdea(i: DeskIdea): DeskMapResult {
+export function mapDeskIdea(i: DeskIdea, ctx?: DeskMapContext): DeskMapResult {
   const snapshot = readPlanSnapshot(i.convergenceSignalsJson);
   const planEntry = snapshot?.entryPrice ?? i.entryPrice;
   const planTarget = snapshot?.targetPrice ?? i.targetPrice;
@@ -228,7 +272,16 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   // stamped on it (IONQ "hit_target" while pending_trigger). Legacy rows with no audit state
   // stay scored; the bar verifier decides their trigger (never_triggered → outside the headline).
   if (resolved && neverEnteredState(i)) return { excluded: NEVER_TRIGGERED_REASON };
-  if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
+  // Fix 4 (ledger audit 2026-10-15): an option that EXPIRED with no measured exit is settled
+  // at intrinsic from the expiry day's 16:00 ET close — 392 such rows were silently dropped
+  // (159 priced: −$40,163 at 1 lot). Time exits before expiry are not settled at expiry.
+  let expirySettled: ReturnType<typeof deskExpirySettlement> = null;
+  if (resolved && isUnmeasuredExpiry(i)) {
+    const expiredAtExpiry = status === 'expired' && (!i.exitDate || Date.parse(i.exitDate) >= optionExpiryCloseMs(String(planExpiry ?? '').slice(0, 10)) - 3600_000);
+    expirySettled = i.assetType === 'option' && expiredAtExpiry
+      ? deskExpirySettlement({ symbol: i.symbol, optionType: planOptionType, strike: planStrike, expiryDate: planExpiry }, ctx) : null;
+    if (!expirySettled) return { excluded: UNMEASURED_EXPIRY_REASON };
+  }
   // Options-only (shared/options-only.ts): an option engine's idea without a usable
   // contract — stored as shares by a legacy fallback, or missing strike/premium —
   // is listed as "contract not recorded", never scored as shares or at a made-up premium.
@@ -247,7 +300,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     entry = planPremium;
     qty = 1;
     if (resolved) {
-      exit = i.exitPremium != null && i.exitPremium >= 0 ? i.exitPremium
+      exit = expirySettled ? expirySettled.exit
+        : i.exitPremium != null && i.exitPremium >= 0 ? i.exitPremium
         : i.optionPercentGain != null ? Math.max(0, entry * (1 + i.optionPercentGain / 100)) : null;
       if (exit == null) return { excluded: 'resolved without a contract exit premium' };
       pnl = (exit - entry) * 100;
@@ -265,7 +319,8 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       pnl = (pct / 100) * DESK_STOCK_NOTIONAL;
     }
   }
-  const exitTime = resolved ? i.exitDate ?? null : null;
+  // Fix 9: exit times are UTC ISO; an expiry settles at 16:00 ET of the expiry day.
+  const exitTime = !resolved ? null : expirySettled ? expirySettled.exitTime : isoUtc(i.exitDate);
   const exitMs = exitTime ? Date.parse(exitTime) : NaN;
   const exitTimeNote = exitTime && Number.isFinite(exitMs) && isHitTimeUnknown(status, i.exitTimeSource)
     ? unresolvedExitLabel(exitMs) : null;
@@ -282,6 +337,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     })(),
     i.genConvictionBand ? `diagnostics (unvalidated): conviction band ${i.genConvictionBand}` : null,
     resolved ? `outcome: ${status}${i.resolutionReason ? ` (${i.resolutionReason})` : ''}` : 'still open — no live mark carried here',
+    expirySettled ? `expiry settled at intrinsic $${expirySettled.exit.toFixed(2)} — ${expirySettled.settlementSymbol} ${expirySettled.field} ${expirySettled.S} on ${String(planExpiry).slice(0, 10)} (16:00 ET; ${expirySettled.source}${expirySettled.approximate ? `; ${expirySettled.approximate}` : ''}) — computed view, nothing written` : null,
     exitTimeNote ? `exit time: ${exitTimeNote} — the tracker could not find the bar that touched the ${status === 'hit_stop' ? 'stop' : 'target'}` : null,
     i.catalyst ? `catalyst: ${i.catalyst}` : null,
   ].filter(Boolean).join('\n');

@@ -70,7 +70,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
 import { OUTCOME_BASELINE_DATE } from '../shared/constants';
-import { mapDeskIdea, type DeskIdea, type JournalWireRow } from '../server/journal-row-maps';
+import { deskSettlementRoot, mapDeskIdea, UNMEASURED_EXPIRY_REASON, type DeskIdea, type DeskMapContext, type JournalWireRow } from '../server/journal-row-maps';
+import { settlementUnderlying, type ExpiryPrint } from '../shared/journal-expiry';
 import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, type DeskIntegrityFlag } from '../shared/desk-integrity';
 import { optionSideOf } from '../shared/option-value-bounds';
 import { liquidityGateResult, liquidityBugClass } from '../shared/option-liquidity';
@@ -596,8 +597,25 @@ async function main() {
   const ideas = await loadBook();
   const pairs: { idea: IdeaRow; row: JournalWireRow }[] = [];
   const notScored = new Map<string, number>();
+  // Fix 4 (ledger audit 2026-10-15): expired-without-exit options are settled at intrinsic from
+  // the expiry day's 16:00 ET close (same rule as the journal's computed view) and verified like
+  // any expiry — prints from the verifier's own settlement chain (Massive unadjusted → Yahoo daily).
+  const expiryPrints = new Map<string, ExpiryPrint>();
+  if (!OFFLINE) {
+    for (const i of ideas) {
+      const m0 = mapDeskIdea(i);
+      if (!('excluded' in m0) || m0.excluded !== UNMEASURED_EXPIRY_REASON || i.assetType !== 'option') continue;
+      const day = expiryDay(i.expiryDate);
+      const root = deskSettlementRoot(i.symbol);
+      const su = day ? settlementUnderlying(root, day) : null;
+      if (!day || !su || expiryPrints.has(`${su.symbol}|${day}`)) continue;
+      const st = await expirySettlement(root, day, 'call', 1, chainDeps).catch(() => null);
+      if (st) { const raw = st.S / (su.scale || 1); expiryPrints.set(`${su.symbol}|${day}`, { open: raw, close: raw, source: st.source }); }
+    }
+  }
+  const mapCtx: DeskMapContext = { expiryPrint: (sym, day) => expiryPrints.get(`${sym}|${day}`) ?? null };
   for (const i of ideas) {
-    const m = mapDeskIdea(i);
+    const m = mapDeskIdea(i, mapCtx);
     if ('row' in m) pairs.push({ idea: i, row: m.row });
     else notScored.set(m.excluded, (notScored.get(m.excluded) ?? 0) + 1);
   }
