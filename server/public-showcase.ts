@@ -276,6 +276,9 @@ function refreshRecord(): Promise<void> {
   return recordInflight;
 }
 async function buildRecord(): Promise<Section<PublicRecord>> {
+  // Withheld while the verifier is rebuilt (ledger audit 2026-10-15: tolerance, outcome order,
+  // rewritten outcomes). Set PUBLIC_RECORD=on to publish again.
+  if (process.env.PUBLIC_RECORD !== 'on') return { data: null, asOf: null, error: 'record withheld — re-verification in progress' };
   if (!recordCache || Date.now() - recordCache.at > RECORD_REFRESH_MS) {
     const p = refreshRecord();
     if (!recordCache) await withTimeout(p, 10_000).catch(() => undefined);
