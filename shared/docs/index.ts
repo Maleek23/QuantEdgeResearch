@@ -21,6 +21,7 @@ import trajectory from './pages/trajectory/index';
 import trajectoryRef from './pages/trajectory/reference';
 import envelope from './pages/envelope/index';
 import envelopeRef from './pages/envelope/reference';
+import envelopeCones from './pages/envelope/cones';
 import horizon from './pages/horizon/index';
 import horizonRef from './pages/horizon/reference';
 import ledger from './pages/ledger/index';
@@ -55,7 +56,7 @@ export const DOC_MODULES: DocModule[] = [
 export const DOC_PAGES: DocPage[] = [
   platformIndex, platformData, platformGlossary,
   nexus, nexusRef, zero, zeroRef, gravity, gravityRef, current, currentRef,
-  trajectory, trajectoryRef, envelope, envelopeRef, horizon, horizonRef,
+  trajectory, trajectoryRef, envelope, envelopeRef, envelopeCones, horizon, horizonRef,
   ledger, ledgerRef, tripwire, tripwireRef, quantinum, quantinumRef,
   bot, botRef, academy, academyRef,
 ];

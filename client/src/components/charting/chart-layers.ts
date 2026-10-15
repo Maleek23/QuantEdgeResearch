@@ -1,3 +1,4 @@
+import type { EnvelopeCone, FrozenCone, MoveVsPriced } from '@shared/envelope-cone';
 /**
  * CHART LAYERS — the data side shared by QEChart's compact embed and the
  * full TradingView-style chart (tv/tv-chart.tsx): the /api/chart/overlays
@@ -132,7 +133,13 @@ export interface EmLine { anchorSpot: number; anchorAt: string; key: string; mov
 export interface ExpectedMovePayload {
   symbol: string; generatedAt: string; label: string; spot: number | null; chainSource: string | null; chainAgeSec: number | null;
   daily: EmLine | null; weekly: EmLine | null; cone: null | { fromSpot: number; perSessionMove: number; basis: string }; note: string;
+  /** Envelope v2 (server/envelope.ts) — modelled 1σ/2σ cones; absent when the flag is off. */
+  envelope?: EnvelopePayload | null;
 }
+export type EnvelopePayload = {
+  label: 'modelled'; note: string; cones: EnvelopeCone[]; frozen: FrozenCone | null; moveVsPriced: MoveVsPriced | null;
+  curve: 'bars' | 'fallback'; curveSessions: number; skew: number;
+};
 export function useExpectedMove(symbol: string, enabled: boolean, inView: boolean) {
   return useQuery<ExpectedMovePayload>({
     queryKey: ['/api/chart/expected-move', symbol],

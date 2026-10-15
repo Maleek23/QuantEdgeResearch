@@ -22,6 +22,9 @@ import path from 'path';
 import { marketDateET } from '@shared/market-day';
 import { horizonLastExpiry } from '@shared/gex-horizon';
 import { logger } from './logger';
+import { serverFlag } from '@shared/feature-flags';
+import type { FrozenCone } from '@shared/envelope-cone';
+import type { EnvelopePayload } from './envelope';
 
 export interface EmLine {
   /** Spot the range is centred on (at anchorAt). */
@@ -47,21 +50,24 @@ export interface ExpectedMovePayload {
   daily: EmLine | null;
   weekly: EmLine | null;
   cone: null | { fromSpot: number; perSessionMove: number; basis: string };
+  /** Envelope v2 (flag ENVELOPE_V2): 1σ/2σ shaped cones + frozen 09:40 + move vs priced. Modelled. */
+  envelope?: EnvelopePayload | null;
   note: string;
 }
 
 const DIR = path.join(process.cwd(), '.cache', 'chart-em');
-const anchors = new Map<string, { daily?: EmLine; weekly?: EmLine }>();
+type Anchors = { daily?: EmLine; weekly?: EmLine; frozen?: FrozenCone };
+const anchors = new Map<string, Anchors>();
 const safe = (s: string) => s.replace(/[^A-Z0-9.^]/gi, '');
 
 function loadAnchors(sym: string) {
   if (anchors.has(sym)) return anchors.get(sym)!;
-  let a: { daily?: EmLine; weekly?: EmLine } = {};
+  let a: Anchors = {};
   try { a = JSON.parse(fs.readFileSync(path.join(DIR, `${safe(sym)}.json`), 'utf8')) ?? {}; } catch { /* none yet */ }
   anchors.set(sym, a);
   return a;
 }
-function saveAnchors(sym: string, a: { daily?: EmLine; weekly?: EmLine }) {
+function saveAnchors(sym: string, a: Anchors) {
   anchors.set(sym, a);
   fs.promises.mkdir(DIR, { recursive: true })
     .then(() => fs.promises.writeFile(path.join(DIR, `${safe(sym)}.json`), JSON.stringify(a)))
@@ -134,13 +140,20 @@ export async function buildExpectedMove(sym: string, nowMs = Date.now()): Promis
       else { out.weekly = line(wExp, emW, emW.toExpiry); a.weekly = out.weekly; }
     }
   }
-  saveAnchors(sym, a);
-
   if (perSession != null) {
     out.cone = {
       fromSpot: spot, perSessionMove: perSession,
       basis: `modelled: ±${perSession.toFixed(2)} per session × √(sessions ahead), from the ${out.weekly ? 'weekly' : 'daily'} priced move; holidays not excluded`,
     };
+    if (serverFlag('ENVELOPE_V2')) {
+      try {
+        const { buildEnvelopePayload } = await import('./envelope');
+        const env = await buildEnvelopePayload(sym, spot, perSession, chain.rows as any[], a.frozen ?? null, nowMs);
+        out.envelope = env.payload;
+        if (env.frozen) a.frozen = env.frozen;
+      } catch (e) { logger.debug?.(`[CHART-EM] ${sym} envelope: ${(e as Error).message}`); out.envelope = null; }
+    }
   }
+  saveAnchors(sym, a);
   return out;
 }

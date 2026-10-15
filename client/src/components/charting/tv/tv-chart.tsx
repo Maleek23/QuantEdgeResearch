@@ -48,6 +48,8 @@ import { etParts, reanchorPath, PATH_DISCLAIMER, PATH_HORIZON_LABEL } from '@sha
 import type { PathDraw } from './path-primitive';
 import { AppearanceSection, PathHorizonPill, PathLevelChips, QuickChips, TemplatesBar } from './chart-settings-parts';
 import type { EmDraw } from './layers-primitive';
+import { ENVELOPE_HORIZONS, ENVELOPE_LABEL, parseEnvelopeHorizon, type EnvelopeHorizon } from '@shared/envelope-cone';
+import { clientFlag } from '@/lib/feature-flags';
 import { canonicalChartSymbol, indexInfo } from '@shared/index-symbols';
 import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
@@ -355,18 +357,28 @@ export function TvChart({
     };
   }, [prefs.gex, layersOk, ov, cutoff, now, intraday, range, sessionBars]);
 
+  // Envelope v2 (flag ENVELOPE_V2): which cone the chart draws — Today on intraday, Week on daily+.
+  const [envH, setEnvH] = useState<EnvelopeHorizon | null>(null);
+  const envHorizon: EnvelopeHorizon = envH ?? (intraday ? 'today' : 'week');
+  const envCone = useMemo(() => (clientFlag('ENVELOPE_V2') ? emData?.envelope?.cones.find((c) => c.horizon === envHorizon) ?? null : null), [emData, envHorizon]);
+
   // Expected move is anchored NOW: hidden in replay (it was not the priced range then).
   const em = useMemo((): EmDraw | null => {
     if (!prefs.expMove || !emData || cutoff != null) return null;
     const d = emData.daily; const w = emData.weekly;
     if (!d && !w && !emData.cone) return null;
+    const spot0 = envCone?.points[0];
     return {
       daily: d ? { upper: d.upper, lower: d.lower, move: d.move } : null,
       weekly: w ? { upper: w.upper, lower: w.lower, move: w.move } : null,
       cone: emData.cone ? { perSessionMove: emData.cone.perSessionMove } : null,
       sessionMs: SESSION_MS,
+      envelope: envCone && spot0 ? {
+        label: envCone.label,
+        points: envCone.points.map((p) => ({ tm: p.tm, u1: p.u1 - spot0.u1, l1: p.l1 - spot0.l1, u2: p.u2 - spot0.u2, l2: p.l2 - spot0.l2 })),
+      } : null,
     };
-  }, [prefs.expMove, emData, cutoff]);
+  }, [prefs.expMove, emData, cutoff, envCone]);
   const layers = useMemo(() => ({
     ov: ov ?? null, gex: prefs.gex, dp: prefs.dp, flow: prefs.flow,
     gexTop: gexRead?.top ?? null, gexTopAsOf: gexRead ? Date.parse(gexRead.asOf) : null,
@@ -703,6 +715,16 @@ export function TvChart({
         <>
           {emData.daily && <span title={`${emData.daily.basis}\nAnchored at ${emData.daily.anchorSpot.toFixed(2)} (${etClock(Date.parse(emData.daily.anchorAt))} ET) — fixed for the session`}>day ±<b>{emData.daily.move.toFixed(2)}</b> ({emData.daily.movePct.toFixed(2)}%)</span>}
           {emData.weekly && <span title={`${emData.weekly.basis}\nAnchored at ${emData.weekly.anchorSpot.toFixed(2)} (${new Date(emData.weekly.anchorAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET) — fixed to ${emData.weekly.expiry}`}>week ±<b>{emData.weekly.move.toFixed(2)}</b> ({emData.weekly.movePct.toFixed(2)}%)</span>}
+          {envCone && emData.envelope && (
+            <span className="tv-env" title={emData.envelope.note}>
+              <select className="tv-env-sel" aria-label="Envelope cone horizon" value={envHorizon} onChange={(e) => setEnvH(parseEnvelopeHorizon(e.target.value))}>
+                {ENVELOPE_HORIZONS.map((h) => <option key={h} value={h}>{ENVELOPE_LABEL[h]}</option>)}
+              </select>
+              {' '}1σ +<b>{envCone.up1.toFixed(2)}</b>/−<b>{envCone.dn1.toFixed(2)}</b> · 2σ +{envCone.up2.toFixed(2)}/−{envCone.dn2.toFixed(2)}
+              {emData.envelope.moveVsPriced && cutoff == null && <> · <span title={`Frozen 09:40 cone: anchored ${emData.envelope.frozen?.anchorSpot.toFixed(2)} at ${emData.envelope.frozen ? etClock(emData.envelope.frozen.anchorAt) : '—'} ET`}>move vs priced <b>{emData.envelope.moveVsPriced.sigmas == null ? '—' : `${emData.envelope.moveVsPriced.sigmas >= 0 ? '+' : '−'}${Math.abs(emData.envelope.moveVsPriced.sigmas).toFixed(2)}σ`}</b></span></>}
+              <span className="tv-dim"> · modelled</span>
+            </span>
+          )}
           <span className="tv-dim" title={`${emData.note}${emData.cone ? `\nCone: ${emData.cone.basis}` : ''}`}>priced range (options) · {emData.daily?.source === 'atm_iv' ? 'ATM IV' : 'ATM straddle'} · {emData.chainSource} · chain {emData.chainAgeSec != null ? `${Math.round(emData.chainAgeSec / 60)}m` : '—'} old{cutoff != null ? ' · hidden in replay' : ''}</span>
         </>
       ), () => set('expMove', false)) : expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized{prefs.expMove && layersOk ? (emQ.isLoading ? ' · options read loading…' : ' · no options priced range') : ''}</span></span>)}
@@ -1393,6 +1415,8 @@ html[data-mode=light] .tv-wm{opacity:.09}
 .tv-armed~.tv-legend .tv-leg-x,.tv-armed~.tv-legend .tv-orb-chip button{pointer-events:none}
 .tv-leg-x:hover{background:var(--tv-hi);color:var(--tv-fg)}
 .tv-dim{color:var(--tv-mute)}
+.tv-env{display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap}
+.tv-env-sel{background:transparent;color:inherit;border:1px solid var(--lx-line,rgba(59,140,255,.18));border-radius:4px;font:inherit;padding:0 2px;min-height:20px}
 .tv-warn{color:var(--tv-caution)}
 .tv-tip{position:absolute;display:none;z-index:6;pointer-events:none;max-width:260px;padding:6px 8px;border:1px solid var(--tv-line-hi);border-radius:5px;background:var(--tv-panel);font-size:11px;line-height:1.5;color:var(--tv-fg);box-shadow:0 8px 24px rgba(0,0,0,.45)}
 .tv-float{position:absolute;top:8px;right:84px;z-index:8;display:flex;align-items:center;gap:4px;padding:3px 6px;background:var(--tv-panel);border:1px solid var(--tv-line-hi);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:calc(100% - 100px);flex-wrap:wrap;width:max-content}
