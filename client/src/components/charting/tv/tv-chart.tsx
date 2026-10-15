@@ -40,8 +40,13 @@ import { useCandles, chartPalette, TF_CONFIG, type Level } from '@/components/ch
 import { useChartPrefs, setChartPref, type ChartHorizon, type ChartType, type GexMetric, type RangeKey, type TfKey } from '@/components/charting/chart-prefs';
 import {
   overlaysSupported, useInView, useLiveLast, useDealerMap, useChartOverlays, etClock, etInfo, fmtUsd, ageOf,
-  useLevelMap, pickKeyLevels, dealerWallLines, useHorizonDealerMap, useExpectedMove,
+  useLevelMap, pickKeyLevels, dealerWallLines, useHorizonDealerMap, useExpectedMove, usePathProjection, usePathSnapshots,
 } from '@/components/charting/chart-layers';
+import { useChartStyle, clearActiveTemplate, allTemplates } from '@/components/charting/chart-style';
+import { SETTINGS_GROUPS } from '@shared/chart-templates';
+import { etParts, reanchorPath, PATH_DISCLAIMER, PATH_HORIZON_LABEL } from '@shared/path-projection';
+import type { PathDraw } from './path-primitive';
+import { AppearanceSection, PathHorizonPill, PathLevelChips, QuickChips, TemplatesBar } from './chart-settings-parts';
 import type { EmDraw } from './layers-primitive';
 import { canonicalChartSymbol, indexInfo } from '@shared/index-symbols';
 import type { QEChartProps } from '@/components/charting/qe-chart';
@@ -160,7 +165,9 @@ export function TvChart({
   const symbol = canonicalChartSymbol(rawSymbol);
   const idx = indexInfo(symbol);
   const prefs = useChartPrefs();
-  const set = setChartPref;
+  const styleSt = useChartStyle();
+  // A manual change after a template switch: the chart no longer matches the template.
+  const set: typeof setChartPref = (k, v) => { clearActiveTemplate(); setChartPref(k, v); };
   const { user } = useAuth();
   const userId = (user as { id?: string } | null | undefined)?.id ?? 'anon';
 
@@ -372,6 +379,32 @@ export function TvChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs, now, visualMode]);
   const describeLayer = useCallback((hit: Parameters<typeof describeLayerHit>[0]) => describeLayerHit(hit, tk), [tk]);
+
+  /* ── Path fan (Monte-Carlo modelled scenario) + frozen 09:40 / close snapshots ── */
+  const pathOn = prefs.path && layersOk;
+  const lastLive = liveTick?.price ?? (histBars?.length ? histBars[histBars.length - 1].close : null);
+  const pathQ = usePathProjection(symbol, prefs.pathHorizon, pathOn && !replay.on, inView);
+  const snapDate = useMemo(() => etParts(cutoff ?? now).date, [cutoff, now]);
+  const snapQ = usePathSnapshots(symbol, snapDate, pathOn);
+  const pathDraw = useMemo<PathDraw | null>(() => {
+    if (!pathOn) return null;
+    const frozen: PathDraw['frozen'] = [];
+    const snaps = snapQ.data?.snapshots;
+    const s940 = snaps?.['0940']?.[prefs.pathHorizon]?.result; const sCl = snaps?.close?.[prefs.pathHorizon]?.result;
+    // In replay only what was computed by the cursor shows (frozen at 09:40 / close).
+    if (s940 && (cutoff == null || s940.startMs <= cutoff)) frozen.push({ label: '09:40 frozen', result: s940 });
+    if (sCl && (cutoff == null || sCl.startMs <= cutoff)) frozen.push({ label: 'close frozen', result: sCl });
+    // Live, not carried: the fan starts at the chart's live last price (translation only, ≤2% gap).
+    const live = replay.on || !pathQ.data?.result ? null : reanchorPath(pathQ.data.result, lastLive).result;
+    if (!live && !frozen.length) return null;
+    return { live, frozen, bands: prefs.pathBands, density: prefs.pathDensity, opacity: styleSt.style.opacity.path, lineWidth: styleSt.style.lineWidth };
+  }, [pathOn, snapQ.data, pathQ.data, lastLive, prefs.pathHorizon, prefs.pathBands, prefs.pathDensity, replay.on, cutoff, styleSt.style]);
+  const layerStyle = useMemo(() => ({
+    alpha: { em: styleSt.style.opacity.em, gex: styleSt.style.opacity.gex, dp: styleSt.style.opacity.dp, flow: styleSt.style.opacity.flow },
+    pathColor: styleSt.style.color.path, emColor: styleSt.style.color.em,
+  }), [styleSt.style]);
+  const activeTplName = styleSt.activeTemplate ? allTemplates(styleSt).find((t) => t.id === styleSt.activeTemplate)?.name ?? null : null;
+  const pathRes = pathQ.data?.result ?? null;
 
   /* ── dealer nodes: what drawings snap to and what "alert on nearest node" picks ── */
   const [snapOn, setSnapOn] = useState(readSnap);
@@ -673,6 +706,9 @@ export function TvChart({
           <span className="tv-dim" title={`${emData.note}${emData.cone ? `\nCone: ${emData.cone.basis}` : ''}`}>priced range (options) · {emData.daily?.source === 'atm_iv' ? 'ATM IV' : 'ATM straddle'} · {emData.chainSource} · chain {emData.chainAgeSec != null ? `${Math.round(emData.chainAgeSec / 60)}m` : '—'} old{cutoff != null ? ' · hidden in replay' : ''}</span>
         </>
       ), () => set('expMove', false)) : expectedMove && legendRow('em', 'EM 1σ', <span title="Expected move for one session from 20-day realized volatility of daily closes — measured, not option-implied">±{expectedMove.dollars.toFixed(2)} (±{expectedMove.pct.toFixed(2)}%) <span className="tv-dim">20d realized{prefs.expMove && layersOk ? (emQ.isLoading ? ' · options read loading…' : ' · no options priced range') : ''}</span></span>)}
+      {pathOn && legendRow('path', 'Path', pathQ.data?.result ? (
+        <span title={pathQ.data.note}>{PATH_HORIZON_LABEL[prefs.pathHorizon]} · median <b>{(pathDraw?.live ?? pathQ.data.result).points.at(-1)!.p50.toFixed(2)}</b> · 80% {(pathDraw?.live ?? pathQ.data.result).points.at(-1)!.p10.toFixed(2)}–{(pathDraw?.live ?? pathQ.data.result).points.at(-1)!.p90.toFixed(2)} <span className="tv-dim">{PATH_DISCLAIMER} · {pathQ.data.inputs?.regime === 'long' ? 'long γ: nodes pull' : 'short γ: no pull'} · {ageOf(pathQ.data.generatedAt, now)} old</span></span>
+      ) : <span className="tv-dim">{replay.on ? 'replay — frozen 09:40 / close paths only' : pathQ.isLoading ? 'modelling 2,000 paths…' : pathQ.data?.note || (pathQ.isError ? 'path unavailable' : 'no path')}</span>, () => set('path', false))}
       {candlesError && <div className="tv-leg-row tv-warn">Price history unavailable for {symbol} {tfLabel}</div>}
       {candlesLoading && <div className="tv-leg-row tv-dim">loading {symbol} {tfLabel}…</div>}
     </>
@@ -715,7 +751,26 @@ export function TvChart({
           autoCorrect="off" spellCheck={false} enterKeyHint="search"
         />
       </label>
-      <div className="tv-mhead">Dealer positioning</div>
+      {!q && <TemplatesBar st={styleSt} prefs={prefs} onApplied={(n) => setNotice({ text: `Template “${n}” applied` })} />}
+      {!q && (
+        <nav className="tv-gnav" aria-label="Settings sections">
+          {SETTINGS_GROUPS.map((g) => <button type="button" key={g.id} title={g.hint} onClick={() => document.getElementById(`tvs-${g.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>{g.label}</button>)}
+        </nav>
+      )}
+      <div className="tv-mhead" id="tvs-price">Price &amp; candles</div>
+      {!q && (
+        <div className="tv-seg" role="group" aria-label="Chart type">
+          {TYPE_DEFS.map((t) => <button type="button" key={t.id} className={prefs.type === t.id ? 'on' : ''} aria-pressed={prefs.type === t.id} onClick={() => set('type', t.id)}>{t.label}</button>)}
+        </div>
+      )}
+      {!q && (
+        <div className="tv-seg" role="group" aria-label="Price scale mode">
+          {([['normal', 'Linear'], ['log', 'Log'], ['pct', 'Percent']] as const).map(([k, l]) => <button type="button" key={k} className={scale === k ? 'on' : ''} aria-pressed={scale === k} disabled={cmpOn && k !== 'pct'} onClick={() => set('scale', k)}>{l}</button>)}
+        </div>
+      )}
+      {menuRow(prefs.fullVolume, (v) => set('fullVolume', v), 'Volume', null)}
+      {menuRow(extended, (v) => set('extended', v), 'Extended hours (ETH)', intraday ? null : 'intraday timeframes only')}
+            <div className="tv-mhead" id="tvs-dealer">Dealer levels</div>
       {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk.call)}
       {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk.pos)}
       {menuRow(prefs.gex === 'lines', (v) => set('gex', v ? 'lines' : 'off'), 'GEX top strikes (lines)', gexRead ? `snapshot ${ageOf(gexRead.asOf, now)} old` : null, tk.neg)}
@@ -733,12 +788,28 @@ export function TvChart({
       </div>
       {menuRow(prefs.gexLabels, (v) => set('gexLabels', v), 'Apex node labels', 'strike + size of the strongest node')}
       {menuRow(prefs.gexProject, (v) => set('gexProject', v), 'Project nodes forward', 'latest nodes carried past the last candle — not a forecast')}
+      <div className="tv-mhead" id="tvs-projections">Projections</div>
+      {menuRow(prefs.path, (v) => set('path', v), 'Path fan · modelled scenario', layersOk ? '2,000 Monte-Carlo paths from the priced move, GEX nodes, skew — not a forecast' : 'no options layers for this symbol', tk.pos)}
+      {prefs.path && !q && (
+        <>
+          <div className="tv-mseg-row">
+            <span className="tv-mseg-label">Horizon</span>
+            <PathHorizonPill value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />
+          </div>
+          <div className="tv-mseg-row">
+            <span className="tv-mseg-label">Bands</span>
+            <div className="tv-seg" role="radiogroup" aria-label="Path bands">
+              {([['both', '50 + 80%'], ['50', '50%'], ['80', '80%']] as const).map(([k, l]) => <button type="button" role="radio" aria-checked={prefs.pathBands === k} key={k} className={prefs.pathBands === k ? 'on' : ''} onClick={() => set('pathBands', k)}>{l}</button>)}
+            </div>
+          </div>
+          {menuRow(prefs.pathDensity, (v) => set('pathDensity', v), 'Terminal density', "where the modelled paths end, at the fan's right edge")}
+        </>
+      )}
       {menuRow(prefs.expMove, (v) => set('expMove', v), 'Expected move · priced range', 'today / this week lines + √t cone from the ATM straddle', tk.mute)}
-      <div className="tv-mhead">Tape</div>
+      <div className="tv-mhead" id="tvs-flow">Flow</div>
       {menuRow(prefs.dp, (v) => set('dp', v), 'Dark-pool levels', layersOk ? 'Bullflow dark-pool prints, multi-day' : 'no options layers for this symbol', tk.dp)}
       {menuRow(prefs.flow, (v) => set('flow', v), 'Options flow prints', layersOk ? 'calls ● above · puts ◆ below' : 'no options layers for this symbol', tk.call)}
-      <div className="tv-mhead">Indicators</div>
-      {menuRow(prefs.fullVolume, (v) => set('fullVolume', v), 'Volume', null)}
+      <div className="tv-mhead" id="tvs-indicators">Indicators</div>
       {menuRow(prefs.vwap, (v) => set('vwap', v), 'VWAP (session)', intraday ? 'resets each ET session' : 'intraday timeframes only')}
       {menuRow(prefs.keyLevels, (v) => set('keyLevels', v), 'Key levels', idx?.extendedProxy ? 'PDH/PDL/PDC · ORB 15m · overnight H/L (ES-based)' : 'PDH/PDL/PDC · ORB 15m · pre-market H/L')}
       {menuRow(prefs.ema, (v) => set('ema', v), 'EMA 9 / 21', null)}
@@ -754,11 +825,15 @@ export function TvChart({
         {cmpOn && <button type="button" className="tv-btn" onClick={() => setCmpSym(null)} aria-label={`Remove ${cmpSym} comparison`}>Remove</button>}
       </form>
       <small className="tv-msub">Percent scale while a comparison shows</small>
-      <div className="tv-mhead">Session</div>
-      {menuRow(extended, (v) => set('extended', v), 'Extended hours (ETH)', intraday ? null : 'intraday timeframes only')}
+      <div className="tv-mhead" id="tvs-drawings">Drawings</div>
+      {menuRow(prefs.magnet, (v) => set('magnet', v), 'Magnet', 'crosshair and drawing points snap to O/H/L/C')}
+      {menuRow(snapOn, setSnapOn, 'Snap to dealer levels', 'drawing points snap to walls, zero-γ, the Apex node and key levels')}
+      {menuRow(stayDrawing, setStayDrawing, 'Stay in drawing mode', 'keep the tool after placing a drawing')}
       {onSymbolChange && (<><div className="tv-mhead">Panels</div>{menuRow(prefs.watchlist, (v) => set('watchlist', v), 'Watchlist panel', 'click a name to chart it')}</>)}
+      {!q && <><div className="tv-mhead" id="tvs-appearance">Appearance</div><AppearanceSection style={styleSt.style} /></>}
     </div>
   );
+
 
   const settingsMenu = (
     <div className="tv-menu tv-menu-right" role="menu" aria-label="Chart settings">
@@ -880,8 +955,8 @@ export function TvChart({
         </div>
         <span className="tv-sep" />
         <div className="tv-pop">
-          <button type="button" className={`tv-tb tv-labeled${menu === 'ind' ? ' on' : ''}`} onClick={() => toggleMenu('ind')} aria-haspopup="menu" aria-expanded={menu === 'ind'} aria-label="Indicators and layers" title="Indicators, GEX layers, session">
-            <IconIndicators /><span className="tv-desk">Indicators</span><IconChevron className="tv-desk" />
+          <button type="button" className={`tv-tb tv-labeled${menu === 'ind' ? ' on' : ''}`} onClick={() => toggleMenu('ind')} aria-haspopup="menu" aria-expanded={menu === 'ind'} aria-label="Chart settings: layers, projections, indicators, templates" title="Settings — layers, projections, indicators, appearance, templates">
+            <IconIndicators /><span className="tv-desk">Settings</span><IconChevron className="tv-desk" />
           </button>
           {menu === 'ind' && indicatorsMenu}
         </div>
@@ -890,6 +965,7 @@ export function TvChart({
             {HORIZONS.map((h) => <button type="button" role="radio" aria-checked={horizon === h.id} key={h.id} className={horizon === h.id ? 'on' : ''} title={h.long} onClick={() => set('horizon', h.id)}>{h.short}</button>)}
           </div>
         )}
+        {layersOk && prefs.path && <PathHorizonPill className="tv-seg-top tv-desk-flex" value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />}
         {layersOk && prefs.gex === 'bubbles' && (
           <div className="tv-seg tv-seg-top tv-desk-flex" role="radiogroup" aria-label="Node exposure">
             {METRICS.map((m) => <button type="button" role="radio" aria-checked={prefs.gexMetric === m.id} key={m.id} className={prefs.gexMetric === m.id ? 'on' : ''} title={m.long} onClick={() => set('gexMetric', m.id)}>{m.label}</button>)}
@@ -909,7 +985,7 @@ export function TvChart({
 
         <span className="tv-grow" />
         <div className="tv-pop">
-          <button type="button" className={`tv-tb${menu === 'settings' ? ' on' : ''}`} onClick={() => toggleMenu('settings')} aria-haspopup="menu" aria-expanded={menu === 'settings'} aria-label="Chart settings, layouts and more" title="Settings · layouts · shortcuts">
+          <button type="button" className={`tv-tb${menu === 'settings' ? ' on' : ''}`} onClick={() => toggleMenu('settings')} aria-haspopup="menu" aria-expanded={menu === 'settings'} aria-label="More: layouts, tools, snapshot" title="More · layouts · tools">
             <IconSettings className="tv-desk" /><IconMore className="tv-phone-flex" />
           </button>
           {menu === 'settings' && settingsMenu}
@@ -928,6 +1004,11 @@ export function TvChart({
         </div>
         <button type="button" className="tv-tb tv-desk-flex" onClick={() => setMenu('help')} aria-label="Keyboard shortcuts (?)" title="Keyboard shortcuts — ?"><IconKeyboard /></button>
         <button type="button" className={`tv-tb tv-desk-flex${isFull ? ' on' : ''}`} onClick={toggleFull} aria-label={isFull ? 'Exit fullscreen' : 'Fullscreen'} title={isFull ? 'Exit fullscreen' : 'Fullscreen'}><IconFullscreen /></button>
+      </div>
+      <div className="tv-sub" role="region" aria-label="Quick layers and path odds">
+        <QuickChips prefs={prefs} set={set} active={activeTplName} />
+        {layersOk && prefs.path && <PathHorizonPill className="tv-pill-sub" value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />}
+        {pathOn && pathRes && !replay.on && <PathLevelChips r={pathRes} max={typeof matchMedia !== 'undefined' && matchMedia('(max-width: 640px)').matches ? 3 : styleSt.style.labelDensity === 'low' ? 3 : styleSt.style.labelDensity === 'high' ? 12 : 6} />}
       </div>
       {menu && menu !== 'draw' && menu !== 'help' && <div className="tv-scrim" onClick={() => setMenu(null)} />}
 
@@ -1009,6 +1090,8 @@ export function TvChart({
             onToolDone={onToolDone}
             legendExtras={legendExtras}
             describeLayer={describeLayer}
+            path={pathDraw}
+            layerStyle={layerStyle}
           />
 
           {/* ── floating mini-toolbar: edits every selected drawing ── */}
@@ -1206,7 +1289,42 @@ const TV_CSS = `
 .tv-scrim{position:fixed;inset:0;z-index:20}
 .tv-menu{position:absolute;top:36px;left:0;z-index:30;min-width:180px;max-height:min(72dvh,600px);overflow-y:auto;padding:6px;background:var(--tv-panel);border:1px solid var(--tv-line-hi);border-radius:6px;box-shadow:0 12px 32px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:1px}
 .tv-menu-right{left:auto;right:0;width:300px}
-.tv-menu-ind{width:300px}
+.tv-menu-ind{width:360px}
+.tv-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 8px;border-bottom:1px solid var(--tv-line);flex:none;min-height:32px;position:relative;z-index:2}
+.tv-qc{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tv-qc-chip{height:24px;padding:0 10px;border:1px solid var(--tv-line);border-radius:999px;background:transparent;color:var(--tv-mute);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
+.tv-qc-chip.on{border-color:color-mix(in srgb,var(--tv-accent) 55%,transparent);background:color-mix(in srgb,var(--tv-accent) 14%,transparent);color:var(--tv-fg)}
+.tv-qc-chip:focus-visible,.tv-tpl-chip button:focus-visible,.tv-gnav button:focus-visible{outline:2px solid var(--tv-accent);outline-offset:1px}
+.tv-qc-tpl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-mute);padding:0 4px}
+.tv-seg.tv-pill-sub{display:none}
+.tv-seg-lab{align-self:center;padding:0 6px 0 4px;font:700 10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-mute)}
+@media (max-width:1379px){.tv-seg.tv-pill-sub{display:inline-flex!important;margin-left:0}}
+.tv-pchips{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.tv-pchip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:4px;background:var(--tv-panel);color:var(--tv-mute);font:500 11px 'JetBrains Mono',monospace;white-space:nowrap}
+.tv-pchip b{color:var(--tv-fg);font-weight:700}
+.tv-pchip.apex{box-shadow:inset 2px 0 0 var(--tv-info)}
+.tv-pchip.gate{box-shadow:inset 2px 0 0 var(--tv-caution)}
+.tv-pchip.rug{box-shadow:inset 2px 0 0 var(--tv-loss)}
+.tv-pchip.trampoline{box-shadow:inset 2px 0 0 var(--tv-gain)}
+.tv-tpl{flex:none;padding:2px 2px 6px;border-bottom:1px solid var(--tv-line);margin-bottom:4px}
+.tv-tpl-row{display:flex;flex-wrap:wrap;gap:4px;padding:4px}
+.tv-tpl-chip{display:inline-flex;align-items:center;border:1px solid var(--tv-line);border-radius:999px;overflow:hidden}
+.tv-tpl-chip button{height:26px;padding:0 10px;border:0;background:transparent;color:var(--tv-fg);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
+.tv-tpl-chip.on{border-color:var(--tv-accent);background:color-mix(in srgb,var(--tv-accent) 14%,transparent)}
+.tv-tpl-add{color:var(--tv-mute)!important;padding:0 10px!important;height:28px;background:transparent;font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
+.tv-tpl-x{padding:0 8px 0 2px!important;color:var(--tv-mute)!important;border:0;background:transparent;cursor:pointer}
+.tv-gnav{flex:none;position:sticky;top:-6px;z-index:1;display:flex;gap:2px;overflow-x:auto;padding:4px 2px;margin:0 -2px;background:var(--tv-panel);scrollbar-width:none}
+.tv-gnav button{flex:none;height:24px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:var(--tv-mute);font:600 11px 'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap}
+.tv-gnav button:hover{background:var(--tv-hi);color:var(--tv-fg)}
+.tv-mhead[id]{scroll-margin-top:34px}
+.tv-app{flex:none;padding:2px 4px}
+.tv-app-row{display:grid;grid-template-columns:96px 1fr 38px 40px;align-items:center;gap:6px;padding:3px 2px}
+.tv-app-name{font-size:11px;color:var(--tv-fg)}
+.tv-app-row input[type=range]{width:100%;accent-color:var(--tv-accent)}
+.tv-app-val{font-size:11px;color:var(--tv-mute);text-align:right}
+.tv-app-col{display:inline-flex;align-items:center}
+.tv-app-col input[type=color]{width:24px;height:22px;padding:0;border:1px solid var(--tv-line);border-radius:4px;background:transparent}
+@media (max-width:640px){.tv-pchips{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.tv-qc-chip{height:30px}.tv-sub{padding:4px 6px}}
 .tv-mitem{display:flex;align-items:center;gap:10px;justify-content:space-between;height:32px;padding:0 10px;border:0;border-radius:4px;background:transparent;color:var(--tv-fg);font:500 12px 'JetBrains Mono',monospace;cursor:pointer;text-align:left}
 .tv-mitem:hover{background:var(--tv-hi)}
 .tv-mitem.on{color:var(--tv-accent)}

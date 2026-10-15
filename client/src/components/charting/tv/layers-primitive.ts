@@ -18,7 +18,7 @@ import type {
   IChartApi, ISeriesApi, ISeriesPrimitive, ISeriesPrimitiveAxisView, IPrimitivePaneRenderer,
   IPrimitivePaneView, Logical, SeriesAttachedParameter, SeriesType, Time,
 } from 'lightweight-charts';
-import { candleRects, fitText, labelCandidates, placeLabel, type Rect } from './label-layout';
+import { candleRects, fitText, labelCandidates, placeLabel, withLayerAlpha, type Rect } from './label-layout';
 import type { Candle, Zone } from '@/components/charting/chart-engine';
 import type { GexMetric, GexMode } from '@/components/charting/chart-prefs';
 import { fmtUsd, type DpLevel, type FlowPrint, type OverlayPayload } from '@/components/charting/chart-layers';
@@ -38,6 +38,8 @@ export interface LayerColors {
   zone: (c: string | undefined) => string;
   /** Node colours — the GEX hub law (gex-colors LEVEL_COLORS / exposure tokens), not gain/loss. */
   gexPos?: string; gexNeg?: string; vexPos?: string; vexNeg?: string; apex?: string; em?: string; text?: string;
+  /** Per-layer opacity multipliers (Settings → Appearance), 0.1..1. */
+  alpha?: Partial<Record<'em' | 'gex' | 'dp' | 'flow', number>>;
 }
 
 /** Expected-move layer: fixed priced ranges + a forward cone (all from /api/chart/expected-move). */
@@ -319,10 +321,10 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
 
       this.frame.proj = null;
       if (gex === 'bubbles' && (this.bubbles.length || this.vbubbles.length) && n > 1) {
-        this.drawNodes(ctx, w, h, spacing);
+        withLayerAlpha(ctx, c.alpha?.gex, () => this.drawNodes(ctx, w, h, spacing));
       } else this.orbsDrawn = 0;
 
-      if (this.input.em) this.drawEm(ctx, w, spacing);
+      if (this.input.em) withLayerAlpha(ctx, c.alpha?.em, () => this.drawEm(ctx, w, spacing));
 
       const top = this.input.gexTop;
       if (gex === 'lines' && top?.length) {
@@ -346,7 +348,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       }
 
       const lvls = this.dpLevels();
-      if (lvls.length) {
+      if (lvls.length) withLayerAlpha(ctx, c.alpha?.dp, () => {
         const topN = Math.max(...lvls.map((l) => l.notional), 1);
         for (const l of lvls) {
           const yy = series.priceToCoordinate(l.price);
@@ -360,7 +362,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
           this.frame.dp.push({ y, lvl: l });
         }
         ctx.globalAlpha = 1;
-      }
+      });
       ctx.restore();
     });
   }
@@ -641,7 +643,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     const series = this.series;
     this.frame.flow = [];
     if (!series || !flow || !ov || !bars.length) return;
-    target.useMediaCoordinateSpace(({ context: ctx }) => {
+    target.useMediaCoordinateSpace(({ context: ctx }) => withLayerAlpha(ctx, this.colors().alpha?.flow, () => {
       const c = this.colors();
       const prints = ov.flow.prints.filter((p) => cutoff == null || p.time <= cutoff);
       const maxPrem = Math.max(...prints.map((p) => p.premium), 1);
@@ -667,7 +669,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
         this.frame.flow.push({ x, y, r, p });
       }
       ctx.restore();
-    });
+    }));
   }
 
   /** What is under (x, y) in pane pixels — flow marker › dark-pool line › orb › GEX line.

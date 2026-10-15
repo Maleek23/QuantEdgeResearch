@@ -13,6 +13,7 @@
  */
 import { GAMMA_METRIC_DEFS, levelsFor, diffLevels, overlapCount } from '../../../shared/gex-adjusted';
 import { adminHarnessApi } from './admin-fixtures';
+import { etInstant, parsePathHorizon, simulatePath, PATH_DISCLAIMER } from '../../../shared/path-projection';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rng(seed: number) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
@@ -147,6 +148,23 @@ function mockExpectedMove(symbol: string, spot: number) {
     weekly: { anchorSpot: spot, anchorAt: at, key: '2026-10-16', move: w, movePct: +(w / spot * 100).toFixed(2), upper: +(spot + w).toFixed(2), lower: +(spot - w).toFixed(2), expiry: '2026-10-16', source: 'atm_straddle', basis: 'fixture straddle' },
     cone: { fromSpot: spot, perSessionMove: +(w / Math.sqrt(4)).toFixed(2), basis: 'fixture — modelled √t' },
     note: 'TEST HARNESS fixture',
+  };
+}
+/** Synthetic /api/chart/path (TEST HARNESS — the real engine on invented inputs, not market data). */
+function mockPathPayload(symbol: string, horizonRaw: string | null, bars: { time: number; close: number }[], atMs?: number) {
+  const horizon = parsePathHorizon(horizonRaw);
+  const lastMs = (bars[bars.length - 1]?.time ?? Date.now() / 1000) * 1000;
+  const nowMs = atMs ?? lastMs;
+  const at = bars.filter((b) => b.time * 1000 <= nowMs).pop() ?? bars[bars.length - 1];
+  const spot = at?.close ?? 575;
+  const k = (d: number) => Math.round(spot + d);
+  const nodes = [{ strike: k(6), gex: 3.1 }, { strike: k(3), gex: 1.2 }, { strike: k(-2), gex: 0.8 }, { strike: k(-4), gex: -1.4 }, { strike: k(-7), gex: 2.2 }, { strike: k(10), gex: -0.9 }];
+  const levels = [{ name: 'Apex', price: k(6) }, { name: 'Call wall', price: k(10) }, { name: 'Put wall', price: k(-7) }, { name: 'Flip', price: k(-4) }, { name: '+γ node', price: k(3) }, { name: '+γ node', price: k(-2) }];
+  const result = simulatePath({ spot, nowMs, horizon, sessionMove: spot * 0.0078, regime: 'long', nodes, skew: 0.08, levels, paths: 2000, seed: 3 });
+  return {
+    symbol, generatedAt: new Date(Date.now() - 20_000).toISOString(), label: PATH_DISCLAIMER, horizon, result,
+    inputs: { sessionMove: spot * 0.0078, skew: 0.08, regime: 'long', gexHorizon: 'today', nodes: nodes.length, curve: 'fallback', curveSessions: 0, delivered: 0, chainSource: 'TEST HARNESS fixture', events: 0 },
+    note: `TEST HARNESS fixture — ${PATH_DISCLAIMER}`,
   };
 }
 /** Synthetic /api/chart/overlays (TEST HARNESS): GEX timeline, dark pool, flow. */
@@ -558,6 +576,18 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   // Chart drawings: nothing stored server-side in the harness (the device copy is what shows).
   const cd = p.match(/^\/api\/chart\/drawings\/([^/]+)/);
   if (cd) return json(200, { symbol: decodeURIComponent(cd[1]).toUpperCase(), drawings: [], updatedAt: 0, source: 'test_harness_fixture' });
+  const pa = p.match(/^\/api\/chart\/path\/([^/]+)/);
+  if (pa) {
+    const sym = decodeURIComponent(pa[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data;
+    const date = url.searchParams.get('date');
+    if (date) {
+      const t940 = etInstant(date, 580);
+      const snaps = t940 < Date.now() && h.some((b: { time: number }) => b.time * 1000 <= t940) ? { '0940': { session: mockPathPayload(sym, 'session', h, t940), week: mockPathPayload(sym, 'week', h, t940) } } : {};
+      return json(200, { symbol: sym, date, label: PATH_DISCLAIMER, snapshots: snaps });
+    }
+    return json(200, mockPathPayload(sym, url.searchParams.get('horizon'), h));
+  }
+  if (p === '/api/chart/settings') return json(200, { templates: [], style: null, activeTemplate: null, updatedAt: 0, source: 'test_harness_fixture' });
   const em = p.match(/^\/api\/chart\/expected-move\/([^/]+)/);
   if (em) { const sym = decodeURIComponent(em[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockExpectedMove(sym, h[h.length - 1]?.close || 575)); }
   if (p === '/api/flow/tape') return json(200, mockFlowTape(url.searchParams.get('symbol')));

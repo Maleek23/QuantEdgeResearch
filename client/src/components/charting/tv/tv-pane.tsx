@@ -32,6 +32,8 @@ import { readLegend, type LegendLine } from './chart-snapshot';
 import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indicators';
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
+import { PathPrimitive, type PathDraw } from './path-primitive';
+import { tradingMsBetween } from '@shared/path-projection';
 import { guardChart, type ChartGuard } from './chart-guard';
 import { LEVEL_COLORS, exposureVar } from '@/components/gex/gex-colors';
 
@@ -210,6 +212,10 @@ export interface TvPaneProps {
   legendExtras: ReactNode;
   /** Hover tooltip for a layer item (flow print, dark-pool line, orb). */
   describeLayer?: (hit: ReturnType<LayersPrimitive['hit']>) => { text: string; color?: string; bold?: boolean }[] | null;
+  /** Path fan (live + frozen snapshots); null = off. */
+  path?: PathDraw | null;
+  /** Appearance: per-layer opacity and colour overrides. */
+  layerStyle?: { alpha?: LayerColors['alpha']; pathColor?: string; emColor?: string };
 }
 
 const RTH = (b: Candle) => { const m = etInfo(b.time).mins; return m >= 570 && m < 960; };
@@ -220,7 +226,9 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     symbol, tf, tfLabel, intraday, history, extended, cutoff, liveOn, range, fitKey, chartType, scale, magnet,
     showVolume, showMA, showEMA, showVWAP, compare, levels, zones, layers, drawings, selectedId, selectedIds, allHidden, allLocked, tool,
     onSelect, onSelectIds, onCommit, onToolDone, legendExtras, describeLayer, extBars, volumeLabel, proxyLabel, snapLevels, riskDollars,
+    path = null, layerStyle,
   } = props;
+  const layerStyleRef = useRef(layerStyle); layerStyleRef.current = layerStyle;
   const legendRef = useRef<HTMLDivElement>(null);
   const [mode] = useVisualMode();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -255,12 +263,17 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       // Nodes follow the GEX hub colour law (gex-colors.ts), not the candle gain/loss pair.
       gexPos: cssColor(LEVEL_COLORS.callWall, el), gexNeg: cssColor(LEVEL_COLORS.putWall, el),
       vexPos: cssColor(exposureVar('vex', 1), el), vexNeg: cssColor(exposureVar('vex', -1), el),
-      apex: cssColor(LEVEL_COLORS.magnet, el), em: c.info, text: c.text,
+      apex: cssColor(LEVEL_COLORS.magnet, el), em: layerStyleRef.current?.emColor ?? c.info, text: c.text,
+      alpha: layerStyleRef.current?.alpha,
     };
   }, [colors]);
 
   const drawPrim = useMemo(() => new DrawingsPrimitive(drawColors), [drawColors]);
   const layerPrim = useMemo(() => new LayersPrimitive(layerColors), [layerColors]);
+  const pathPrim = useMemo(() => new PathPrimitive(() => {
+    const c = colors(); const fan = layerStyleRef.current?.pathColor ?? c.info;
+    return { fan, median: fan, text: c.text, panel: c.bg, frozen: c.marker, gate: c.caution, rug: c.down, tramp: c.up };
+  }), [colors]);
   const countPrim = useMemo(() => new CountdownPrimitive(() => { const c = colors(); return { up: c.up, down: c.down, ink: c.bg }; }), [colors]);
 
   /* ── bars: history + live forming bar → session filter → replay cut ── */
@@ -357,6 +370,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
           : chartType === 'area' ? chart.addSeries(AreaSeries, { lineColor: c.accent, topColor: withAlpha(c.accent, 0.28), bottomColor: withAlpha(c.accent, 0.02), lineWidth: 2 })
             : chart.addSeries(CandlestickSeries, { upColor: c.up, downColor: c.down, borderVisible: false, wickUpColor: c.up, wickDownColor: c.down });
     guard.attach(s, layerPrim);
+    guard.attach(s, pathPrim);
     guard.attach(s, drawPrim);
     guard.attach(s, countPrim);
     mainRef.current = s;
@@ -368,7 +382,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       // No-ops when the chart's own cleanup already ran (unmount, StrictMode).
       guard.removeSeries(s);
     };
-  }, [chartType, colors, layerPrim, drawPrim, countPrim]);
+  }, [chartType, colors, layerPrim, pathPrim, drawPrim, countPrim]);
 
   /* ── colours follow the visual mode ── */
   useEffect(() => {
@@ -519,7 +533,21 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
 
   /* layers + drawings state into the primitives */
   const tagPrices = useMemo(() => levels.map((l) => l.price), [levels]);
-  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff, tagPrices }); }, [layerPrim, layers, bars, zones, cutoff, mode, tagPrices]);
+  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff, tagPrices }); }, [layerPrim, layers, bars, zones, cutoff, mode, tagPrices, layerStyle]);
+  useEffect(() => { pathPrim.setInput(bars, barMs, path); }, [pathPrim, bars, barMs, path, mode, layerStyle]);
+  // Room for the fan past the last candle: the right offset grows to the path's horizon (capped).
+  const pathSlots = useMemo(() => {
+    const r = path?.live; const last = bars[bars.length - 1]?.time;
+    if (!r || last == null || !barMs) return 0;
+    const ms = tradingMsBetween(last, r.endMs);
+    return barMs >= 20 * 3_600_000 ? ms / 23_400_000 : ms / barMs;
+  }, [path, bars, barMs]);
+  useEffect(() => {
+    const ts = chartRef.current?.timeScale(); if (!ts) return;
+    // At most ~40% of the visible width goes to the future, so the candles stay the subject.
+    const vis = ts.width() > 0 ? ts.width() / Math.max(1, ts.options().barSpacing) : 120;
+    ts.applyOptions({ rightOffset: pathSlots > 0 ? Math.round(Math.max(8, Math.min(pathSlots + 6, vis * 0.4))) : 8 });
+  }, [pathSlots]);
 
   /* ── pointer: place, select, drag ── */
   const toolRef = useRef(tool); toolRef.current = tool;

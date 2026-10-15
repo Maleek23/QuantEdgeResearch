@@ -13,6 +13,7 @@ import { fmtAge } from '@/components/gex/gex-colors';
 import type { TerminalData } from '@/components/gex/gex-model';
 import type { LevelMapPayload } from './chart-levels';
 import type { ChartHorizon } from './chart-prefs';
+import type { PathHorizon, PathResult } from '@shared/path-projection';
 
 export interface FlowPrint {
   time: number; optionType: 'call' | 'put'; strike: number; expiry: string;
@@ -142,6 +143,37 @@ export function useExpectedMove(symbol: string, enabled: boolean, inView: boolea
     },
     enabled: enabled && inView && overlaysSupported(symbol),
     staleTime: 120_000, refetchInterval: inView ? 300_000 : false, retry: 1,
+  });
+}
+
+/* ── Path projection (/api/chart/path — shared/path-projection.ts) ── */
+export interface PathPayload {
+  symbol: string; generatedAt: string; label: string; horizon: PathHorizon; result: PathResult | null; note: string;
+  inputs: null | { sessionMove: number; skew: number; regime: 'long' | 'short' | 'neutral'; gexHorizon: string; nodes: number; curve: 'bars' | 'fallback'; curveSessions: number; delivered: number; chainSource: string | null; events: number };
+}
+export function usePathProjection(symbol: string, horizon: PathHorizon, enabled: boolean, inView: boolean) {
+  return useQuery<PathPayload>({
+    queryKey: ['/api/chart/path', symbol, horizon],
+    queryFn: async ({ signal }) => {
+      const r = await fetch(`/api/chart/path/${encodeURIComponent(symbol)}?horizon=${horizon}`, { credentials: 'include', signal });
+      if (!r.ok) throw new Error(`path HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: enabled && inView && overlaysSupported(symbol),
+    staleTime: 55_000, refetchInterval: inView ? 60_000 : false, retry: 1,
+  });
+}
+/** Frozen 09:40 / close snapshots for a past (or the current) session date. */
+export function usePathSnapshots(symbol: string, date: string | null, enabled: boolean) {
+  return useQuery<{ symbol: string; date: string; snapshots: Partial<Record<'0940' | 'close', Partial<Record<PathHorizon, PathPayload>>>> }>({
+    queryKey: ['/api/chart/path', symbol, 'date', date],
+    queryFn: async () => {
+      const r = await fetch(`/api/chart/path/${encodeURIComponent(symbol)}?date=${date}`, { credentials: 'include' });
+      if (!r.ok) throw new Error(`path snapshots HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: enabled && !!date && overlaysSupported(symbol),
+    staleTime: 300_000, retry: 0,
   });
 }
 

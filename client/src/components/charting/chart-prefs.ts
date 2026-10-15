@@ -30,6 +30,7 @@
 import { useSyncExternalStore } from 'react';
 import { TF_CONFIG } from '@/components/charting/chart-engine';
 import { restoreCustomIntervals } from '@/components/charting/tv/custom-intervals';
+import { parsePathHorizon, type PathHorizon } from '@shared/path-projection';
 
 // Custom intervals (2m, 3h …) must be in TF_CONFIG before a saved `tf` is validated.
 restoreCustomIntervals();
@@ -83,6 +84,14 @@ export interface ChartPrefs {
   horizon: ChartHorizon;
   /** Full chart: expected-move lines (today / this week) + forward cone. */
   expMove: boolean;
+  /** Full chart: Path fan — Monte-Carlo modelled scenario past the last candle (/api/chart/path). */
+  path: boolean;
+  /** Path horizon: session | tomorrow | week | opex. */
+  pathHorizon: PathHorizon;
+  /** Path fan bands drawn: 50% only, 80% only, or both. */
+  pathBands: 'both' | '50' | '80';
+  /** Path: right-edge terminal density. */
+  pathDensity: boolean;
   /** Keys the user explicitly set (the rest follow DEFAULT_CHART_PREFS). */
   setKeys?: (keyof ChartPrefs)[];
 }
@@ -96,6 +105,7 @@ export const DEFAULT_CHART_PREFS: ChartPrefs = {
   tf: '5m', range: '1D', extended: true, gex: 'bubbles', dp: false, flow: false, ma: false, volume: false, type: 'candles',
   walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false, keyLevels: false,
   gexMetric: 'gex', gexLabels: true, gexProject: true, horizon: 'all', expMove: true,
+  path: true, pathHorizon: 'session', pathBands: 'both', pathDensity: true,
 };
 
 function read(): ChartPrefs {
@@ -128,6 +138,8 @@ function read(): ChartPrefs {
         scale: raw.scale === 'log' || raw.scale === 'pct' ? raw.scale : 'normal',
         gexMetric: raw.gexMetric === 'vex' || raw.gexMetric === 'both' ? raw.gexMetric : 'gex',
         horizon: ['today', 'week', 'opex'].includes(raw.horizon) ? raw.horizon : 'all',
+        pathHorizon: parsePathHorizon(raw.pathHorizon),
+        pathBands: raw.pathBands === '50' || raw.pathBands === '80' ? raw.pathBands : 'both',
       };
     }
   } catch { /* storage unavailable — defaults */ }
@@ -141,6 +153,15 @@ export function setChartPref<K extends keyof ChartPrefs>(key: K, value: ChartPre
   if (state[key] === value) return;
   const setKeys = state.setKeys?.includes(key) ? state.setKeys : [...(state.setKeys ?? []), key];
   state = { ...state, [key]: value, setKeys };
+  try { localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
+  listeners.forEach((l) => l());
+}
+/** Several prefs at once (a template switch) — one write, one repaint. */
+export function setChartPrefs(patch: Partial<ChartPrefs>) {
+  const keys = (Object.keys(patch) as (keyof ChartPrefs)[]).filter((k) => k !== 'setKeys' && k in DEFAULT_CHART_PREFS && state[k] !== patch[k]);
+  if (!keys.length) return;
+  const setKeys = [...new Set([...(state.setKeys ?? []), ...keys])];
+  state = { ...state, ...Object.fromEntries(keys.map((k) => [k, patch[k]])), setKeys };
   try { localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
   listeners.forEach((l) => l());
 }

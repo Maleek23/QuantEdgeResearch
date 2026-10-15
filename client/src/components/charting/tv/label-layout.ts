@@ -54,3 +54,18 @@ export function fitText(full: string, short: string | null, avail: number, measu
   if (short && measure(short) <= avail) return short;
   return null;
 }
+
+/**
+ * Run `fn` with every globalAlpha it sets scaled by `mult` (a per-layer opacity
+ * from the Appearance settings) without touching the layer's own alpha logic:
+ * an instance-level accessor shadows the prototype's for the duration only.
+ */
+export function withLayerAlpha(ctx: CanvasRenderingContext2D, mult: number | undefined, fn: () => void): void {
+  if (mult == null || !(mult < 1)) { fn(); return; }
+  const m = Math.max(0.05, mult);
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), 'globalAlpha');
+  if (!desc?.get || !desc.set) { fn(); return; }
+  const get = desc.get; const set = desc.set;
+  Object.defineProperty(ctx, 'globalAlpha', { configurable: true, get: () => (get.call(ctx) as number) / m, set: (v: number) => set.call(ctx, v * m) });
+  try { ctx.globalAlpha = 1; fn(); } finally { delete (ctx as unknown as Record<string, unknown>).globalAlpha; set.call(ctx, 1); }
+}
