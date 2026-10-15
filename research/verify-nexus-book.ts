@@ -470,6 +470,8 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   const status = String(i.outcomeStatus ?? '').toLowerCase();
   const expiryCloseMs = nyWall(day, 960);
   let exitMs = i.exitDate ? Date.parse(i.exitDate) : NaN;
+  // An expiry with no stamped exit time expired at 16:00 ET of its expiry day (fix 9).
+  if (!fin(exitMs) && status === 'expired') { exitMs = expiryCloseMs; base.evidence.exitTimeAssumed = 'expiry 16:00 ET (no exit time recorded)'; }
   if (!fin(exitMs)) return out('UNVERIFIABLE', 'bar_unverifiable', 'no exit time recorded');
   if (exitMs > expiryCloseMs) { base.evidence.exitAfterExpiry = iso(exitMs); exitMs = expiryCloseMs; }
   const snap = readPlanSnapshot(i.convergenceSignalsJson);
