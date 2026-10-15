@@ -31,9 +31,19 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 export type ExitTimeSource = 'bar_hit' | 'deadline' | 'live';
 
-/** Same zone and format the validator has always written exitDate in. */
+/**
+ * The zone exitDate USED to be written in ("…-05:00"). Ledger audit 2026-10-15 fix 9:
+ * 1,421 exit times carried that offset — text comparisons of exit_date against UTC
+ * instants (e.g. "resolved since …") were wrong around midnight UTC. Kept only for
+ * readers that format legacy rows.
+ */
 export const EXIT_DATE_TZ = 'America/Chicago';
+/** Every exit-time writer stamps UTC ISO ("2026-10-15T14:05:00.000Z"). */
 export function formatExitDate(at: Date | number): string {
+  return new Date(at).toISOString();
+}
+/** Legacy display of an instant in the old Chicago-offset format. */
+export function formatExitDateLegacy(at: Date | number): string {
   return formatInTimeZone(new Date(at), EXIT_DATE_TZ, "yyyy-MM-dd'T'HH:mm:ssXXX");
 }
 

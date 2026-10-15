@@ -37,6 +37,7 @@
  * for cents-precise pricing.
  */
 
+import { optionExpiryCloseMs } from '@shared/option-expiry';
 import { storage } from './storage';
 import { getTradierHistoryOHLC } from './tradier-api';
 import { logger } from './logger';
@@ -219,7 +220,8 @@ async function backfillOneTicker(
       // Pre-resolved outcome — backtest reads these directly
       outcomeStatus: outcome,
       exitPrice: exitPremium,
-      exitDate: new Date(exitDate + 'T16:00:00Z').toISOString(),
+      // Fix 9 (ledger audit 2026-10-15): a daily-bar exit is the 16:00 ET close, not 16:00 UTC (noon ET).
+      exitDate: new Date(optionExpiryCloseMs(exitDate)).toISOString(),
       percentGain,
       realizedPnL,
       validatedAt: new Date().toISOString(),

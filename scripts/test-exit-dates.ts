@@ -43,7 +43,7 @@ t('first bar after entry crossing the target is the exit time', () => {
   const p = planExitTiming(idea, { outcomeStatus: 'hit_target', exitPrice: 110 }, bars, NOW, { barInterval: '5m' });
   assert.equal(p.source, 'bar_hit');
   assert.equal(p.exitDate, formatExitDate(Date.parse('2026-09-16T15:30:00Z')));
-  assert.equal(p.exitDate, '2026-09-16T10:30:00-05:00'); // Chicago format kept
+  assert.equal(p.exitDate, '2026-09-16T15:30:00.000Z'); // UTC ISO (ledger audit 2026-10-15 fix 9; was Chicago -05:00)
   assert.equal(p.exitPrice, undefined); // level price is kept by the caller
   assert.equal(p.holdingMinutes, (Date.parse('2026-09-16T15:30:00Z') - Date.parse(ENTRY)) / 60_000);
 });
