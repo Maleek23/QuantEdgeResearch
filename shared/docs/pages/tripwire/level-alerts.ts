@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'level-alerts',
   section: 'reference',
   nav: 'Level alerts',
-  title: 'Tripwire level alerts',
+  title: 'Alerts level alerts',
   description: 'Automatic approach and touch alerts on Apex, Gatekeeper, call and put walls and zero-γ for every symbol on your watchlist.',
-  seoTitle: 'Tripwire level alerts | QuantEdge Docs',
+  seoTitle: 'Alerts level alerts | QuantEdge Docs',
   updated: '2026-10-15',
   blocks: [
     { t: 'h2', text: 'What fires' },
@@ -18,7 +18,7 @@ const page: DocPage = {
     { t: 'h2', text: 'Which levels' },
     { t: 'list', items: [
       'Call wall, put wall and zero-γ from the 0DTE (Today) book, falling back to the all-expiry read.',
-      'Apex and Gatekeeper from [Gravity node labels](/docs/gravity/node-labels).',
+      'Apex and Gatekeeper from [GEX node labels](/docs/gravity/node-labels).',
       'Every symbol on any watchlist, checked every 2 minutes from 09:30 to 16:00 ET on weekdays.',
     ] },
     { t: 'h2', text: 'Delivery and dedupe' },

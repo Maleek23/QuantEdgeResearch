@@ -16,15 +16,15 @@ export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'sectors' | 'leaps' | 'c
 
 export const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'NEXUS' },
-  { id: 'flow',    label: 'CURRENT' },
-  { id: 'gex',     label: 'GRAVITY' },
-  { id: 'chart',   label: 'TRAJECTORY' },
+  { id: 'flow',    label: 'FLOW' },
+  { id: 'gex',     label: 'GEX' },
+  { id: 'chart',   label: 'CHART' },
   { id: 'sectors', label: 'SECTORS' },
-  { id: 'leaps',   label: 'HORIZON' },
+  { id: 'leaps',   label: 'LEAPS & Swings' },
   { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },
-  { id: 'journal',   label: 'LEDGER' },
+  { id: 'journal',   label: 'JOURNAL' },
 ];
 
 /**

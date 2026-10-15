@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'reference',
   section: 'reference',
   nav: 'Scoring',
-  title: 'Horizon scoring reference',
+  title: 'LEAPS & Swings scoring reference',
   description: 'Score weights, grade cut-offs, delta bands and refresh cadence for the LEAP Tracker and the swings screen.',
-  seoTitle: 'Horizon scoring reference | QuantEdge Docs',
+  seoTitle: 'LEAPS & Swings scoring reference | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [
     { t: 'h2', text: 'LEAP Tracker' },

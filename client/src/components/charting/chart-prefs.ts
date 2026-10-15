@@ -92,7 +92,7 @@ export interface ChartPrefs {
   pathBands: 'both' | '50' | '80';
   /** Path: right-edge terminal density. */
   pathDensity: boolean;
-  /** Gravity tags (Gatekeeper / Rug / Trampoline lines). */
+  /** GEX tags (Gatekeeper / Rug / Trampoline lines). */
   gravity: boolean;
   /** Path: the frozen 09:40 / close snapshots. */
   pathFrozen: boolean;

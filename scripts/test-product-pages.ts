@@ -26,10 +26,10 @@ let pass = 0; const fails: string[] = [];
 const ok = (cond: unknown, msg: string) => { if (cond) pass++; else fails.push(msg); };
 
 // 1. coverage
-const REQUIRED = ['NEXUS', 'Zero', 'Gravity', 'Current', 'Trajectory', 'Envelope', 'Horizon', 'Quantinum', 'Quantinum Bot', 'Ledger', 'Tripwire'];
+const REQUIRED = ['NEXUS', '0DTE', 'GEX', 'Flow', 'Chart', 'Expected move', 'LEAPS & Swings', 'Quantinum', 'Quantinum Bot', 'Journal', 'Alerts'];
 for (const n of REQUIRED) ok(PRODUCTS.some((p) => p.name === n), `no product page for ${n}`);
 const navSrc = read('client/src/components/shell/nav-groups.ts');
-for (const n of ['NEXUS', 'Trajectory', 'Current', 'Gravity', 'Horizon', 'Quantinum Bot', 'Ledger', 'Tripwire']) ok(navSrc.includes(`'${n}'`), `nav-groups.ts no longer names ${n}`);
+for (const n of ['NEXUS', 'Chart', 'Flow', 'GEX', 'LEAPS & Swings', 'Quantinum Bot', 'Journal', 'Alerts']) ok(navSrc.includes(`'${n}'`), `nav-groups.ts no longer names ${n}`);
 const frameSrc = read('client/src/components/landing/real-frame.tsx');
 const slugs = PRODUCTS.map((p) => p.slug);
 ok(new Set(slugs).size === slugs.length, 'duplicate product slug');
@@ -59,7 +59,7 @@ const copy = JSON.stringify(PRODUCTS);
 ok(!/\d+(\.\d+)?\s?%\s*(win|hit|accuracy|success)/i.test(copy), 'catalog states a win/hit-rate percentage');
 ok(!/win rate of \d|\d+% of (trades|ideas)|returned \d|\+\$\d/i.test(copy), 'catalog states a performance figure');
 const page = read('client/src/pages/product.tsx');
-ok(page.includes("'Verified results live on Ledger'") || page.includes('Verified results live on Ledger'), 'template lacks the "Verified results live on Ledger" fallback');
+ok(page.includes("'Verified results live on Journal'") || page.includes('Verified results live on Journal'), 'template lacks the "Verified results live on Journal" fallback');
 ok(page.includes('useShowcase'), 'template does not read the public showcase endpoint');
 ok(/n=\{/.test(page), 'template shows a figure without its sample size');
 ok(page.includes('ledgerAsOf') && page.includes('ago('), 'template shows a figure without its age stamp');
@@ -77,8 +77,7 @@ ok(read('client/src/components/landing/landing-chrome.tsx').includes('<ProductsM
 // 5. docs gaps
 ok(/<Route path="\/academy"><Redirect to="\/how-to" \/><\/Route>/.test(app), '/academy does not redirect to /how-to');
 const howTo = read('client/src/pages/how-to.tsx');
-for (const old of ['title="Journal"', 'title="GEX"', 'title="Flow"', 'title="0DTE Desk"']) ok(!howTo.includes(old), `/how-to still uses old name ${old}`);
-for (const name of ['Ledger', 'Gravity', 'Current', 'Zero', 'Tripwire']) ok(howTo.includes(`title="${name}"`), `/how-to has no ${name} card`);
+for (const name of ['Journal', 'GEX', 'Flow', '0DTE', 'Alerts']) ok(howTo.includes(`title="${name}"`), `/how-to has no ${name} card`);
 
 if (fails.length) { console.error(`product pages: ${fails.length} FAIL, ${pass} pass`); fails.forEach((f) => console.error('  FAIL', f)); process.exit(1); }
 console.log(`product pages: ${pass} pass`);

@@ -18,8 +18,8 @@ const page: DocPage = {
     { t: 'p', md: 'Open [NEXUS](/docs/nexus) and choose the **0DTE** view. The desk watches a short list of names (by default SPX, MSTR, META, BE and TSLA).' },
     { t: 'h2', text: 'The per-name panel' },
     { t: 'table', head: ['Layer', 'Comes from', 'What you see'], rows: [
-      ['**Exp. move today**', 'ATM straddle or IV on today\'s chain', 'The ± move the market is pricing for the session. See [Envelope](/docs/envelope).'],
-      ['**Call wall · Put wall · Zero-γ · King node**', 'GEX on today\'s expiry only', 'Single-expiry levels, each linking to [Gravity](/docs/gravity). A footnote states the expiry, contract count and share of gamma modelled.'],
+      ['**Exp. move today**', 'ATM straddle or IV on today\'s chain', 'The ± move the market is pricing for the session. See [Expected move](/docs/envelope).'],
+      ['**Call wall · Put wall · Zero-γ · King node**', 'GEX on today\'s expiry only', 'Single-expiry levels, each linking to [GEX](/docs/gravity). A footnote states the expiry, contract count and share of gamma modelled.'],
       ['**Regime**', 'Net vs gross GEX', 'Positive or negative gamma, with a **near flip** flag within 1% of zero-γ.'],
       ['**VWAP**', '5-minute bars', 'The level, and which side price is on.'],
       ['**Opening range**', '5-minute bars', 'Opening-range breakout state and the first-30-minute high and low.'],

@@ -18,7 +18,7 @@ const page: DocPage = {
     { t: 'h2', text: 'The symbol dossier' },
     { t: 'table', head: ['Layer', 'Comes from', 'What you see'], rows: [
       ['**Price**', 'Quote feeds', 'Last, change, source, session and a stale flag.'],
-      ['**GEX**', '[Gravity](/docs/gravity)', 'Call wall, put wall, zero-γ, regime and wall basis.'],
+      ['**GEX**', '[GEX](/docs/gravity)', 'Call wall, put wall, zero-γ, regime and wall basis.'],
       ['**Engine layers**', 'Every engine with something to say', 'Signed points (+ bullish, − bearish), the reason, and the source.'],
       ['**Unavailable**', 'Engines with no read', 'Listed by name rather than hidden.'],
       ['**Lean**', 'Sum of layer points', 'Mixed, bullish, bearish or quiet.'],

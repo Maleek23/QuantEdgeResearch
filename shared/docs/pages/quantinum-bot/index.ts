@@ -17,9 +17,9 @@ const page: DocPage = {
     { t: 'h2', text: 'What you see' },
     { t: 'table', head: ['Layer', 'Comes from', 'What you see'], rows: [
       ['**Paper Book**', 'Bot status (60-second refresh)', 'Holdings with cash and marks, mark age, brackets, and where each mark sits between stop and target.'],
-      ['**Record**', 'The bot\'s journal on [Ledger](/docs/ledger)', 'Count, wins and losses, realized and open P&L.'],
+      ['**Record**', 'The bot\'s journal on [Journal](/docs/ledger)', 'Count, wins and losses, realized and open P&L.'],
       ['**Automation KPIs**', 'Convictions, outcomes, FRED', 'A win rate only once there are 30+ outcomes with 80%+ coverage.'],
-      ['**Blocked Ledger**', 'Discipline gate', 'Shorts the gate refused, replayed on daily bars.'],
+      ['**Blocked Journal**', 'Discipline gate', 'Shorts the gate refused, replayed on daily bars.'],
       ['**Gates & Rules**', 'Bot rules', 'Every rule, with the file that enforces it.'],
       ['**Activity Log**', 'Bot cycles', 'Every action and every refusal, tallied by reason.'],
     ] },
@@ -34,7 +34,7 @@ const page: DocPage = {
     { t: 'h2', text: 'How to read it' },
     { t: 'list', ordered: true, items: [
       'Read the Record with its count. A short run of wins or losses says little.',
-      'Read the Blocked Ledger to see what the rules cost or saved.',
+      'Read the Blocked Journal to see what the rules cost or saved.',
       'Mark age matters: a stale mark is not the position\'s value.',
     ] },
   ],

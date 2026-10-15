@@ -29,16 +29,16 @@ export const TAB_ICON: Record<Tab, LuxIcon> = {
  *  Quantinum Bot = the paper-trading bot). Labels only; ids and URLs never change. */
 export const TAB_SHORT: Record<Tab, string> = {
   oracle: 'NEXUS',
-  chart: 'Trajectory',
-  flow: 'Current',
-  gex: 'Gravity',
+  chart: 'Chart',
+  flow: 'Flow',
+  gex: 'GEX',
   sectors: 'Sectors',
-  leaps: 'Horizon',
+  leaps: 'LEAPS & Swings',
   crypto: 'Crypto',
   catalyst: 'Catalysts',
   bot: 'Quantinum Bot',
   positions: 'Positions',
-  journal: 'Ledger',
+  journal: 'Journal',
 };
 
 export const TAB_HINT: Record<Tab, string> = {
@@ -58,7 +58,7 @@ export const TAB_HINT: Record<Tab, string> = {
 /** Top-bar titles — the short label, or the product name with its role. */
 export const TAB_TITLE: Record<Tab, string> = { ...TAB_SHORT, oracle: 'NEXUS · Trading desk' };
 
-const PAGE_SHORT: Record<string, string> = { '/how-to': 'Academy', '/alerts': 'Tripwire' };
+const PAGE_SHORT: Record<string, string> = { '/how-to': 'Academy', '/alerts': 'Alerts' };
 const PAGE_HINT: Record<string, string> = {
   '/today': 'Morning brief — dealer map and best ideas',
   '/alerts': 'Alerts — price, level and idea',

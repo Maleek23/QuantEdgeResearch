@@ -139,7 +139,7 @@ function SearchDialog({ open, onClose }: { open: boolean; onClose: () => void })
         <ul id="qd-cmdk-list" role="listbox" className="qd-cmdk-list">
           {!q.trim() && <li role="presentation" className="qd-cmdk-g">Modules</li>}
           {q.trim() && shown.length === 0 && (
-            <li className="qd-cmdk-empty">Nothing matches “{q}”. Try a module (Gravity, Ledger) or a term (zero-gamma, 0DTE, R).</li>
+            <li className="qd-cmdk-empty">Nothing matches “{q}”. Try a module (GEX, Journal) or a term (zero-gamma, 0DTE, R).</li>
           )}
           {shown.map((d, i) => (
             <li key={d.href + i} role="presentation">

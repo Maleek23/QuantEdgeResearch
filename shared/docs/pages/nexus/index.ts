@@ -27,7 +27,7 @@ const page: DocPage = {
       ['**Tracked Symbols**', 'Levels engine, Bullflow net premium', 'Live quote, nearest support and resistance, today\'s options net premium and any open ideas.'],
       ['**Rotation Strip**', 'Sector-ignition engine', 'Peer groups moving from quiet to stirring, igniting, then extended.'],
       ['**Market Context**', 'Market pulse, 10Y / TLT / VIX', 'The regime, a macro gauge and the side the regime prefers.'],
-      ['**Book by Horizon**', 'Each idea\'s holding window', 'Ideas grouped as 0DTE, weekly, swing, monthly, position and LEAPS.'],
+      ['**Book by LEAPS & Swings**', 'Each idea\'s holding window', 'Ideas grouped as 0DTE, weekly, swing, monthly, position and LEAPS.'],
       ['**Trader Calls**', 'Imported trader journals', 'Recent calls from ranked traders. Evidence only: not scored into conviction and not used by the bot.'],
     ] },
     { t: 'h2', text: 'Conviction: how much evidence lines up' },
@@ -47,7 +47,7 @@ const page: DocPage = {
       'Check the grade: a high band with a low grade usually means the setup is stale or its window is nearly over.',
       'Open Setup Detail and read the layers. A score carried by one layer is weaker than one spread across many.',
       'Check the stamps. Publish-time prices are repriced live or shown with their age.',
-      'For how setups have actually resolved, use [Ledger](/docs/ledger), where every result carries its sample size.',
+      'For how setups have actually resolved, use [Journal](/docs/ledger), where every result carries its sample size.',
     ] },
   ],
 };

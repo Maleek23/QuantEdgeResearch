@@ -64,7 +64,7 @@ export const STYLE_LAYERS = ['path', 'em', 'gex', 'walls', 'dp', 'flow'] as cons
 export type StyleLayer = typeof STYLE_LAYERS[number];
 export const STYLE_LAYER_LABEL: Record<StyleLayer, string> = { path: 'Path fan', em: 'Expected move', gex: 'GEX orbs', walls: 'Walls & flip', dp: 'Dark pool', flow: 'Flow prints' };
 export type LabelDensity = 'low' | 'normal' | 'high';
-/** Trajectory Path look: 'clean' (dot trail, hairline 80% outline, one glowing target, detail on hover — default)
+/** Chart Path look: 'clean' (dot trail, hairline 80% outline, one glowing target, detail on hover — default)
  *  or 'detailed' (filled 50/80% fans, median line, density, always-on tags). */
 export type PathStyle = 'clean' | 'detailed';
 export const PATH_STYLES: { id: PathStyle; label: string; hint: string }[] = [

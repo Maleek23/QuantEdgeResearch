@@ -8,7 +8,7 @@
  *
  * Facts come from the docs field guides (shared/docs/pages/<module>). Never put
  * a performance number in here — the "How it has performed" block reads live
- * verified figures from /api/public/showcase or links to Ledger.
+ * verified figures from /api/public/showcase or links to Journal.
  */
 
 /** Which real app screen the hero frame shows (client/src/components/landing/real-frame.tsx). */
@@ -18,7 +18,7 @@ export type ProductShot = 'nexus' | 'zerodte' | 'flow' | 'gex' | 'chart' | 'leap
  * Where "How it has performed" comes from:
  *  - 'nexus-record' — the bar-verified NEXUS ideas record (/api/public/showcase → record)
  *  - 'bot-record'   — the Quantinum Bot paper record (/api/public/showcase → bot)
- *  - 'ledger'       — no public endpoint for this module: link to Ledger only
+ *  - 'ledger'       — no public endpoint for this module: link to Journal only
  */
 export type ProductProof = 'nexus-record' | 'bot-record' | 'ledger';
 

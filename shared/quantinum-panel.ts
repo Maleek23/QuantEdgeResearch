@@ -10,7 +10,7 @@ import type { AskTarget } from './quantinum-ai';
 const SYM = /^[A-Z][A-Z0-9.^-]{0,9}$/;
 const TAB = /^[a-z0-9_-]{1,32}$/i;
 const TAB_NAME: Record<string, string> = {
-  gex: 'Gravity (GEX)', flow: 'Current (flow)', chart: 'Trajectory (chart)', journal: 'Ledger', leaps: 'Horizon', bot: 'Bot', nexus: 'NEXUS',
+  gex: 'GEX', flow: 'Flow', chart: 'Chart', journal: 'Journal', leaps: 'LEAPS & Swings', bot: 'Bot', nexus: 'NEXUS',
 };
 
 /** Ask target for any app page: /r/:sym, ?sym=, ?tab=. Null on /ask or with nothing to say. Pure. */

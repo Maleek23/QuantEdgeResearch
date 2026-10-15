@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'reference',
   section: 'reference',
   nav: 'GEX math',
-  title: 'Gravity math and definitions',
-  description: 'How Gravity computes GEX, VEX, the walls, the regime and the zero-gamma flip, and the assumptions behind each.',
-  seoTitle: 'Gravity GEX math | QuantEdge Docs',
+  title: 'GEX math and definitions',
+  description: 'How GEX computes GEX, VEX, the walls, the regime and the zero-gamma flip, and the assumptions behind each.',
+  seoTitle: 'GEX GEX math | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [
     { t: 'h2', text: 'Formulas' },
@@ -28,7 +28,7 @@ const page: DocPage = {
     { t: 'h2', text: 'Cadence and sources' },
     { t: 'list', items: [
       'Chains from Alpaca, or the CBOE delayed feed.',
-      'Gravity tiles refetch every 2–3 minutes.',
+      'GEX tiles refetch every 2–3 minutes.',
       'Δ-adjusted GEX re-measures exposure for a real ±1% move; it can shift walls by a strike or two versus the raw estimate.',
     ] },
   ],

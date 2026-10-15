@@ -108,7 +108,7 @@ export function PathHorizonPill({ value, onChange, className = '' }: { value: Pa
   );
 }
 
-/** Settings → Projections: Clean (default) vs Detailed look for the Trajectory Path. */
+/** Settings → Projections: Clean (default) vs Detailed look for the Chart Path. */
 export function PathStyleRow({ value }: { value: PathStyle }) {
   return (
     <div className="tv-mseg-row">

@@ -25,7 +25,7 @@ let pass = 0; const fails: string[] = [];
 const ok = (cond: unknown, msg: string) => { if (cond) pass++; else fails.push(msg); };
 
 // 1. coverage
-const REQUIRED = ['NEXUS', 'Zero', 'Gravity', 'Current', 'Trajectory', 'Envelope', 'Horizon', 'Ledger', 'Tripwire', 'Quantinum', 'Quantinum Bot', 'Academy'];
+const REQUIRED = ['NEXUS', '0DTE', 'GEX', 'Flow', 'Chart', 'Expected move', 'LEAPS & Swings', 'Journal', 'Alerts', 'Quantinum', 'Quantinum Bot', 'Academy'];
 for (const name of REQUIRED) ok(DOC_MODULES.some((m) => m.name === name), `no docs module named ${name}`);
 for (const m of DOC_MODULES) {
   const guide = getPage(m.id);
@@ -73,7 +73,7 @@ ok(searchDocs(idx, 'qwxzv').length === 0, 'nonsense query returns results');
 // 4. markdown
 const g = getPage('gravity')!;
 const md = pageToMarkdown(g);
-ok(md.startsWith('# Gravity field guide'), 'markdown does not start with the H1');
+ok(md.startsWith('# GEX field guide'), 'markdown does not start with the H1');
 ok(md.includes('| Layer | Comes from | What you see |'), 'markdown lost the reference table');
 ok(md.includes('https://quantedgelabs.net/docs/gravity'), 'markdown has no source link');
 ok(pageToMarkdown(getPage('platform', 'glossary')!).includes('Call wall'), 'glossary markdown is empty');

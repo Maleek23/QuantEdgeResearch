@@ -23,7 +23,7 @@ const page: DocPage = {
     { t: 'h2', text: 'Conviction layer families' },
     { t: 'table', head: ['Layer', 'Comes from', 'What you see'], rows: [
       ['Technical · Signals · Structure · Weekly', 'Price bars and the pattern scanner', 'Trend, breakouts, compression and weekly structure.'],
-      ['GEX · Convergence', '[Gravity](/docs/gravity) and [Current](/docs/current)', 'Dealer positioning and flow agreeing with the setup\'s side.'],
+      ['GEX · Convergence', '[GEX](/docs/gravity) and [Current](/docs/current)', 'Dealer positioning and flow agreeing with the setup\'s side.'],
       ['Sector · Regime · Breadth · Macro', 'Sector rotation, market pulse, rates and VIX', 'Whether the tape around the name supports it.'],
       ['Catalyst · Analyst · Fundamental · Geopolitical', 'Calendars, news and fundamentals', 'Dated events and background quality.'],
       ['Pre-market · Freshness', 'Extended-hours quotes, publish time', 'The pre-market gap as a direction read, and how old the setup is.'],

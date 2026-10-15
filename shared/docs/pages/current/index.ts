@@ -28,7 +28,7 @@ const page: DocPage = {
       ['**Repeat & Position Builders**', 'Flow repeats and exits', 'Open interest building or unwinding across sessions.'],
       ['**Market Flow Tide**', 'SPY net premium series', 'Cumulative call vs put net premium for SPY — a market proxy.'],
       ['**Flow by Strike / Expiry / Time**', 'Per-ticker tape', 'Call vs put premium per strike, per expiry and per 5-minute bin.'],
-      ['**Flow × GEX Convergence**', 'Flow tape + [Gravity](/docs/gravity)', 'Traded premium drawn against walls, the magnet and the flip.'],
+      ['**Flow × GEX Convergence**', 'Flow tape + [GEX](/docs/gravity)', 'Traded premium drawn against walls, the magnet and the flip.'],
       ['**Dark Pool**', 'Bullflow dark-pool prints', 'About 28 days of prints summed by price, or today\'s prints of $1M+. Levels, not direction.'],
     ] },
     { t: 'h2', text: 'How to read it' },
@@ -36,7 +36,7 @@ const page: DocPage = {
       'Sort by **SigScore** to see the biggest, most aggressive, most repeated prints first. It orders prints; it is not a probability or a direction.',
       'Check the source tag. A Bullflow row cannot score above 0.80 because it has no open-interest data.',
       'Look for repeats and OI building across sessions — one print is weak evidence.',
-      'Line flow up with Gravity: premium traded into a wall reads differently from premium traded through the flip.',
+      'Line flow up with GEX: premium traded into a wall reads differently from premium traded through the flip.',
     ] },
   ],
 };

@@ -6,7 +6,7 @@ const page: DocPage = {
   section: 'reference',
   nav: 'Path parameters',
   title: 'Path projection parameters',
-  description: 'The parameters behind the Trajectory Path fan: path count, volatility model, node pull, skew, horizons and chart defaults.',
+  description: 'The parameters behind the Chart Path fan: path count, volatility model, node pull, skew, horizons and chart defaults.',
   seoTitle: 'Path projection parameters | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [

@@ -28,7 +28,7 @@ const page: DocPage = {
       'Read the daily workflow once, then keep the [Glossary](/docs/platform/glossary) open.',
       'When a desk shows something unfamiliar, open its field guide here — each one has a reference table.',
     ] },
-    { t: 'callout', kind: 'note', md: 'Some how-to cards still use older names (for example "Journal" for Ledger). The docs use the current product names.' },
+    { t: 'callout', kind: 'note', md: 'Some how-to cards still use older names (for example "Journal" for Journal). The docs use the current product names.' },
   ],
 };
 export default page;

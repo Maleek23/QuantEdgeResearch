@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'cones',
   section: 'reference',
   nav: '1σ / 2σ cones',
-  title: 'Envelope cones: 1σ, 2σ and move vs priced',
+  title: 'Expected move cones: 1σ, 2σ and move vs priced',
   description: 'How the shaped 68% and 95% cones are built from the options-priced move, intraday variance and skew, and how the 09:40 cone is frozen.',
-  seoTitle: 'Envelope 1σ / 2σ cones | QuantEdge Docs',
+  seoTitle: 'Expected move 1σ / 2σ cones | QuantEdge Docs',
   updated: '2026-10-15',
   blocks: [
     { t: 'callout', kind: 'note', md: 'Every cone is **modelled**: a range built from what the options market prices, not a forecast of where price goes.' },

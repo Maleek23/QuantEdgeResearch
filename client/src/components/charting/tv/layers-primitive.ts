@@ -49,7 +49,7 @@ export interface EmDraw {
   cone: { perSessionMove: number } | null;
   /** ms of trading time in one session (390 min); daily bars count as one session each. */
   sessionMs: number;
-  /** Envelope v2: shaped 1σ/2σ cone as offsets from its spot, by trading ms ahead (replaces the √t cone). */
+  /** Expected move v2: shaped 1σ/2σ cone as offsets from its spot, by trading ms ahead (replaces the √t cone). */
   envelope?: { label: string; points: { tm: number; u1: number; l1: number; u2: number; l2: number }[] } | null;
 }
 
@@ -650,7 +650,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     ctx.globalAlpha = 1;
   }
 
-  /** Envelope v2: 2σ band (faint) + 1σ band, edges dashed, shaped by the intraday variance curve + skew. */
+  /** Expected move v2: 2σ band (faint) + 1σ band, edges dashed, shaped by the intraday variance curve + skew. */
   private drawEnvelope(ctx: CanvasRenderingContext2D, w: number, spacing: number, xL: number, center: number,
     env: NonNullable<EmDraw['envelope']>, col: string) {
     const series = this.series; if (!series) return;

@@ -53,7 +53,7 @@ export type PublicPath = keyof typeof PUBLIC_PAGE_META;
 export const DOCS_PAGE_META: Record<string, PublicPageMeta & { updated?: string }> = {
   '/docs': {
     title: 'QuantEdge Docs | Field Guides for Every Desk',
-    description: 'Field guides and reference tables for every QuantEdge desk: NEXUS, Gravity, Current, Trajectory, Ledger and more. Educational, not advice.',
+    description: 'Field guides and reference tables for every QuantEdge desk: NEXUS, GEX, Current, Chart, Journal and more. Educational, not advice.',
     updated: '2026-10-14',
   },
   ...Object.fromEntries(docRoutes().map(({ path, page }) => [path, { title: page.seoTitle, description: page.description, updated: page.updated }])),

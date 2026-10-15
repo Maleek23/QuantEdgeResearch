@@ -46,7 +46,7 @@ export default function HowToPage() {
             time="DURING MARKET (9:30 AM – 4:00 PM)"
             actions={[
               { url: '/r/QCOM', label: 'Research → /r/[ticker]', why: 'Per-ticker chart, options, GEX, flow — all in one' },
-              { url: '/t?tab=gex', label: 'Gravity (GEX)',     why: 'Dealer walls — levels to plan around, not guarantees' },
+              { url: '/t?tab=gex', label: 'GEX',     why: 'Dealer walls — levels to plan around, not guarantees' },
             ]}
           />
           <Step
@@ -64,17 +64,17 @@ export default function HowToPage() {
           <PageCard icon={Home}       url="/t"      title="NEXUS"           desc="The trading desk — ranked setups, setup detail, horizon book" />
           <PageCard icon={Target}     url="/today"  title="Today"           desc="Weekly dealer map, the best idea and the ranked book" />
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="Crypto"    desc="BTC/ETH reads and the equity proxies that follow them" />
-          <PageCard icon={Zap}        url="/t?tab=gex" title="Gravity"      desc="GEX — dealer positioning — walls, zero-γ, VEX, squeeze radar" />
-          <PageCard icon={Zap}        url="/t?tab=flow" title="Current"     desc="Options flow — sweeps, blocks, market tide, dark-pool levels" />
-          <PageCard icon={Target}     url="/t?nx=0dte" title="Zero"         desc="The 0DTE desk — same-day index context — levels, dealer map, flow" />
+          <PageCard icon={Zap}        url="/t?tab=gex" title="GEX"      desc="Dealer positioning — walls, zero-γ, VEX, squeeze radar" />
+          <PageCard icon={Zap}        url="/t?tab=flow" title="Flow"        desc="Options flow — sweeps, blocks, market tide, dark-pool levels" />
+          <PageCard icon={Target}     url="/t?nx=0dte" title="0DTE"         desc="The 0DTE desk — same-day index context — levels, dealer map, flow" />
           <PageCard icon={Target}     url="/t?tab=bot" title="Quantinum Bot" desc="The paper-trading bot — every simulated fill on a public ledger" />
-          <PageCard icon={Target}     url="/t?tab=chart" title="Trajectory" desc="Chart + Path projection — levels, walls and a modelled price fan" />
-          <PageCard icon={Target}     url="/t?tab=leaps" title="Horizon"   desc="LEAPS & swings — 30 days to a year, screened" />
-          <PageCard icon={Target}     url="/alerts" title="Tripwire"        desc="Alerts — idea state changes and level crosses" />
+          <PageCard icon={Target}     url="/t?tab=chart" title="Chart" desc="Chart + Path projection — levels, walls and a modelled price fan" />
+          <PageCard icon={Target}     url="/t?tab=leaps" title="LEAPS & Swings"   desc="LEAPS & swings — 30 days to a year, screened" />
+          <PageCard icon={Target}     url="/alerts" title="Alerts"        desc="Alerts — idea state changes and level crosses" />
           <PageCard icon={Target}     url="/ask"    title="Quantinum"       desc="The AI analyst — every engine on one symbol, sourced" />
           <PageCard icon={Microscope} url="/r/SPY"  title="Ticker Page"     desc="One page per ticker — Quantinum read, chart, options, GEX" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
-          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Ledger"   desc="Verified journal — broker import · insights · loss analysis · track record · trader journals" />
+          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"   desc="Verified journal — broker import · insights · loss analysis · track record · trader journals" />
         </div>
       </Section>
 

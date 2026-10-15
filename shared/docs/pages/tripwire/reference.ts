@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'reference',
   section: 'reference',
   nav: 'Settings',
-  title: 'Tripwire settings reference',
-  description: 'Every Tripwire alert type and default, where preferences are stored, and when level-cross alerts are checked.',
-  seoTitle: 'Tripwire settings reference | QuantEdge Docs',
+  title: 'Alerts settings reference',
+  description: 'Every Alerts alert type and default, where preferences are stored, and when level-cross alerts are checked.',
+  seoTitle: 'Alerts settings reference | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [
     { t: 'h2', text: 'Defaults' },

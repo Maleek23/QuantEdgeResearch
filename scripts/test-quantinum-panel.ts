@@ -17,7 +17,7 @@ const eq = (a: unknown, b: unknown, m: string) => { assert.deepEqual(a, b, m); n
 const g = pageAskTarget('/t', '?tab=gex&sym=spy');
 eq(g?.symbol, 'SPY', 'symbol from ?sym=');
 eq(g?.page, '/t?tab=gex&sym=SPY', 'page keeps tab + symbol');
-ok(g?.label?.includes('Gravity'), 'tab named with the product name');
+ok(g?.label?.includes('GEX'), 'tab named with the product name');
 eq(pageAskTarget('/r/nvda', '')?.kind, 'ticker', '/r/:sym → ticker');
 eq(pageAskTarget('/r/nvda', '')?.symbol, 'NVDA', 'ticker symbol');
 eq(pageAskTarget('/ask', '?sym=SPY'), null, 'no target on /ask itself');

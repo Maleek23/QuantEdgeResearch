@@ -9,7 +9,7 @@
  * The product shot is the REAL app (RealFrame: the actual route on the dev-harness
  * sample fixtures, or a real capture) — never a recreation. "How it has performed"
  * shows only verified figures from /api/public/showcase with n, source and age;
- * modules without a public record link to Ledger. No number is hardcoded here.
+ * modules without a public record link to Journal. No number is hardcoded here.
  *
  * Styles: styles/landing-v2.css + styles/product-pages.css.
  */
@@ -58,10 +58,10 @@ const day = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : '—')
 const pct = (r: number) => `${Math.round(r * 1000) / 10}%`;
 
 const LEDGER_LINK = (
-  <Link href={productPath('ledger')} className="lv2-btn ghost" data-testid="perf-ledger-link">Open Ledger <ArrowRight size={16} aria-hidden="true" /></Link>
+  <Link href={productPath('ledger')} className="lv2-btn ghost" data-testid="perf-ledger-link">Open Journal <ArrowRight size={16} aria-hidden="true" /></Link>
 );
 
-/** "How it has performed" — verified figures only, each with n, source and age; else the Ledger link. */
+/** "How it has performed" — verified figures only, each with n, source and age; else the Journal link. */
 function Performance({ product }: { product: Product }) {
   const live = product.proof !== 'ledger';
   const { data, failed } = useShowcase(live);
@@ -133,7 +133,7 @@ function Performance({ product }: { product: Product }) {
         <div className="pp-perf" data-testid="perf-block" data-proof={product.proof}>
           {body ?? (
             <p className="pp-perf-empty" data-testid="perf-ledger-text">
-              {live && !data && !failed ? 'Loading the verified record…' : 'Verified results live on Ledger'}
+              {live && !data && !failed ? 'Loading the verified record…' : 'Verified results live on Journal'}
               {live && !data && !failed ? null : <span> — every outcome re-checked against price bars, always shown with its sample size.</span>}
             </p>
           )}

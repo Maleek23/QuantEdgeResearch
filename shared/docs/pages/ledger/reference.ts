@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'reference',
   section: 'reference',
   nav: 'Verification',
-  title: 'Ledger verification reference',
-  description: 'When the Ledger verification job runs, which rows it excludes, and the sizing rules every row uses.',
-  seoTitle: 'Ledger verification reference | QuantEdge Docs',
+  title: 'Journal verification reference',
+  description: 'When the Journal verification job runs, which rows it excludes, and the sizing rules every row uses.',
+  seoTitle: 'Journal verification reference | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [
     { t: 'h2', text: 'Verification schedule' },

@@ -4,7 +4,7 @@
  * and age; a rate below its minimum sample is printed as "Withheld"; when a
  * section has no data it says so. No number is hardcoded here.
  *
- *   Ledger record   GET /api/public/showcase → record (bar-verified NEXUS book
+ *   Journal record   GET /api/public/showcase → record (bar-verified NEXUS book
  *                   since the 2026-08-26 baseline; earlier outcomes are invalid
  *                   and never counted) + bot (paper)
  *   Path            GET /api/public/path-calibration (server/path-calibration.ts):
@@ -119,7 +119,7 @@ export default function ProofPage() {
 
         <section className="lv2-sec pp-sec" aria-labelledby="pf-path">
           <div className="lv2-wrap">
-            <header className="lv2-head"><p className="lv2-eyebrow">Trajectory</p><h2 id="pf-path">Path calibration</h2></header>
+            <header className="lv2-head"><p className="lv2-eyebrow">Chart</p><h2 id="pf-path">Path calibration</h2></header>
             <div className="pp-perf" data-testid="proof-path" data-status={c?.status ?? 'loading'}>
               {c?.status === 'ready' && c.in50 != null && c.in80 != null ? (
                 <>

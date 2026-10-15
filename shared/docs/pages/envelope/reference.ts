@@ -5,9 +5,9 @@ const page: DocPage = {
   slug: 'reference',
   section: 'reference',
   nav: 'Formulas',
-  title: 'Envelope formulas',
-  description: 'How Envelope computes the daily and weekly expected move and the forward cone, and which chain each reads.',
-  seoTitle: 'Envelope formulas | QuantEdge Docs',
+  title: 'Expected move formulas',
+  description: 'How Expected move computes the daily and weekly expected move and the forward cone, and which chain each reads.',
+  seoTitle: 'Expected move formulas | QuantEdge Docs',
   updated: '2026-10-14',
   blocks: [
     { t: 'h2', text: 'Formulas' },

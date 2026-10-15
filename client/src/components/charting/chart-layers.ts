@@ -133,7 +133,7 @@ export interface EmLine { anchorSpot: number; anchorAt: string; key: string; mov
 export interface ExpectedMovePayload {
   symbol: string; generatedAt: string; label: string; spot: number | null; chainSource: string | null; chainAgeSec: number | null;
   daily: EmLine | null; weekly: EmLine | null; cone: null | { fromSpot: number; perSessionMove: number; basis: string }; note: string;
-  /** Envelope v2 (server/envelope.ts) — modelled 1σ/2σ cones; absent when the flag is off. */
+  /** Expected move v2 (server/envelope.ts) — modelled 1σ/2σ cones; absent when the flag is off. */
   envelope?: EnvelopePayload | null;
 }
 export type EnvelopePayload = {

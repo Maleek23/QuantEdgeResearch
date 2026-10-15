@@ -360,7 +360,7 @@ export function TvChart({
     };
   }, [prefs.gex, layersOk, ov, cutoff, now, intraday, range, sessionBars]);
 
-  // Gravity labels (flag GRAVITY_LABELS): Gatekeeper / Rug / Trampoline tags + Halo, from the
+  // GEX labels (flag GRAVITY_LABELS): Gatekeeper / Rug / Trampoline tags + Halo, from the
   // same per-strike timeline the orbs draw (shared/gravity-nodes.ts). Hidden in replay.
   const gravityRows = useMemo((): Level[] => {
     if (!clientFlag('GRAVITY_LABELS') || !prefs.gravity || !ov || cutoff != null) return [];
@@ -382,7 +382,7 @@ export function TvChart({
     return [...allLevels, ...fresh];
   }, [allLevels, gravityRows]);
 
-  // Envelope v2 (flag ENVELOPE_V2): which cone the chart draws — Today on intraday, Week on daily+.
+  // Expected move v2 (flag ENVELOPE_V2): which cone the chart draws — Today on intraday, Week on daily+.
   const [envH, setEnvH] = useState<EnvelopeHorizon | null>(null);
   const envHorizon: EnvelopeHorizon = envH ?? (intraday ? 'today' : 'week');
   const envCone = useMemo(() => (clientFlag('ENVELOPE_V2') ? emData?.envelope?.cones.find((c) => c.horizon === envHorizon) ?? null : null), [emData, envHorizon]);
@@ -749,7 +749,7 @@ export function TvChart({
           {emData.weekly && <span title={`${emData.weekly.basis}\nAnchored at ${emData.weekly.anchorSpot.toFixed(2)} (${new Date(emData.weekly.anchorAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET) — fixed to ${emData.weekly.expiry}`}>week ±<b>{emData.weekly.move.toFixed(2)}</b> ({emData.weekly.movePct.toFixed(2)}%)</span>}
           {envCone && emData.envelope && (
             <span className="tv-env" title={emData.envelope.note}>
-              <select className="tv-env-sel" aria-label="Envelope cone horizon" value={envHorizon} onChange={(e) => setEnvH(parseEnvelopeHorizon(e.target.value))}>
+              <select className="tv-env-sel" aria-label="Expected move cone horizon" value={envHorizon} onChange={(e) => setEnvH(parseEnvelopeHorizon(e.target.value))}>
                 {ENVELOPE_HORIZONS.map((h) => <option key={h} value={h}>{ENVELOPE_LABEL[h]}</option>)}
               </select>
               {' '}1σ +<b>{envCone.up1.toFixed(2)}</b>/−<b>{envCone.dn1.toFixed(2)}</b> · 2σ +{envCone.up2.toFixed(2)}/−{envCone.dn2.toFixed(2)}

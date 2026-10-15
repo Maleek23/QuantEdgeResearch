@@ -13,10 +13,10 @@ const page: DocPage = {
     { t: 'h2', text: 'Open it' },
     { t: 'list', items: [
       'Press **⌘\\** (Mac) or **Ctrl+\\** (Windows) on any signed-in page, or tap the Ask Quantinum button.',
-      'It is the same conversation as the [/ask](/ask) page, so a thread started on Gravity is still there on NEXUS.',
+      'It is the same conversation as the [/ask](/ask) page, so a thread started on GEX is still there on NEXUS.',
     ] },
     { t: 'h2', text: 'Page context' },
-    { t: 'p', md: 'The panel sends the page you are on with each question: the route, the tab (Gravity, Current, Trajectory, Ledger…) and the symbol in the URL or in focus. The header shows what it is reading.' },
+    { t: 'p', md: 'The panel sends the page you are on with each question: the route, the tab (GEX, Current, Chart, Journal…) and the symbol in the URL or in focus. The header shows what it is reading.' },
     { t: 'h2', text: 'Push back' },
     { t: 'list', items: [
       '**Re-check** asks the same question again on fresh data and lists what changed.',
