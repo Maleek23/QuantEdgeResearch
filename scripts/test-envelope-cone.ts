@@ -67,4 +67,16 @@ ok(flagOn('ENVELOPE_V2') === true, 'default ON');
 ok(flagOn('ENVELOPE_V2', { env: { FLAG_ENVELOPE_V2: 'off' } }) === false, 'env off');
 ok(flagOn('ENVELOPE_V2', { storage: { getItem: () => '0' } }) === false, 'storage off');
 
+// 7) holidays + events
+const thx = buildCone({ spot: 600, nowMs: etInstant('2026-11-25', 1000), sessionMove: 6 }, 'today');
+ok(thx.sessions[0] === '2026-11-27', 'Thanksgiving skipped: next session is Friday');
+const now7 = etInstant(D, 600);
+const plainW = buildCone({ spot: 600, nowMs: now7, sessionMove: 6 }, 'week');
+const evW = buildCone({ spot: 600, nowMs: now7, sessionMove: 6, events: [{ atMs: etInstant('2026-10-15', 570), move: 3, label: 'CPI' }] }, 'week');
+near(evW.sd, Math.sqrt(plainW.sd ** 2 + 9), 1e-9, 'event adds its jump variance to the terminal σ');
+const evT = buildCone({ spot: 600, nowMs: now7, sessionMove: 6, events: [{ atMs: etInstant('2026-10-15', 570), move: 3, label: 'CPI' }] }, 'today');
+near(evT.sd, buildCone({ spot: 600, nowMs: now7, sessionMove: 6 }, 'today').sd, 1e-12, 'event past the horizon ignored');
+const before = evW.points.filter((p) => p.t < etInstant('2026-10-15', 570));
+ok(before.every((p, i) => Math.abs(p.u1 - plainW.points[i].u1) < 1e-9), 'cone unchanged before the event');
+
 console.log(`test-envelope-cone: ${n} checks passed`);

@@ -72,6 +72,12 @@ export interface LayersInput {
   em?: EmDraw | null;
   /** Prices that carry a price-line title at the right edge (walls, levels): captions keep clear. */
   tagPrices?: number[];
+  /** Settings → Appearance line weight (EM lines, envelope / cone edges). */
+  lineWidth?: number;
+  /** Apex captions allowed on the pane (label density). */
+  apexMax?: number;
+  /** EM line captions (off at low label density). */
+  emCaptions?: boolean;
 }
 
 export type LayerHit =
@@ -509,7 +515,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       for (const p of picks.reverse()) { // newest first, kept apart so labels never stack
         if (chosen.some((q) => Math.abs(q.x - p.x) < 110 && Math.abs(q.y - p.y) < 16)) continue;
         chosen.push(p);
-        if (chosen.length >= 6) break;
+        if (chosen.length >= (this.input.apexMax ?? 6)) break;
       }
       if (projApex) {
         const pa: { x: number; y: number; strike: number; g: number } = projApex;
@@ -570,6 +576,8 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     return out;
   }
 
+  private lw(): number { return Math.max(1, Math.min(4, this.input.lineWidth ?? 1)); }
+
   /** Expected move: today / this-week priced ranges (fixed lines) + the forward cone. */
   private chartH = 0;
   private drawEm(ctx: CanvasRenderingContext2D, w: number, spacing: number) {
@@ -580,8 +588,9 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     const line = (price: number, dash: number[], label: string, alpha: number) => {
       const yy = series.priceToCoordinate(price); if (yy == null) return;
       const y = Math.round(yy) + 0.5;
-      ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash(dash);
+      ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = this.lw(); ctx.setLineDash(dash);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.setLineDash([]);
+      if (this.input.emCaptions === false) return;
       ctx.globalAlpha = Math.min(1, alpha + 0.3); ctx.fillStyle = col; ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
       ctx.fillText(label, 6, y - 3);
     };
@@ -616,7 +625,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
         for (const [x, y] of up) ctx.lineTo(x, y);
         for (let k = dn.length - 1; k >= 0; k--) ctx.lineTo(dn[k][0], dn[k][1]);
         ctx.closePath(); ctx.fill();
-        ctx.globalAlpha = 0.5; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = col; ctx.lineWidth = this.lw(); ctx.setLineDash([2, 3]);
         for (const pts of [up, dn]) { ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
         ctx.setLineDash([]);
         // Caption at the cone's OPEN end, under the lower edge, left-aligned — clear of the
@@ -662,7 +671,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
       for (const [x, y] of up) ctx.lineTo(x, y);
       for (let i = dn.length - 1; i >= 0; i--) ctx.lineTo(dn[i][0], dn[i][1]);
       ctx.closePath(); ctx.fill();
-      ctx.globalAlpha = 0.55; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash(dash);
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = col; ctx.lineWidth = this.lw(); ctx.setLineDash(dash);
       for (const line of [up, dn]) { ctx.beginPath(); line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
       ctx.setLineDash([]);
       return { up, dn };

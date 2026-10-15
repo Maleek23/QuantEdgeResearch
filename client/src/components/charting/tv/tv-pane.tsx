@@ -33,6 +33,9 @@ import { alignToTimes, calcEMA, calcSessionVWAP, mergeProxyBars } from './indica
 import { DrawingsPrimitive, type DrawColors } from './drawings-primitive';
 import { CountdownPrimitive, LayersPrimitive, type LayerColors, type LayersInput } from './layers-primitive';
 import { PathPrimitive, type PathDraw } from './path-primitive';
+import { LevelLabelsPrimitive, fade, type LevelGroup } from './level-labels-primitive';
+import { levelTier, maxApexLabels, type Density } from './label-layout';
+import { cleanPathLevels } from '@shared/chart-templates';
 import { tradingMsBetween } from '@shared/path-projection';
 import { guardChart, type ChartGuard } from './chart-guard';
 import { LEVEL_COLORS, exposureVar } from '@/components/gex/gex-colors';
@@ -215,7 +218,7 @@ export interface TvPaneProps {
   /** Path fan (live + frozen snapshots); null = off. */
   path?: PathDraw | null;
   /** Appearance: per-layer opacity and colour overrides. */
-  layerStyle?: { alpha?: LayerColors['alpha']; pathColor?: string; emColor?: string; lowChroma?: boolean };
+  layerStyle?: { alpha?: LayerColors['alpha']; pathColor?: string; emColor?: string; lowChroma?: boolean; wallsAlpha?: number; lineWidth?: number; labelDensity?: Density };
 }
 
 const RTH = (b: Candle) => { const m = etInfo(b.time).mins; return m >= 570 && m < 960; };
@@ -274,6 +277,9 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     const c = colors(); const fan = layerStyleRef.current?.pathColor ?? c.info;
     return { fan, median: fan, text: c.text, panel: c.bg, frozen: c.marker, gate: c.caution, rug: c.down, tramp: c.up };
   }), [colors]);
+  const [levelGroups, setLevelGroups] = useState<LevelGroup[]>([]);
+  const [openGroup, setOpenGroup] = useState<number | null>(null);
+  const labelPrim = useMemo(() => new LevelLabelsPrimitive(setLevelGroups), []);
   const countPrim = useMemo(() => new CountdownPrimitive(() => { const c = colors(); return { up: c.up, down: c.down, ink: c.bg }; }), [colors]);
 
   /* ── bars: history + live forming bar → session filter → replay cut ── */
@@ -373,6 +379,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     guard.attach(s, pathPrim);
     guard.attach(s, drawPrim);
     guard.attach(s, countPrim);
+    guard.attach(s, labelPrim);
     mainRef.current = s;
     dataRef.current = { first: null, len: 0 };
     linesRef.current = [];
@@ -382,7 +389,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       // No-ops when the chart's own cleanup already ran (unmount, StrictMode).
       guard.removeSeries(s);
     };
-  }, [chartType, colors, layerPrim, pathPrim, drawPrim, countPrim]);
+  }, [chartType, colors, layerPrim, pathPrim, drawPrim, countPrim, labelPrim]);
 
   /* ── colours follow the visual mode ── */
   useEffect(() => {
@@ -524,19 +531,47 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     if (!s) return;
     for (const l of linesRef.current) { try { s.removePriceLine(l); } catch { /* series replaced */ } }
     const pal = chartPalette(hostRef.current);
-    linesRef.current = levels.map((l) => s.createPriceLine({
-      price: l.price,
-      color: resolveLevelColor(l.color, pal, hostRef.current),
-      lineWidth: 1,
-      lineStyle: l.dashed || l.kind === 'gex-anchor' ? LineStyle.Dashed : LineStyle.Solid,
-      axisLabelVisible: true,
-      title: l.label,
-    }));
-  }, [levels, mode, chartType, dataTick]);
+    const lw = Math.max(1, Math.min(4, layerStyle?.lineWidth ?? 1)) as 1 | 2 | 3 | 4;
+    const wa = layerStyle?.wallsAlpha ?? 1;
+    // Titles and axis tags are drawn by the level-labels primitive (collision-laid-out); the line stays here.
+    linesRef.current = levels.map((l) => {
+      const col = resolveLevelColor(l.color, pal, hostRef.current);
+      const dealer = l.kind === 'gex-anchor' || levelTier(l.label) <= 3;
+      return s.createPriceLine({
+        price: l.price,
+        color: dealer && wa < 1 ? fade(col, wa) : col,
+        lineWidth: lw,
+        lineStyle: l.dashed || l.kind === 'gex-anchor' ? LineStyle.Dashed : LineStyle.Solid,
+        axisLabelVisible: false,
+        title: '',
+      });
+    });
+  }, [levels, mode, chartType, dataTick, layerStyle?.lineWidth, layerStyle?.wallsAlpha]);
+
+  /* level tags: priority-ordered, nudged, folded into "+N" chips when crowded */
+  useEffect(() => {
+    const pal = chartPalette(hostRef.current);
+    const c = colors();
+    const wa = layerStyle?.wallsAlpha ?? 1;
+    const tags = levels.filter((l) => !l.hideLabel).map((l, k) => {
+      const tier = levelTier(l.label);
+      return { id: `l${k}:${l.price}`, price: l.price, label: l.label, color: resolveLevelColor(l.color, pal, hostRef.current), tier, alpha: tier <= 3 || l.kind === 'gex-anchor' ? wa : 1 };
+    });
+    const r = path?.live;
+    if (r && r.points.length) {
+      const tol = Math.max(r.spot * 0.0012, 0.05);
+      const hl = cleanPathLevels(r.levels, path?.nodes, tol).find((x) => x.highlight);
+      const price = hl?.price ?? r.points[r.points.length - 1].p50;
+      tags.push({ id: 'path-target', price, label: hl ? `PATH ${hl.name}` : 'PATH median', color: layerStyle?.pathColor ?? c.info, tier: 1, alpha: 1 });
+    }
+    const last = bars[bars.length - 1];
+    labelPrim.setInput({ tags, lastPrice: last?.close ?? null, countdown: liveOn && cutoff == null, density: layerStyle?.labelDensity ?? 'normal', ink: c.bg, panel: c.bg, fmt });
+  }, [labelPrim, levels, path, bars, liveOn, cutoff, layerStyle, mode, colors, fmt]);
+  useEffect(() => { if (openGroup != null && openGroup >= levelGroups.length) setOpenGroup(null); }, [levelGroups, openGroup]);
 
   /* layers + drawings state into the primitives */
   const tagPrices = useMemo(() => levels.map((l) => l.price), [levels]);
-  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff, tagPrices }); }, [layerPrim, layers, bars, zones, cutoff, mode, tagPrices, layerStyle]);
+  useEffect(() => { layerPrim.setInput({ ...layers, bars, zones, cutoff, tagPrices, lineWidth: layerStyle?.lineWidth ?? 1, apexMax: maxApexLabels(layerStyle?.labelDensity ?? 'normal', (hostRef.current?.clientWidth ?? 1000) <= 480), emCaptions: (layerStyle?.labelDensity ?? 'normal') !== 'low' }); }, [layerPrim, layers, bars, zones, cutoff, mode, tagPrices, layerStyle]);
   useEffect(() => { pathPrim.setInput(bars, barMs, path); }, [pathPrim, bars, barMs, path, mode, layerStyle]);
   // Room for the fan past the last candle: the right offset grows to the path's horizon (capped).
   const pathSlots = useMemo(() => {
@@ -951,6 +986,26 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       </div>
       <div ref={legendRef} style={{ display: 'contents' }}><Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} volumeLabel={volumeLabel} proxyLabel={proxyLabel} /></div>
       <div className="tv-tip" ref={tipRef} role="tooltip" />
+      {levelGroups.map((g, k) => {
+        let axisW = 56; let paneW = 600;
+        try { axisW = chartRef.current?.priceScale('right').width() ?? 56; paneW = chartRef.current?.paneSize(0).width ?? 600; } catch { /* not laid out */ }
+        const right = axisW + Math.max(40, Math.min(150, paneW * 0.42)) + 6;
+        return (
+          <div key={k} className="tv-lvchip-wrap" style={{ top: g.y - 9, right }}>
+            <button type="button" className={`tv-lvchip${openGroup === k ? ' on' : ''}`} aria-expanded={openGroup === k}
+              aria-label={`${g.tags.length} more level${g.tags.length === 1 ? '' : 's'} here: ${g.tags.map((t) => t.label).join(', ')}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setOpenGroup((o) => (o === k ? null : k))}>+{g.tags.length}</button>
+            {openGroup === k && (
+              <ul className="tv-lvlist" role="list" onPointerDown={(e) => e.stopPropagation()}>
+                {[...g.tags].sort((a, b) => b.price - a.price).map((t, j) => (
+                  <li key={j}><i style={{ background: t.color }} aria-hidden="true" /><span>{t.label}</span><b>{fmt(t.price)}</b></li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 });

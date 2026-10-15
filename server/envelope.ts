@@ -50,13 +50,15 @@ export async function buildEnvelopePayload(
   try { if (chainRows?.length) skew = (await import('./chart-path')).skewFromChain(chainRows); } catch { /* skew 0 */ }
   let frozen = frozenIn;
   if (shouldFreeze(nowMs, frozen)) frozen = freezeCone(spot, perSessionMove, nowMs, curve.weights, skew);
-  const cones = buildEnvelope({ spot, nowMs, sessionMove: perSessionMove, varianceCurve: curve.weights, skew });
+  // Events through the month cone's end (≤ ~45 days); each cone only sees those inside its own horizon steps.
+  const { events, sources } = await (await import('./path-events')).knownPathEvents(sym, perSessionMove, nowMs, nowMs + 45 * 86_400_000);
+  const cones = buildEnvelope({ spot, nowMs, sessionMove: perSessionMove, varianceCurve: curve.weights, skew, events });
   const mvp = frozen ? moveVsPriced(frozen, spot, nowMs, curve.weights) : null;
   return {
     frozen,
     payload: {
       label: 'modelled', cones, frozen, moveVsPriced: mvp, curve: curve.source, curveSessions: curve.sessions, skew,
-      note: `${ENVELOPE_NOTE}; intraday shape from ${curve.source === 'bars' ? `${curve.sessions} sessions of our 5-min bars` : 'a default U-curve (too few bars)'}; skew ${skew >= 0 ? '+' : ''}${skew.toFixed(3)} (25Δ put vs call IV); holidays not excluded.`,
+      note: `${ENVELOPE_NOTE}; intraday shape from ${curve.source === 'bars' ? `${curve.sessions} sessions of our 5-min bars` : 'a default U-curve (too few bars)'}; skew ${skew >= 0 ? '+' : ''}${skew.toFixed(3)} (25Δ put vs call IV); NYSE holidays excluded; ${events.length ? `${events.length} known event${events.length === 1 ? '' : 's'} widen the cone at their step (${sources.join(', ')})` : 'no known events in range'}.`,
     },
   };
 }

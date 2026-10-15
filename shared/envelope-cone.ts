@@ -15,13 +15,17 @@
  *
  * Horizons: Today (rest of the current/next session) · Next day (through the
  * following session's close) · Week (through Friday) · Month (through the
- * monthly OPEX). Holidays are not excluded (same as the Path engine).
+ * monthly OPEX). NYSE full-day holidays are skipped (shared/market-holidays.ts,
+ * same as the Path engine). Known events (macro releases, earnings —
+ * shared/event-steps.ts) add their jump variance at the step they land on, so
+ * the cone widens in a step at a CPI open or an earnings gap.
  *
  * Frozen 09:40 cone: the first read at/after 09:40 ET freezes spot + S for the
  * day; "move vs priced" = how far price has moved from that anchor in units of
  * the σ the frozen cone priced for the elapsed time, and as a share of the full
  * day's 1σ. Pure + deterministic — scripts/test-envelope-cone.ts.
  */
+import type { PathEvent } from './path-projection';
 import { buildSteps, defaultVarianceCurve, etInstant, etParts, horizonSessions, type PathHorizon } from './path-projection';
 
 export type EnvelopeHorizon = 'today' | 'next' | 'week' | 'month';
@@ -47,6 +51,8 @@ export interface EnvelopeInput {
   /** −0.25..0.25, + = puts richer. */
   skew?: number;
   maxPoints?: number;
+  /** Known events ($ 1σ jump each) — shared/event-steps.ts. */
+  events?: PathEvent[];
 }
 export interface EnvelopePoint {
   t: number;
@@ -71,7 +77,7 @@ const curveOf = (c?: number[]) => (c && c.length === 78 ? c : defaultVarianceCur
 /** One cone. Pure. */
 export function buildCone(inp: EnvelopeInput, horizon: EnvelopeHorizon): EnvelopeCone {
   const sessions = horizonSessions(MAP[horizon], inp.nowMs);
-  const steps = buildSteps(inp.nowMs, sessions, curveOf(inp.varianceCurve), inp.overnightShare ?? 0.2);
+  const steps = buildSteps(inp.nowMs, sessions, curveOf(inp.varianceCurve), inp.overnightShare ?? 0.2, inp.events ?? []);
   const s = clampSkew(inp.skew);
   const S = Math.max(0, inp.sessionMove);
   const maxPts = Math.max(8, inp.maxPoints ?? 120);
@@ -85,6 +91,7 @@ export function buildCone(inp: EnvelopeInput, horizon: EnvelopeHorizon): Envelop
   let cum = 0; let tm = 0; let prevT = inp.nowMs;
   steps.forEach((st, i) => {
     cum += st.varShare;
+    if (st.event && S > 0) cum += (st.event / S) ** 2;
     // trading time: an overnight step adds none; an RTH slot adds its (possibly partial) length
     const { min } = etParts(st.t);
     const isOpenStep = min === RTH_OPEN;

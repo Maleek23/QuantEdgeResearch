@@ -239,7 +239,7 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
     for (const l of lv) {
       if (l.highlight) continue;
       const y = s.priceToCoordinate(l.price); if (y == null) continue;
-      ctx.strokeStyle = withA(c.text, 0.16 + 0.42 * l.weight); ctx.lineWidth = 1; ctx.setLineDash([1, 4]);
+      ctx.strokeStyle = withA(c.text, 0.16 + 0.42 * l.weight); ctx.lineWidth = Math.max(1, d.lineWidth); ctx.setLineDash([1, 4]);
       ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + span * (0.22 + 0.78 * l.weight), y); ctx.stroke();
     }
     ctx.setLineDash([]); ctx.lineCap = 'butt';

@@ -18,7 +18,7 @@ import type { Express, RequestHandler } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  etParts, parsePathHorizon, simulatePath, varianceCurveFromBars, PATH_DISCLAIMER,
+  etInstant, etParts, horizonSessions, parsePathHorizon, simulatePath, varianceCurveFromBars, PATH_DISCLAIMER,
   type PathHorizon, type PathLevel, type PathNode, type PathResult,
 } from '@shared/path-projection';
 import type { GexHorizon } from '@shared/gex-horizon';
@@ -110,16 +110,19 @@ async function compute(sym: string, horizon: PathHorizon, nowMs: number): Promis
   } catch (e) { logger.debug?.(`[CHART-PATH] ${sym} bars: ${(e as Error).message}`); }
   nodes = markDelivered(nodes, hi, lo);
 
+  const sess = horizonSessions(horizon, nowMs);
+  const endMs = sess.length ? etInstant(sess[sess.length - 1], 960) : nowMs;
+  const { events, sources: eventSources } = await (await import('./path-events')).knownPathEvents(sym, em.cone.perSessionMove, nowMs, endMs);
   const result = simulatePath({
     spot, nowMs, horizon, sessionMove: em.cone.perSessionMove, varianceCurve: curve.weights, regime, nodes, skew, levels,
-    events: [], paths: 2000, seed: Math.floor(nowMs / TTL),
+    events, paths: 2000, seed: Math.floor(nowMs / TTL),
   });
   return {
     ...base, result,
-    inputs: { sessionMove: em.cone.perSessionMove, skew, regime, gexHorizon, nodes: nodes.length, curve: curve.source, curveSessions: curve.sessions, delivered: nodes.filter((n) => n.delivered).length, chainSource, events: 0 },
+    inputs: { sessionMove: em.cone.perSessionMove, skew, regime, gexHorizon, nodes: nodes.length, curve: curve.source, curveSessions: curve.sessions, delivered: nodes.filter((n) => n.delivered).length, chainSource, events: events.length },
     note: `${PATH_DISCLAIMER}: 2,000 simulated paths on 5-min steps from the options-priced move (${em.cone.basis}); `
       + `${regime === 'long' ? 'long gamma — positive nodes pull (capped)' : 'short/neutral gamma — no node pull (λ = 0)'}; negative nodes raise local vol; `
-      + `intraday shape from ${curve.source === 'bars' ? `${curve.sessions} sessions of our 5-min bars` : 'a default U-curve (too few bars)'}; holidays not excluded; no event calendar wired yet.`,
+      + `intraday shape from ${curve.source === 'bars' ? `${curve.sessions} sessions of our 5-min bars` : 'a default U-curve (too few bars)'}; NYSE holidays excluded (early closes not modelled); ${events.length ? `${events.length} known event${events.length === 1 ? '' : 's'} priced as jumps (${events.map((e) => e.label).slice(0, 4).join(', ')}${events.length > 4 ? '…' : ''}; ${eventSources.join(', ')})` : `no known events in the horizon (${eventSources.join(', ') || 'calendar unavailable'})`}.`,
   };
 }
 

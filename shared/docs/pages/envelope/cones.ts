@@ -35,8 +35,8 @@ const page: DocPage = {
     ] },
     { t: 'h2', text: 'Limits' },
     { t: 'list', items: [
-      'Exchange holidays are not removed from the session count.',
-      'No event calendar is wired yet, so earnings or CPI do not add a step.',
+      'NYSE full-day holidays are skipped. Early 1 pm closes still count as full sessions.',
+      'Known events (CPI, NFP, FOMC and other high or medium macro releases, plus the stock\'s earnings) widen the cone in one step where they land: 0.35 or 0.15 × the session move for macro, the implied earnings move (or 1 ×) for earnings. These weights are modelled, not fitted.',
       'Normal coverage (68% / 95%) is an assumption. Fat tails make 2σ breaks more common than 5%.',
     ] },
     { t: 'p', md: 'Switch-off: the flag `ENVELOPE_V2` (server `FLAG_ENVELOPE_V2=off`) brings back the plain √t cone.' },

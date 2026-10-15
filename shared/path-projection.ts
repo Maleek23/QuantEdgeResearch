@@ -31,7 +31,8 @@ export function parsePathHorizon(v: unknown): PathHorizon {
   return (PATH_HORIZONS as string[]).includes(s) ? (s as PathHorizon) : 'session';
 }
 
-/* ── ET calendar helpers (holidays NOT excluded — stated in the payload note) ── */
+/* ── ET calendar helpers (NYSE full-day holidays excluded — shared/market-holidays.ts; early closes not modelled) ── */
+import { isNyseHoliday } from './market-holidays';
 const RTH_OPEN = 570; const RTH_CLOSE = 960; const SLOTS = 78; // 5-min slots per session
 const fmtET = typeof Intl !== 'undefined'
   ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
@@ -53,7 +54,7 @@ export function etInstant(date: string, min: number): number {
 }
 const addDays = (iso: string, n: number) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const dow = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
-const isWeekday = (iso: string) => { const w = dow(iso); return w >= 1 && w <= 5; };
+const isWeekday = (iso: string) => { const w = dow(iso); return w >= 1 && w <= 5 && !isNyseHoliday(iso); };
 function thirdFriday(iso: string): string { const first = `${iso.slice(0, 7)}-01`; return addDays(first, ((5 - dow(first) + 7) % 7) + 14); }
 
 /** Session dates (ET) the horizon covers, starting with the current/next session. */
@@ -296,7 +297,7 @@ export function scoreRealized(r: Pick<PathResult, 'points'>, realized: { t: numb
   return { n, in50: n ? in50 / n : null, in80: n ? in80 / n : null };
 }
 
-/** RTH trading milliseconds between two instants (weekdays 09:30–16:00 ET; holidays not excluded). Pure. */
+/** RTH trading milliseconds between two instants (weekdays 09:30–16:00 ET, NYSE holidays excluded). Pure. */
 export function tradingMsBetween(a: number, b: number): number {
   if (!(b > a)) return 0;
   let total = 0;

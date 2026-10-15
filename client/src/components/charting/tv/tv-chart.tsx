@@ -443,6 +443,7 @@ export function TvChart({
   const layerStyle = useMemo(() => ({
     alpha: { em: styleSt.style.opacity.em, gex: styleSt.style.opacity.gex, dp: styleSt.style.opacity.dp, flow: styleSt.style.opacity.flow },
     pathColor: styleSt.style.color.path, emColor: styleSt.style.color.em, lowChroma: styleSt.style.lowChroma,
+    wallsAlpha: styleSt.style.opacity.walls, lineWidth: styleSt.style.lineWidth, labelDensity: styleSt.style.labelDensity,
   }), [styleSt.style]);
   const activeTplName = styleSt.activeTemplate ? allTemplates(styleSt).find((t) => t.id === styleSt.activeTemplate)?.name ?? null : null;
   const pathRes = pathQ.data?.result ?? null;
@@ -1453,6 +1454,15 @@ html[data-mode=light] .tv-wm{opacity:.09}
 .tv-env{display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap}
 .tv-env-sel{background:transparent;color:inherit;border:1px solid var(--lx-line,rgba(59,140,255,.18));border-radius:4px;font:inherit;padding:0 2px;min-height:20px}
 .tv-warn{color:var(--tv-caution)}
+.tv-lvchip-wrap{position:absolute;z-index:7}
+.tv-lvchip{min-width:28px;height:18px;padding:0 6px;border:1px solid var(--tv-line-hi);border-radius:9px;background:var(--tv-panel);color:var(--tv-fg);font:600 10px/16px "JetBrains Mono",monospace;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.tv-lvchip:hover,.tv-lvchip.on,.tv-lvchip:focus-visible{border-color:var(--tv-accent,currentColor);outline:none}
+@media (pointer:coarse){.tv-lvchip-wrap::before{content:"";position:absolute;inset:-13px -8px}}
+.tv-lvlist{position:absolute;right:0;top:22px;min-width:180px;max-width:min(260px,70vw);margin:0;padding:4px 0;list-style:none;border:1px solid var(--tv-line-hi);border-radius:6px;background:var(--tv-panel);box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:11px;color:var(--tv-fg)}
+.tv-lvlist li{display:flex;align-items:center;gap:6px;padding:4px 8px}
+.tv-lvlist li i{width:8px;height:2px;flex:none}
+.tv-lvlist li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-lvlist li b{font:600 10px "JetBrains Mono",monospace}
 .tv-tip{position:absolute;display:none;z-index:6;pointer-events:none;max-width:260px;padding:6px 8px;border:1px solid var(--tv-line-hi);border-radius:5px;background:var(--tv-panel);font-size:11px;line-height:1.5;color:var(--tv-fg);box-shadow:0 8px 24px rgba(0,0,0,.45)}
 .tv-float{position:absolute;top:8px;right:84px;z-index:8;display:flex;align-items:center;gap:4px;padding:3px 6px;background:var(--tv-panel);border:1px solid var(--tv-line-hi);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:calc(100% - 100px);flex-wrap:wrap;width:max-content}
 .tv-float-name{font-size:11px;color:var(--tv-mute);padding:0 4px;white-space:nowrap}

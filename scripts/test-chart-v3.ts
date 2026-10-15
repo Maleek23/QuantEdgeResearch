@@ -12,6 +12,9 @@ import {
 import {
   BUILTIN_TEMPLATES, DEFAULT_CHART_STYLE, PATH_STYLES, QUICK_LAYERS, SETTINGS_GROUPS, applyTemplate, cleanPathLevels, sanitizeChartStyle, sanitizeTemplates, templateFromPrefs, trailDotIndices,
 } from '../shared/chart-templates';
+import { buildEventSteps, eventInstant, parseEtTime } from '../shared/event-steps';
+import { isNyseHoliday } from '../shared/market-holidays';
+import { layoutAxisLabels, levelTier, maxApexLabels, maxLevelLabels } from '../client/src/components/charting/tv/label-layout';
 
 let n = 0;
 const t = (name: string, fn: () => void) => { fn(); n++; console.log(`  ✓ ${name}`); };
@@ -238,6 +241,68 @@ t('Clean: sparse dot trail always ends on the last point', () => {
   assert.deepEqual(trailDotIndices(3, 0), [0, 1, 2]);
   assert.deepEqual(trailDotIndices(0, 4), []);
   assert.ok(trailDotIndices(160, 6).length < 30);
+});
+
+console.log('holidays + events');
+t('NYSE holidays skipped by sessions and trading time', () => {
+  // Wed 2026-11-25 after the close → Thanksgiving Thu skipped → Fri 11-27
+  assert.deepEqual(horizonSessions('session', Date.parse('2026-11-25T22:00:00Z')), ['2026-11-27']);
+  assert.ok(!horizonSessions('week', Date.parse('2026-11-23T15:00:00Z')).includes('2026-11-26'));
+  assert.equal(tradingMsBetween(Date.parse('2026-11-25T21:00:00Z'), Date.parse('2026-11-27T14:30:00Z')), 0);
+  assert.ok(isNyseHoliday('2027-03-26') && isNyseHoliday('2027-12-24') && !isNyseHoliday('2027-12-27'));
+});
+t('event steps: macro weights, pre-market → open, earnings timing, out-of-range dropped', () => {
+  const nowMs = TUE_10ET; const endMs = etInstant('2026-10-16', 960);
+  const ev = buildEventSteps({ sessionMove: 10, nowMs, endMs, macro: [
+    { name: 'CPI', date: '2026-10-14', time: '8:30 AM ET', importance: 'high' },
+    { name: 'Claims', date: '2026-10-15', time: '8:30 AM ET', importance: 'low' },
+    { name: 'FOMC', date: '2026-10-15', time: '2:00 PM ET', importance: 'high' },
+    { name: 'Retail', date: '2026-10-15', time: '8:30 AM ET', importance: 'medium' },
+    { name: 'Past', date: '2026-10-12', time: '8:30 AM ET', importance: 'high' },
+    { name: 'Late', date: '2026-10-20', time: '8:30 AM ET', importance: 'high' },
+  ], earnings: [{ date: '2026-10-14', timing: 'amc' }] });
+  assert.deepEqual(ev.map((e) => e.label), ['CPI', 'Retail', 'Earnings (after close)', 'FOMC']);
+  assert.equal(ev[0].atMs, etInstant('2026-10-14', 570));
+  assert.equal(ev[0].move, 3.5);
+  assert.equal(ev[1].move, 1.5);
+  assert.equal(ev[2].atMs, etInstant('2026-10-15', 570));
+  assert.equal(ev[2].move, 10);
+  assert.equal(ev[3].atMs, etInstant('2026-10-15', 840));
+  assert.equal(parseEtTime('2:00 PM ET'), 840); assert.equal(parseEtTime('12:00 PM'), 720); assert.equal(parseEtTime('14:30'), 870); assert.equal(parseEtTime(''), null);
+  // an event on a holiday rolls to the next open
+  assert.equal(eventInstant('2026-11-26', 510), etInstant('2026-11-27', 570));
+  assert.deepEqual(buildEventSteps({ sessionMove: 0, nowMs, endMs, macro: [{ name: 'CPI', date: '2026-10-14', importance: 'high' }] }), []);
+});
+t('an event widens the Path terminal spread', () => {
+  const plain = simulatePath({ ...base, horizon: 'tomorrow' });
+  const withEv = simulatePath({ ...base, horizon: 'tomorrow', events: [{ atMs: etInstant('2026-10-14', 570), move: 6, label: 'CPI' }] });
+  assert.ok(withEv.terminalSd > plain.terminalSd * 1.1, `${withEv.terminalSd} vs ${plain.terminalSd}`);
+});
+
+console.log('label collision');
+t('priority order, nudge, cap, fold into +N', () => {
+  const items = [
+    { id: 'pdh', y: 100, tier: levelTier('PDH') },
+    { id: 'gate', y: 102, tier: levelTier('GATEKEEPER') },
+    { id: 'cw', y: 104, tier: levelTier('CALL WALL 0DTE') },
+    { id: 'path', y: 106, tier: levelTier('PATH Apex') },
+    { id: 'far', y: 300, tier: 4 },
+  ];
+  assert.deepEqual([levelTier('PATH x'), levelTier('PUT WALL'), levelTier('ZERO-γ 0DTE'), levelTier('RUG → 590'), levelTier('PDC')], [1, 2, 2, 3, 4]);
+  const L = layoutAxisLabels(items, { top: 0, bottom: 400, h: 16, maxNudge: 24, max: 3, reserved: [] });
+  assert.deepEqual(L.shown.map((x) => x.id), ['path', 'cw', 'gate']);
+  for (let i = 0; i < L.shown.length; i++) for (let j = i + 1; j < L.shown.length; j++) assert.ok(Math.abs(L.shown[i].y - L.shown[j].y) >= 16 - 1e-6, 'no overlap');
+  assert.ok(L.shown.every((x) => Math.abs(x.dy) <= 24));
+  assert.deepEqual(L.groups.map((g) => g.ids), [['pdh'], ['far']]);
+  // reserved last-price row is never covered
+  const R = layoutAxisLabels([{ id: 'a', y: 200, tier: 2 }], { top: 0, bottom: 400, h: 16, maxNudge: 24, max: 9, reserved: [200] });
+  assert.ok(Math.abs(R.shown[0].y - 200) >= 16);
+  // off-screen tags are neither shown nor folded
+  assert.deepEqual(layoutAxisLabels([{ id: 'x', y: -50, tier: 2 }], { top: 0, bottom: 400, h: 16, maxNudge: 24, max: 9 }), { shown: [], groups: [] });
+  // density: phone low < normal < high; desktop allows more
+  assert.ok(maxLevelLabels('low', true) < maxLevelLabels('normal', true) && maxLevelLabels('normal', true) < maxLevelLabels('high', true));
+  assert.ok(maxLevelLabels('normal', false) > maxLevelLabels('normal', true));
+  assert.ok(maxApexLabels('low', false) === 1 && maxApexLabels('high', false) > maxApexLabels('normal', false));
 });
 
 console.log(`\n${n} checks passed`);
