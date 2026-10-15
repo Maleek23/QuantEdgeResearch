@@ -22,9 +22,17 @@
  *   R = P&L ÷ (qty × (entry − premium stop) × 100), stop = the plan's premium
  *       stop or the sizing default (shared/position-sizing.ts effectivePremiumStop).
  *
+ *   TRUTH RULES (ledger audit 2026-10-15 — "Today +$8,402 realized" was not believable):
+ *       REALIZED counts only TRIGGERED rows whose P&L is BAR-VERIFIED (or bar-corrected
+ *       without rewriting the outcome) — the journal's rules (shared/journal-pnl-truth.ts);
+ *       a not-yet-checked row shows "checking" and its recorded number is listed beside,
+ *       never added. Realized is priced on the PRIMARY contract (the one the verifier
+ *       checks), whole contracts at the budget, 1 contract when one is over budget
+ *       (labelled). Open rows without a quote are counted as "unquoted — excluded".
+ *
  * Pure: no I/O. Client (NEXUS rows, Setup Detail, day strip, HISTORY) + tests.
  */
-import { contractsForBudget } from './journal-pnl-truth';
+import { contractsForBudget, isCorrectable } from './journal-pnl-truth';
 import { effectivePremiumStop } from './position-sizing';
 
 export const NEXUS_PNL_VERSION = 'nexus-pnl-v1';
@@ -73,6 +81,8 @@ export type Tradable =
     entryPremium: number; premiumStop: number; stopBasis: string; qty: number; debit: number; budget: number;
     /** Instrument key shared with the journal's mark cache: O:SYM|YYYY-MM-DD|call|185 */
     key: string; label: string;
+    /** One contract costs more than the budget — sized at 1 contract, labelled (never dropped). */
+    overBudget?: boolean;
   }
   | { ok: false; reason: string; code: 'not_option' | 'no_contract' | 'over_budget' };
 
@@ -89,8 +99,13 @@ export function contractKey(symbol: string, expiry: string, optionType: 'call' |
 const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : k.toFixed(1));
 const shortExp = (exp: string) => { const [, m, d] = exp.split('-'); return m && d ? `${Number(m)}/${Number(d)}` : exp; };
 
-/** The contract the budget actually trades, and its whole-contract size. Pure. */
-export function tradableContract(i: TradableInput, budget: number): Tradable {
+/**
+ * The contract the budget actually trades, and its whole-contract size. Pure.
+ * `realized`: the PRIMARY contract only (the verifier checks the primary; a budget
+ * contract's tracked exit is not bar-verified) — over budget → 1 contract, labelled.
+ * Otherwise: primary → budget contract → primary at 1 contract (over budget, labelled).
+ */
+export function tradableContract(i: TradableInput, budget: number, opts: { realized?: boolean } = {}): Tradable {
   if (String(i.assetType ?? '').toLowerCase() !== 'option') return { ok: false, code: 'not_option', reason: 'shares idea — not in the options book' };
   const sym = String(i.symbol ?? '').toUpperCase();
   const pType = typeOf(i.optionType);
@@ -98,18 +113,21 @@ export function tradableContract(i: TradableInput, budget: number): Tradable {
   const pStrike = Number(i.strikePrice);
   const pEntry = Number(i.entryPremium);
   const primaryOk = !!pType && /^\d{4}-\d{2}-\d{2}$/.test(pExp) && pStrike > 0 && pEntry > 0;
-  const make = (basis: 'primary' | 'budget', type: 'call' | 'put', exp: string, strike: number, entry: number, planStop: number | null | undefined): Tradable | null => {
-    const qty = contractsForBudget(budget, entry);
-    if (qty < 1) return null;
+  const make = (basis: 'primary' | 'budget', type: 'call' | 'put', exp: string, strike: number, entry: number, planStop: number | null | undefined, allowOver = false): Tradable | null => {
+    let qty = contractsForBudget(budget, entry);
+    const over = qty < 1;
+    if (over && !allowOver) return null;
+    if (over) qty = 1;
     const st = effectivePremiumStop({ entryPremium: entry, premiumStop: planStop ?? null, zeroDte: !!i.zeroDte });
     return {
       ok: true, basis, symbol: sym, optionType: type, strike, expiry: exp, entryPremium: entry,
       premiumStop: st ? r2(st.stop) : r2(entry * 0.5), stopBasis: st?.basis ?? 'default', qty, debit: r2(qty * entry * 100), budget,
       key: contractKey(sym, exp, type, strike), label: `${sym} ${fmtStrike(strike)}${type === 'put' ? 'P' : 'C'} ${shortExp(exp)}`,
+      ...(over ? { overBudget: true } : {}),
     };
   };
   if (primaryOk) {
-    const p = make('primary', pType!, pExp, pStrike, pEntry, i.premiumStop);
+    const p = make('primary', pType!, pExp, pStrike, pEntry, i.premiumStop, !!opts.realized);
     if (p) return p;
   }
   const bc = i.budgetContract;
@@ -118,7 +136,8 @@ export function tradableContract(i: TradableInput, budget: number): Tradable {
     if (b) return b;
   }
   if (!primaryOk) return { ok: false, code: 'no_contract', reason: 'contract or entry premium not recorded' };
-  return { ok: false, code: 'over_budget', reason: `1 contract ($${Math.round(pEntry * 100)}) is over the $${budget} budget and no budget contract fits` };
+  // Ledger audit 2026-10-15 fix 5: never drop it — 1 contract, labelled over budget.
+  return make('primary', pType!, pExp, pStrike, pEntry, i.premiumStop, true)!;
 }
 
 /** Exit premium of a budget contract from its own tracking (first barrier), else null. Pure. */
@@ -174,6 +193,14 @@ export interface NexusPnl {
   r: number | null;
   peak: (PremiumPoint & { pct: number; pnl: number }) | null;
   trough: (PremiumPoint & { pct: number; pnl: number }) | null;
+  /** Resolved, not yet bar-verified: P&L hidden ("checking"); the recorded number is in recordedPnl, never summed. */
+  checking: boolean;
+  /** Resolved but the lifecycle never triggered — not a trade. */
+  neverTriggered: boolean;
+  /** What the recorded exit would show at this size (checking / corrected rows only — disclosure, not a total). */
+  recordedPnl: number | null;
+  /** Realized priced from the verifier's bar re-price (entry/exit), outcome unchanged. */
+  corrected: boolean;
 }
 
 export interface PnlArgs {
@@ -186,6 +213,14 @@ export interface PnlArgs {
   peak?: PremiumPoint | null;
   trough?: PremiumPoint | null;
   nowMs: number;
+  /**
+   * Resolved rows: the verify-ledger verdict (verificationOf). When supplied, realized is
+   * counted only when 'verified' (recorded exit) or 'corrected' (bar re-price); anything
+   * else is "checking". Omitted = legacy callers (recorded exit, unlabelled).
+   */
+  verification?: PnlVerification | null;
+  /** Resolved rows: false = the lifecycle never triggered (no P&L). */
+  triggered?: boolean | null;
 }
 
 /** One setup's P&L. Pure. */
@@ -193,7 +228,9 @@ export function nexusPnl(a: PnlArgs): NexusPnl {
   const base: NexusPnl = {
     v: NEXUS_PNL_VERSION, status: a.state, reason: null, tradable: null, premium: null, premiumAtMs: null, premiumKind: null, markKind: null,
     delayed: false, stale: false, source: null, loadingMark: false, pnl: null, pct: null, r: null, peak: null, trough: null,
+    checking: false, neverTriggered: false, recordedPnl: null, corrected: false,
   };
+  if (a.state === 'resolved' && a.triggered === false) return { ...base, status: 'none', neverTriggered: true, reason: 'never triggered — closed without an entry, no P&L' };
   if (!a.tradable.ok) return { ...base, status: a.state === 'waiting' ? 'waiting' : 'none', reason: a.tradable.reason };
   const t = a.tradable;
   base.tradable = t;
@@ -217,6 +254,19 @@ export function nexusPnl(a: PnlArgs): NexusPnl {
     if (!a.exit || !fin(a.exit.premium) || a.exit.premium < 0) return { ...base, reason: 'exit premium not recorded', peak: ext(a.peak), trough: ext(a.trough) };
     px = a.exit.premium;
     Object.assign(base, { premium: px, premiumAtMs: a.exit.atMs, premiumKind: 'exit' });
+    const v = a.verification;
+    if (v !== undefined) {
+      if (v && v.status === 'corrected' && fin(v.entry) && v.entry > 0 && fin(v.exit) && v.exit >= 0 && t.basis === 'primary') {
+        // Bar re-price (outcome unchanged — shared/journal-pnl-truth.ts isCorrectable): both legs from bars.
+        const qty = t.overBudget ? 1 : Math.max(1, contractsForBudget(t.budget, v.entry));
+        const pnl = r2(qty * (v.exit - v.entry) * 100);
+        const riskC = v.entry - t.premiumStop;
+        return { ...base, corrected: true, premium: v.exit, recordedPnl: money(px), pnl, pct: r1(((v.exit - v.entry) / v.entry) * 100), r: riskC > 0 ? r2(pnl / (qty * riskC * 100)) : null, tradable: { ...t, qty, entryPremium: v.entry, debit: r2(qty * v.entry * 100) } };
+      }
+      if (!v || v.status !== 'verified' || t.basis !== 'primary') {
+        return { ...base, checking: true, recordedPnl: money(px), reason: t.basis !== 'primary' ? 'budget-contract exit — not bar-verified' : `checking — ${v?.detail ?? 'not bar-checked yet'}`, peak: ext(a.peak), trough: ext(a.trough) };
+      }
+    }
   }
   const pnl = money(px);
   // Peak never below what the position shows now/at exit once above entry; trough never above it.
@@ -250,9 +300,10 @@ export interface PnlChip { text: string; sub: string | null; tone: PnlTone; titl
 export function pnlChip(p: NexusPnl, nowMs: number): PnlChip {
   const tone: PnlTone = p.pnl == null ? 'muted' : p.pnl > 0 ? 'gain' : p.pnl < 0 ? 'loss' : 'flat';
   const t = p.tradable;
-  const size = t ? `${t.qty}× ${t.label}${t.basis === 'budget' ? ' (budget contract)' : ''} · $${t.debit.toLocaleString('en-US')} debit at $${t.budget}` : '';
+  const size = t ? `${t.qty}× ${t.label}${t.basis === 'budget' ? ' (budget contract)' : ''}${t.overBudget ? ' — 1 contract (over budget)' : ''} · $${t.debit.toLocaleString('en-US')} debit at $${t.budget}` : '';
   if (p.status === 'waiting') return { text: '—', sub: 'not triggered', tone: 'muted', title: `No trigger yet — a plan has no P&L.${size ? ` Would trade ${size}.` : ''}` };
   if (p.status === 'none') return { text: 'no P&L', sub: p.reason, tone: 'muted', title: p.reason ?? 'no P&L' };
+  if (p.checking) return { text: 'checking', sub: p.recordedPnl != null ? `recorded ${usd(p.recordedPnl)} · not counted` : 'not counted', tone: 'muted', title: `Closed, not yet bar-verified — ${p.reason ?? ''}. Recorded ${p.recordedPnl != null ? usd(p.recordedPnl) : '—'} at ${size}; it is not in realized until the nightly verify (17:30 ET) checks it against the contract's bars.` };
   if (p.loadingMark) return { text: 'loading mark', sub: t ? `${t.qty}× ${t.label}` : null, tone: 'muted', title: `Fetching the contract mark… ${size}` };
   if (p.pnl == null || p.pct == null) return { text: p.status === 'open' ? 'no mark' : 'no exit', sub: p.reason, tone: 'muted', title: `${p.reason ?? ''}${size ? ` — ${size}` : ''}` };
   if (p.status === 'open' && p.markKind === 'last-trade') {
@@ -289,17 +340,31 @@ export interface DaySummary {
   staleMarks: number;
   /** Open rows priced from the contract's last trade (no live quote) — in unrealized, labelled. */
   lastTradeMarks: number;
+  /** Resolved rows not yet bar-verified: listed with their recorded P&L, NOT in realized. */
+  checking: number;
+  checkingRecordedPnl: number;
+  /** Resolved rows whose lifecycle never triggered — not trades. */
+  neverTriggered: number;
+  /** Realized rows sized at 1 contract because one contract is over the budget. */
+  overBudget: number;
+  /** Realized rows priced from the verifier's bar re-price. */
+  corrected: number;
   best: { id: string; symbol: string; pnl: number; kind: 'realized' | 'unrealized' } | null;
   worst: { id: string; symbol: string; pnl: number; kind: 'realized' | 'unrealized' } | null;
 }
 
 /** Sum a day of setups: realized (closed) + unrealized (open, marked). Pure. */
 export function summarizeDay(rows: readonly DayRow[]): DaySummary {
-  const s: DaySummary = { realized: 0, unrealized: 0, total: 0, wins: 0, losses: 0, flat: 0, open: 0, waiting: 0, unmarked: 0, unpriced: 0, staleMarks: 0, lastTradeMarks: 0, best: null, worst: null };
+  const s: DaySummary = {
+    realized: 0, unrealized: 0, total: 0, wins: 0, losses: 0, flat: 0, open: 0, waiting: 0, unmarked: 0, unpriced: 0, staleMarks: 0, lastTradeMarks: 0,
+    checking: 0, checkingRecordedPnl: 0, neverTriggered: 0, overBudget: 0, corrected: 0, best: null, worst: null,
+  };
   for (const { id, symbol, pnl: p } of rows) {
     if (p.status === 'waiting') { s.waiting++; continue; }
     // Shares ideas are outside the options book — not "unpriced", just not counted.
+    if (p.neverTriggered) { s.neverTriggered++; continue; }
     if (p.status === 'none') { if (!String(p.reason ?? '').startsWith('shares idea')) s.unpriced++; continue; }
+    if (p.checking) { s.checking++; s.checkingRecordedPnl = r2(s.checkingRecordedPnl + (p.recordedPnl ?? 0)); continue; }
     if (p.status === 'open') {
       s.open++;
       if (p.pnl == null) { s.unmarked++; continue; }
@@ -309,6 +374,8 @@ export function summarizeDay(rows: readonly DayRow[]): DaySummary {
     } else {
       if (p.pnl == null) { s.unpriced++; continue; }
       s.realized += p.pnl;
+      if (p.tradable?.overBudget) s.overBudget++;
+      if (p.corrected) s.corrected++;
       if (p.pnl > 0) s.wins++; else if (p.pnl < 0) s.losses++; else s.flat++;
     }
     const kind = p.status === 'open' ? 'unrealized' as const : 'realized' as const;
@@ -326,18 +393,26 @@ export interface PnlVerification {
   /** Short reason for unverified / corrected. */
   detail: string;
   ledgerAsOf: string | null;
+  /** corrected only: the bar re-priced legs (premium per share). */
+  entry?: number | null;
+  exit?: number | null;
 }
 
 /** Verify-ledger entry (server/desk-verify-ledger.ts) → chip. Open ideas are never verified (nothing closed to check). Pure. */
 export function verificationOf(
-  entry: { verdict: string; recomputedPnL?: number | null; recomputedEntry?: number | null; recomputedExit?: number | null; reason?: string | null; bugClass?: string | null } | null | undefined,
+  entry: {
+    verdict: string; recordedPnL?: number | null; recomputedPnL?: number | null; recomputedEntry?: number | null; recomputedExit?: number | null; reason?: string | null; bugClass?: string | null;
+    optionSource?: string | null; outcomeStatus?: string | null; recomputedOutcome?: 'stop' | 'target' | 'none' | null;
+  } | null | undefined,
   ledgerAsOf: string | null,
 ): PnlVerification {
   if (!ledgerAsOf) return { status: 'unverified', detail: 'verify ledger not available', ledgerAsOf: null };
   if (!entry) return { status: 'unverified', detail: 'not bar-checked yet (nightly verify 17:30 ET)', ledgerAsOf };
   if (entry.verdict === 'VERIFIED') return { status: 'verified', detail: 'recorded P&L matched the contract bars', ledgerAsOf };
-  if (entry.verdict === 'MISMATCH' && fin(entry.recomputedEntry) && fin(entry.recomputedExit)) {
-    return { status: 'corrected', detail: `bars disagree — re-priced ${entry.recomputedEntry.toFixed(2)} → ${entry.recomputedExit.toFixed(2)}`, ledgerAsOf };
+  // Same rule as the journal headline (ledger audit 2026-10-15 fix 3): a bar re-price counts only
+  // when it priced both legs from bars AND does not rewrite the recorded stop / target.
+  if (entry.verdict === 'MISMATCH' && isCorrectable({ ...entry, verdict: 'MISMATCH', recordedPnL: entry.recordedPnL ?? null, recomputedPnL: entry.recomputedPnL ?? null, bugClass: entry.bugClass ?? null, reason: entry.reason ?? null })) {
+    return { status: 'corrected', detail: `bars disagree — re-priced ${entry.recomputedEntry!.toFixed(2)} → ${entry.recomputedExit!.toFixed(2)}`, ledgerAsOf, entry: entry.recomputedEntry!, exit: entry.recomputedExit! };
   }
   return { status: 'unverified', detail: [entry.verdict.toLowerCase(), entry.bugClass, entry.reason].filter(Boolean).join(': ').slice(0, 160), ledgerAsOf };
 }

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { positionBias } from '@shared/position-bias';
 import { useTheme } from '@/components/theme-provider';
 import {
-  fmtDuration, fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, unverifiedReason, type BucketStats, type TradeStatus,
+  fmtDuration, fmtMoney, fmtPct, fmtRatio, isBarChecking, LOW_SAMPLE, unverifiedReason, type BucketStats, type TradeStatus,
 } from '@/lib/journal/metrics';
 import type { JournalTradeRow } from '@/lib/journal/types';
 
@@ -79,8 +79,21 @@ export function OutcomeChip({ status }: { status: TradeStatus }) {
  * verification — shown, never hidden (operator rule 2026-10-07); the reason is
  * the hover text. Renders nothing for any other row.
  */
+/**
+ * Net P&L cell of a closed row: "checking" while the nightly verify has not reached it
+ * (ledger audit 2026-10-15 fix 10) — the recorded number only in the hover, never shown
+ * as a P&L — else the P&L.
+ */
+export function RowPnl({ row, value }: { row: Pick<JournalTradeRow, 'verification' | 'status'>; value: number }) {
+  if (isBarChecking(row)) {
+    return <span className="jr-dim" title={`Closed, not yet bar-checked against the contract's bars (nightly verify 17:30 ET). Recorded ${fmtMoney(value)} — hidden until checked; not in any total.`} aria-label="checking, not yet bar-checked">checking</span>;
+  }
+  return <Pnl value={value} />;
+}
+
 export function UnverifiedChip({ row }: { row: Pick<JournalTradeRow, 'verification' | 'status'> }) {
   if (row.verification?.status !== 'unverified') return null;
+  if (isBarChecking(row)) return <span className="jr-chip unv" title="Closed, not yet bar-checked — the nightly verify (17:30 ET) has not reached it; not in any total" aria-label="checking: not yet bar-checked">checking</span>;
   const why = unverifiedReason(row);
   return <span className="jr-chip unv" title={`Unverified — not in the verified total: ${why}`} aria-label={`unverified: ${why}`}>unverified</span>;
 }

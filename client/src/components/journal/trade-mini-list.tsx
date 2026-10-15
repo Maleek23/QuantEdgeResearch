@@ -2,8 +2,8 @@
  * Compact trade list (symbol, side, P&L, outcome, date, tags) — used by the
  * dashboard's Activity tool, the Calendar day panel and the Daily journal.
  */
-import { fmtMoney, type JTrade } from '@/lib/journal/metrics';
-import { OutcomeChip, Pnl, SideChip, UnverifiedChip } from './parts';
+import { fmtMoney, isBarChecking, type JTrade } from '@/lib/journal/metrics';
+import { OutcomeChip, RowPnl, SideChip, UnverifiedChip } from './parts';
 import { positionBias } from '@shared/position-bias';
 import { OpenMark } from './open-mark';
 import type { LiveMark } from '@/lib/journal/use-journal-marks';
@@ -14,11 +14,11 @@ export function TradeMiniList({ trades, onOpen, marks }: { trades: JTrade[]; onO
     <div className="jr-list">
       {trades.map((t) => { const pb = positionBias({ direction: t.direction, assetType: t.assetType, optionType: t.row.optionType }); return (
         <button key={t.id} type="button" className="jr-row-card" onClick={() => onOpen(t.id)}
-          aria-label={`${t.symbol} ${pb.bias === 'bull' ? 'bullish' : 'bearish'} ${pb.leg}, ${t.status === 'open' ? 'open' : fmtMoney(t.netPnl)}`}>
+          aria-label={`${t.symbol} ${pb.bias === 'bull' ? 'bullish' : 'bearish'} ${pb.leg}, ${t.status === 'open' ? 'open' : isBarChecking(t.row) ? 'checking, not yet bar-checked' : fmtMoney(t.netPnl)}`}>
           <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} /></span>
           <span className="r">{t.status === 'open'
             ? (marks?.[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks?.[t.id]} stored={t.row.mark} compact /> : <span className="jr-dim">open</span>
-            : <Pnl value={t.netPnl} />}</span>
+            : <RowPnl row={t.row} value={t.netPnl} />}</span>
           <span className="meta">
             <OutcomeChip status={t.status} />
             <UnverifiedChip row={t.row} />

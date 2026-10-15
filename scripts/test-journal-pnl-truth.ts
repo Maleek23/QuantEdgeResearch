@@ -331,4 +331,16 @@ await (async () => {
   });
 })();
 
+console.log('ledger audit 2026-10-15 — fix 10 (not-yet-bar-checked rows show "checking", never a P&L)');
+t('Journal list + mini list render RowPnl ("checking" for bar_pending); the recorded number only in the hover', () => {
+  const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  assert.match(rd('client/src/lib/journal/metrics.ts'), /row\.status === 'closed' && row\.verification\?\.truth === 'bar_pending'/);
+  const tv = rd('client/src/pages/journal/trades-view.tsx');
+  assert.equal((tv.match(/<RowPnl row=\{t\.row\} value=\{t\.netPnl\} \/>/g) ?? []).length, 2, 'table + card rows');
+  assert.doesNotMatch(tv, /: <Pnl value=\{t\.netPnl\} \/>/);
+  assert.match(rd('client/src/components/journal/trade-mini-list.tsx'), /<RowPnl row=\{t\.row\} value=\{t\.netPnl\} \/>/);
+  // the class itself is outside the headline
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: null }).cls, 'bar_pending');
+});
+
 console.log(`\n${n} journal-pnl-truth checks passed`);

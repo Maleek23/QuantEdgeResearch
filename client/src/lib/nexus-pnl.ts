@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   DEFAULT_PNL_BUDGET, PNL_BUDGETS, budgetExitPremium, nexusPnl, pnlStateOf, tradableContract,
-  type BudgetContractLike, type MarkLike, type NexusPnl, type PnlBudget, type PremiumPoint,
+  type BudgetContractLike, type MarkLike, type NexusPnl, type PnlBudget, type PnlVerification, type PremiumPoint,
 } from '@shared/nexus-pnl';
 
 const BUDGET_KEY = 'qe-nexus-pnl-budget';
@@ -121,6 +121,13 @@ export interface PnlRecordLike {
   trough?: { premium: number; atMs?: number | null } | null;
   /** Primary contract's last 1-min trade bar (idea detail premium read) — the mark when nothing quotes. */
   lastTrade?: { premium: number; atMs: number | null; source?: string | null } | null;
+  /**
+   * Ledger audit 2026-10-15 (same truth rules as the journal): the verify-ledger verdict —
+   * realized counts only when verified / bar-corrected, else "checking" — and whether the
+   * lifecycle ever triggered (false = no P&L).
+   */
+  verification?: PnlVerification | null;
+  triggered?: boolean | null;
 }
 
 export function isZeroDtePick(p: PnlPickLike, nowMs: number): boolean {
@@ -138,11 +145,12 @@ const msOf = (x: { atMs?: number | null; at?: string | null } | null | undefined
 
 /** A NEXUS setup's P&L at the budget, from its pick (+ stored record when off the board / resolved). */
 export function pickPnl(pick: PnlPickLike, budget: number, markOf: ((key: string) => MarkLike | 'loading' | null) | null, rec: PnlRecordLike | null, nowMs: number): NexusPnl {
-  const tradable = tradableContract({ ...pick, zeroDte: isZeroDtePick(pick, nowMs) }, budget);
   const reason = String(rec?.resolutionReason ?? '');
   // No fill / superseded is not a trade — no P&L (same as the journal: never booked).
   let state = pnlStateOf({ lifecycleState: pick.lifecycleState, outcomeStatus: rec?.outcomeStatus, isBotHeld: pick.isBotHeld });
   if (state === 'resolved' && (reason.startsWith('missed_entry') || reason.startsWith('superseded'))) state = 'waiting';
+  // Realized is priced on the PRIMARY contract (the one the verifier checks); over budget → 1 contract.
+  const tradable = tradableContract({ ...pick, zeroDte: isZeroDtePick(pick, nowMs) }, budget, { realized: state === 'resolved' });
   let exit: PremiumPoint | null = null;
   let peak: PremiumPoint | null = null;
   let trough: PremiumPoint | null = null;
@@ -168,5 +176,9 @@ export function pickPnl(pick: PnlPickLike, budget: number, markOf: ((key: string
       : (rec?.lastTrade && rec.lastTrade.premium > 0 ? rec.lastTrade : null);
     if (lt) mark = { price: lt.premium, asOf: lt.atMs != null ? new Date(lt.atMs).toISOString() : '', delayed: true, source: lt.source ?? 'last 1m bar', kind: 'last-trade' };
   }
-  return nexusPnl({ state, tradable, mark, exit, peak, trough, nowMs });
+  return nexusPnl({
+    state, tradable, mark, exit, peak, trough, nowMs,
+    ...(rec && 'verification' in rec ? { verification: rec.verification ?? null } : {}),
+    ...(rec && rec.triggered != null ? { triggered: rec.triggered } : {}),
+  });
 }

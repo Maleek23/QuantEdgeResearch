@@ -73,6 +73,15 @@ export function isUnverifiedTrade(t: Pick<JTrade, 'row'>): boolean {
 }
 
 /** Why a row is unverified, one line (the chip's hover text). */
+/**
+ * Ledger audit 2026-10-15 fix 10: a closed NEXUS row the nightly verify has not reached yet
+ * (truth bar_pending) shows "checking" instead of a P&L — its recorded number is in the
+ * hover, never in a total.
+ */
+export function isBarChecking(row: Pick<JournalTradeRow, 'verification' | 'status'>): boolean {
+  return row.status === 'closed' && row.verification?.truth === 'bar_pending';
+}
+
 export function unverifiedReason(row: Pick<JournalTradeRow, 'verification'>): string {
   const rs = row.verification?.reasons ?? [];
   return rs.length ? rs.map((r) => r.detail || r.code).join('; ') : 'not verified';
