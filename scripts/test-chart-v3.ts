@@ -13,6 +13,7 @@ import {
   BUILTIN_TEMPLATES, DEFAULT_CHART_STYLE, PATH_STYLES, QUICK_LAYERS, SETTINGS_GROUPS, applyTemplate, cleanPathLevels, sanitizeChartStyle, sanitizeTemplates, templateFromPrefs, trailDotIndices,
 } from '../shared/chart-templates';
 import { buildEventSteps, eventInstant, parseEtTime } from '../shared/event-steps';
+import { ALL_LAYER_ROWS, LAYER_GROUPS, filterLayerGroups, groupSummary } from '../shared/chart-layer-groups';
 import { isNyseHoliday } from '../shared/market-holidays';
 import { layoutAxisLabels, levelTier, maxApexLabels, maxLevelLabels } from '../client/src/components/charting/tv/label-layout';
 
@@ -303,6 +304,22 @@ t('priority order, nudge, cap, fold into +N', () => {
   assert.ok(maxLevelLabels('low', true) < maxLevelLabels('normal', true) && maxLevelLabels('normal', true) < maxLevelLabels('high', true));
   assert.ok(maxLevelLabels('normal', false) > maxLevelLabels('normal', true));
   assert.ok(maxApexLabels('low', false) === 1 && maxApexLabels('high', false) > maxApexLabels('normal', false));
+});
+
+console.log('layers panel model');
+t('groups, search, "n of m on", ids unique', () => {
+  const ids = ALL_LAYER_ROWS.map((r) => r.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(LAYER_GROUPS.map((g) => g.id), ['price', 'dealer', 'proj', 'flow', 'mine']);
+  assert.deepEqual(filterLayerGroups('gatekeeper').flatMap((g) => g.rows.map((r) => r.id)), ['gravity']);
+  assert.deepEqual(filterLayerGroups('envelope').flatMap((g) => g.rows.map((r) => r.id)), ['expMove']);
+  assert.equal(filterLayerGroups('').length, LAYER_GROUPS.length);
+  assert.equal(filterLayerGroups('zzz').length, 0);
+  const dealer = LAYER_GROUPS[1];
+  const s1 = groupSummary(dealer, (id) => id === 'walls' || id === 'gex');
+  assert.equal(s1.text, '2 of 5 on'); assert.equal(s1.master, true);
+  const s2 = groupSummary(dealer, () => false, (id) => id !== 'gex');
+  assert.equal(s2.text, '0 of 4 on'); assert.equal(s2.master, false);
 });
 
 console.log(`\n${n} checks passed`);

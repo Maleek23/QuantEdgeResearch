@@ -46,7 +46,8 @@ import { useChartStyle, clearActiveTemplate, allTemplates } from '@/components/c
 import { SETTINGS_GROUPS } from '@shared/chart-templates';
 import { etParts, reanchorPath, PATH_DISCLAIMER, PATH_HORIZON_LABEL } from '@shared/path-projection';
 import type { PathDraw } from './path-primitive';
-import { AppearanceSection, PathHorizonPill, PathLevelChips, PathStyleRow, QuickChips, TemplatesBar } from './chart-settings-parts';
+import { ActiveLayerChips, LayersPanel, type LayerStates } from './layers-panel';
+import { AppearanceSection, PathHorizonPill, PathLevelChips, PathStyleRow, TemplatesBar } from './chart-settings-parts';
 import type { EmDraw } from './layers-primitive';
 import { ENVELOPE_HORIZONS, ENVELOPE_LABEL, parseEnvelopeHorizon, type EnvelopeHorizon } from '@shared/envelope-cone';
 import { clientFlag } from '@/lib/feature-flags';
@@ -148,7 +149,7 @@ const TYPE_DEFS: { id: ChartType; label: string; Icon: (p: object) => JSX.Elemen
   { id: 'area', label: 'Area', Icon: IconArea },
 ];
 
-type Menu = null | 'tf' | 'type' | 'ind' | 'settings' | 'draw' | 'snap' | 'help';
+type Menu = null | 'tf' | 'type' | 'ind' | 'layers' | 'settings' | 'draw' | 'snap' | 'help';
 type Notice = { text: string; href?: string; file?: string } | null;
 
 export function TvChart({
@@ -157,7 +158,7 @@ export function TvChart({
   initialTf,
   tf: controlledTf,
   onTfChange,
-  levels = NO_LEVELS,
+  levels: callerLevels = NO_LEVELS,
   zones = NO_ZONES,
   live = true,
   onSymbolChange,
@@ -250,12 +251,13 @@ export function TvChart({
   const levelQ = useLevelMap(symbol, prefs.keyLevels, inView);
   const keyLevels = useMemo(() => (prefs.keyLevels ? pickKeyLevels(levelQ.data) : []), [prefs.keyLevels, levelQ.data]);
   const allLevels = useMemo(() => {
+    const levels = prefs.ownLevels ? callerLevels : NO_LEVELS;
     const rows: (Level & { dashed?: boolean })[] = [...(prefs.walls ? walls.rows : []), ...keyLevels.map(({ source: _s, ...l }) => l)];
     if (!rows.length) return levels;
     // A caller may already pass the walls (research page): one line per price.
     const fresh = rows.filter((r) => !levels.some((l) => Math.abs(l.price - r.price) < 1e-6));
     return fresh.length ? [...levels, ...fresh] : levels;
-  }, [prefs.walls, walls, keyLevels, levels]);
+  }, [prefs.walls, prefs.ownLevels, walls, keyLevels, callerLevels]);
 
   /* ── expected move: 1σ one-session move from 20-day realized vol ── */
   const { data: daily } = useCandles(symbol, '1D', inView);
@@ -361,7 +363,7 @@ export function TvChart({
   // Gravity labels (flag GRAVITY_LABELS): Gatekeeper / Rug / Trampoline tags + Halo, from the
   // same per-strike timeline the orbs draw (shared/gravity-nodes.ts). Hidden in replay.
   const gravityRows = useMemo((): Level[] => {
-    if (!clientFlag('GRAVITY_LABELS') || !prefs.walls || !ov || cutoff != null) return [];
+    if (!clientFlag('GRAVITY_LABELS') || !prefs.gravity || !ov || cutoff != null) return [];
     const tl = ov.gexTimeline; const last = tl.samples[tl.samples.length - 1];
     const spot = last ? [...tl.samples].reverse().find((x) => x.spot != null)?.spot ?? null : null;
     if (!last || spot == null) return [];
@@ -373,7 +375,7 @@ export function TvChart({
     if (g.rug != null) out.push({ price: g.rug, color: 'caution', label: `RUG → ${g.rugInto ?? '—'}${halo(g.rug)}`, kind: 'gex-anchor' });
     if (g.trampoline != null) out.push({ price: g.trampoline, color: 'info', label: `TRAMPOLINE${halo(g.trampoline)}`, kind: 'gex-anchor' });
     return out;
-  }, [prefs.walls, ov, cutoff]);
+  }, [prefs.gravity, ov, cutoff]);
   const chartLevels = useMemo(() => {
     if (!gravityRows.length) return allLevels;
     const fresh = gravityRows.filter((r) => !allLevels.some((l) => Math.abs(l.price - r.price) < 1e-6));
@@ -433,13 +435,13 @@ export function TvChart({
     const snaps = snapQ.data?.snapshots;
     const s940 = snaps?.['0940']?.[prefs.pathHorizon]?.result; const sCl = snaps?.close?.[prefs.pathHorizon]?.result;
     // In replay only what was computed by the cursor shows (frozen at 09:40 / close).
-    if (s940 && (cutoff == null || s940.startMs <= cutoff)) frozen.push({ label: '09:40 frozen', result: s940 });
-    if (sCl && (cutoff == null || sCl.startMs <= cutoff)) frozen.push({ label: 'close frozen', result: sCl });
+    if (prefs.pathFrozen && s940 && (cutoff == null || s940.startMs <= cutoff)) frozen.push({ label: '09:40 frozen', result: s940 });
+    if (prefs.pathFrozen && sCl && (cutoff == null || sCl.startMs <= cutoff)) frozen.push({ label: 'close frozen', result: sCl });
     // Live, not carried: the fan starts at the chart's live last price (translation only, ≤2% gap).
     const live = replay.on || !pathQ.data?.result ? null : reanchorPath(pathQ.data.result, lastLive).result;
     if (!live && !frozen.length) return null;
     return { live, frozen, bands: prefs.pathBands, density: prefs.pathDensity, opacity: styleSt.style.opacity.path, lineWidth: styleSt.style.lineWidth, style: styleSt.style.pathStyle, nodes: pathNodes };
-  }, [pathOn, snapQ.data, pathQ.data, lastLive, prefs.pathHorizon, prefs.pathBands, prefs.pathDensity, replay.on, cutoff, styleSt.style, pathNodes]);
+  }, [pathOn, snapQ.data, pathQ.data, lastLive, prefs.pathHorizon, prefs.pathBands, prefs.pathDensity, prefs.pathFrozen, replay.on, cutoff, styleSt.style, pathNodes]);
   const layerStyle = useMemo(() => ({
     alpha: { em: styleSt.style.opacity.em, gex: styleSt.style.opacity.gex, dp: styleSt.style.opacity.dp, flow: styleSt.style.opacity.flow },
     pathColor: styleSt.style.color.path, emColor: styleSt.style.color.em, lowChroma: styleSt.style.lowChroma,
@@ -793,17 +795,34 @@ export function TvChart({
     setReplay((r) => (r.on ? { ...r, on: false, playing: false } : { on: true, idx: Math.min(sessionBars.length - 1, Math.max(1, Math.floor(sessionBars.length * 0.75))), playing: false, speed: r.speed }));
   };
 
+  const layerStates = useMemo((): LayerStates => {
+    const b = (k: keyof typeof prefs) => ({ on: !!prefs[k], set: (v: boolean) => set(k, v as never), available: true });
+    const opt = (k: keyof typeof prefs) => ({ ...b(k), available: layersOk, on: layersOk && !!prefs[k] });
+    return {
+      volume: b('fullVolume'), vwap: { ...b('vwap'), available: intraday, on: intraday && prefs.vwap }, ma: b('ma'), ema: b('ema'), keyLevels: b('keyLevels'),
+      walls: { ...opt('walls'), note: layersOk ? wallsSub : null }, gravity: opt('gravity'),
+      gex: { on: layersOk && prefs.gex !== 'off', set: (v) => set('gex', v ? 'bubbles' : 'off'), available: layersOk, note: layersOk ? orbSub : null },
+      gexLabels: opt('gexLabels'), gexProject: opt('gexProject'),
+      path: opt('path'), pathFrozen: opt('pathFrozen'), expMove: b('expMove'),
+      flow: opt('flow'), dp: opt('dp'),
+      drawings: { on: !allHidden, set: (v) => setAllHidden(!v), available: true, note: dr.drawings.length ? `${dr.drawings.length} drawing${dr.drawings.length === 1 ? '' : 's'}, incl. alert lines` : null },
+      ownLevels: { ...b('ownLevels'), available: callerLevels.length > 0, on: callerLevels.length > 0 && prefs.ownLevels, note: callerLevels.length ? null : 'none on this chart' },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs, layersOk, intraday, wallsSub, orbSub, allHidden, dr.drawings.length, callerLevels.length]);
+  const layersOnCount = Object.values(layerStates).filter((x) => x.on && x.available).length;
+
   const indicatorsMenu = (
-    <div className={`tv-menu tv-menu-ind${q ? ' tv-searching' : ''}`} role="menu" aria-label="Indicators and layers">
+    <div className={`tv-menu tv-menu-ind${q ? ' tv-searching' : ''}`} role="menu" aria-label="Chart settings: how layers look">
       <label className="tv-isearch">
         <IconSearch />
         <input
-          className="tv-text-in" value={indQ} onChange={(e) => setIndQ(e.target.value)} placeholder="Search indicators & layers"
-          aria-label="Search indicators and layers" autoFocus={typeof matchMedia !== 'undefined' && matchMedia('(pointer: fine)').matches}
+          className="tv-text-in" value={indQ} onChange={(e) => setIndQ(e.target.value)} placeholder="Search settings"
+          aria-label="Search settings" autoFocus={typeof matchMedia !== 'undefined' && matchMedia('(pointer: fine)').matches}
           autoCorrect="off" spellCheck={false} enterKeyHint="search"
         />
       </label>
-      {!q && <TemplatesBar st={styleSt} prefs={prefs} onApplied={(n) => setNotice({ text: `Template “${n}” applied` })} />}
+      {!q && <button type="button" className="tv-ly-pointer" onClick={() => setMenu('layers')}>Turn layers on or off → <b>Layers</b></button>}
       {!q && (
         <nav className="tv-gnav" aria-label="Settings sections">
           {SETTINGS_GROUPS.map((g) => <button type="button" key={g.id} title={g.hint} onClick={() => document.getElementById(`tvs-${g.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>{g.label}</button>)}
@@ -820,11 +839,8 @@ export function TvChart({
           {([['normal', 'Linear'], ['log', 'Log'], ['pct', 'Percent']] as const).map(([k, l]) => <button type="button" key={k} className={scale === k ? 'on' : ''} aria-pressed={scale === k} disabled={cmpOn && k !== 'pct'} onClick={() => set('scale', k)}>{l}</button>)}
         </div>
       )}
-      {menuRow(prefs.fullVolume, (v) => set('fullVolume', v), 'Volume', null)}
       {menuRow(extended, (v) => set('extended', v), 'Extended hours (ETH)', intraday ? null : 'intraday timeframes only')}
             <div className="tv-mhead" id="tvs-dealer">Dealer levels</div>
-      {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk.call)}
-      {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk.pos)}
       {menuRow(prefs.gex === 'lines', (v) => set('gex', v ? 'lines' : 'off'), 'GEX top strikes (lines)', gexRead ? `snapshot ${ageOf(gexRead.asOf, now)} old` : null, tk.neg)}
       <div className="tv-mseg-row">
         <span className="tv-mseg-label">Expiries</span>
@@ -838,10 +854,7 @@ export function TvChart({
           {METRICS.map((m) => <button type="button" role="radio" aria-checked={prefs.gexMetric === m.id} key={m.id} className={prefs.gexMetric === m.id ? 'on' : ''} title={m.long} onClick={() => { set('gexMetric', m.id); if (prefs.gex !== 'bubbles') set('gex', 'bubbles'); }}>{m.label}</button>)}
         </div>
       </div>
-      {menuRow(prefs.gexLabels, (v) => set('gexLabels', v), 'Apex node labels', 'strike + size of the strongest node')}
-      {menuRow(prefs.gexProject, (v) => set('gexProject', v), 'Project nodes forward', 'latest nodes carried past the last candle — not a forecast')}
       <div className="tv-mhead" id="tvs-projections">Projections</div>
-      {menuRow(prefs.path, (v) => set('path', v), 'Path fan · modelled scenario', layersOk ? '2,000 Monte-Carlo paths from the priced move, GEX nodes, skew — not a forecast' : 'no options layers for this symbol', tk.pos)}
       {prefs.path && !q && (
         <>
           <PathStyleRow value={styleSt.style.pathStyle} />
@@ -858,15 +871,6 @@ export function TvChart({
           {styleSt.style.pathStyle === 'detailed' && menuRow(prefs.pathDensity, (v) => set('pathDensity', v), 'Terminal density', "where the modelled paths end, at the fan's right edge")}
         </>
       )}
-      {menuRow(prefs.expMove, (v) => set('expMove', v), 'Expected move · priced range', 'today / this week lines + √t cone from the ATM straddle', tk.mute)}
-      <div className="tv-mhead" id="tvs-flow">Flow</div>
-      {menuRow(prefs.dp, (v) => set('dp', v), 'Dark-pool levels', layersOk ? 'Bullflow dark-pool prints, multi-day' : 'no options layers for this symbol', tk.dp)}
-      {menuRow(prefs.flow, (v) => set('flow', v), 'Options flow prints', layersOk ? 'calls ● above · puts ◆ below' : 'no options layers for this symbol', tk.call)}
-      <div className="tv-mhead" id="tvs-indicators">Indicators</div>
-      {menuRow(prefs.vwap, (v) => set('vwap', v), 'VWAP (session)', intraday ? 'resets each ET session' : 'intraday timeframes only')}
-      {menuRow(prefs.keyLevels, (v) => set('keyLevels', v), 'Key levels', idx?.extendedProxy ? 'PDH/PDL/PDC · ORB 15m · overnight H/L (ES-based)' : 'PDH/PDL/PDC · ORB 15m · pre-market H/L')}
-      {menuRow(prefs.ema, (v) => set('ema', v), 'EMA 9 / 21', null)}
-      {menuRow(prefs.ma, (v) => set('ma', v), 'MA 20 / 50', null)}
       <div className="tv-mhead">Compare</div>
       <form className="tv-cmp" onSubmit={(e) => { e.preventDefault(); addCompare(); }}>
         <input
@@ -1008,7 +1012,17 @@ export function TvChart({
         </div>
         <span className="tv-sep" />
         <div className="tv-pop">
-          <button type="button" className={`tv-tb tv-labeled${menu === 'ind' ? ' on' : ''}`} onClick={() => toggleMenu('ind')} aria-haspopup="menu" aria-expanded={menu === 'ind'} aria-label="Chart settings: layers, projections, indicators, templates" title="Settings — layers, projections, indicators, appearance, templates">
+          <button type="button" className={`tv-tb tv-labeled tv-ly-btn${menu === 'layers' ? ' on' : ''}`} onClick={() => toggleMenu('layers')} aria-haspopup="dialog" aria-expanded={menu === 'layers'} aria-label={`Layers: ${layersOnCount} on`} title="Layers — turn anything on the chart on or off">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" /></svg>
+            <span>Layers</span><b className="tv-ly-n">{layersOnCount}</b>
+          </button>
+          {menu === 'layers' && (
+            <LayersPanel states={layerStates} style={styleSt.style} onClose={() => setMenu(null)} onOpenSettings={() => setMenu('ind')}
+              templates={<TemplatesBar st={styleSt} prefs={prefs} onApplied={(n) => setNotice({ text: `Template “${n}” applied` })} />} />
+          )}
+        </div>
+        <div className="tv-pop">
+          <button type="button" className={`tv-tb tv-labeled${menu === 'ind' ? ' on' : ''}`} onClick={() => toggleMenu('ind')} aria-haspopup="menu" aria-expanded={menu === 'ind'} aria-label="Chart settings: how layers look" title="Settings — style, horizons, bands, colours, label density">
             <IconIndicators /><span className="tv-desk">Settings</span><IconChevron className="tv-desk" />
           </button>
           {menu === 'ind' && indicatorsMenu}
@@ -1059,7 +1073,8 @@ export function TvChart({
         <button type="button" className={`tv-tb tv-desk-flex${isFull ? ' on' : ''}`} onClick={toggleFull} aria-label={isFull ? 'Exit fullscreen' : 'Fullscreen'} title={isFull ? 'Exit fullscreen' : 'Fullscreen'}><IconFullscreen /></button>
       </div>
       <div className="tv-sub" role="region" aria-label="Quick layers and path odds">
-        <QuickChips prefs={prefs} set={set} active={activeTplName} />
+        <ActiveLayerChips states={layerStates} onOpen={() => setMenu('layers')} />
+        {activeTplName && <span className="tv-qc-tpl" title="Active template">{activeTplName}</span>}
         {layersOk && prefs.path && <PathHorizonPill className="tv-pill-sub" value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />}
         {pathOn && pathRes && !replay.on && <PathLevelChips r={pathRes} clean={styleSt.style.pathStyle === 'clean'} max={typeof matchMedia !== 'undefined' && matchMedia('(max-width: 640px)').matches ? 3 : styleSt.style.labelDensity === 'low' ? 3 : styleSt.style.labelDensity === 'high' ? 12 : 6} />}
       </div>
@@ -1340,6 +1355,60 @@ const TV_CSS = `
 .tv-phone-flex,.tv-phone-only,.tv-mactions.tv-phone-only{display:none}
 .tv-desk-flex{display:inline-flex}
 .tv-scrim{position:fixed;inset:0;z-index:20}
+.tv-layers{width:380px;padding:0 0 6px;gap:0}
+.tv-ly-head{position:sticky;top:0;z-index:2;display:flex;align-items:baseline;gap:8px;padding:10px 12px 6px;background:var(--tv-panel)}
+.tv-ly-head b{font-size:13px;color:var(--tv-fg)}.tv-ly-head small{flex:1;font-size:11px;color:var(--tv-mute)}
+.tv-ly-grab{display:none}
+.tv-ly-close{width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--tv-mute);font-size:18px;cursor:pointer}
+.tv-ly-close:hover,.tv-ly-close:focus-visible{color:var(--tv-fg);background:var(--tv-line);outline:none}
+.tv-layers .tv-isearch{margin:0 10px 6px}
+.tv-ly-tpl{padding:4px 12px 8px;border-bottom:1px solid var(--tv-line)}
+.tv-ly-cap{display:block;margin-bottom:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-mute)}
+.tv-ly-group{padding:6px 0 4px;border-bottom:1px solid var(--tv-line)}
+.tv-ly-ghead{display:flex;align-items:center;gap:8px;padding:4px 12px}
+.tv-ly-gname{flex:1;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-fg)}
+.tv-ly-count{font:600 10px 'JetBrains Mono',monospace;color:var(--tv-mute)}
+.tv-ly-row{display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 12px}
+.tv-ly-row:hover{background:color-mix(in srgb,var(--tv-line) 45%,transparent)}
+.tv-ly-row.na{opacity:.5}
+.tv-ly-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.tv-ly-label{font-size:12.5px;color:var(--tv-fg)}
+.tv-ly-text small{font-size:11px;line-height:1.35;color:var(--tv-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv-ly-op{width:64px;accent-color:var(--tv-accent);cursor:pointer}
+.tv-lysw{position:relative;flex:none;width:34px;min-width:34px;height:20px;border:1px solid var(--tv-line-hi);border-radius:999px;background:var(--tv-line);cursor:pointer;padding:0;transition:background .15s ease,border-color .15s ease}
+.tv-lysw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--tv-mute);transition:transform .15s ease,background .15s ease}
+.tv-lysw.on{background:color-mix(in srgb,var(--tv-accent) 70%,transparent);border-color:var(--tv-accent)}
+.tv-lysw.on i{transform:translateX(14px);background:#fff}
+.tv-lysw.mixed i{transform:translateX(7px)}
+.tv-lysw.on.mixed{background:color-mix(in srgb,var(--tv-accent) 28%,transparent)}
+.tv-lysw:disabled{cursor:default;opacity:.5}
+.tv-lysw:focus-visible{outline:2px solid var(--tv-accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.tv-sw,.tv-lysw i{transition:none}}
+.tv-ly-empty{padding:12px;font-size:12px;color:var(--tv-mute)}
+.tv-ly-foot{margin:6px 12px 0;padding:8px;border:1px dashed var(--tv-line-hi);border-radius:6px;background:transparent;color:var(--tv-mute);font-size:11.5px;cursor:pointer;text-align:left}
+.tv-ly-foot:hover,.tv-ly-foot:focus-visible{color:var(--tv-fg);border-color:var(--tv-accent);outline:none}
+.tv-ly-pointer{margin:2px 4px 6px;padding:7px 8px;border:1px solid var(--tv-line);border-radius:6px;background:transparent;color:var(--tv-mute);font-size:11.5px;text-align:left;cursor:pointer}
+.tv-ly-pointer b{color:var(--tv-fg)}
+.tv-ly-pointer:hover,.tv-ly-pointer:focus-visible{border-color:var(--tv-accent);outline:none}
+.tv-ly-btn{border:1px solid color-mix(in srgb,var(--tv-accent) 45%,transparent)}
+.tv-ly-n{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:color-mix(in srgb,var(--tv-accent) 22%,transparent);color:var(--tv-fg);font:700 10px/16px 'JetBrains Mono',monospace;text-align:center}
+.tv-lychips{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tv-lychip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 6px 0 9px;border:1px solid color-mix(in srgb,var(--tv-accent) 45%,transparent);border-radius:999px;background:color-mix(in srgb,var(--tv-accent) 12%,transparent);color:var(--tv-fg);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
+.tv-lychip span{color:var(--tv-mute);font-size:13px;line-height:1}
+.tv-lychip:hover span,.tv-lychip:focus-visible span{color:var(--tv-fg)}
+.tv-lychip:focus-visible{outline:2px solid var(--tv-accent);outline-offset:1px}
+.tv-lychip-add{padding:0 9px;border-style:dashed;background:transparent;color:var(--tv-mute)}
+@media (max-width:640px){
+  .tv-layers{max-height:82dvh;border-radius:14px 14px 8px 8px}
+  .tv-ly-grab{display:block;position:absolute;top:5px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--tv-line-hi)}
+  .tv-ly-head{padding-top:14px}
+  .tv-ly-row{min-height:48px}
+  .tv-lysw{width:44px;min-width:44px;height:26px}.tv-lysw i{width:20px;height:20px}.tv-lysw.on i{transform:translateX(18px)}.tv-lysw.mixed i{transform:translateX(9px)}
+  .tv-ly-op{width:56px}
+  .tv-lychips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;width:100%}
+  .tv-lychip{height:30px;flex:none}
+  .tv-ly-close{width:40px;height:40px}
+}
 .tv-menu{position:absolute;top:36px;left:0;z-index:30;min-width:180px;max-height:min(72dvh,600px);overflow-y:auto;padding:6px;background:var(--tv-panel);border:1px solid var(--tv-line-hi);border-radius:6px;box-shadow:0 12px 32px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:1px}
 .tv-menu-right{left:auto;right:0;width:300px}
 .tv-menu-ind{width:360px}

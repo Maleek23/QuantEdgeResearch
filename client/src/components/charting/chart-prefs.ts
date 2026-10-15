@@ -92,6 +92,12 @@ export interface ChartPrefs {
   pathBands: 'both' | '50' | '80';
   /** Path: right-edge terminal density. */
   pathDensity: boolean;
+  /** Gravity tags (Gatekeeper / Rug / Trampoline lines). */
+  gravity: boolean;
+  /** Path: the frozen 09:40 / close snapshots. */
+  pathFrozen: boolean;
+  /** The caller's own lines (ideas, positions, setups). */
+  ownLevels: boolean;
   /** Keys the user explicitly set (the rest follow DEFAULT_CHART_PREFS). */
   setKeys?: (keyof ChartPrefs)[];
 }
@@ -106,6 +112,7 @@ export const DEFAULT_CHART_PREFS: ChartPrefs = {
   walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false, keyLevels: false,
   gexMetric: 'gex', gexLabels: true, gexProject: true, horizon: 'all', expMove: true,
   path: true, pathHorizon: 'session', pathBands: 'both', pathDensity: true,
+  gravity: true, pathFrozen: true, ownLevels: true,
 };
 
 function read(): ChartPrefs {
