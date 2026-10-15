@@ -133,6 +133,9 @@ function demoExtra(path: string): { status: number; body: unknown } | null {
     return { status: 200, body: { enabled: true, symbol: sym, series: { points }, generatedAt: iso(60_000) } };
   }
   if (path === '/api/nexus/tracked') return { status: 200, body: { tracked: [] } };
+  // The Quantinum product page frames /ask: show the real page, not the "not enabled" gate.
+  // Nothing is asked — writes are swallowed — so the frame shows the empty conversation + chart.
+  if (path === '/api/quantinum/ai/status') return { status: 200, body: { enabled: true, mode: 'demo', quota: 0, used: 0, remaining: 0, disclaimer: 'Sample data — educational, not advice.' } };
   if (path === '/api/journal/took-ideas') return { status: 200, body: { journal: 'mine', ideaIds: [] } };
   return null;
 }

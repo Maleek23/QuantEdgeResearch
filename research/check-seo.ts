@@ -18,8 +18,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PUBLIC_PAGE_META as STATIC_META, DOCS_PAGE_META } from '../shared/public-seo';
-const PUBLIC_PAGE_META = { ...STATIC_META, ...DOCS_PAGE_META };
+import { PUBLIC_PAGE_META as STATIC_META, DOCS_PAGE_META, PRODUCT_PAGE_META } from '../shared/public-seo';
+const PUBLIC_PAGE_META = { ...STATIC_META, ...DOCS_PAGE_META, ...PRODUCT_PAGE_META };
 import { LANDING_FAQ } from '../shared/landing-faq';
 import { PUBLIC_ROUTES, injectServerSeo, seoStatusFor } from '../server/seo-metadata';
 import { generateRobotsTxt, generateSitemap } from '../server/sitemap-generator';

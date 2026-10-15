@@ -20,7 +20,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
-export type RealDesk = 'nexus' | 'zerodte' | 'flow' | 'gex' | 'sectors' | 'bot' | 'journal' | 'today';
+export type RealDesk = 'nexus' | 'zerodte' | 'flow' | 'gex' | 'sectors' | 'bot' | 'journal' | 'today' | 'chart' | 'leaps' | 'ask' | 'alerts';
 
 /** The app route each desk shows, and the file stem of its capture. */
 export const DESK_ROUTE: Record<RealDesk, { path: string; file: string; label: string }> = {
@@ -32,6 +32,11 @@ export const DESK_ROUTE: Record<RealDesk, { path: string; file: string; label: s
   bot: { path: '/t?tab=bot', file: 'bot', label: 'the Quantinum Bot paper ledger' },
   journal: { path: '/t?tab=journal', file: 'journal', label: 'the Journal dashboard' },
   today: { path: '/today', file: 'today', label: 'Today, the market read' },
+  // Product pages (pages/product.tsx) — same rule: the real route on sample data.
+  chart: { path: '/t?tab=chart', file: 'chart', label: 'Trajectory, the chart with Path projection' },
+  leaps: { path: '/t?tab=leaps', file: 'leaps', label: 'Horizon, the LEAPS tracker' },
+  ask: { path: '/ask', file: 'ask', label: 'Ask Quantinum, the AI analyst' },
+  alerts: { path: '/alerts', file: 'alerts', label: 'Tripwire, the alerts page' },
 };
 
 type Clip = { mp4: string; webm: string | null; poster: string | null };
