@@ -343,4 +343,19 @@ t('Journal list + mini list render RowPnl ("checking" for bar_pending); the reco
   assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: null }).cls, 'bar_pending');
 });
 
+console.log('ledger audit 2026-10-15 — fix 8 (retro conversion produced 0 rows)');
+t('root cause fixed: selection reads the last print up to the trigger from the previous session(s); the fill is the first real print after it', () => {
+  const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const src = rd('scripts/retro-options-convert.ts');
+  assert.match(src, /const winFrom = Math\.min\(trigMs - 30 \* 60_000, sessionOpenMs\(trigMs\), trigMs - 4 \* 86_400_000\);/);
+  assert.match(src, /const after = chain\.bars\.find\(\(b\) => b\.t >= trigMs - 60_000 && b\.t < exitMs\);/, 'fill = first print after the trigger (any delay, labelled)');
+  assert.match(src, /upto = bars\.filter\(\(b\) => b\.t <= trigMs\)/, 'still nothing after the trigger for the pick');
+});
+t('a sub-$0.10 candidate is never the rule pick (ADSK 270C ×100 @ $0.05 was)', () => {
+  const bs = { price: (S: number, K: number, T: number, v: number, c: boolean) => bsPrice(S, K, T, v, c), delta: (S: number, K: number, T: number, v: number, c: boolean) => bsDelta(S, K, T, v, c), iv: (p: number, S: number, K: number, T: number, c: boolean) => impliedVol(p, S, K, T, c) };
+  const r = pickRetroContract({ direction: 'long', spot: 250, t1: 262, budget: 500, candidates: [{ type: 'call', strike: 270, expiry: '2026-09-04', dte: 4, price: 0.05, volume: 20, occ: 'ADSK260904C00270000' }] }, bs);
+  assert.equal(r.ok, false);
+  assert.match((r as any).reason, /1 subDime/);
+});
+
 console.log(`\n${n} journal-pnl-truth checks passed`);

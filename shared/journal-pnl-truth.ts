@@ -273,13 +273,15 @@ export function pickRetroContract(
 ): { ok: true; pick: RetroPick } | { ok: false; reason: string; considered: number } {
   const type = input.direction === 'short' ? 'put' : 'call';
   const isCall = type === 'call';
-  const rej = { type: 0, volume: 0, iv: 0, band: 0, budget: 0, payoff: 0 };
+  const rej = { type: 0, volume: 0, subDime: 0, iv: 0, band: 0, budget: 0, payoff: 0 };
   let best: RetroPick | null = null;
   let considered = 0;
   for (const c of input.candidates) {
     if (c.type !== type) { rej.type++; continue; }
     considered++;
     if (!(c.volume > 0) || !(c.price > 0)) { rej.volume++; continue; }
+    // Ledger audit 2026-10-15 fix 5: a sub-$0.10 contract is not a fillable budget pick (ADSK 270C ×100 @ $0.05).
+    if (c.price < 0.10) { rej.subDime++; continue; }
     const T = Math.max(0.25, c.dte) / 365;
     const iv = bs.iv(c.price, input.spot, c.strike, T, isCall);
     if (iv == null) { rej.iv++; continue; }
