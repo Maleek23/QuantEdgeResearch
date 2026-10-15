@@ -11,7 +11,8 @@ import {
   rewritesOutcome, oversizeForReview, OVERSIZE_REVIEW_MULTIPLE,
 } from '../shared/journal-pnl-truth';
 import { bsDelta, bsPrice, impliedVol } from '../shared/iv-fill';
-import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
+import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, NEVER_TRIGGERED_REASON, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
+import { loadLedgerAuditFixture, toDeskIdea } from './lib/ledger-audit-cases';
 import { ledgerEntryOf } from '../server/desk-verify-ledger';
 import { incrementalIds } from '../research/verify-nexus-book-sources';
 import { isOptionIntendedWrite, instrumentLabel, splitLegacySharesRows, SHARES_IDEA_LABEL, CONVERTED_SHARES_LABEL } from '../shared/options-only';
@@ -265,6 +266,24 @@ t('sized P&L > 2× budget is flagged for review and NOT counted (SPX 7775P +$6,0
   assert.deepEqual([r.verification?.status, r.verification?.truth, r.sizedAs?.review], ['unverified', 'oversize_review', true]);
   assert.deepEqual(v.review, { count: 1, pnl: 6090 });
   assert.equal(summarizeTruth(v.rows as any).n, 0, 'not in the headline');
+});
+
+console.log('ledger audit 2026-10-15 — fix 6 (closed rows must have triggered)');
+t('the never-triggered class: every closed prod row still pending_trigger / invalidated is excluded, never scored (IONQ "hit_target" while pending)', () => {
+  const fx = loadLedgerAuditFixture();
+  assert.ok(fx.neverTriggered.length >= 5);
+  for (const f of fx.neverTriggered) {
+    const m = mapDeskIdea(toDeskIdea(f));
+    assert.ok('excluded' in m && m.excluded === NEVER_TRIGGERED_REASON, `${f.symbol} ${f.outcome_status} (${f.execution_state}) must be excluded`);
+  }
+  const base = toDeskIdea(fx.cases.crdo_180p.idea);
+  assert.ok('row' in mapDeskIdea(base), 'a triggered stop is scored');
+  for (const st of ['invalidated', 'pending_trigger']) {
+    const m = mapDeskIdea({ ...base, executionState: st });
+    assert.ok('excluded' in m && m.excluded === NEVER_TRIGGERED_REASON, st);
+  }
+  assert.ok('row' in mapDeskIdea({ ...base, executionState: null }), 'legacy row without an audit state: the bar verifier decides (never_triggered → bar_mismatch)');
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: { verdict: 'MISMATCH', recordedPnL: -50, recomputedPnL: 0, bugClass: 'never_triggered', reason: 'x' } }).counted, false);
 });
 
 console.log(`\n${n} journal-pnl-truth checks passed`);

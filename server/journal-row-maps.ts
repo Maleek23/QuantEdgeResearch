@@ -187,6 +187,14 @@ export interface DeskIdea {
 /** States in which a published plan has actually been entered. */
 export const ENTERED_STATES = new Set(['triggered', 'executed', 'closed']);
 export const AWAITING_ENTRY_REASON = 'awaiting entry — trigger not hit yet (not an open trade, no P&L)';
+/** Ledger audit 2026-10-15 fix 6: a CLOSED idea whose recorded lifecycle never entered. */
+export const NEVER_TRIGGERED_REASON = 'never triggered — closed without an entry (lifecycle never reached triggered/executed; no P&L)';
+
+/** Fix 6: the recorded lifecycle state says the plan was never entered (null = legacy row without an audit → bars decide). */
+export function neverEnteredState(i: Pick<DeskIdea, 'executionState'>): boolean {
+  const st = String(i.executionState ?? '').trim();
+  return st !== '' && !ENTERED_STATES.has(st);
+}
 
 export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
 
@@ -215,6 +223,11 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
   if (!resolved && 'executionState' in i && !ENTERED_STATES.has(String(i.executionState ?? ''))) {
     return { excluded: AWAITING_ENTRY_REASON };
   }
+  // Ledger audit 2026-10-15 fix 6: the same check for CLOSED rows — an idea whose lifecycle
+  // is still pending_trigger / invalidated was never a trade, whatever outcome the tracker
+  // stamped on it (IONQ "hit_target" while pending_trigger). Legacy rows with no audit state
+  // stay scored; the bar verifier decides their trigger (never_triggered → outside the headline).
+  if (resolved && neverEnteredState(i)) return { excluded: NEVER_TRIGGERED_REASON };
   if (resolved && isUnmeasuredExpiry(i)) return { excluded: 'expired without a measured exit' };
   // Options-only (shared/options-only.ts): an option engine's idea without a usable
   // contract — stored as shares by a legacy fallback, or missing strike/premium —

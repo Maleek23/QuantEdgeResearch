@@ -24,6 +24,20 @@ export interface FixtureIdea {
 export interface FixtureCase { idea: FixtureIdea; occ: string; optionBars: OBar[]; underlyingBars: OBar[] }
 export interface Fixture { generatedAt: string; cases: Record<string, FixtureCase>; neverTriggered: FixtureIdea[] }
 
+/** A fixture row as the journal mapper's DeskIdea (server/journal-row-maps.ts). */
+export function toDeskIdea(f: FixtureIdea): import('../../server/journal-row-maps').DeskIdea {
+  const num = (x: unknown) => (x == null ? null : Number(x));
+  return {
+    id: f.id, symbol: f.symbol, assetType: f.asset_type, direction: f.direction, entryPrice: Number(f.entry_price), targetPrice: num(f.target_price),
+    stopLoss: num(f.stop_loss), riskRewardRatio: num(f.risk_reward_ratio), optionType: f.option_type, strikePrice: num(f.strike_price), expiryDate: f.expiry_date,
+    entryPremium: num(f.entry_premium), exitPremium: num(f.exit_premium), optionPercentGain: num(f.option_percent_gain), exitPrice: num(f.exit_price),
+    percentGain: num(f.percent_gain), outcomeStatus: f.outcome_status, resolutionReason: f.resolution_reason, exitDate: f.exit_date, timestamp: f.timestamp,
+    source: f.source, catalyst: null, genConvictionBand: null, exitTimeSource: f.exit_time_source, executionState: f.execution_state,
+    dataSourceUsed: f.data_source_used, sessionContext: f.session_context,
+    convergenceSignalsJson: { planSnapshot: f.plan_snapshot ?? undefined, premiumPlan: f.premium_plan ?? undefined },
+  };
+}
+
 export function loadLedgerAuditFixture(): Fixture {
   return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts', 'fixtures', 'ledger-audit-2026-10-15.json'), 'utf8'));
 }
