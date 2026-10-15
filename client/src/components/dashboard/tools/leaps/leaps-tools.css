@@ -31,6 +31,6 @@
 /* LEAPS board ⇄ beaten-down screener (fused 2026-10-07) */
 .leaps-fused { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .leaps-fused-tabs { display: flex; gap: 6px; padding: 8px 12px; overflow-x: auto; scrollbar-width: none; flex: none; border-bottom: 1px solid var(--border, rgba(255,255,255,.08)); }
-.leaps-fused-tabs button { min-height: 44px; padding: 0 14px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--muted-foreground, #8a94a6); background: transparent; border: 1px solid transparent; }
+.leaps-fused-tabs button { min-height: 44px; padding: 0 14px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; /* design pass: flex items shrank below their nowrap label at 390px */ color: var(--muted-foreground, #8a94a6); background: transparent; border: 1px solid transparent; }
 .leaps-fused-tabs button.on { color: var(--foreground, #e6edf7); background: var(--card, rgba(255,255,255,.04)); border-color: var(--border, rgba(255,255,255,.12)); }
 .leaps-fused > :last-child { flex: 1; min-height: 0; overflow: auto; }

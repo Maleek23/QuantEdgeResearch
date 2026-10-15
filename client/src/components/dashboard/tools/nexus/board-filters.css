@@ -51,7 +51,7 @@ html[data-mode=light] .nxf-pop{box-shadow:0 14px 36px rgba(15,23,42,.16)}
 @media (max-width:767px){
   /* row 1: search · A/B · Filters · count — row 2: Day | Side, each half width */
   .nxf-row{flex-wrap:wrap;row-gap:6px;padding:6px 0}
-  .nxf-search{order:1;flex:1 1 0;min-width:0;max-width:none;height:44px}
+  .nxf-search{order:1;flex:1 1 0;min-width:140px;max-width:none;height:44px} /* design pass: min-width 0 let the Day seg share row 1 and crush search to ~30px */
   .nxf-search input{font-size:16px}
   .nxf-row>.nxf-chip{order:2;height:44px;min-width:44px;padding:0 10px;font-size:13px}
   .nxf-count{order:3;margin-left:0}

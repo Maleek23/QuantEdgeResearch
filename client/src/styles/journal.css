@@ -574,6 +574,10 @@ button.jr-heat-c{cursor:pointer}
   .jr-filters .jr-seg{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}
   .jr-filters .jr-seg button{flex:none;min-height:40px}
   .jr-strip-page{min-height:44px}
+  /* design pass 2026-10-15: the 4 sizing presets wrapped 3+1 with an orphaned "Unit";
+     an even 2×2 grid reads as one control and gives each a 40px target */
+  .jr-desk-ctl .jr-seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .jr-desk-ctl .jr-seg button{min-height:40px}
 }
 
 /* Batch A · drill-downs: a summary row opens exactly its trades on the Trades page */

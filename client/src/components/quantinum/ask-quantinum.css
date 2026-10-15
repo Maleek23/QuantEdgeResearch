@@ -168,6 +168,12 @@
 .aq-page-sym strong { font: 650 14px/1 var(--lx-font-data); }
 .aq-page-chat { min-width: 0; min-height: 0; height: calc(100dvh - 90px); display: flex; }
 .aq-page-gate { padding: 24px 16px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+/* design pass 2026-10-15: the gate was a 13px label over body text — give it a real title,
+   a readable measure, and centre it in the empty page like other empty states */
+.aq-page-gate { max-width: 34rem; width: 100%; margin: clamp(48px, 14vh, 120px) auto 0; padding: 24px 16px; }
+.aq-page-gate h1 { margin: 0; font: 650 clamp(20px, 2.4vw, 24px)/1.2 var(--lx-font-ui); letter-spacing: -0.01em; color: var(--lx-text); }
+.aq-page-gate p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--lx-dim, var(--lx-text)); }
+.aq-page-gate .lx-btn { min-height: 44px; margin-top: 4px; }
 @media (max-width: 1023px) {
   .aq-page-grid { grid-template-columns: minmax(0, 1fr); padding: 8px 16px calc(96px + env(safe-area-inset-bottom)); }
   .aq-page-chat { height: 70dvh; }

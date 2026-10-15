@@ -99,6 +99,7 @@ export function TerminalTickerSearch({
           }}
           placeholder={value ? 'switch ticker' : 'search any ticker'}
           aria-label="Search any ticker"
+          style={{ textOverflow: 'ellipsis' }} /* design pass: narrow phone toolbars clipped the placeholder mid-word */
           className={cn(
             variant === 'nexus'
               ? undefined /* the .search shell styles its input */
@@ -107,7 +108,7 @@ export function TerminalTickerSearch({
           )}
         />
         {query && (
-          <button type="button" onClick={() => setQuery('')} className={variant === 'nexus' ? 'text-inherit' : 'mr-2 text-muted-foreground hover:text-foreground'} style={variant === 'nexus' ? { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)' } : undefined}>
+          <button type="button" aria-label="Clear ticker search" onClick={() => setQuery('')} className={variant === 'nexus' ? 'text-inherit' : 'mr-2 text-muted-foreground hover:text-foreground'} style={variant === 'nexus' ? { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)' } : undefined}>
             <X className="h-3 w-3" />
           </button>
         )}

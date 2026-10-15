@@ -1,0 +1,92 @@
+{
+ "landing@1440": {
+  "scrollW": 1440,
+  "vw": 1440,
+  "over": [],
+  "small": 3,
+  "smallEx": [
+   "Say hi on Discord → ",
+   "the Discord",
+   "support@quantedgelab"
+  ],
+  "noname": [],
+  "tiny": 0,
+  "h1": 1,
+  "path": "/"
+ },
+ "current@1440": {
+  "scrollW": 1440,
+  "vw": 1440,
+  "over": [],
+  "small": 1,
+  "smallEx": [
+   "Skip to content"
+  ],
+  "noname": [],
+  "tiny": 1,
+  "h1": 0,
+  "path": "/t?tab=flow&harness=1"
+ },
+ "trajectory@1440": {
+  "scrollW": 1440,
+  "vw": 1440,
+  "over": [],
+  "small": 1,
+  "smallEx": [
+   "Skip to content"
+  ],
+  "noname": [],
+  "tiny": 1,
+  "h1": 0,
+  "path": "/t?tab=chart&harness=1"
+ },
+ "landing@390": {
+  "scrollW": 390,
+  "vw": 390,
+  "over": [
+   "BUTTON.dk-tab",
+   "BUTTON.dk-tab",
+   "BUTTON.dk-tab",
+   "TABLE.sr-only",
+   "CAPTION.",
+   "THEAD."
+  ],
+  "small": 2,
+  "smallEx": [
+   "the Discord",
+   "support@quantedgelab"
+  ],
+  "noname": [],
+  "tiny": 0,
+  "h1": 1,
+  "path": "/"
+ },
+ "current@390": {
+  "scrollW": 390,
+  "vw": 390,
+  "over": [
+   "BUTTON.user-chip"
+  ],
+  "small": 1,
+  "smallEx": [
+   "Skip to content"
+  ],
+  "noname": [],
+  "tiny": 1,
+  "h1": 0,
+  "path": "/t?tab=flow&harness=1"
+ },
+ "trajectory@390": {
+  "scrollW": 390,
+  "vw": 390,
+  "over": [],
+  "small": 1,
+  "smallEx": [
+   "Skip to content"
+  ],
+  "noname": [],
+  "tiny": 1,
+  "h1": 0,
+  "path": "/t?tab=chart&harness=1"
+ }
+}
