@@ -21,7 +21,7 @@
  */
 import { intrinsicValue, settlementUnderlying } from '../shared/journal-expiry';
 
-export type Bar = { t: number; o: number; h: number; l: number; c: number; v?: number };
+export type Bar = { t: number; o: number; h: number; l: number; c: number; v?: number; vw?: number };
 export interface HttpResult { status: number; body: any }
 /** Raw GET (status + body). The caller owns caching / throttling / 429 back-off. */
 export type RawGet = (cacheKey: string, url: string, headers?: Record<string, string>) => Promise<HttpResult | null>;
@@ -201,7 +201,7 @@ export async function alpacaOptionBars(occ: string, fromMs: number, toMs: number
       { 'APCA-API-KEY-ID': deps.alpaca.id, 'APCA-API-SECRET-KEY': deps.alpaca.secret });
     for (const b of j?.bars?.[occ] ?? []) {
       const t = Date.parse(b?.t);
-      if (fin(t) && fin(b?.o) && fin(b?.h) && fin(b?.l) && fin(b?.c)) out.push({ t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0 });
+      if (fin(t) && fin(b?.o) && fin(b?.h) && fin(b?.l) && fin(b?.c)) out.push({ t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0, ...(fin(b?.vw) ? { vw: b.vw } : {}) });
     }
     token = j?.next_page_token ?? null;
     if (!token) break;

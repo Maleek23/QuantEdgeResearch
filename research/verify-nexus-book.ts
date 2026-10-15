@@ -27,7 +27,12 @@
  *       MISMATCH even when the entry premium cannot be priced (the recorded entry
  *       is then used and labelled unverified).
  *
- * Each trade gets VERIFIED (within tolerance) / MISMATCH (recorded vs
+ * Options (ledger audit 2026-10-15, research/verify-option-core.ts): VERIFIED only when the
+ * recorded entry traded at publish / trigger, the exit traded at the exit event (or equals
+ * settlement) and the recorded outcome is the first barrier from the trigger — no $15 / 20%
+ * tolerance pass. An untraded entry is re-priced from the first real print (entry_repriced).
+ *
+ * Each trade gets VERIFIED (stocks: within tolerance) / MISMATCH (recorded vs
  * recomputed, with the bug class that explains it) / UNVERIFIABLE (no data,
  * with why). Row-level integrity flags (shared/desk-integrity.ts) and
  * duplicates are reported alongside.
@@ -69,6 +74,9 @@ import { mapDeskIdea, type DeskIdea, type JournalWireRow } from '../server/journ
 import { DESK_BUG_CLASSES, deskIntegrityFlags, findDuplicates, type DeskIntegrityFlag } from '../shared/desk-integrity';
 import { optionSideOf } from '../shared/option-value-bounds';
 import { liquidityGateResult, liquidityBugClass } from '../shared/option-liquidity';
+import { readPlanSnapshot } from '../shared/plan-snapshot';
+import { premiumPlanFor, readPremiumPlan } from '../shared/premium-outcome';
+import { entryCheck, exitCheck, exitPremiumAt, fillVerdict, firstBarrier, orderCheck, premiumGoverned } from './verify-option-core';
 import {
   attemptsText, expirySettlement, incrementalIds, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
   unverifiableIds, type ChainDeps, type ChainResult, type HttpResult, type MassiveEndpoint,
@@ -107,6 +115,11 @@ const SCRIPT_BUG_CLASSES = {
   illiquid_contract_suspected: 'no contract print within 30m of the recorded entry/exit AND the idea carries no passing liquidity-gate snapshot (published before the gate, or the gate failed) — the contract most likely did not trade; recorded fills untrustworthy',
   liquidity_unrecorded: 'option idea carries no liquidity-gate snapshot (convergenceSignalsJson.contractLiquidity) — published before the gate (2026-10-07) or bypassed it',
   unexplained: 'recomputed P&L differs beyond tolerance; no single class explains it — see evidence',
+  // Ledger audit 2026-10-15 (research/verify-option-core.ts):
+  entry_repriced: 'recorded entry premium was never inside the contract\'s traded range at publish / trigger — re-priced from the first real print at/after the trigger ("entry-repriced")',
+  wrong_outcome_order: 'the recorded outcome is not the first barrier touched from the trigger (governing path: premium plan for premium-stop engines, else the underlying)',
+  settlement_repriced: 'entry traded, but the recorded expiry exit is not settlement intrinsic (16:00 ET close) — exit re-priced at intrinsic',
+  barrier_order_disagrees: 'the recorded outcome matches the governing path, but the other path (underlying vs premium plan) touched the opposite barrier first — needs review, never silently accepted',
 } as const;
 
 // ─── tiny utils ──────────────────────────────────────────────
@@ -196,6 +209,41 @@ async function underlyingBars(symbol: string, assetType: string, fromMs: number,
   bars.sort((a, b) => a.t - b.t);
   underlyingMemo.set(memoKey, bars);
   return { bars, source };
+}
+
+/**
+ * Underlying bars for the barrier ORDER (fix 2): 1-minute when available — Alpaca SIP
+ * for stocks / ETFs, Yahoo 1m for indices (SPX → ^GSPC; ~30-day history) — else the
+ * 5-minute path above. Same-bar stop+target is resolved as stop, so resolution matters.
+ */
+async function underlyingOrderBars(symbol: string, fromMs: number, toMs: number): Promise<{ bars: Bar[]; source: string }> {
+  const s = symbol.toUpperCase();
+  const a = fromMs - 2 * 3600_000, b = Math.min(toMs + 3600_000, Date.now() - 16 * 60_000);
+  if (b > a && YAHOO_INDEX[s]) {
+    const ys = YAHOO_INDEX[s];
+    const out: Bar[] = [];
+    for (let t = a; t < b; t += 6 * 86400_000) {
+      const e = Math.min(b, t + 6 * 86400_000);
+      const j = await cachedJson(`y1m_${ys}_${Math.floor(t / 60_000)}_${Math.floor(e / 60_000)}`,
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ys)}?period1=${Math.floor(t / 1000)}&period2=${Math.floor(e / 1000)}&interval=1m&includePrePost=false`);
+      out.push(...parseYahoo(j));
+    }
+    if (out.length) return { bars: out.sort((x, y) => x.t - y.t), source: `yahoo:${ys}:1m` };
+  } else if (b > a && process.env.ALPACA_API_KEY && /^[A-Z.]{1,6}$/.test(s)) {
+    const out: Bar[] = [];
+    let token: string | null = null;
+    for (let page = 0; page < 6; page++) {
+      const qs = new URLSearchParams({ timeframe: '1Min', start: new Date(a).toISOString(), end: new Date(b).toISOString(), limit: '10000', feed: 'sip', adjustment: 'raw' });
+      if (token) qs.set('page_token', token);
+      const j = await cachedJson(`a1m_${s}_${Math.floor(a / 60_000)}_${Math.floor(b / 60_000)}_${page}`, `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(s)}/bars?${qs}`,
+        { 'APCA-API-KEY-ID': process.env.ALPACA_API_KEY!, 'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY ?? '' });
+      for (const x of (j?.bars ?? []) as any[]) { const t = Date.parse(x.t); if (fin(t) && x.h > 0) out.push({ t, o: x.o, h: x.h, l: x.l, c: x.c, v: x.v }); }
+      token = j?.next_page_token ?? null;
+      if (!token) break;
+    }
+    if (out.length) return { bars: out.sort((x, y) => x.t - y.t), source: `alpaca:${s}:1Min(sip)` };
+  }
+  return underlyingBars(symbol, 'stock', fromMs, toMs);
 }
 
 function occOf(root: string, day: string, side: 'call' | 'put', strike: number): string {
@@ -289,7 +337,9 @@ async function loadBook(): Promise<IdeaRow[]> {
              convergence_signals_json->'executionAudit'->>'state' AS execution_state,
              convergence_signals_json->'executionAudit'->>'triggerObservedAt' AS trigger_observed_at,
              convergence_signals_json->'executionAudit'->>'triggerObservedPrice' AS trigger_observed_price,
-             convergence_signals_json->'contractLiquidity' AS contract_liquidity
+             convergence_signals_json->'contractLiquidity' AS contract_liquidity,
+             convergence_signals_json->'planSnapshot' AS plan_snapshot,
+             convergence_signals_json->'premiumPlan' AS premium_plan
       FROM trade_ideas
       WHERE timestamp >= $1 AND status <> 'draft' AND (exclude_from_training = false OR exclude_from_training IS NULL)
       ORDER BY timestamp`, [SINCE]);
@@ -305,6 +355,8 @@ async function loadBook(): Promise<IdeaRow[]> {
       holdingPeriod: x.holding_period, triggerObservedAt: x.trigger_observed_at, triggerObservedPrice: num(x.trigger_observed_price),
       realizedPnLColumn: num(x.realized_pnl), status: x.status,
       contractLiquidity: x.contract_liquidity && typeof x.contract_liquidity === 'object' ? x.contract_liquidity : null,
+      // Immutable publish-time plan + the premium plan (fix 2: premium-stop engines are ordered on premium).
+      convergenceSignalsJson: { planSnapshot: x.plan_snapshot ?? undefined, premiumPlan: x.premium_plan ?? undefined },
     }));
   } finally {
     await client.query('ROLLBACK').catch(() => {});
@@ -398,6 +450,14 @@ async function verifyStock(i: IdeaRow, row: JournalWireRow, base: Omit<TradeResu
     { triggerAt: iso(trigMs), recomputedEntry: entry, recomputedExit: r2(recomputedExit), recomputedPnL, diff });
 }
 
+/**
+ * Options (fixes 1 + 2, ledger audit 2026-10-15; rules: research/verify-option-core.ts):
+ *   VERIFIED only when the recorded entry traded at publish / trigger, the recorded
+ *   exit traded at the exit event (or equals settlement), and the recorded outcome is
+ *   the first barrier from the trigger on the governing path (premium plan for
+ *   premium-stop engines, else the underlying) with the other path not contradicting it.
+ *   No $ / % tolerance decides a pass.
+ */
 async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeResult, 'verdict' | 'bugClass' | 'reason' | 'recomputedEntry' | 'recomputedExit' | 'recomputedPnL' | 'diff' | 'triggerAt'>): Promise<TradeResult> {
   const out = (v: Verdict, bugClass: string | null, reason: string, extra: Partial<TradeResult> = {}): TradeResult =>
     ({ ...base, triggerAt: null, recomputedEntry: null, recomputedExit: null, recomputedPnL: null, diff: null, verdict: v, bugClass, reason, ...extra });
@@ -411,35 +471,34 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   let exitMs = i.exitDate ? Date.parse(i.exitDate) : NaN;
   if (!fin(exitMs)) return out('UNVERIFIABLE', 'bar_unverifiable', 'no exit time recorded');
   if (exitMs > expiryCloseMs) { base.evidence.exitAfterExpiry = iso(exitMs); exitMs = expiryCloseMs; }
+  const snap = readPlanSnapshot(i.convergenceSignalsJson);
+  const planEntry = snap?.entryPrice ?? i.entryPrice;
+  const planStop = snap?.stopLoss ?? i.stopLoss;
+  const planTarget = snap?.targetPrice ?? i.targetPrice;
+  const long = (snap?.direction ?? i.direction) !== 'short';
 
-  // Underlying path: trigger time and (for cycle-stamped barrier exits) the touch.
-  const und = await underlyingBars(i.symbol, 'stock', pubMs, exitMs);
+  // Underlying path: trigger time, then the barrier order (1-min when available).
+  const und = await underlyingOrderBars(i.symbol, pubMs, exitMs);
   const ubars = und.bars.filter(rth);
   base.evidence.underlyingSource = und.source;
   const uDaily = und.source.endsWith(':1d');
-  const long = i.direction !== 'short';
   let trigMs: number | null = i.triggerObservedAt ? Date.parse(i.triggerObservedAt) : null;
-  let trigBasis = trigMs ? 'executionAudit.triggerObservedAt' : '';
+  let trigBasis = fin(trigMs) ? 'executionAudit.triggerObservedAt' : '';
   if (!fin(trigMs) && ubars.length && !uDaily) {
-    const tb = firstTouch(ubars, i.entryPrice, pubMs - 5 * 60_000, exitMs);
+    const tb = firstTouch(ubars, planEntry, pubMs - 5 * 60_000, exitMs);
     if (tb) { trigMs = Math.max(tb.t, pubMs); trigBasis = 'first underlying bar at entry'; }
     else if (ubars.some((b) => b.t >= pubMs && b.t <= exitMs)) {
       base.evidence.trigger = null;
-      return out('MISMATCH', 'never_triggered', `underlying never traded at entry ${i.entryPrice} between publication and exit (${und.source})`,
+      return out('MISMATCH', 'never_triggered', `underlying never traded at entry ${planEntry} between publication and exit (${und.source})`,
         { recomputedPnL: 0, diff: r2(0 - row.realizedPnL!) });
     }
   }
   if (!fin(trigMs)) { trigMs = pubMs; trigBasis = 'publication (no underlying intraday bars)'; }
   base.evidence.trigger = { at: iso(trigMs), basis: trigBasis };
-  const hitUnknown = i.exitTimeSource === 'live' && (status === 'hit_target' || status === 'hit_stop');
-  if (hitUnknown && ubars.length && !uDaily) {
-    const level = status === 'hit_target' ? i.targetPrice : i.stopLoss;
-    const tb = level != null ? firstTouch(ubars, level, trigMs!, exitMs) : null;
-    base.evidence.touch = tb ? { at: iso(tb.t), level } : { level, found: false };
-    if (tb) exitMs = tb.t + widthOf(ubars);
-  }
+  // Cycle-stamped barrier exits ("hit time unknown"): the order window runs to the stamp + a cycle.
+  const orderToMs = Math.min(expiryCloseMs, exitMs + (i.exitTimeSource === 'live' ? 15 * 60_000 : 60_000));
 
-  // The contract's own bars.
+  // The contract's own bars (Massive → Alpaca 1-min → Yahoo chain).
   let ob: ChainResult = { bars: [], source: 'none', attempts: [] };
   let occ = '';
   let root = occRoots(i.symbol)[0];
@@ -457,81 +516,58 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   base.evidence.optionAttempts = tried;
   const chainWhy = ob.bars.length ? ob.source : tried.join(' | ');
   const bars = ob.bars;
-  const w = widthOf(bars);
 
-  // Entry premium at the trigger; recorded entry must have traded near publication.
-  const eb = bars.length ? barAt(bars, trigMs!, w) : null;
-  const pubRange = bars.length ? rangeAround(bars, pubMs, 15 * 60_000) : null;
-  base.evidence.entryBar = eb ? { at: iso(eb.t), o: eb.o, h: eb.h, l: eb.l, c: eb.c } : null;
-  base.evidence.publishRange = pubRange;
-  // Exit premium at the exit. Expiry: EXACT settlement = intrinsic at the expiry
-  // day's official underlying close; last print only as evidence / fallback.
-  let exitPx: number | null = null;
-  let exitBasis = '';
-  let exitExact = false;
-  if (status === 'expired' && Math.abs(exitMs - expiryCloseMs) < 3600_000) {
-    const last = [...bars].reverse().find((b) => b.t <= expiryCloseMs && b.t >= expiryCloseMs - 2 * 3600_000);
-    if (last) base.evidence.lastPrintBeforeClose = { at: iso(last.t), c: last.c };
+  // ── fix 1: entry traded at publish / trigger, else re-priced from the first real print ──
+  const ent = entryCheck(bars, { pubMs, trigMs: trigMs!, exitMs, recorded: row.entryPrice });
+  base.evidence.entryCheck = ent;
+
+  // ── fix 2: barrier order from the trigger, underlying AND premium plan ──
+  const storedPlan = readPremiumPlan(i.convergenceSignalsJson);
+  const governing: 'premium' | 'underlying' = premiumGoverned({ hasStoredPremiumPlan: !!storedPlan, resolutionReason: i.resolutionReason }) ? 'premium' : 'underlying';
+  const pplan = storedPlan ?? (governing === 'premium'
+    ? premiumPlanFor({ assetType: 'option', direction: long ? 'long' : 'short', entryPrice: planEntry, targetPrice: planTarget, stopLoss: planStop, entryPremium: row.entryPrice, convergenceSignalsJson: i.convergenceSignalsJson }, { zeroDte: day === et(pubMs).day })
+    : null);
+  const uHit = ubars.length && !uDaily
+    ? firstBarrier(ubars, { long, stop: planStop, target: planTarget, fromMs: trigMs!, toMs: orderToMs, basis: 'underlying' }) : null;
+  const pHit = pplan && bars.length
+    ? firstBarrier(bars, { long: true, stop: pplan.stop, target: pplan.t1, fromMs: trigMs!, toMs: orderToMs, basis: 'premium' }) : null;
+  const ord = orderCheck({ recordedStatus: status, governing, underlying: uHit, premium: pHit });
+  base.evidence.orderCheck = { ...ord, premiumPlan: pplan ? { entry: pplan.entry, t1: pplan.t1, stop: pplan.stop, source: pplan.source } : null };
+
+  // Exit premium on the governing path: barrier event, else time exit / expiry settlement.
+  const expiryExit = (ord.first?.kind ?? 'none') === 'none' && Math.abs(exitMs - expiryCloseMs) < 3600_000;
+  let computedExit: { px: number; at: number; basis: string } | null = ord.first && ord.first.kind !== 'none' ? exitPremiumAt(ord.first, bars) : null;
+  let settlementPx: number | null = null;
+  if (!computedExit && expiryExit) {
     const st = await expirySettlement(root, day, side, strike, chainDeps);
     base.evidence.settlement = st;
-    if (st) {
-      exitPx = st.intrinsic;
-      exitExact = !st.approximate;
-      exitBasis = `settlement intrinsic ${st.intrinsic} (${st.underlying} ${st.field} ${st.S} on ${day}, ${st.source}${st.approximate ? `; ${st.approximate}` : ''})`;
-    } else if (last) { exitPx = last.c; exitBasis = `last print ${iso(last.t)} (no settlement print)`; }
+    if (st) { settlementPx = st.intrinsic; computedExit = { px: st.intrinsic, at: expiryCloseMs, basis: `settlement intrinsic (${st.underlying} ${st.field} ${st.S} on ${day}, ${st.source}${st.approximate ? `; ${st.approximate}` : ''})` }; }
     else {
       const uc = [...ubars].reverse().find((b) => b.t <= expiryCloseMs);
       if (uc && Math.abs(uc.t - expiryCloseMs) < 3600_000) {
-        exitPx = side === 'call' ? Math.max(0, uc.c - strike) : Math.max(0, strike - uc.c);
-        exitBasis = `approx intrinsic at last underlying bar ${uc.c} (${iso(uc.t)})`;
+        settlementPx = side === 'call' ? Math.max(0, uc.c - strike) : Math.max(0, strike - uc.c);
+        computedExit = { px: r2(settlementPx), at: expiryCloseMs, basis: `approx intrinsic at last underlying bar ${uc.c} (${iso(uc.t)})` };
       }
     }
-  } else if (bars.length) {
-    const xb = barAt(bars, exitMs, w);
-    if (xb) { exitPx = xb.c; exitBasis = `bar ${iso(xb.t)} close`; base.evidence.exitBar = { at: iso(xb.t), o: xb.o, h: xb.h, l: xb.l, c: xb.c }; }
+  } else if (!computedExit && bars.length) {
+    const xb = [...bars].reverse().find((b) => b.t <= exitMs && exitMs - b.t <= 10 * 60_000) ?? barAt(bars, exitMs, widthOf(bars));
+    if (xb) computedExit = { px: xb.c, at: xb.t, basis: `time exit: bar ${iso(xb.t)} close` };
   }
-  const exitRange = bars.length ? rangeAround(bars, exitMs, 30 * 60_000) : null;
-  base.evidence.exitRange = exitRange;
-  base.evidence.exitBasis = exitBasis;
+  const xc = exitCheck(bars, { recorded: row.exitPrice ?? null, eventMs: computedExit?.at ?? null, recordedExitMs: exitMs, computed: computedExit?.px ?? null, settlement: settlementPx });
+  base.evidence.exitCheck = { ...xc, basis: computedExit?.basis ?? null };
 
-  if (!eb && exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bars for ${occ} (${chainWhy}) around entry or exit`, { triggerAt: iso(trigMs) });
-  if (!eb && exitExact && exitPx != null) {
-    // Exit is exact (settlement) but the entry premium has no print: the
-    // recorded entry is taken as given (labelled unverified). A settlement that
-    // disagrees with the recorded exit is a provable error on its own.
-    const pnlRecEntry = r2((exitPx - row.entryPrice) * 100);
-    const d = r2(pnlRecEntry - row.realizedPnL!);
-    base.evidence.entryBasis = 'recorded (unverified — no contract print near the trigger)';
-    base.evidence.exitVerified = true;
-    const agree = within(pnlRecEntry, row.realizedPnL!, TOL.optionAbs, TOL.optionRel);
-    const why = `exit ${row.exitPrice} vs ${exitBasis}; entry ${row.entryPrice} unverified (no contract bar within 30m of the trigger ${iso(trigMs)}; ${chainWhy})`;
-    return agree
-      ? out('UNVERIFIABLE', 'bar_unverifiable', `exit settlement verified; ${why}`, { triggerAt: iso(trigMs), recomputedExit: r2(exitPx) })
-      : out('MISMATCH', 'expiry_settlement', why, { triggerAt: iso(trigMs), recomputedEntry: row.entryPrice, recomputedExit: r2(exitPx), recomputedPnL: pnlRecEntry, diff: d });
-  }
-  if (!eb) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the trigger ${iso(trigMs)} (${occ}; ${chainWhy})`, { triggerAt: iso(trigMs), recomputedExit: exitPx });
-  if (exitPx == null) return out('UNVERIFIABLE', 'bar_unverifiable', `no contract bar within 30m of the exit ${iso(exitMs)} (${occ}; ${chainWhy})`, { triggerAt: iso(trigMs), recomputedEntry: eb.c });
-
-  const entryPx = eb.c;
-  const recomputedPnL = r2((exitPx - entryPx) * 100);
-  const diff = r2(recomputedPnL - row.realizedPnL!);
-  const ok = within(recomputedPnL, row.realizedPnL!, TOL.optionAbs, TOL.optionRel);
-  const recEntry = row.entryPrice, recExit = row.exitPrice ?? null;
-  let bug: string | null = null;
-  const reasons: string[] = [`entry ${recEntry} → bar ${r2(entryPx)} @ ${iso(eb.t)}`, `exit ${recExit} → ${r2(exitPx)} (${exitBasis})`];
-  if (!ok) {
-    const exitTraded = recExit != null && exitRange && recExit >= exitRange.lo * (1 - TOL.premiumPct) && recExit <= exitRange.hi * (1 + TOL.premiumPct);
-    const entryTradedAtPub = pubRange && recEntry >= pubRange.lo * (1 - TOL.premiumPct) && recEntry <= pubRange.hi * (1 + TOL.premiumPct);
-    if (exitExact && recExit != null && !within(recExit, exitPx, 0.05, TOL.premiumPct)) bug = 'expiry_settlement';
-    else if (recExit != null && exitRange && !exitTraded) bug = 'exit_premium_not_traded';
-    else if (status === 'expired') bug = 'expiry_settlement';
-    else if (entryTradedAtPub && !within(entryPx, recEntry, 0.05, 0.2) && trigMs! - pubMs > 5 * 60_000) bug = 'entry_premium_at_publish_not_trigger';
-    else if (pubRange && !entryTradedAtPub) bug = 'entry_premium_not_traded';
-    else bug = 'unexplained';
-    if (exitRange) reasons.push(`contract range ±30m of exit [${exitRange.lo}, ${exitRange.hi}]`);
-  }
-  return out(ok ? 'VERIFIED' : 'MISMATCH', bug, reasons.join('; '),
-    { triggerAt: iso(trigMs), recomputedEntry: r2(entryPx), recomputedExit: r2(exitPx), recomputedPnL, diff });
+  const fv = fillVerdict(ent, ord, xc, settlementPx != null);
+  const recEntry = ent.entry, recExit = xc.exit;
+  const priced = recEntry != null && recExit != null;
+  const recomputedPnL = priced ? r2((recExit! - recEntry!) * 100) : null;
+  const diff = recomputedPnL != null ? r2(recomputedPnL - row.realizedPnL!) : null;
+  const reason = [ent.detail, `order: ${ord.detail}`, `exit: ${xc.detail}${computedExit ? ` [${computedExit.basis}]` : ''}`, bars.length ? '' : `contract bars: ${chainWhy}`].filter(Boolean).join('; ');
+  const truth = fv.verdict === 'VERIFIED' ? 'verified' : fv.bugClass === 'entry_repriced' ? 'entry-repriced' : fv.verdict === 'UNVERIFIABLE' ? 'unverifiable' : 'mismatch';
+  base.evidence.fillTruth = truth;
+  base.evidence.recomputedOutcome = ord.first?.kind ?? null;
+  return out(fv.verdict, fv.bugClass, reason, {
+    triggerAt: iso(trigMs), recomputedEntry: recEntry != null ? r2(recEntry) : null, recomputedExit: recExit != null ? r2(recExit) : null, recomputedPnL, diff,
+  });
 }
 
 // ─── main ────────────────────────────────────────────────────
