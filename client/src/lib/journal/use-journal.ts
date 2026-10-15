@@ -198,13 +198,17 @@ const usd0 = (v: number) => `${v < 0 ? '−' : '+'}$${Math.abs(v).toLocaleString
 /** The NEXUS-book sizing line for a desk view (null = the server's unit-book line stands). */
 export function deskSizingText(dv: ReturnType<typeof applyDeskView>): string | null {
   const s = dv.sizing;
-  if (s.mode === 'unit' && dv.view === 'recorded' && !dv.skipped.length) return null;
+  if (s.mode === 'unit' && dv.view === 'recorded' && !dv.skipped.length && !dv.review.count) return null;
   const r = `$${s.riskDollars.toLocaleString('en-US')}`;
   return [
     s.mode === 'risk'
       ? `Risk-sized: every idea risks ${r} to its stop — contracts = ${r} ÷ ((premium − premium stop) × 100), premium stop = the plan's, else −40% 0DTE / −50% swing. `
         + (dv.scaled ? `${dv.scaled} idea${dv.scaled === 1 ? '' : 's'} where 1 unit risks more than ${r} sized fractionally ("scaled"). ` : '')
         + (dv.capped.count ? `${dv.capped.count} loss${dv.capped.count === 1 ? '' : 'es'} worse than the stop capped at −risk (assumes the stop filled; uncapped ${usd0(dv.capped.uncappedPnL)} → ${usd0(dv.capped.cappedPnL)}). ` : '')
+        // Ledger audit 2026-10-15 fixes 3 + 5: nothing leaves the view silently.
+        + (dv.overBudget ? `${dv.overBudget} option${dv.overBudget === 1 ? '' : 's'} where 1 contract costs more than ${r} shown at "1 contract (over budget)" — never dropped. ` : '')
+        + (dv.subDime ? `${dv.subDime} entr${dv.subDime === 1 ? 'y' : 'ies'} below $0.10 flagged; size capped at what a $0.10 entry buys. ` : '')
+        + (dv.review.count ? `${dv.review.count} trade${dv.review.count === 1 ? '' : 's'} whose sized P&L is above 2× ${r} (${usd0(dv.review.pnl)}) flagged for review and NOT counted. ` : '')
       : 'Unit-sized: 1 contract per option idea. ',
     dv.view === 'managed' ? 'Managed replay — replayed with current exit rules — not live fills. ' : '',
     dv.skipped.length ? `Not in this view: ${dv.skipped.map((x) => `${x.count} ${x.reason}`).join('; ')}. ` : '',

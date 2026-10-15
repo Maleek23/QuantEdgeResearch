@@ -151,7 +151,7 @@ export default function TradesView() {
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>
                   <td><SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
-                  <td className="num">{t.quantity}{t.row.sizedAs?.scaled && <span className="jr-tag-scaled" title={`1 unit risks more than $${t.row.sizedAs.riskDollars} to its stop — sized fractionally; P&L = 1-unit P&L × ${t.quantity}`}>scaled</span>}</td>
+                  <td className="num">{t.quantity}{t.row.sizedAs?.scaled && <span className="jr-tag-scaled" title={`1 unit risks more than $${t.row.sizedAs.riskDollars} to its stop — sized fractionally; P&L = 1-unit P&L × ${t.quantity}`}>scaled</span>}{t.row.sizedAs?.label && <span className="jr-tag-scaled" title={t.row.sizedAs.overBudget ? `One contract costs more than the $${t.row.sizedAs.riskDollars} budget — shown at 1 contract, never dropped (ledger audit 2026-10-15)` : `Entry premium below $0.10 — whole contracts capped at what a $0.10 entry buys at $${t.row.sizedAs.riskDollars}`}>{t.row.sizedAs.label}</span>}</td>
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
                   <td className="num">{t.status === 'open'

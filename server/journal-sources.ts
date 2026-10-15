@@ -325,7 +325,7 @@ async function loadDesk(includeUnverified = false): Promise<{ rows: JournalWireR
     meta: {
       basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry once its trigger was hit (untriggered ideas are listed as awaiting entry, with no P&L)`,
       sizing: `Headline (${PNL_TRUTH_VERSION}) = closed OPTION trades verified against real bars only: ${k('verified')} bar-verified + ${k('corrected')} bar-corrected + ${k('retro')} options views of legacy shares ideas (rule-picked at publish, priced from the contract's bars) = n ${t?.n ?? 0}, ${usd(t?.pnl ?? 0)} at 1 contract each; `
-        + `the page re-sizes the SAME n as whole contracts within the budget ($500 default, $1,000 max). Duplicates removed (first kept). `
+        + `the page re-sizes the SAME n as whole contracts within the budget ($500 default, $1,000 max) — an option whose one contract costs more than the budget stays in at "1 contract (over budget)", never dropped; entries below $0.10 are flagged and their size capped; a sized P&L above 2× the budget is flagged for review and not counted. Duplicates removed (first kept). `
         + `Verify ledger ${ledger ? `${ledger.asOf.slice(0, 16).replace('T', ' ')}Z (${ageText(ledger.asOf, now)}; refreshed nightly 17:30 ET)` : 'missing on this server — nothing is bar-verified'}`
         + `${retro ? ` · options-view ledger ${retro.asOf.slice(0, 10)} (${ageText(retro.asOf, now)})` : ''}. `
         + `${t?.outside.n ? `${t.outside.n} closed row${t.outside.n === 1 ? '' : 's'} outside the headline (recorded ${usd(t.outside.pnl)}) ${includeUnverified ? 'are listed with an amber chip and never added to it' : 'are not included'}. ` : ''}`
