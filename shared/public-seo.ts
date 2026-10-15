@@ -33,6 +33,10 @@ export const PUBLIC_PAGE_META = {
     title: "What's New in QuantEdge | Updates and Roadmap",
     description: 'Every QuantEdge update with its ship date, plus what is being built now: NEXUS, 0DTE, GEX, FLOW, the journal and Discord.',
   },
+  '/proof': {
+    title: 'Proof: Verified Record & Model Calibration | QuantEdge',
+    description: 'The bar-verified NEXUS record with sample sizes and dates, and how often the Path model\'s bands held. Rates withheld below the minimum sample.',
+  },
   '/privacy': {
     title: 'Privacy Policy | QuantEdge Labs',
     description: 'How QuantEdge Labs collects, uses and protects account and product data.',

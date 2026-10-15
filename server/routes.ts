@@ -17685,6 +17685,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── PUBLIC Path calibration (the /proof page): band coverage of frozen 09:40 fans, server/path-calibration.ts.
+  app.get("/api/public/path-calibration", marketDataLimiter, async (_req, res) => {
+    try {
+      const { serverFlag } = await import('@shared/feature-flags');
+      if (!serverFlag('PROOF_PAGE')) return res.status(404).json({ error: 'Proof is switched off' });
+      const { buildPathCalibration } = await import('./path-calibration');
+      res.set('Cache-Control', 'public, max-age=300');
+      res.json(await buildPathCalibration());
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/public/path-calibration' });
+      res.status(500).json({ error: "Calibration unavailable" });
+    }
+  });
+
   app.post("/api/watchlist/:id/grade", async (req, res) => {
     try {
       const { gradeAndUpdateWatchlistItem } = await import('./watchlist-grading-service');

@@ -27,6 +27,7 @@ import horizon from './pages/horizon/index';
 import horizonRef from './pages/horizon/reference';
 import ledger from './pages/ledger/index';
 import ledgerRef from './pages/ledger/reference';
+import ledgerProof from './pages/ledger/proof';
 import tripwire from './pages/tripwire/index';
 import tripwireRef from './pages/tripwire/reference';
 import tripwireLevels from './pages/tripwire/level-alerts';
@@ -60,7 +61,7 @@ export const DOC_PAGES: DocPage[] = [
   platformIndex, platformData, platformGlossary,
   nexus, nexusRef, zero, zeroRef, gravity, gravityRef, gravityLabels, current, currentRef,
   trajectory, trajectoryRef, envelope, envelopeRef, envelopeCones, horizon, horizonRef,
-  ledger, ledgerRef, tripwire, tripwireRef, tripwireLevels, quantinum, quantinumRef, quantinumPanel,
+  ledger, ledgerRef, ledgerProof, tripwire, tripwireRef, tripwireLevels, quantinum, quantinumRef, quantinumPanel,
   bot, botRef, academy, academyRef,
 ];
 

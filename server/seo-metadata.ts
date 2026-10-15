@@ -141,6 +141,7 @@ export const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   // /academy redirects (client-side) to /how-to, the Academy — one indexable page.
   '/how-to': { ...M['/how-to'], schema: [breadcrumb('Academy', '/how-to')] },
   '/updates': { ...M['/updates'], schema: [breadcrumb("What's new", '/updates')] },
+  '/proof': { ...M['/proof'], schema: [breadcrumb('Proof', '/proof')] },
   '/privacy': { ...M['/privacy'] },
   '/terms': { ...M['/terms'] },
   // Public product pages (shared/product) — the index and one page per module.

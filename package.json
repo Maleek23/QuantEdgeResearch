@@ -107,7 +107,8 @@
     "test:envelope-cone": "tsx scripts/test-envelope-cone.ts",
     "test:gravity-nodes": "tsx scripts/test-gravity-nodes.ts",
     "test:tripwire-levels": "tsx scripts/test-tripwire-levels.ts",
-    "test:quantinum-panel": "tsx scripts/test-quantinum-panel.ts"
+    "test:quantinum-panel": "tsx scripts/test-quantinum-panel.ts",
+    "test:proof-page": "tsx scripts/test-proof-page.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
