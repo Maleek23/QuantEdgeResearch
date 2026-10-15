@@ -38,17 +38,19 @@ export function dteAtPublish(expiryDate: string | null | undefined, publishedAt:
 }
 
 /**
- * A 0DTE/index journal row: a 0DTE engine, an index scalp, or any option idea
- * whose contract expired within one trading day of publish (0–1 DTE).
+ * A 0DTE journal row = an option whose contract expires ON its publish day (ET):
+ * 0 days to expiry, nothing else. Ledger audit 2026-10-15 fix 7: the old rule also
+ * counted 1-DTE contracts and every idea from a 0DTE engine / index scalp whatever
+ * its expiry — 29 rows of 1–2 DTE (+$2,765) sat in the 0DTE filter. The engine
+ * family only decides when the row carries no usable contract terms.
  */
 export function isZeroDteJournalRow(r: {
   source?: string | null; setupType?: string | null; dataSourceUsed?: string | null; qualitySignals?: unknown;
   assetType?: string | null; expiryDate?: string | null; entryTime?: string | Date | null;
 }): boolean {
-  if (zeroDteFamilyOf({ source: r.source ?? r.setupType, dataSourceUsed: r.dataSourceUsed, qualitySignals: r.qualitySignals })) return true;
-  if (String(r.assetType ?? '').toLowerCase() !== 'option') return false;
-  const dte = dteAtPublish(r.expiryDate, r.entryTime ?? null);
-  return dte != null && dte >= 0 && dte <= 1;
+  const dte = String(r.assetType ?? '').toLowerCase() === 'option' ? dteAtPublish(r.expiryDate, r.entryTime ?? null) : null;
+  if (dte != null) return dte === 0;
+  return !!zeroDteFamilyOf({ source: r.source ?? r.setupType, dataSourceUsed: r.dataSourceUsed, qualitySignals: r.qualitySignals });
 }
 
 const qs = (signals: unknown, key: string): string | null => {
