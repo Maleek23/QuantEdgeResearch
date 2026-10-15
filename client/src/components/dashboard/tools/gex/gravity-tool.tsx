@@ -61,15 +61,15 @@ export function GravityTool() {
               <thead><tr><th scope="col">Strike</th><th scope="col">GEX</th><th scope="col">Label</th><th scope="col">Today</th><th scope="col">5m</th><th scope="col">15m</th><th scope="col">1h</th><th scope="col">Halo</th></tr></thead>
               <tbody>
                 {r.nodes.map((n) => {
-                  const spotRow = n.strike < r.spot && !r.nodes.some((m) => m.strike < n.strike && m.strike > r.spot);
+                  const spotRow = n.strike < r.spot && !r.nodes.some((m) => m.strike > n.strike && m.strike < r.spot);
                   return (
                     <tr key={n.strike} className={spotRow ? 'grv-below-spot' : undefined}>
                       <th scope="row">{n.strike}</th>
-                      <td className={n.gex > 0 ? 'grv-pos' : 'grv-neg'}>{n.gex > 0 ? '+' : '−'}{fmtGexB(Math.abs(n.gex) / 1e9)}</td>
+                      <td className={n.gex > 0 ? 'grv-pos' : 'grv-neg'}>{fmtGexB(n.gex / 1e9)}</td>
                       <td>{n.roles.map((ro) => <span key={ro} className={`grv-chip ${ROLE_TONE[ro]}`}>{ROLE_LABEL[ro]}</span>)}</td>
                       <td className="grv-dim">{n.delivered == null ? '—' : n.delivered ? 'delivered' : 'fresh'}</td>
                       {(['5m', '15m', '1h'] as const).map((tf) => <td key={tf} className="grv-num">{fmtVelocity(n.velocity?.v[tf] ?? null)}</td>)}
-                      <td>{n.velocity?.halo ? <span className="grv-chip grv-halo">Halo {n.velocity.halo === 'building' ? '↑ building' : '↓ bleeding'}</span> : <span className="grv-dim">—</span>}</td>
+                      <td>{n.velocity?.halo ? <span className="grv-chip grv-halo" title={n.velocity.halo === 'building' ? 'Node growing on ≥2 timeframes' : 'Node shrinking on ≥2 timeframes'}>Halo {n.velocity.halo === 'building' ? '↑' : '↓'}<span className="lx-sr-only"> {n.velocity.halo}</span></span> : <span className="grv-dim">—</span>}</td>
                     </tr>
                   );
                 })}
