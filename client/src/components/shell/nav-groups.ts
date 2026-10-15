@@ -29,39 +29,39 @@ export const TAB_ICON: Record<Tab, LuxIcon> = {
  *  Quantinum Bot = the paper-trading bot). Labels only; ids and URLs never change. */
 export const TAB_SHORT: Record<Tab, string> = {
   oracle: 'NEXUS',
-  chart: 'Chart',
-  flow: 'Flow',
-  gex: 'GEX',
+  chart: 'Trajectory',
+  flow: 'Current',
+  gex: 'Gravity',
   sectors: 'Sectors',
-  leaps: 'LEAPS',
+  leaps: 'Horizon',
   crypto: 'Crypto',
   catalyst: 'Catalysts',
   bot: 'Quantinum Bot',
   positions: 'Positions',
-  journal: 'Journal',
+  journal: 'Ledger',
 };
 
 export const TAB_HINT: Record<Tab, string> = {
   oracle: 'Trading desk — ranked setups and the 0DTE desk',
-  chart: 'Charts with walls, zero-γ and idea levels',
-  flow: 'Options flow — prints, sweeps and blocks',
-  gex: 'Dealer positioning — GEX, VEX, walls, zero-γ',
+  chart: 'Chart + Path projection — charts with walls, zero-γ and idea levels',
+  flow: 'Live options flow — prints, sweeps and blocks',
+  gex: 'GEX — dealer positioning — GEX, VEX, walls, zero-γ',
   sectors: 'Sector rotation — rank flow, rankings, overnight movers, leaders',
-  leaps: 'Long-dated calls, graded',
+  leaps: 'LEAPS & swings, 30 days to 1 year, screened',
   crypto: 'BTC/ETH and the equity proxies',
   catalyst: 'Earnings, macro and news calendar',
   bot: 'Paper-trading bot — rules, fills, public record',
   positions: 'Your open positions, stops and alerts',
-  journal: 'Your trades, insights and track record',
+  journal: 'Journal — your trades, insights and track record',
 };
 
 /** Top-bar titles — the short label, or the product name with its role. */
 export const TAB_TITLE: Record<Tab, string> = { ...TAB_SHORT, oracle: 'NEXUS · Trading desk' };
 
-const PAGE_SHORT: Record<string, string> = { '/how-to': 'Guide' };
+const PAGE_SHORT: Record<string, string> = { '/how-to': 'Academy', '/alerts': 'Tripwire' };
 const PAGE_HINT: Record<string, string> = {
   '/today': 'Morning brief — dealer map and best ideas',
-  '/alerts': 'Price and idea alerts',
+  '/alerts': 'Alerts — price, level and idea',
   '/how-to': 'How to use QuantEdge',
   '/updates': 'Shipped and in progress',
   '/settings': 'Account and display settings',
