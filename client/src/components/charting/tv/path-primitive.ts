@@ -187,7 +187,7 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
     for (const b of r.badges) {
       const y = this.series!.priceToCoordinate(b.price); if (y == null) continue;
       const col = b.kind === 'gatekeeper' ? c.gate : b.kind === 'rug' ? c.rug : c.tramp;
-      const txt = b.kind === 'gatekeeper' ? 'GATE' : b.kind === 'rug' ? 'RUG' : 'TRAMP';
+      const txt = b.kind === 'gatekeeper' ? 'STOP' : b.kind === 'rug' ? 'RUG' : 'TRAMP';
       const tw = ctx.measureText(txt).width + 8; const bx = Math.max(x0 + tw + 2, xEnd - 2);
       ctx.fillStyle = withA(col, 0.18); ctx.fillRect(bx - tw, y - 6, tw, 12);
       ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(bx - tw + 0.5, y - 5.5, tw - 1, 11);
