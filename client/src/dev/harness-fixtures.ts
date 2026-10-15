@@ -13,7 +13,9 @@
  */
 import { GAMMA_METRIC_DEFS, levelsFor, diffLevels, overlapCount } from '../../../shared/gex-adjusted';
 import { adminHarnessApi } from './admin-fixtures';
-import { etInstant, parsePathHorizon, simulatePath, PATH_DISCLAIMER } from '../../../shared/path-projection';
+import { etInstant, etParts, parsePathHorizon, simulatePath, PATH_DISCLAIMER } from '../../../shared/path-projection';
+import { buildEnvelope, freezeCone, moveVsPriced } from '../../../shared/envelope-cone';
+import { readGravity } from '../../../shared/gravity-nodes';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rng(seed: number) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
@@ -147,7 +149,32 @@ function mockExpectedMove(symbol: string, spot: number) {
     daily: { anchorSpot: spot, anchorAt: at, key: 'fixture', move: d, movePct: +(d / spot * 100).toFixed(2), upper: +(spot + d).toFixed(2), lower: +(spot - d).toFixed(2), expiry: '2026-10-13', source: 'atm_straddle', basis: 'fixture straddle' },
     weekly: { anchorSpot: spot, anchorAt: at, key: '2026-10-16', move: w, movePct: +(w / spot * 100).toFixed(2), upper: +(spot + w).toFixed(2), lower: +(spot - w).toFixed(2), expiry: '2026-10-16', source: 'atm_straddle', basis: 'fixture straddle' },
     cone: { fromSpot: spot, perSessionMove: +(w / Math.sqrt(4)).toFixed(2), basis: 'fixture — modelled √t' },
+    envelope: mockEnvelope(spot, +(w / Math.sqrt(4)).toFixed(2)),
     note: 'TEST HARNESS fixture',
+  };
+}
+/** Envelope v2 fixture: the real shared/envelope-cone.ts engine on invented inputs (not market data). */
+function mockEnvelope(spot: number, perSession: number) {
+  const now = Date.now();
+  const frozen = freezeCone(spot * 0.997, perSession, now - 2 * 36e5, undefined, 0.06);
+  frozen.date = etParts(now).date;
+  return {
+    label: 'modelled', note: 'TEST HARNESS fixture — real envelope engine, invented inputs',
+    cones: buildEnvelope({ spot, nowMs: now, sessionMove: perSession, skew: 0.06 }), frozen,
+    moveVsPriced: moveVsPriced(frozen, spot, now), curve: 'fallback', curveSessions: 0, skew: 0.06,
+  };
+}
+/** Gravity fixture: the real shared/gravity-nodes.ts read over the fixture overlay timeline. */
+function mockGravity(symbol: string, horizon: string) {
+  const ov: any = mockOverlays(symbol, 575, horizon);
+  const tl = ov.gexTimeline; const last = tl.samples[tl.samples.length - 1];
+  const spot = last?.spot ?? 575;
+  const nodes = tl.series.map((x: any) => ({ strike: x.strike, gex: x.points.find((q: any) => q[0] === last.t)?.[1] ?? 0 }));
+  const spots = tl.samples.map((x: any) => x.spot).filter((x: any) => x > 0);
+  return {
+    symbol, horizon, generatedAt: new Date().toISOString(), asOf: last ? new Date(last.t).toISOString() : null, samples: tl.samples.length,
+    read: readGravity({ spot, nodes, sessionHigh: Math.max(...spots), sessionLow: Math.min(...spots), series: tl.series, sampleTimes: tl.samples.map((x: any) => x.t), asOf: last?.t ?? null }),
+    note: 'TEST HARNESS fixture — real gravity engine on the fixture timeline',
   };
 }
 /** Synthetic /api/chart/path (TEST HARNESS — the real engine on invented inputs, not market data). */
@@ -565,6 +592,13 @@ export function harnessApi(pathname: string, search: URLSearchParams, opts: Harn
   if (p === '/api/sector-rotation') return json(200, mockRotation());
   if (p === '/api/crypto/pulse') return json(200, mockPulse());
   if (p === '/api/public/showcase') return json(200, mockShowcase());
+  if (p === '/api/quantinum/ai/status') return json(200, { enabled: true, mode: 'fixture', quota: 30, used: 1, remaining: 29, disclaimer: 'TEST HARNESS fixture' });
+  if (p === '/api/quantinum/ai/history') return json(200, { horizon: 'day', messages: [
+    { id: 'fx-u1', role: 'user', content: 'Where is the SPY Apex and what sits in front of it?', at: ago(4 * 60e3), page: { route: '/t', symbol: 'SPY' } },
+    { id: 'fx-a1', role: 'assistant', content: 'TEST HARNESS fixture answer: the Apex node is 587 and the Gatekeeper sits at 584 (fixture data, not market data).', at: ago(4 * 60e3), chips: [{ key: 'gex', label: 'GEX nodes', source: 'test_harness_fixture', asOf: ago(5 * 60e3) }] },
+  ] });
+  if (p === '/api/public/path-calibration') return json(200, { generatedAt: new Date().toISOString(), status: 'collecting', since: '2026-10-13', snapshotDays: 3, scoredDays: 2, minDays: 20, in50: null, in80: null, through: '2026-10-14', symbols: ['SPY'], note: 'TEST HARNESS fixture' });
+  { const gv = p.match(/^\/api\/gex\/gravity\/([^/]+)/); if (gv) return json(200, mockGravity(decodeURIComponent(gv[1]).toUpperCase(), url.searchParams.get('horizon') ?? 'today')); }
   if (p === '/api/performance/model-record') return json(200, mockRecord());
   if (p === '/api/index-scalps') return json(200, mockIndexDesk());
   if (p.startsWith('/api/quotes/batch/')) return json(200, mockQuotes(decodeURIComponent(p.slice('/api/quotes/batch/'.length)).split(',').filter(Boolean)));

@@ -79,6 +79,7 @@ const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "
 
 const ProductPage = lazyWithRetry(() => import("@/pages/product"), "product");
 const DocsPage = lazyWithRetry(() => import("@/pages/docs"), "docs");
+const ProofPage = lazyWithRetry(() => import("@/pages/proof"), "proof");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
@@ -309,6 +310,8 @@ function Router() {
         <Route path="/product/:slug" component={ProductPage} />
         <Route path="/product"    component={ProductPage} />
         {/* Public docs — field guides per module (shared/docs, pages/docs.tsx). */}
+        {/* Public proof — verified record + Path calibration (pages/proof.tsx, flag PROOF_PAGE). */}
+        <Route path="/proof"      component={ProofPage} />
         <Route path="/docs/:module/:page" component={DocsPage} />
         <Route path="/docs/:module" component={DocsPage} />
         <Route path="/docs"       component={DocsPage} />
@@ -386,7 +389,7 @@ function App() {
     // Don't remember legacy shells as the landing page — the Terminal (/t) is the front
     // door now. They remain reachable directly; they just no longer hijack the next visit.
     const skipPaths = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta',
-                       '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
+                       '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to', '/proof'];
     if (!skipPaths.includes(path) && !path.startsWith('/docs') && !path.startsWith('/product') && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }
@@ -400,7 +403,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/admin/learning', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/admin/learning', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/proof'];
   // Also check for dynamic invite paths like /invite/:token
   const isDocs = locationPath === '/docs' || locationPath.startsWith('/docs/');
   const isProduct = locationPath === '/product' || locationPath.startsWith('/product/');

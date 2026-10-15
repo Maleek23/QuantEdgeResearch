@@ -15768,6 +15768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── CHART DRAWINGS — per user × symbol, so drawings follow the user across devices (server/chart-drawings-store.ts) ──
   { const { registerChartDrawingRoutes } = await import('./chart-drawings-store'); registerChartDrawingRoutes(app, requireBetaAccess); }
   { const { registerChartPathRoutes } = await import('./chart-path'); registerChartPathRoutes(app, requireBetaAccess); }
+  // Gravity node labels + velocity/Halo (server/gravity-route.ts, flag GRAVITY_LABELS).
+  { const { registerGravityRoutes } = await import('./gravity-route'); registerGravityRoutes(app, requireBetaAccess); }
   { const { registerChartSettingsRoutes } = await import('./chart-templates-store'); registerChartSettingsRoutes(app, requireBetaAccess); }
 
   // ── QUANTEDGE LABS DISCORD — lifecycle cards, per-channel on/off (admin) ──
@@ -17680,6 +17682,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/public/showcase' });
       res.status(500).json({ error: "Showcase unavailable" });
+    }
+  });
+
+  // ── PUBLIC Path calibration (the /proof page): band coverage of frozen 09:40 fans, server/path-calibration.ts.
+  app.get("/api/public/path-calibration", marketDataLimiter, async (_req, res) => {
+    try {
+      const { serverFlag } = await import('@shared/feature-flags');
+      if (!serverFlag('PROOF_PAGE')) return res.status(404).json({ error: 'Proof is switched off' });
+      const { buildPathCalibration } = await import('./path-calibration');
+      res.set('Cache-Control', 'public, max-age=300');
+      res.json(await buildPathCalibration());
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/public/path-calibration' });
+      res.status(500).json({ error: "Calibration unavailable" });
     }
   });
 

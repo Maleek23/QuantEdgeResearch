@@ -122,3 +122,4 @@ server/data/discipline-ledger.jsonl
 
 # Imported by committed code (routes.ts) — must ship.
 !server/signal-trajectory-service.ts
+server/data/tripwire-sent.json

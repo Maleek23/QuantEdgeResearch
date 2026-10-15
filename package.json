@@ -103,7 +103,12 @@
     "test:discord-lifecycle": "tsx scripts/test-discord-lifecycle.ts",
     "test:admin-session": "tsx scripts/test-admin-session.ts",
     "test:waitlist": "tsx scripts/test-waitlist-capture.ts",
-    "test:gex-trinity": "tsx scripts/test-gex-trinity.ts"
+    "test:gex-trinity": "tsx scripts/test-gex-trinity.ts",
+    "test:envelope-cone": "tsx scripts/test-envelope-cone.ts",
+    "test:gravity-nodes": "tsx scripts/test-gravity-nodes.ts",
+    "test:tripwire-levels": "tsx scripts/test-tripwire-levels.ts",
+    "test:quantinum-panel": "tsx scripts/test-quantinum-panel.ts",
+    "test:proof-page": "tsx scripts/test-proof-page.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

@@ -155,7 +155,7 @@ export function PublicFooter() {
             <Link href="/product">All products</Link><Link href="/?section=pricing">Pricing</Link><Link href="/updates">What&rsquo;s new</Link><Link href="/w">Public watchlist</Link><Link href="/login">Sign in</Link><Link href="/signup">Join the beta</Link>
           </nav>
           <nav aria-label="Proof"><p className="lv2-label">Proof</p>
-            <Link href="/product/ledger">Verified record</Link><Link href="/product/quantinum-bot">Bot paper book</Link><Link href="/docs/ledger">How we verify</Link><Link href="/docs/platform/data-sources">Data sources</Link>
+            <Link href="/proof">Proof page</Link><Link href="/product/ledger">Verified record</Link><Link href="/product/quantinum-bot">Bot paper book</Link><Link href="/docs/ledger">How we verify</Link><Link href="/docs/platform/data-sources">Data sources</Link>
           </nav>
           <nav aria-label="Learn"><p className="lv2-label">Learn</p>
             <Link href="/docs">Docs</Link><Link href="/how-to">Academy</Link><Link href="/docs/platform/glossary">Glossary</Link><Link href="/blog">Blog</Link>

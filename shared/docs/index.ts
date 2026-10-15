@@ -15,20 +15,25 @@ import zero from './pages/zero/index';
 import zeroRef from './pages/zero/reference';
 import gravity from './pages/gravity/index';
 import gravityRef from './pages/gravity/reference';
+import gravityLabels from './pages/gravity/node-labels';
 import current from './pages/current/index';
 import currentRef from './pages/current/reference';
 import trajectory from './pages/trajectory/index';
 import trajectoryRef from './pages/trajectory/reference';
 import envelope from './pages/envelope/index';
 import envelopeRef from './pages/envelope/reference';
+import envelopeCones from './pages/envelope/cones';
 import horizon from './pages/horizon/index';
 import horizonRef from './pages/horizon/reference';
 import ledger from './pages/ledger/index';
 import ledgerRef from './pages/ledger/reference';
+import ledgerProof from './pages/ledger/proof';
 import tripwire from './pages/tripwire/index';
 import tripwireRef from './pages/tripwire/reference';
+import tripwireLevels from './pages/tripwire/level-alerts';
 import quantinum from './pages/quantinum/index';
 import quantinumRef from './pages/quantinum/reference';
+import quantinumPanel from './pages/quantinum/side-panel';
 import bot from './pages/quantinum-bot/index';
 import botRef from './pages/quantinum-bot/reference';
 import academy from './pages/academy/index';
@@ -54,9 +59,9 @@ export const DOC_MODULES: DocModule[] = [
 
 export const DOC_PAGES: DocPage[] = [
   platformIndex, platformData, platformGlossary,
-  nexus, nexusRef, zero, zeroRef, gravity, gravityRef, current, currentRef,
-  trajectory, trajectoryRef, envelope, envelopeRef, horizon, horizonRef,
-  ledger, ledgerRef, tripwire, tripwireRef, quantinum, quantinumRef,
+  nexus, nexusRef, zero, zeroRef, gravity, gravityRef, gravityLabels, current, currentRef,
+  trajectory, trajectoryRef, envelope, envelopeRef, envelopeCones, horizon, horizonRef,
+  ledger, ledgerRef, ledgerProof, tripwire, tripwireRef, tripwireLevels, quantinum, quantinumRef, quantinumPanel,
   bot, botRef, academy, academyRef,
 ];
 

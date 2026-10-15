@@ -49,6 +49,8 @@ export interface EmDraw {
   cone: { perSessionMove: number } | null;
   /** ms of trading time in one session (390 min); daily bars count as one session each. */
   sessionMs: number;
+  /** Envelope v2: shaped 1σ/2σ cone as offsets from its spot, by trading ms ahead (replaces the √t cone). */
+  envelope?: { label: string; points: { tm: number; u1: number; l1: number; u2: number; l2: number }[] } | null;
 }
 
 export interface LayersInput {
@@ -594,7 +596,9 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
     const { bars } = this.input;
     const n = bars.length;
     const xL = n ? this.xOf(n - 1) : null;
-    if (em.cone && xL != null && xL < w - spacing && n) {
+    if (em.envelope && em.envelope.points.length > 1 && xL != null && xL < w - spacing && n) {
+      this.drawEnvelope(ctx, w, spacing, xL, bars[n - 1].close, em.envelope, col);
+    } else if (em.cone && xL != null && xL < w - spacing && n) {
       const center = bars[n - 1].close;
       const slots = Math.min(240, Math.floor((w - xL) / Math.max(spacing, 1)));
       // one bar = barMs of trading time; a daily (or longer) bar = one session
@@ -632,6 +636,53 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
             this.placed.push(box);
           }
         }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Envelope v2: 2σ band (faint) + 1σ band, edges dashed, shaped by the intraday variance curve + skew. */
+  private drawEnvelope(ctx: CanvasRenderingContext2D, w: number, spacing: number, xL: number, center: number,
+    env: NonNullable<EmDraw['envelope']>, col: string) {
+    const series = this.series; if (!series) return;
+    const daily = this.barMs >= 20 * 3_600_000;
+    const msPerSlot = daily ? (this.input.em?.sessionMs ?? 23_400_000) * Math.max(1, Math.round(this.barMs / 86_400_000)) : this.barMs;
+    const pts = env.points.map((p) => ({ x: xL + (p.tm / msPerSlot) * spacing, ...p })).filter((p) => p.x <= w + spacing);
+    if (pts.length < 2) return;
+    const band = (k: 'u1' | 'u2', j: 'l1' | 'l2', alpha: number, dash: number[]) => {
+      const up: [number, number][] = []; const dn: [number, number][] = [];
+      for (const p of pts) {
+        const yU = series.priceToCoordinate(center + p[k]); const yD = series.priceToCoordinate(center + p[j]);
+        if (yU == null || yD == null) continue;
+        up.push([p.x, yU]); dn.push([p.x, yD]);
+      }
+      if (up.length < 2) return null;
+      ctx.globalAlpha = alpha; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(up[0][0], up[0][1]);
+      for (const [x, y] of up) ctx.lineTo(x, y);
+      for (let i = dn.length - 1; i >= 0; i--) ctx.lineTo(dn[i][0], dn[i][1]);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash(dash);
+      for (const line of [up, dn]) { ctx.beginPath(); line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+      ctx.setLineDash([]);
+      return { up, dn };
+    };
+    // points are OFFSETS from the cone's spot, re-centred on the last close (live, not carried)
+    band('u2', 'l2', 0.04, [1, 4]);
+    const one = band('u1', 'l1', 0.08, [3, 3]);
+    if (!one) return;
+    ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+    const last = one.up[one.up.length - 1];
+    const txt = fitText(`${env.label} · 1σ/2σ cone · modelled`, '1σ/2σ · modelled', w - 8 - one.up[0][0], (t) => ctx.measureText(t).width);
+    if (txt) {
+      const tw = ctx.measureText(txt).width;
+      const k0 = Math.min(one.dn.length - 1, Math.max(1, Math.round(one.dn.length * 0.12)));
+      const box = placeLabel([{ x: one.dn[k0][0], y: one.dn[k0][1] + 4, w: tw, h: 11 }, { x: one.up[k0][0], y: one.up[k0][1] - 15, w: tw, h: 11 }, { x: Math.max(0, last[0] - tw), y: last[1] - 15, w: tw, h: 11 }],
+        [...this.tagRects(w), ...this.placed], { x: 0, y: 0, w: w - 2, h: this.chartH });
+      if (box) {
+        ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.textBaseline = 'top';
+        ctx.fillText(txt, box.x, box.y); ctx.textBaseline = 'alphabetic';
+        this.placed.push(box);
       }
     }
     ctx.globalAlpha = 1;
