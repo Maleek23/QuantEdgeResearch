@@ -73,6 +73,13 @@ export const GEX_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 12, h: 12 }, minSize: { w: 6, h: 8 }, Component: lazyTool(() => import('../tools/gex/trinity-tool'), 'GexTrinityTool'),
   },
   {
+    id: 'gex-gravity', category: 'GEX', title: 'Gravity · node labels + velocity',
+    what: 'Every stored node labelled: Apex, Gatekeeper (largest node between price and Apex), Rug / Trampoline, delivered vs fresh today; velocity of each node over 5m / 15m / 1h and a Halo when two timeframes agree. Structural labels, not signals.',
+    units: 'GEX $/1% move, Δ as % of the largest node', source: '5-min GEX snapshots',
+    backing: 'GravityTool (tools/gex/gravity-tool.tsx) ← GET /api/gex/gravity/:symbol?horizon= (shared/gravity-nodes.ts)',
+    needs: ['symbol'], ageInside: true, defaultSize: { w: 6, h: 12 }, minSize: { w: 4, h: 6 }, Component: lazyTool(() => import('../tools/gex/gravity-tool'), 'GravityTool'),
+  },
+  {
     id: 'gex-hub', category: 'GEX', title: 'GEX Hub (all-in-one)',
     what: 'The previous GEX page in one tile: ranked list, near-term map, strike × expiry surface and context rail.',
     units: 'GEX $/1% move, VEX $/IV pt', source: ENGINE, backing: 'GexHubNexus (components/gex/gex-hub-nexus.tsx)',
@@ -106,6 +113,14 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
     ['gex-levels', 8, 0, 4, 7],
     ['gex-setups', 8, 7, 4, 6],
     ['gex-regime', 8, 13, 4, 5],
+  ],
+}, {
+  // Gravity: node labels + velocity beside the matrix.
+  id: 'gravity', name: 'Gravity',
+  tools: [
+    ['gex-matrix', 0, 0, 7, 18],
+    ['gex-gravity', 7, 0, 5, 12],
+    ['gex-levels', 7, 12, 5, 6],
   ],
 }, {
   // Index agreement desk: SPY | QQQ | IWM heatmaps full width, Key Levels (focused index) below.

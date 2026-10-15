@@ -15768,6 +15768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── CHART DRAWINGS — per user × symbol, so drawings follow the user across devices (server/chart-drawings-store.ts) ──
   { const { registerChartDrawingRoutes } = await import('./chart-drawings-store'); registerChartDrawingRoutes(app, requireBetaAccess); }
   { const { registerChartPathRoutes } = await import('./chart-path'); registerChartPathRoutes(app, requireBetaAccess); }
+  // Gravity node labels + velocity/Halo (server/gravity-route.ts, flag GRAVITY_LABELS).
+  { const { registerGravityRoutes } = await import('./gravity-route'); registerGravityRoutes(app, requireBetaAccess); }
   { const { registerChartSettingsRoutes } = await import('./chart-templates-store'); registerChartSettingsRoutes(app, requireBetaAccess); }
 
   // ── QUANTEDGE LABS DISCORD — lifecycle cards, per-channel on/off (admin) ──

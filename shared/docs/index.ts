@@ -15,6 +15,7 @@ import zero from './pages/zero/index';
 import zeroRef from './pages/zero/reference';
 import gravity from './pages/gravity/index';
 import gravityRef from './pages/gravity/reference';
+import gravityLabels from './pages/gravity/node-labels';
 import current from './pages/current/index';
 import currentRef from './pages/current/reference';
 import trajectory from './pages/trajectory/index';
@@ -55,7 +56,7 @@ export const DOC_MODULES: DocModule[] = [
 
 export const DOC_PAGES: DocPage[] = [
   platformIndex, platformData, platformGlossary,
-  nexus, nexusRef, zero, zeroRef, gravity, gravityRef, current, currentRef,
+  nexus, nexusRef, zero, zeroRef, gravity, gravityRef, gravityLabels, current, currentRef,
   trajectory, trajectoryRef, envelope, envelopeRef, envelopeCones, horizon, horizonRef,
   ledger, ledgerRef, tripwire, tripwireRef, quantinum, quantinumRef,
   bot, botRef, academy, academyRef,

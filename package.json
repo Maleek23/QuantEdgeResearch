@@ -104,7 +104,8 @@
     "test:admin-session": "tsx scripts/test-admin-session.ts",
     "test:waitlist": "tsx scripts/test-waitlist-capture.ts",
     "test:gex-trinity": "tsx scripts/test-gex-trinity.ts",
-    "test:envelope-cone": "tsx scripts/test-envelope-cone.ts"
+    "test:envelope-cone": "tsx scripts/test-envelope-cone.ts",
+    "test:gravity-nodes": "tsx scripts/test-gravity-nodes.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

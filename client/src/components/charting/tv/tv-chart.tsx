@@ -50,6 +50,7 @@ import { AppearanceSection, PathHorizonPill, PathLevelChips, QuickChips, Templat
 import type { EmDraw } from './layers-primitive';
 import { ENVELOPE_HORIZONS, ENVELOPE_LABEL, parseEnvelopeHorizon, type EnvelopeHorizon } from '@shared/envelope-cone';
 import { clientFlag } from '@/lib/feature-flags';
+import { readGravity } from '@shared/gravity-nodes';
 import { canonicalChartSymbol, indexInfo } from '@shared/index-symbols';
 import type { QEChartProps } from '@/components/charting/qe-chart';
 import type { LiveTick } from '@/lib/live-price-bus';
@@ -356,6 +357,28 @@ export function TvChart({
       show: [first.t, last.t],
     };
   }, [prefs.gex, layersOk, ov, cutoff, now, intraday, range, sessionBars]);
+
+  // Gravity labels (flag GRAVITY_LABELS): Gatekeeper / Rug / Trampoline tags + Halo, from the
+  // same per-strike timeline the orbs draw (shared/gravity-nodes.ts). Hidden in replay.
+  const gravityRows = useMemo((): Level[] => {
+    if (!clientFlag('GRAVITY_LABELS') || !prefs.walls || !ov || cutoff != null) return [];
+    const tl = ov.gexTimeline; const last = tl.samples[tl.samples.length - 1];
+    const spot = last ? [...tl.samples].reverse().find((x) => x.spot != null)?.spot ?? null : null;
+    if (!last || spot == null) return [];
+    const nodes = tl.series.map((x) => ({ strike: x.strike, gex: x.points.find((p) => p[0] === last.t)?.[1] ?? 0 }));
+    const g = readGravity({ spot, nodes, series: tl.series, sampleTimes: tl.samples.map((x) => x.t), asOf: last.t });
+    const out: Level[] = [];
+    const halo = (k: number) => { const h = g.nodes.find((n) => n.strike === k)?.velocity?.halo; return h ? ` · HALO ${h === 'building' ? '↑' : '↓'}` : ''; };
+    if (g.gatekeeper != null) out.push({ price: g.gatekeeper, color: 'marker', label: `GATEKEEPER${halo(g.gatekeeper)}`, kind: 'gex-anchor' });
+    if (g.rug != null) out.push({ price: g.rug, color: 'caution', label: `RUG → ${g.rugInto ?? '—'}${halo(g.rug)}`, kind: 'gex-anchor' });
+    if (g.trampoline != null) out.push({ price: g.trampoline, color: 'info', label: `TRAMPOLINE${halo(g.trampoline)}`, kind: 'gex-anchor' });
+    return out;
+  }, [prefs.walls, ov, cutoff]);
+  const chartLevels = useMemo(() => {
+    if (!gravityRows.length) return allLevels;
+    const fresh = gravityRows.filter((r) => !allLevels.some((l) => Math.abs(l.price - r.price) < 1e-6));
+    return [...allLevels, ...fresh];
+  }, [allLevels, gravityRows]);
 
   // Envelope v2 (flag ENVELOPE_V2): which cone the chart draws — Today on intraday, Week on daily+.
   const [envH, setEnvH] = useState<EnvelopeHorizon | null>(null);
@@ -1095,7 +1118,7 @@ export function TvChart({
             showEMA={prefs.ema}
             showVWAP={prefs.vwap}
             compare={compare}
-            levels={allLevels}
+            levels={chartLevels}
             zones={zones}
             layers={layers}
             drawings={dr.drawings}

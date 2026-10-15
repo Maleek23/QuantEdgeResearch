@@ -1,0 +1,26 @@
+/* Gravity node labels (gravity-tool.tsx). Roles carry text; colour only reinforces. */
+.flowdash .grv{display:flex;flex-direction:column;min-height:0;height:100%;font:500 12px Inter,system-ui,sans-serif;color:var(--text)}
+.flowdash .grv-bar{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--nx-border)}
+.flowdash .grv-seg{min-height:28px;padding:0 10px;border:1px solid var(--nx-border-hi);border-radius:6px;background:transparent;color:var(--text-dim);font:600 11px var(--fd-mono);cursor:pointer}
+.flowdash .grv-seg[aria-pressed="true"]{color:var(--text);border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent)}
+.flowdash .grv-seg:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+.flowdash .grv-sym{margin-left:auto;font:700 12px var(--fd-mono)}
+.flowdash .grv-sum{flex:none;display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 10px;border-bottom:1px solid var(--nx-border);color:var(--text-dim);font:500 11.5px var(--fd-mono)}
+.flowdash .grv-sum b{color:var(--text)}
+.flowdash .grv-scroll{flex:1;min-height:0;overflow:auto}
+.flowdash .grv-tbl{width:100%;border-collapse:collapse;font:500 11.5px var(--fd-mono)}
+.flowdash .grv-tbl th,.flowdash .grv-tbl td{padding:4px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--nx-border)}
+.flowdash .grv-tbl thead th{position:sticky;top:0;background:var(--panel-solid,#0e1117);color:var(--text-mute);font-weight:600;z-index:1}
+.flowdash .grv-tbl td:nth-child(3),.flowdash .grv-tbl th:nth-child(3){text-align:left}
+.flowdash .grv-below-spot th,.flowdash .grv-below-spot td{border-top:2px solid var(--text-dim)}
+.flowdash .grv-pos{color:var(--cyan-bright,#7fb2ff)}
+.flowdash .grv-neg{color:var(--red)}
+.flowdash .grv-dim{color:var(--text-mute)}
+.flowdash .grv-chip{display:inline-block;margin-right:4px;padding:0 6px;border:1px solid;border-radius:999px;font:700 10.5px var(--fd-mono)}
+.flowdash .grv-apex{color:var(--cyan-bright,#7fb2ff)}
+.flowdash .grv-gk{color:var(--purple)}
+.flowdash .grv-rug{color:var(--amber)}
+.flowdash .grv-tramp{color:var(--blue,#60a5fa)}
+.flowdash .grv-halo{color:var(--amber)}
+.flowdash .grv-note{flex:none;margin:0;padding:4px 10px;color:var(--text-mute);font:500 10.5px var(--fd-mono)}
+@media (max-width:767px){.flowdash .grv-seg{min-height:40px;min-width:52px}}
