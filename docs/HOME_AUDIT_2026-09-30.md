@@ -65,7 +65,7 @@ ideas show publish time in ET ("Sep 29 · 10:42 ET"); tabs 44px; smooth scroll r
 
 **Discord**: `client/src/lib/public-config.ts` — `DISCORD_INVITE_URL` = `VITE_DISCORD_INVITE_URL`
 if it is a valid `discord.gg/<code>` or `discord.com/invite/<code>`, else the operator's default
-`https://discord.gg/ppjjxVfsc`. OAuth/authorize URLs are rejected.
+`https://discord.gg/uBNgRqqgmS`. OAuth/authorize URLs are rejected.
 
 ## After (measured, harness build)
 

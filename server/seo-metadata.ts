@@ -46,7 +46,7 @@ const organizationSchema = {
   email: SUPPORT_EMAIL,
   founder: { '@id': FOUNDER_ID },
   // TODO(operator): add the company's X/Twitter and LinkedIn page URLs when they exist.
-  sameAs: ['https://discord.gg/ppjjxVfsc'],
+  sameAs: ['https://discord.gg/uBNgRqqgmS'],
 };
 
 const founderSchema = {

@@ -25,7 +25,7 @@ export function parseDiscordInvite(raw: string | undefined | null): string | nul
 }
 
 /** The operator's public invite to Quant-Edge Traders (2026-09-30). Public link — safe to commit. */
-export const DEFAULT_DISCORD_INVITE_URL = 'https://discord.gg/ppjjxVfsc';
+export const DEFAULT_DISCORD_INVITE_URL = 'https://discord.gg/uBNgRqqgmS';
 
 /** VITE_DISCORD_INVITE_URL overrides the default; an invalid override (e.g. a bot OAuth URL) is ignored. */
 export const DISCORD_INVITE_URL: string | null =

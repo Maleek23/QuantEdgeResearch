@@ -143,7 +143,7 @@ async function main() {
   eq(mail.subject, 'You’re in — QuantEdge beta', 'subject');
   for (const part of [mail.text, mail.html]) {
     ok(part.includes('https://quantedgelabs.net/signup?code=qe-aaaaa-bbbbb-ccccc-ddddd'), 'body carries the /signup?code= link');
-    ok(part.includes('https://discord.gg/ppjjxVfsc'), 'body carries the Discord link');
+    ok(part.includes('https://discord.gg/uBNgRqqgmS'), 'body carries the Discord link');
     ok(/not investment advice/i.test(part) && /educational/i.test(part), 'educational / not investment advice footer');
   }
   ok(mailer.buildBetaInviteEmail({ link: 'https://x.io/signup?code=<b>"', code: 'c', expiresAt: null }).html.includes('code=&lt;b&gt;&quot;'), 'html escapes the link');

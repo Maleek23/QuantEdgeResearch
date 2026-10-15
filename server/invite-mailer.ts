@@ -16,7 +16,7 @@
  */
 import { inviteLink } from './admin-ops';
 
-export const DEFAULT_DISCORD_URL = 'https://discord.gg/ppjjxVfsc';
+export const DEFAULT_DISCORD_URL = 'https://discord.gg/uBNgRqqgmS';
 export const INVITE_SUBJECT = 'You’re in — QuantEdge beta';
 /** Resend's default rate limit is 2 requests/s; batches pace themselves. */
 export const SEND_SPACING_MS = 550;
