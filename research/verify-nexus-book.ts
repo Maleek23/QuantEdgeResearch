@@ -743,6 +743,8 @@ async function main() {
     network: { calls: netCalls, cacheHits },
     massive: entitlement.report(),
     ...(recheck ? { recheck } : {}),
+    // Fix 4: the expiry-day prints used to settle expired-without-exit rows (settlement symbol|day → print).
+    expiryPrints: Object.fromEntries(expiryPrints),
   };
   const top30 = [...results].sort((a, b) => Math.abs(b.recordedPnL) - Math.abs(a.recordedPnL)).slice(0, 30);
   const ledger = {

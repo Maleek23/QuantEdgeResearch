@@ -32,7 +32,7 @@
  *
  * Pure: no I/O. Client (NEXUS rows, Setup Detail, day strip, HISTORY) + tests.
  */
-import { contractsForBudget, isCorrectable } from './journal-pnl-truth';
+import { contractsForBudget, isCorrectable, oversizeForReview } from './journal-pnl-truth';
 import { effectivePremiumStop } from './position-sizing';
 
 export const NEXUS_PNL_VERSION = 'nexus-pnl-v1';
@@ -269,6 +269,10 @@ export function nexusPnl(a: PnlArgs): NexusPnl {
     }
   }
   const pnl = money(px);
+  // Fix 3 (same rule as the journal): a realized P&L above 2× the budget is flagged for review, not counted.
+  if (a.state === 'resolved' && a.verification !== undefined && oversizeForReview(pnl, t.budget)) {
+    return { ...base, checking: true, recordedPnl: pnl, reason: `review — ${t.overBudget ? '1 contract over budget, ' : ''}P&L above 2× the $${t.budget} budget; not counted until the fill is confirmed`, peak: ext(a.peak), trough: ext(a.trough) };
+  }
   // Peak never below what the position shows now/at exit once above entry; trough never above it.
   const pk = a.peak && fin(a.peak.premium) ? (a.peak.premium >= px ? a.peak : { premium: px, atMs: base.premiumAtMs }) : null;
   const tr = a.trough && fin(a.trough.premium) ? (a.trough.premium <= px ? a.trough : { premium: px, atMs: base.premiumAtMs }) : null;
