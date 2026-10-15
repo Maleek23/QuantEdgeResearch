@@ -73,7 +73,7 @@ export function setLayerColor(layer: keyof ChartStyle['opacity'], c: string | nu
   if (c) color[layer] = c; else delete color[layer];
   commit({ style: sanitizeChartStyle({ ...state.style, color }) });
 }
-export function setStyle(patch: Partial<Pick<ChartStyle, 'lineWidth' | 'labelDensity'>>) {
+export function setStyle(patch: Partial<Pick<ChartStyle, 'lineWidth' | 'labelDensity' | 'pathStyle' | 'lowChroma'>>) {
   commit({ style: sanitizeChartStyle({ ...state.style, ...patch }) });
 }
 export function resetStyle() { commit({ style: DEFAULT_CHART_STYLE }); }

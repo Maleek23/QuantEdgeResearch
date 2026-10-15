@@ -215,7 +215,7 @@ export interface TvPaneProps {
   /** Path fan (live + frozen snapshots); null = off. */
   path?: PathDraw | null;
   /** Appearance: per-layer opacity and colour overrides. */
-  layerStyle?: { alpha?: LayerColors['alpha']; pathColor?: string; emColor?: string };
+  layerStyle?: { alpha?: LayerColors['alpha']; pathColor?: string; emColor?: string; lowChroma?: boolean };
 }
 
 const RTH = (b: Candle) => { const m = etInfo(b.time).mins; return m >= 570 && m < 960; };
@@ -396,11 +396,14 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       crosshair: { vertLine: { color: withAlpha(c.dim, 0.55), labelBackgroundColor: c.hi }, horzLine: { color: withAlpha(c.dim, 0.55), labelBackgroundColor: c.hi } },
     });
     const s = mainRef.current;
+    // Low-chroma candles: same up/down hues at reduced alpha, so overlays read first.
+    const lc = !!layerStyle?.lowChroma;
+    const up = lc ? withAlpha(c.up, 0.42) : c.up; const dn = lc ? withAlpha(c.down, 0.42) : c.down;
     if (s) {
-      if (chartType === 'bars') s.applyOptions({ upColor: c.up, downColor: c.down } as never);
+      if (chartType === 'bars') s.applyOptions({ upColor: up, downColor: dn } as never);
       else if (chartType === 'line') s.applyOptions({ color: c.accent } as never);
       else if (chartType === 'area') s.applyOptions({ lineColor: c.accent, topColor: withAlpha(c.accent, 0.28), bottomColor: withAlpha(c.accent, 0.02) } as never);
-      else s.applyOptions({ upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down } as never);
+      else s.applyOptions({ upColor: up, downColor: dn, wickUpColor: up, wickDownColor: dn } as never);
     }
     ma20Ref.current?.applyOptions({ color: c.accent });
     ma50Ref.current?.applyOptions({ color: c.caution });
@@ -409,7 +412,7 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     vwapRef.current?.applyOptions({ color: c.text });
     cmpRef.current?.applyOptions({ color: c.dim });
     setDataTick((n) => n + 1); // volume colours are per bar
-  }, [mode, chartType, setDataTick]);
+  }, [mode, chartType, setDataTick, layerStyle?.lowChroma]);
 
   /* ── data ── */
   const needFit = useRef(true);

@@ -4,7 +4,7 @@
  * level chips. Styles live in TV_CSS (tv-chart-panels.tsx) under .tv-qc / .tv-tpl / .tv-app.
  */
 import { useState } from 'react';
-import { QUICK_LAYERS, STYLE_LAYERS, STYLE_LAYER_LABEL, type ChartStyle } from '@shared/chart-templates';
+import { PATH_STYLES, QUICK_LAYERS, STYLE_LAYERS, STYLE_LAYER_LABEL, type ChartStyle, type PathStyle } from '@shared/chart-templates';
 import { fmtPathPct, PATH_HORIZONS, PATH_HORIZON_LABEL, type PathHorizon, type PathResult } from '@shared/path-projection';
 import type { ChartPrefs } from '../chart-prefs';
 import {
@@ -70,6 +70,11 @@ export function AppearanceSection({ style }: { style: ChartStyle }) {
           {(['low', 'normal', 'high'] as const).map((d) => <button type="button" role="radio" aria-checked={style.labelDensity === d} key={d} className={style.labelDensity === d ? 'on' : ''} onClick={() => setStyle({ labelDensity: d })}>{d === 'low' ? 'Few' : d === 'normal' ? 'Normal' : 'All'}</button>)}
         </div>
       </div>
+      <label className="tv-mseg-row tv-app-check">
+        <span className="tv-mseg-label">Low-chroma candles</span>
+        <input type="checkbox" checked={style.lowChroma} onChange={(e) => setStyle({ lowChroma: e.target.checked })} aria-describedby="tv-lowchroma-hint" />
+      </label>
+      <small className="tv-msub" id="tv-lowchroma-hint">Quieter candle colours so levels and the path read first.</small>
       <div className="tv-mactions"><button type="button" className="tv-btn" onClick={resetStyle}>Reset appearance</button></div>
       <small className="tv-msub">Theme (light / dark) follows the app's visual mode switch.</small>
     </div>
@@ -103,14 +108,27 @@ export function PathHorizonPill({ value, onChange, className = '' }: { value: Pa
   );
 }
 
-/** "Apex 585 · touch 62% · stop 31%" — nearest-first, Apex and the Gatekeeper always shown. */
-export function PathLevelChips({ r, max = 6 }: { r: PathResult; max?: number }) {
+/** Settings → Projections: Clean (default) vs Detailed look for the Trajectory Path. */
+export function PathStyleRow({ value }: { value: PathStyle }) {
+  return (
+    <div className="tv-mseg-row">
+      <span className="tv-mseg-label">Path style</span>
+      <div className="tv-seg" role="radiogroup" aria-label="Path style">
+        {PATH_STYLES.map((p) => <button type="button" role="radio" aria-checked={value === p.id} key={p.id} title={p.hint} className={value === p.id ? 'on' : ''} onClick={() => setStyle({ pathStyle: p.id })}>{p.label}</button>)}
+      </div>
+    </div>
+  );
+}
+
+/** "Apex 585 · touch 62% · stop 31%" — nearest-first, Apex and the Gatekeeper always shown.
+ *  Clean path style: hidden until the chart (or the row) is hovered / focused / tapped. */
+export function PathLevelChips({ r, max = 6, clean = false }: { r: PathResult; max?: number; clean?: boolean }) {
   const f = (p: number) => (p >= 100 ? p.toFixed(0) : p.toFixed(2));
   const rows = [...r.levels].sort((a, b) => Math.abs(a.price - r.spot) - Math.abs(b.price - r.spot));
   const pick = rows.filter((l) => l.name === 'Apex' || l.price === r.gatekeeper?.price);
   for (const l of rows) { if (pick.length >= max) break; if (!pick.includes(l)) pick.push(l); }
   return (
-    <div className="tv-pchips" role="list" aria-label="Path level odds (modelled)">
+    <div className={`tv-pchips${clean ? ' tv-pchips-clean' : ''}`} role="list" aria-label="Path level odds (modelled)" tabIndex={clean ? 0 : undefined}>
       {pick.map((l) => (
         <span role="listitem" key={`${l.name}${l.price}`} className={`tv-pchip${l.price === r.gatekeeper?.price ? ' gate' : ''}${l.name === 'Apex' ? ' apex' : ''}`}
           title={`${l.name} ${f(l.price)} (${l.side} price): ${fmtPathPct(l.touch)} of 2,000 modelled paths touch it; ${fmtPathPct(l.stop)} come within reach and turn back. Modelled, not a forecast.`}>

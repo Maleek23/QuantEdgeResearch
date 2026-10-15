@@ -11,6 +11,14 @@
  *   were computed, over the realized candles, so a past day reads
  *   "as computed then" against what price did.
  *
+ * Two looks (Settings → Projections → Path style, ChartStyle.pathStyle):
+ *   detailed — the above, always on.
+ *   clean (default) — the median as a sparse dot trail, the 80% band as a faint hairline
+ *   outline only, ONE soft glowing zone at the highest touch-probability level, other
+ *   levels as short dotted ticks whose length / opacity scale with |GEX| at the strike.
+ *   Fans, level labels and STOP / RUG / TRAMP tags fade in while the pointer is over the
+ *   path (150 ms; instant under prefers-reduced-motion). The caption is always on.
+ *
  * Future x: one bar slot per `barMs` of RTH trading time after the last bar
  * (tradingMsBetween), so overnight gaps do not stretch the fan.
  * Canvas 2D, media coordinates, one gradient per band per frame.
@@ -20,6 +28,7 @@ import { pathAt, tradingMsBetween, PATH_DISCLAIMER, type PathResult } from '@sha
 import type { Candle } from '@/components/charting/chart-engine';
 import { firstBarAtOrAfter } from './layers-primitive';
 import { withLayerAlpha } from './label-layout';
+import { cleanPathLevels, trailDotIndices, type PathStyle } from '@shared/chart-templates';
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 export interface PathColors { fan: string; median: string; text: string; panel: string; frozen: string; gate: string; rug: string; tramp: string }
@@ -30,7 +39,12 @@ export interface PathDraw {
   density: boolean;
   opacity: number;
   lineWidth: number;
+  /** Default 'clean'. */
+  style?: PathStyle;
+  /** Dealer nodes (strike, net GEX) — clean style scales level ticks by |GEX|. */
+  nodes?: { strike: number; gex: number }[];
 }
+const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export class PathPrimitive implements ISeriesPrimitive<Time> {
   private chart: IChartApi | null = null;
@@ -43,6 +57,10 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
   /** Future-time compression so the whole horizon fits the space right of the last candle (≤ 1). */
   private squeeze = 1;
   private paneW = 0;
+  /** Clean style: 0..1 reveal of fans / labels / tags while hovering the path. */
+  private reveal = 0;
+  private revealAt = 0;
+  private raf = 0;
   private readonly views: IPrimitivePaneView[];
   private onMove = (p: MouseEventParams<Time>) => {
     const x = p.point?.x ?? null;
@@ -57,7 +75,7 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
     this.chart = p.chart as IChartApi; this.series = p.series as ISeriesApi<SeriesType>; this.request = p.requestUpdate;
     this.chart.subscribeCrosshairMove(this.onMove);
   }
-  detached() { this.chart?.unsubscribeCrosshairMove(this.onMove); this.chart = null; this.series = null; this.request = null; }
+  detached() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; this.chart?.unsubscribeCrosshairMove(this.onMove); this.chart = null; this.series = null; this.request = null; }
   paneViews() { return this.views; }
   /** Keep the 80% fan in view: the price scale autoscales over it (live fan only). */
   autoscaleInfo() {
@@ -142,6 +160,7 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
     const x0 = this.xAt(r.points[0]?.t ?? 0);
     const xEnd = this.xAt(r.endMs);
     if (x0 == null || xEnd == null || xEnd <= x0) return;
+    if ((d.style ?? 'clean') === 'clean') { this.paintClean(ctx, r, d, c, w, h, x0, xEnd); return; }
     const fade = (a0: number, a1: number) => {
       const g = ctx.createLinearGradient(x0, 0, xEnd, 0);
       g.addColorStop(0, withA(c.fan, a0)); g.addColorStop(1, withA(c.fan, a1));
@@ -182,7 +201,112 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
       });
     }
 
-    // badges at their prices, on the fan's far edge
+    this.paintBadges(ctx, r, c, x0, xEnd);
+    this.paintCaption(ctx, c, x0, h, b80.dn);
+    this.paintHover(ctx, r, c, w, h, x0, xEnd);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** Clean: dot trail + hairline 80% outline + one glowing target; detail fades in on hover. */
+  private paintClean(ctx: CanvasRenderingContext2D, r: PathResult, d: PathDraw, c: PathColors, w: number, h: number, x0: number, xEnd: number) {
+    const s = this.series!;
+    const over = this.hoverX != null && this.hoverX > x0 - 24 && this.hoverX <= w;
+    const k = this.stepReveal(over ? 1 : 0);
+    const b80 = this.band(r, 'p10', 'p90');
+    // fans — only while hovering
+    if (k > 0.01) {
+      const fade = (a0: number, a1: number) => { const g = ctx.createLinearGradient(x0, 0, xEnd, 0); g.addColorStop(0, withA(c.fan, a0 * k)); g.addColorStop(1, withA(c.fan, a1 * k)); return g; };
+      const fill = (b: { up: [number, number][]; dn: [number, number][] }, st: CanvasGradient) => {
+        if (b.up.length < 2) return;
+        ctx.beginPath(); ctx.moveTo(b.up[0][0], b.up[0][1]);
+        for (const [x, y] of b.up) ctx.lineTo(x, y);
+        for (let i = b.dn.length - 1; i >= 0; i--) ctx.lineTo(b.dn[i][0], b.dn[i][1]);
+        ctx.closePath(); ctx.fillStyle = st; ctx.fill();
+      };
+      if (d.bands !== '50') fill(b80, fade(0.12, 0.04));
+      if (d.bands !== '80') fill(this.band(r, 'p25', 'p75'), fade(0.2, 0.07));
+    }
+    // 80% outline — faint hairline, no fill
+    if (d.bands !== '50' && b80.up.length > 1) {
+      ctx.strokeStyle = withA(c.fan, 0.3 + 0.25 * k); ctx.lineWidth = 1; ctx.lineJoin = 'round';
+      for (const pts of [b80.up, b80.dn]) { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+    }
+    // levels: one glowing target, the rest dotted ticks scaled by |GEX|
+    const tol = Math.max(r.spot * 0.0012, 0.05);
+    const lv = cleanPathLevels(r.levels, d.nodes, tol);
+    const span = xEnd - x0;
+    ctx.lineCap = 'round';
+    for (const l of lv) {
+      if (l.highlight) continue;
+      const y = s.priceToCoordinate(l.price); if (y == null) continue;
+      ctx.strokeStyle = withA(c.text, 0.16 + 0.42 * l.weight); ctx.lineWidth = 1; ctx.setLineDash([1, 4]);
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + span * (0.22 + 0.78 * l.weight), y); ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.lineCap = 'butt';
+    const hl = lv.find((l) => l.highlight);
+    const yH = hl ? s.priceToCoordinate(hl.price) : null;
+    if (hl && yH != null) {
+      const zh = 8; const zx = x0 + 2; const zw = Math.max(12, span - 4);
+      ctx.save();
+      ctx.shadowColor = withA(c.fan, 0.55); ctx.shadowBlur = 10;
+      roundRect(ctx, zx, yH - zh / 2, zw, zh, zh / 2);
+      ctx.fillStyle = withA(c.fan, 0.12); ctx.fill();
+      ctx.shadowBlur = 0; ctx.strokeStyle = withA(c.fan, 0.75); ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    // median — sparse dot trail stepping past the last candle
+    const pts: [number, number][] = [];
+    for (const p of r.points) { const x = this.xAt(p.t); const y = s.priceToCoordinate(p.p50); if (x != null && y != null) pts.push([x, y]); }
+    if (pts.length > 1) {
+      const dx = (pts[pts.length - 1][0] - pts[0][0]) / (pts.length - 1);
+      const every = Math.max(1, Math.ceil(12 / Math.max(0.5, dx)));
+      const rad = 1.4 + d.lineWidth * 0.4;
+      const idx = trailDotIndices(pts.length, every).filter((i) => i > 0);
+      idx.forEach((i, j) => {
+        const f = idx.length > 1 ? j / (idx.length - 1) : 0;
+        // ink dot + accent ring: distinct from the (accent-filled) projected GEX orbs
+        ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad + 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = withA(c.panel, 0.85 - 0.4 * f); ctx.fill();
+        ctx.strokeStyle = withA(c.median, 0.7 - 0.35 * f); ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rad, 0, Math.PI * 2);
+        ctx.fillStyle = withA(c.text, 0.95 - 0.45 * f); ctx.fill();
+      });
+    }
+    // labels + tags — hover only
+    if (k > 0.01) {
+      ctx.save(); ctx.globalAlpha *= k;
+      ctx.font = '600 9px "JetBrains Mono", monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      const f = (n: number) => (n >= 100 ? n.toFixed(0) : n.toFixed(2));
+      for (const l of lv) {
+        const y = s.priceToCoordinate(l.price); if (y == null) continue;
+        const txt = `${l.name} ${f(l.price)} · ${Math.round(l.touch * 100)}%`;
+        const tw = ctx.measureText(txt).width + 8; const lx = Math.max(2, Math.min(w - 60 - tw, x0 + 6));
+        ctx.fillStyle = withA(c.panel, 0.88); ctx.fillRect(lx, y - 7, tw, 13);
+        ctx.fillStyle = l.highlight ? c.fan : c.text; ctx.fillText(txt, lx + 4, y + 0.5);
+      }
+      this.paintBadges(ctx, r, c, x0, xEnd);
+      ctx.restore();
+    }
+    this.paintCaption(ctx, c, x0, h, b80.dn);
+    this.paintHover(ctx, r, c, w, h, x0, xEnd);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** Ease the hover reveal toward target over ~150 ms (instant under reduced motion). */
+  private stepReveal(target: number): number {
+    if (reducedMotion()) { this.reveal = target; return target; }
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const dt = this.revealAt ? Math.min(100, now - this.revealAt) : 16; this.revealAt = now;
+    const step = dt / 150;
+    this.reveal = target > this.reveal ? Math.min(target, this.reveal + step) : Math.max(target, this.reveal - step);
+    if (this.reveal !== target && !this.raf && typeof requestAnimationFrame !== 'undefined') {
+      this.raf = requestAnimationFrame(() => { this.raf = 0; this.request?.(); });
+    }
+    if (this.reveal === target) this.revealAt = 0;
+    return this.reveal;
+  }
+
+  private paintBadges(ctx: CanvasRenderingContext2D, r: PathResult, c: PathColors, x0: number, xEnd: number) {
     ctx.font = '700 9px "JetBrains Mono", monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
     for (const b of r.badges) {
       const y = this.series!.priceToCoordinate(b.price); if (y == null) continue;
@@ -193,32 +317,32 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
       ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(bx - tw + 0.5, y - 5.5, tw - 1, 11);
       ctx.fillStyle = col; ctx.fillText(txt, bx - 4, y + 0.5);
     }
+  }
 
-    // caption — the honesty line, always on
+  /** The honesty line — always on, in both styles. */
+  private paintCaption(ctx: CanvasRenderingContext2D, c: PathColors, x0: number, h: number, dn: [number, number][]) {
     ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = '600 9px "JetBrains Mono", monospace';
-    const capY = b80.dn.length ? Math.min(h - 12, (b80.dn[Math.min(b80.dn.length - 1, 3)]?.[1] ?? h - 12) + 4) : h - 12;
+    const capY = dn.length ? Math.min(h - 12, (dn[Math.min(dn.length - 1, 3)]?.[1] ?? h - 12) + 4) : h - 12;
     ctx.fillStyle = withA(c.text, 0.7);
     ctx.fillText(`Path · ${PATH_DISCLAIMER}${this.squeeze < 0.98 ? ' · future time compressed to fit' : ''}`, x0 + 6, capY);
+  }
 
-    // hover readout
-    if (this.hoverX != null && this.hoverX > x0 + 2 && this.hoverX <= xEnd + 2) {
-      const t = this.timeAtX(this.hoverX, r); const v = t != null ? pathAt(r, t) : null;
-      if (v && t != null) {
-        const x = this.xAt(t)!;
-        ctx.strokeStyle = withA(c.median, 0.5); ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); ctx.setLineDash([]);
-        const f = (n: number) => n.toFixed(n >= 100 ? 1 : 2);
-        const lines = [fmtTime(t), `median ${f(v.p50)}`, `50%  ${f(v.p25)} – ${f(v.p75)}`, `80%  ${f(v.p10)} – ${f(v.p90)}`];
-        ctx.font = '600 10px "JetBrains Mono", monospace';
-        const bw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 14; const bh = lines.length * 14 + 8;
-        const bx = x + 8 + bw > w - 60 ? x - 8 - bw : x + 8; const by = 8;
-        ctx.fillStyle = withA(c.panel, 0.94); ctx.strokeStyle = withA(c.median, 0.35);
-        ctx.fillRect(bx, by, bw, bh); ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
-        ctx.fillStyle = c.text; ctx.textBaseline = 'top';
-        lines.forEach((l, i) => { ctx.globalAlpha = i ? 1 : 0.7; ctx.fillText(l, bx + 7, by + 5 + i * 14); });
-        ctx.globalAlpha = 1;
-      }
-    }
-    ctx.textBaseline = 'alphabetic';
+  private paintHover(ctx: CanvasRenderingContext2D, r: PathResult, c: PathColors, w: number, h: number, x0: number, xEnd: number) {
+    if (this.hoverX == null || this.hoverX <= x0 + 2 || this.hoverX > xEnd + 2) return;
+    const t = this.timeAtX(this.hoverX, r); const v = t != null ? pathAt(r, t) : null;
+    if (!v || t == null) return;
+    const x = this.xAt(t)!;
+    ctx.strokeStyle = withA(c.median, 0.5); ctx.lineWidth = 1; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); ctx.setLineDash([]);
+    const f = (n: number) => n.toFixed(n >= 100 ? 1 : 2);
+    const lines = [fmtTime(t), `median ${f(v.p50)}`, `50%  ${f(v.p25)} – ${f(v.p75)}`, `80%  ${f(v.p10)} – ${f(v.p90)}`];
+    ctx.font = '600 10px "JetBrains Mono", monospace'; ctx.textAlign = 'left';
+    const bw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 14; const bh = lines.length * 14 + 8;
+    const bx = x + 8 + bw > w - 60 ? x - 8 - bw : x + 8; const by = 8;
+    ctx.fillStyle = withA(c.panel, 0.94); ctx.strokeStyle = withA(c.median, 0.35);
+    ctx.fillRect(bx, by, bw, bh); ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    ctx.fillStyle = c.text; ctx.textBaseline = 'top';
+    lines.forEach((l, i) => { ctx.globalAlpha = i ? 1 : 0.7; ctx.fillText(l, bx + 7, by + 5 + i * 14); });
+    ctx.globalAlpha = 1;
   }
 
   private paintFrozen(ctx: CanvasRenderingContext2D, r: PathResult, label: string, c: PathColors) {
@@ -235,6 +359,11 @@ export class PathPrimitive implements ISeriesPrimitive<Time> {
   }
 }
 
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const q = Math.min(r, h / 2, w / 2);
+  ctx.beginPath(); ctx.moveTo(x + q, y); ctx.arcTo(x + w, y, x + w, y + h, q); ctx.arcTo(x + w, y + h, x, y + h, q);
+  ctx.arcTo(x, y + h, x, y, q); ctx.arcTo(x, y, x + w, y, q); ctx.closePath();
+}
 function fmtTime(ms: number): string {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ms)) + ' ET';
 }

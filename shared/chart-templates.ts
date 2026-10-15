@@ -64,19 +64,29 @@ export const STYLE_LAYERS = ['path', 'em', 'gex', 'walls', 'dp', 'flow'] as cons
 export type StyleLayer = typeof STYLE_LAYERS[number];
 export const STYLE_LAYER_LABEL: Record<StyleLayer, string> = { path: 'Path fan', em: 'Expected move', gex: 'GEX orbs', walls: 'Walls & flip', dp: 'Dark pool', flow: 'Flow prints' };
 export type LabelDensity = 'low' | 'normal' | 'high';
+/** Trajectory Path look: 'clean' (dot trail, hairline 80% outline, one glowing target, detail on hover — default)
+ *  or 'detailed' (filled 50/80% fans, median line, density, always-on tags). */
+export type PathStyle = 'clean' | 'detailed';
+export const PATH_STYLES: { id: PathStyle; label: string; hint: string }[] = [
+  { id: 'clean', label: 'Clean', hint: 'Dot trail, faint 80% outline, one highlighted target; fans and tags on hover' },
+  { id: 'detailed', label: 'Detailed', hint: 'Filled 50 / 80% fans, median line, density and tags always on' },
+];
 export interface ChartStyle {
   opacity: Record<StyleLayer, number>;
   /** Override colours (#rrggbb). Missing = theme token. */
   color: Partial<Record<StyleLayer, string>>;
   lineWidth: 1 | 2 | 3;
   labelDensity: LabelDensity;
+  pathStyle: PathStyle;
+  /** Desaturated candles so overlays read first. */
+  lowChroma: boolean;
 }
 export const DEFAULT_CHART_STYLE: ChartStyle = {
   opacity: { path: 1, em: 1, gex: 1, walls: 1, dp: 1, flow: 1 },
-  color: {}, lineWidth: 1, labelDensity: 'normal',
+  color: {}, lineWidth: 1, labelDensity: 'normal', pathStyle: 'clean', lowChroma: false,
 };
 export function sanitizeChartStyle(raw: unknown): ChartStyle {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as { opacity?: Record<string, unknown>; color?: Record<string, unknown>; lineWidth?: unknown; labelDensity?: unknown };
+  const o = (raw && typeof raw === 'object' ? raw : {}) as { opacity?: Record<string, unknown>; color?: Record<string, unknown>; lineWidth?: unknown; labelDensity?: unknown; pathStyle?: unknown; lowChroma?: unknown };
   const opacity = { ...DEFAULT_CHART_STYLE.opacity };
   const color: ChartStyle['color'] = {};
   for (const k of STYLE_LAYERS) {
@@ -90,7 +100,41 @@ export function sanitizeChartStyle(raw: unknown): ChartStyle {
     opacity, color,
     lineWidth: (Number.isFinite(lw) ? Math.max(1, Math.min(3, Math.round(lw))) : 1) as 1 | 2 | 3,
     labelDensity: o.labelDensity === 'low' || o.labelDensity === 'high' ? o.labelDensity : 'normal',
+    pathStyle: o.pathStyle === 'detailed' ? 'detailed' : 'clean',
+    lowChroma: o.lowChroma === true,
   };
+}
+
+/* ── Clean path plan (pure; drawn by client/src/components/charting/tv/path-primitive.ts) ── */
+export interface CleanLevel { name: string; price: number; touch: number; weight: number; highlight: boolean }
+/** The ONE highlighted level is the highest touch-probability target; every other level gets a
+ *  0.15..1 weight from |GEX| at its strike (nearest node within tol; 0.15 when no node is known). */
+export function cleanPathLevels(
+  levels: { name: string; price: number; touch: number }[],
+  nodes: { strike: number; gex: number }[] = [],
+  tol = 0,
+): CleanLevel[] {
+  if (!levels.length) return [];
+  let hi = 0;
+  levels.forEach((l, i) => { if (l.touch > levels[hi].touch) hi = i; });
+  const maxAbs = Math.max(0, ...nodes.map((n) => Math.abs(n.gex)));
+  const gexAt = (p: number) => {
+    let best: { strike: number; gex: number } | null = null;
+    for (const n of nodes) if (Math.abs(n.strike - p) <= tol + 1e-9 && (!best || Math.abs(n.strike - p) < Math.abs(best.strike - p))) best = n;
+    return best ? Math.abs(best.gex) : 0;
+  };
+  return levels.map((l, i) => ({
+    name: l.name, price: l.price, touch: l.touch, highlight: i === hi && l.touch > 0,
+    weight: maxAbs > 0 ? Math.max(0.15, Math.min(1, gexAt(l.price) / maxAbs)) : 0.15,
+  }));
+}
+/** Indices of output points that get a dot: every `every`-th, always the last. */
+export function trailDotIndices(n: number, every = 4): number[] {
+  const out: number[] = [];
+  const k = Math.max(1, Math.round(every));
+  for (let i = 0; i < n; i += k) out.push(i);
+  if (n && out[out.length - 1] !== n - 1) out.push(n - 1);
+  return out;
 }
 
 /* ── settings sheet IA ── */

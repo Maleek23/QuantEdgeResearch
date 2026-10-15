@@ -10,7 +10,7 @@ import {
   structureBadges, tradingMsBetween, reanchorPath, varianceCurveFromBars, type PathInput,
 } from '../shared/path-projection';
 import {
-  BUILTIN_TEMPLATES, QUICK_LAYERS, SETTINGS_GROUPS, applyTemplate, sanitizeChartStyle, sanitizeTemplates, templateFromPrefs,
+  BUILTIN_TEMPLATES, DEFAULT_CHART_STYLE, PATH_STYLES, QUICK_LAYERS, SETTINGS_GROUPS, applyTemplate, cleanPathLevels, sanitizeChartStyle, sanitizeTemplates, templateFromPrefs, trailDotIndices,
 } from '../shared/chart-templates';
 
 let n = 0;
@@ -188,6 +188,56 @@ t('style sanitiser clamps opacity and colours', () => {
   assert.equal(s.opacity.path, 1); assert.equal(s.opacity.em, 0.1); assert.equal(s.opacity.gex, 0.5);
   assert.equal(s.color.path, '#12ab34'); assert.equal(s.color.em, undefined);
   assert.equal(s.lineWidth, 3); assert.equal(s.labelDensity, 'normal');
+});
+
+console.log('path style (Clean / Detailed)');
+t('Clean is the default; Detailed survives sanitise; junk falls back to Clean', () => {
+  assert.equal(DEFAULT_CHART_STYLE.pathStyle, 'clean');
+  assert.equal(DEFAULT_CHART_STYLE.lowChroma, false);
+  assert.equal(sanitizeChartStyle({}).pathStyle, 'clean');
+  assert.equal(sanitizeChartStyle(null).pathStyle, 'clean');
+  assert.equal(sanitizeChartStyle({ pathStyle: 'detailed' }).pathStyle, 'detailed');
+  assert.equal(sanitizeChartStyle({ pathStyle: 'neon' }).pathStyle, 'clean');
+  assert.equal(sanitizeChartStyle({ lowChroma: true }).lowChroma, true);
+  assert.equal(sanitizeChartStyle({ lowChroma: 'yes' }).lowChroma, false);
+  // a stored pre-switch style (no pathStyle key) keeps every other field and gets Clean
+  const old = sanitizeChartStyle({ opacity: { path: 0.5 }, lineWidth: 2 });
+  assert.equal(old.pathStyle, 'clean'); assert.equal(old.opacity.path, 0.5); assert.equal(old.lineWidth, 2);
+  assert.deepEqual(PATH_STYLES.map((p) => p.id), ['clean', 'detailed']);
+  // switching round-trips through the store's sanitiser
+  const det = sanitizeChartStyle({ ...DEFAULT_CHART_STYLE, pathStyle: 'detailed' });
+  assert.equal(sanitizeChartStyle({ ...det, pathStyle: 'clean' }).pathStyle, 'clean');
+});
+t('Clean: ONE highlighted level = highest touch; others weighted by |GEX|', () => {
+  const lv = cleanPathLevels(
+    [{ name: 'Apex', price: 586, touch: 0.31 }, { name: 'Flip', price: 576, touch: 0.62 }, { name: 'Call wall', price: 590, touch: 0.1 }, { name: 'Put wall', price: 573, touch: 0.2 }],
+    [{ strike: 586, gex: 3 }, { strike: 576, gex: -1.5 }, { strike: 573, gex: 0.3 }],
+    0.5,
+  );
+  assert.equal(lv.filter((l) => l.highlight).length, 1);
+  assert.equal(lv.find((l) => l.highlight)!.name, 'Flip');
+  assert.equal(lv[0].weight, 1);
+  assert.equal(lv[1].weight, 0.5);
+  assert.equal(lv[2].weight, 0.15); // no node at the strike → floor
+  assert.equal(lv[3].weight, 0.15); // 0.1 → floored
+  assert.ok(cleanPathLevels([{ name: 'x', price: 1, touch: 0.2 }]).every((l) => l.weight === 0.15));
+  assert.equal(cleanPathLevels([{ name: 'x', price: 1, touch: 0 }])[0].highlight, false);
+  assert.deepEqual(cleanPathLevels([]), []);
+});
+t('Clean: real engine levels → exactly one target', () => {
+  const nodes = [{ strike: 586, gex: 3.1 }, { strike: 577, gex: -1.4 }];
+  const r = simulatePath({ ...base, regime: 'long', nodes, levels: [{ name: 'Apex', price: 586 }, { name: 'Flip', price: 577 }, { name: 'Wall', price: 590 }], paths: 400 });
+  const lv = cleanPathLevels(r.levels, nodes, 0.7);
+  assert.equal(lv.filter((l) => l.highlight).length, 1);
+  const best = Math.max(...r.levels.map((l) => l.touch));
+  assert.equal(lv.find((l) => l.highlight)!.touch, best);
+});
+t('Clean: sparse dot trail always ends on the last point', () => {
+  assert.deepEqual(trailDotIndices(10, 4), [0, 4, 8, 9]);
+  assert.deepEqual(trailDotIndices(9, 4), [0, 4, 8]);
+  assert.deepEqual(trailDotIndices(3, 0), [0, 1, 2]);
+  assert.deepEqual(trailDotIndices(0, 4), []);
+  assert.ok(trailDotIndices(160, 6).length < 30);
 });
 
 console.log(`\n${n} checks passed`);

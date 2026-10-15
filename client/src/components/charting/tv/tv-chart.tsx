@@ -46,7 +46,7 @@ import { useChartStyle, clearActiveTemplate, allTemplates } from '@/components/c
 import { SETTINGS_GROUPS } from '@shared/chart-templates';
 import { etParts, reanchorPath, PATH_DISCLAIMER, PATH_HORIZON_LABEL } from '@shared/path-projection';
 import type { PathDraw } from './path-primitive';
-import { AppearanceSection, PathHorizonPill, PathLevelChips, QuickChips, TemplatesBar } from './chart-settings-parts';
+import { AppearanceSection, PathHorizonPill, PathLevelChips, PathStyleRow, QuickChips, TemplatesBar } from './chart-settings-parts';
 import type { EmDraw } from './layers-primitive';
 import { ENVELOPE_HORIZONS, ENVELOPE_LABEL, parseEnvelopeHorizon, type EnvelopeHorizon } from '@shared/envelope-cone';
 import { clientFlag } from '@/lib/feature-flags';
@@ -421,6 +421,12 @@ export function TvChart({
   const pathQ = usePathProjection(symbol, prefs.pathHorizon, pathOn && !replay.on, inView);
   const snapDate = useMemo(() => etParts(cutoff ?? now).date, [cutoff, now]);
   const snapQ = usePathSnapshots(symbol, snapDate, pathOn);
+  // Latest per-strike net GEX — the Clean path style scales level ticks by |GEX|.
+  const pathNodes = useMemo(() => {
+    const tl = ov?.gexTimeline; const last = tl?.samples[tl.samples.length - 1];
+    if (!tl || !last) return undefined;
+    return tl.series.map((x) => ({ strike: x.strike, gex: x.points.find((p) => p[0] === last.t)?.[1] ?? 0 }));
+  }, [ov]);
   const pathDraw = useMemo<PathDraw | null>(() => {
     if (!pathOn) return null;
     const frozen: PathDraw['frozen'] = [];
@@ -432,11 +438,11 @@ export function TvChart({
     // Live, not carried: the fan starts at the chart's live last price (translation only, ≤2% gap).
     const live = replay.on || !pathQ.data?.result ? null : reanchorPath(pathQ.data.result, lastLive).result;
     if (!live && !frozen.length) return null;
-    return { live, frozen, bands: prefs.pathBands, density: prefs.pathDensity, opacity: styleSt.style.opacity.path, lineWidth: styleSt.style.lineWidth };
-  }, [pathOn, snapQ.data, pathQ.data, lastLive, prefs.pathHorizon, prefs.pathBands, prefs.pathDensity, replay.on, cutoff, styleSt.style]);
+    return { live, frozen, bands: prefs.pathBands, density: prefs.pathDensity, opacity: styleSt.style.opacity.path, lineWidth: styleSt.style.lineWidth, style: styleSt.style.pathStyle, nodes: pathNodes };
+  }, [pathOn, snapQ.data, pathQ.data, lastLive, prefs.pathHorizon, prefs.pathBands, prefs.pathDensity, replay.on, cutoff, styleSt.style, pathNodes]);
   const layerStyle = useMemo(() => ({
     alpha: { em: styleSt.style.opacity.em, gex: styleSt.style.opacity.gex, dp: styleSt.style.opacity.dp, flow: styleSt.style.opacity.flow },
-    pathColor: styleSt.style.color.path, emColor: styleSt.style.color.em,
+    pathColor: styleSt.style.color.path, emColor: styleSt.style.color.em, lowChroma: styleSt.style.lowChroma,
   }), [styleSt.style]);
   const activeTplName = styleSt.activeTemplate ? allTemplates(styleSt).find((t) => t.id === styleSt.activeTemplate)?.name ?? null : null;
   const pathRes = pathQ.data?.result ?? null;
@@ -837,6 +843,7 @@ export function TvChart({
       {menuRow(prefs.path, (v) => set('path', v), 'Path fan · modelled scenario', layersOk ? '2,000 Monte-Carlo paths from the priced move, GEX nodes, skew — not a forecast' : 'no options layers for this symbol', tk.pos)}
       {prefs.path && !q && (
         <>
+          <PathStyleRow value={styleSt.style.pathStyle} />
           <div className="tv-mseg-row">
             <span className="tv-mseg-label">Horizon</span>
             <PathHorizonPill value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />
@@ -847,7 +854,7 @@ export function TvChart({
               {([['both', '50 + 80%'], ['50', '50%'], ['80', '80%']] as const).map(([k, l]) => <button type="button" role="radio" aria-checked={prefs.pathBands === k} key={k} className={prefs.pathBands === k ? 'on' : ''} onClick={() => set('pathBands', k)}>{l}</button>)}
             </div>
           </div>
-          {menuRow(prefs.pathDensity, (v) => set('pathDensity', v), 'Terminal density', "where the modelled paths end, at the fan's right edge")}
+          {styleSt.style.pathStyle === 'detailed' && menuRow(prefs.pathDensity, (v) => set('pathDensity', v), 'Terminal density', "where the modelled paths end, at the fan's right edge")}
         </>
       )}
       {menuRow(prefs.expMove, (v) => set('expMove', v), 'Expected move · priced range', 'today / this week lines + √t cone from the ATM straddle', tk.mute)}
@@ -1053,7 +1060,7 @@ export function TvChart({
       <div className="tv-sub" role="region" aria-label="Quick layers and path odds">
         <QuickChips prefs={prefs} set={set} active={activeTplName} />
         {layersOk && prefs.path && <PathHorizonPill className="tv-pill-sub" value={prefs.pathHorizon} onChange={(h) => set('pathHorizon', h)} />}
-        {pathOn && pathRes && !replay.on && <PathLevelChips r={pathRes} max={typeof matchMedia !== 'undefined' && matchMedia('(max-width: 640px)').matches ? 3 : styleSt.style.labelDensity === 'low' ? 3 : styleSt.style.labelDensity === 'high' ? 12 : 6} />}
+        {pathOn && pathRes && !replay.on && <PathLevelChips r={pathRes} clean={styleSt.style.pathStyle === 'clean'} max={typeof matchMedia !== 'undefined' && matchMedia('(max-width: 640px)').matches ? 3 : styleSt.style.labelDensity === 'low' ? 3 : styleSt.style.labelDensity === 'high' ? 12 : 6} />}
       </div>
       {menu && menu !== 'draw' && menu !== 'help' && <div className="tv-scrim" onClick={() => setMenu(null)} />}
 
@@ -1345,6 +1352,11 @@ const TV_CSS = `
 .tv-seg-lab{align-self:center;padding:0 6px 0 4px;font:700 10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-mute)}
 @media (max-width:1379px){.tv-seg.tv-pill-sub{display:inline-flex!important;margin-left:0}}
 .tv-pchips{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.tv-pchips-clean{opacity:0;transition:opacity .15s ease}
+.tv-root:hover .tv-pchips-clean,.tv-root:focus-within .tv-pchips-clean,.tv-pchips-clean:hover,.tv-pchips-clean:focus{opacity:1}
+@media (hover:none){.tv-pchips-clean{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.tv-pchips-clean{transition:none}}
+.tv-app-check{cursor:pointer}.tv-app-check input{width:16px;height:16px;accent-color:var(--tv-accent);cursor:pointer}
 .tv-pchip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:4px;background:var(--tv-panel);color:var(--tv-mute);font:500 11px 'JetBrains Mono',monospace;white-space:nowrap}
 .tv-pchip b{color:var(--tv-fg);font-weight:700}
 .tv-pchip.apex{box-shadow:inset 2px 0 0 var(--tv-info)}
