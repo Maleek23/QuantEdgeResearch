@@ -260,7 +260,7 @@ export default function LandingV2() {
           <div className="lv2-wrap lv2-hero-in">
             <p className="lv2-badge"><span className="dot" aria-hidden="true" />Invite-only beta · now open</p>
             <h1 id="lv2-h1"><span className="lv2-lockup">QuantEdge —</span> More edge <span>to the traders.</span></h1>
-            <p className="lv2-sub">Dealer positioning, options flow and evidence-ranked setups in one terminal — every number stamped with its source, its age and its record.</p>
+            <p className="lv2-sub">See where dealers are hedging.</p>
             <div className="lv2-ctas">
               <Link href="/signup" className="lv2-btn primary xl">Join the beta {ARROW}</Link>
               {DISCORD_INVITE_URL && (
@@ -270,7 +270,7 @@ export default function LandingV2() {
               )}
               <button type="button" className="lv2-btn text xl" onClick={cmdk.show}>Tour the terminal <kbd>⌘K</kbd></button>
             </div>
-            <p className="lv2-scope">Stocks · Options · 0DTE · Crypto · Delayed data · Educational, not advice</p>
+            <p className="lv2-scope">Educational, not advice</p>
           </div>
           <div className="lv2-wrap">
             <figure className="lv2-device" aria-label="NEXUS, the QuantEdge trading desk — the real app on sample data">
