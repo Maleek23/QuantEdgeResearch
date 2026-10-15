@@ -78,6 +78,7 @@ const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "pri
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
+const DocsPage = lazyWithRetry(() => import("@/pages/docs"), "docs");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
@@ -302,6 +303,10 @@ function Router() {
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/blog"       component={Blog} />
         <Route path="/academy"    component={Academy} />
+        {/* Public docs — field guides per module (shared/docs, pages/docs.tsx). */}
+        <Route path="/docs/:module/:page" component={DocsPage} />
+        <Route path="/docs/:module" component={DocsPage} />
+        <Route path="/docs"       component={DocsPage} />
 
         {/* Public, read-only shared watchlist (no auth) — for trading groups */}
         <Route path="/w" component={PublicWatchlist} />
@@ -377,7 +382,7 @@ function App() {
     // door now. They remain reachable directly; they just no longer hijack the next visit.
     const skipPaths = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta',
                        '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
-    if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
+    if (!skipPaths.includes(path) && !path.startsWith('/docs') && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }
   }, [location]);
@@ -392,7 +397,8 @@ function App() {
   const locationPath = location.split('?')[0];
   const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/admin/learning', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
-  const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
+  const isDocs = locationPath === '/docs' || locationPath.startsWith('/docs/');
+  const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/') || isDocs;
   if (isPublicPage) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -401,7 +407,8 @@ function App() {
             <RealtimePricesProvider>
               <StockContextProvider>
                 <Router />
-                <CommandPaletteHost />
+                {/* /docs owns ⌘K (docs + glossary search); two palettes on one key would stack. */}
+                {!isDocs && <CommandPaletteHost />}
                 <WhatsNewDrawer />
                 <WhatsNewToast />
                 <Toaster />

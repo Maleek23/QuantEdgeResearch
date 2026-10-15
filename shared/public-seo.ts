@@ -7,6 +7,8 @@
  * docs/POSITIONING.md. Titles ≤ 60 chars, descriptions ≤ 155 chars —
  * research/check-seo.ts enforces both.
  */
+import { docRoutes } from './docs';
+
 export interface PublicPageMeta { title: string; description: string }
 
 export const PUBLIC_PAGE_META = {
@@ -45,3 +47,13 @@ export const PUBLIC_PAGE_META = {
 } satisfies Record<string, PublicPageMeta>;
 
 export type PublicPath = keyof typeof PUBLIC_PAGE_META;
+
+/** /docs and every docs page (shared/docs) — same length limits, same check. */
+export const DOCS_PAGE_META: Record<string, PublicPageMeta & { updated?: string }> = {
+  '/docs': {
+    title: 'QuantEdge Docs | Field Guides for Every Desk',
+    description: 'Field guides and reference tables for every QuantEdge desk: NEXUS, Gravity, Current, Trajectory, Ledger and more. Educational, not advice.',
+    updated: '2026-10-14',
+  },
+  ...Object.fromEntries(docRoutes().map(({ path, page }) => [path, { title: page.seoTitle, description: page.description, updated: page.updated }])),
+};

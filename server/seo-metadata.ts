@@ -10,7 +10,7 @@
  * research/check-seo.ts asserts both, plus route coverage against App.tsx.
  */
 import { LANDING_FAQ } from '@shared/landing-faq';
-import { PUBLIC_PAGE_META as M } from '@shared/public-seo';
+import { PUBLIC_PAGE_META as M, DOCS_PAGE_META } from '@shared/public-seo';
 import { PLANS } from '../shared/pricing';
 
 export { SITE_URL } from '@shared/site';
@@ -143,6 +143,10 @@ export const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   '/updates': { ...M['/updates'], schema: [breadcrumb("What's new", '/updates')] },
   '/privacy': { ...M['/privacy'] },
   '/terms': { ...M['/terms'] },
+  // Public docs (shared/docs) — one entry per page, generated from the registry.
+  ...Object.fromEntries(Object.entries(DOCS_PAGE_META).map(([path, { title, description }]) => [
+    path, { title, description, schema: [breadcrumb(path === '/docs' ? 'Docs' : title.replace(/ \| QuantEdge Docs$/, ''), path)] },
+  ])),
 };
 
 // ─── Known app routes (rendered by the SPA, never indexed) ──────────────────
@@ -154,6 +158,7 @@ const APP_ROUTE_PATTERNS: RegExp[] = [
   /^\/join-beta$/, /^\/invite$/, /^\/settings$/, /^\/alerts$/,
   /^\/trade-ideas\/[^/]+\/audit$/,
   /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders|learning)$/,
+  /^\/docs\/[^/]+(\/[^/]+)?$/,
   /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/, /^\/swings$/, /^\/ask$/, /^\/idea\/[^/]+$/,
 ];
 

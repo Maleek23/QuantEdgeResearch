@@ -7,6 +7,7 @@
  * last changed (STATIC_LASTMOD; bump it when you edit a page's content).
  */
 import { PUBLIC_ROUTES, SITE_URL } from './seo-metadata';
+import { DOCS_PAGE_META } from '../shared/public-seo';
 
 /** Last content change per public page (YYYY-MM-DD). */
 const STATIC_LASTMOD: Record<string, string> = {
@@ -48,7 +49,7 @@ export function generateSitemap(posts: SitemapPost[] = []): string {
   for (const path of Object.keys(PUBLIC_ROUTES)) {
     // An empty blog index is thin content — list it once a post is published.
     if (path === '/blog' && posts.length === 0) continue;
-    let lastmod = STATIC_LASTMOD[path] ?? null;
+    let lastmod = STATIC_LASTMOD[path] ?? DOCS_PAGE_META[path]?.updated ?? null;
     // The blog index changes whenever a post does.
     if (path === '/blog' && newestPost && (!lastmod || newestPost > lastmod)) lastmod = newestPost;
     xml += urlEntry(`${SITE_URL}${path === '/' ? '/' : path}`, lastmod);

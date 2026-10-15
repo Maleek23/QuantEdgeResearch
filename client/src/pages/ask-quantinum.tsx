@@ -3,6 +3,8 @@
  * beside a live chart (NexusPriceChart, our chart engine) of the symbol being
  * discussed — the latest card's subject, else the latest question's page
  * ticker, else ?sym= / the focused ticker. Phone: chart on top, chat below.
+ * ?q= pre-fills the composer (never auto-sent) — the docs' "Ask Quantinum"
+ * button uses it to hand over the page being read as context.
  */
 import { useMemo } from 'react';
 import { Link, useSearch } from 'wouter';
@@ -22,6 +24,8 @@ export default function AskQuantinumPage() {
   const conv = useConversation();
   const fromUrl = normalizeSymbol(new URLSearchParams(search).get('sym'));
   const symbol = useMemo(() => discussedSymbol(conv.messages, fromUrl ?? page.symbol ?? null), [conv.messages, fromUrl, page.symbol]);
+  const q = new URLSearchParams(search).get('q');
+  const seedPrompt = useMemo(() => (q ? { text: q.slice(0, 600), nonce: 1 } : null), [q]);
   const target = fromUrl ? { kind: 'ticker' as const, symbol: fromUrl, label: `${fromUrl} · chart` } : null;
 
   if (status.isLoading) return <main className="aq-page"><p className="aq-foot" style={{ padding: 16 }}>Loading…</p></main>;
@@ -51,7 +55,7 @@ export default function AskQuantinumPage() {
             : <p className="aq-empty" style={{ padding: 16 }}>Ask about a ticker (or run <code>/levels NVDA</code>) and its live chart appears here.</p>}
         </section>
         <section className="aq-page-chat">
-          <AskQuantinumPanel target={target} status={status.data} variant="page" />
+          <AskQuantinumPanel target={target} seedPrompt={seedPrompt} status={status.data} variant="page" />
         </section>
       </div>
     </main>

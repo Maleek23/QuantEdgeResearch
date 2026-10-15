@@ -51,6 +51,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: 'Join the beta', hint: 'Invite code or waitlist', group: 'Pages', run: () => setLocation('/signup') },
     { label: 'Sign in', hint: 'Members', group: 'Pages', run: () => setLocation('/login') },
     { label: 'How to use QuantEdge', hint: 'The guide', group: 'Pages', run: () => setLocation('/how-to') },
+    { label: 'Docs', hint: 'Field guides for every desk', group: 'Pages', run: () => setLocation('/docs') },
     { label: 'Academy', hint: 'Options, GEX and flow explained', group: 'Pages', run: () => setLocation('/academy') },
     { label: 'About', hint: 'Who builds it and why', group: 'Pages', run: () => setLocation('/about') },
     { label: 'Blog', hint: 'Notes and research', group: 'Pages', run: () => setLocation('/blog') },
@@ -176,6 +177,7 @@ export function LandingNav({ onTour }: { onTour: () => void }) {
           <a href="#pricing" onClick={(e) => { setSheet(false); anchor('pricing')(e); }}>Pricing</a>
           <a href="#sec-faq" onClick={(e) => { setSheet(false); anchor('sec-faq')(e); }}>FAQ</a>
           <Link href="/how-to">How to use it</Link>
+          <Link href="/docs">Docs</Link>
           <div className="lv2-sheet-row"><span className="lv2-label">Colour mode</span><ThemePicker compact /></div>
           <Link href="/login" className="lv2-btn ghost lg">Sign in</Link>
         </div>
