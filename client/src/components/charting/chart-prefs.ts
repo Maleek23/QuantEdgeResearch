@@ -102,7 +102,7 @@ export type ChartOverlayPrefs = Partial<Pick<ChartPrefs, 'gex' | 'dp' | 'flow' |
 export const CHART_PREFS_KEY = 'qe-chart-v2';
 const LEGACY_KEY = 'qe-flowchart-v1';
 export const DEFAULT_CHART_PREFS: ChartPrefs = {
-  tf: '5m', range: '1D', extended: true, gex: 'bubbles', dp: false, flow: false, ma: false, volume: false, type: 'candles',
+  tf: '5m', range: '1D', extended: true, gex: 'off', dp: false, flow: false, ma: false, volume: false, type: 'candles',
   walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true, ema: false, vwap: false, keyLevels: false,
   gexMetric: 'gex', gexLabels: true, gexProject: true, horizon: 'all', expMove: true,
   path: true, pathHorizon: 'session', pathBands: 'both', pathDensity: true,
