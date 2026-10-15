@@ -73,7 +73,7 @@ export const GEX_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 12, h: 12 }, minSize: { w: 6, h: 8 }, Component: lazyTool(() => import('../tools/gex/trinity-tool'), 'GexTrinityTool'),
   },
   {
-    id: 'gex-gravity', category: 'GEX', title: 'Gravity · node labels + velocity',
+    id: 'gex-gravity', category: 'GEX', title: 'Node labels + velocity',
     what: 'Every stored node labelled: Apex, Gatekeeper (largest node between price and Apex), Rug / Trampoline, delivered vs fresh today; velocity of each node over 5m / 15m / 1h and a Halo when two timeframes agree. Structural labels, not signals.',
     units: 'GEX $/1% move, Δ as % of the largest node', source: '5-min GEX snapshots',
     backing: 'GravityTool (tools/gex/gravity-tool.tsx) ← GET /api/gex/gravity/:symbol?horizon= (shared/gravity-nodes.ts)',
@@ -116,7 +116,7 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
   ],
 }, {
   // Gravity: node labels + velocity beside the matrix.
-  id: 'gravity', name: 'Gravity',
+  id: 'gravity', name: 'Node labels',
   tools: [
     ['gex-matrix', 0, 0, 7, 18],
     ['gex-gravity', 7, 0, 5, 12],
