@@ -126,7 +126,7 @@ export default function Blog() {
           
           {/* Quick Links */}
           <div className="flex items-center gap-3 mb-8">
-            <Link href="/academy">
+            <Link href="/how-to">
               <Button variant="outline" size="sm" className="border-border gap-2" data-testid="link-to-academy">
                 <GraduationCap className="h-4 w-4" />
                 Trading Academy

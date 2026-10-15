@@ -35,6 +35,8 @@ import { RealFrame, DESK_ROUTE, type RealDesk } from '@/components/landing/real-
 import DeskTour, { showDesk } from '@/components/landing/desk-tour';
 import { StatStrip, Findings, DataSources, AmbientGrid, useScrollReveal } from '@/components/landing/landing-proof';
 import { AnnouncementBar, LandingNav, CommandPalette, useCmdK } from '@/components/landing/landing-chrome';
+import { PublicFooter } from '@/components/landing/public-nav';
+import '@/styles/product-pages.css';
 import { CHECKOUT_LIVE, PLANS, PRICING_FINE_PRINT, annualSavingsPct, type PricingPlan } from '@shared/pricing';
 import { LANDING_FAQ } from '@shared/landing-faq';
 import SystemDiagram from '@/components/landing/system-diagram';
@@ -407,23 +409,7 @@ export default function LandingV2() {
         </section>
       </main>
 
-      <footer className="lv2-foot">
-        <div className="lv2-wrap">
-          <div className="lv2-foot-top">
-            <div>
-              <Link href="/" className="lv2-brand" aria-label="QuantEdge home"><span className="brand-mark" aria-hidden="true" /><span className="lv2-brand-name">QuantEdge</span></Link>
-              <p className="lv2-fine">A trading research terminal for stocks, options and crypto — every number carries its evidence and its record.</p>
-            </div>
-            <nav aria-label="Product"><p className="lv2-label">Product</p><a href="#sec-desks" onClick={(e) => { e.preventDefault(); scrollTo('sec-desks'); }}>Desks</a><a href="#sec-record" onClick={(e) => { e.preventDefault(); scrollTo('sec-record'); }}>Track record</a><a href="#pricing" onClick={(e) => { e.preventDefault(); scrollTo('pricing'); }}>Pricing</a><Link href="/w">Public watchlist</Link></nav>
-            <nav aria-label="Learn"><p className="lv2-label">Learn</p><Link href="/how-to">How to use it</Link><Link href="/academy">Academy</Link><Link href="/blog">Blog</Link><Link href="/about">About</Link></nav>
-            <nav aria-label="Legal"><p className="lv2-label">Legal</p><Link href="/terms">Terms of Service</Link><Link href="/privacy">Privacy Policy</Link><a href="#disclaimer">Risk disclaimer</a>{DISCORD_INVITE_URL && <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">Discord</a>}</nav>
-          </div>
-          <div className="lv2-foot-bot">
-            <span>© QuantEdge Labs · Founded by <Link href="/about#founder">Abdulmalik Ajisegiri</Link></span>
-            <p id="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss; options (including 0DTE) and crypto carry substantial risk and can lose their full value. Quantinum Bot results are paper (simulated) trades, and past performance does not guarantee future results. Some data is delayed (e.g. CBOE option chains ~15 min; free plan quotes 15 min). Anything marked Sample is illustrative; live panels show real market data with its source and age. Every performance figure carries its sample size.</p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

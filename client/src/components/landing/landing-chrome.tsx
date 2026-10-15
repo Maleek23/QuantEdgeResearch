@@ -12,12 +12,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ThemePicker } from './theme-picker';
 import { DESKS, showDesk } from './desk-tour';
+import { ProductsMenu, PhoneSheet } from './public-nav';
 import { DISCORD_INVITE_URL } from '@/lib/public-config';
 
 type Item = { label: string; hint: string; group: 'Desks' | 'On this page' | 'Pages'; run: () => void };
 
 const SEARCH = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
-const CHEV = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
 
 const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -50,9 +50,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: 'FAQ', hint: 'Questions, answered plainly', group: 'On this page', run: () => scrollToId('sec-faq') },
     { label: 'Join the beta', hint: 'Invite code or waitlist', group: 'Pages', run: () => setLocation('/signup') },
     { label: 'Sign in', hint: 'Members', group: 'Pages', run: () => setLocation('/login') },
-    { label: 'How to use QuantEdge', hint: 'The guide', group: 'Pages', run: () => setLocation('/how-to') },
     { label: 'Docs', hint: 'Field guides for every desk', group: 'Pages', run: () => setLocation('/docs') },
-    { label: 'Academy', hint: 'Options, GEX and flow explained', group: 'Pages', run: () => setLocation('/academy') },
+    { label: 'Academy', hint: 'How to use QuantEdge', group: 'Pages', run: () => setLocation('/how-to') },
+    { label: 'Products', hint: 'Every desk, one page each', group: 'Pages', run: () => setLocation('/product') },
     { label: 'About', hint: 'Who builds it and why', group: 'Pages', run: () => setLocation('/about') },
     { label: 'Blog', hint: 'Notes and research', group: 'Pages', run: () => setLocation('/blog') },
     { label: 'Public watchlist', hint: 'What we are watching', group: 'Pages', run: () => setLocation('/w') },
@@ -105,83 +105,50 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
-export function LandingNav({ onTour }: { onTour: () => void }) {
-  const [menu, setMenu] = useState(false);
+export function LandingNav({ onTour }: { onTour?: () => void }) {
   const [sheet, setSheet] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [location] = useLocation();
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
     on();
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
-  useEffect(() => {
-    if (!sheet) return;
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setSheet(false); };
-    document.addEventListener('keydown', esc);
-    return () => document.removeEventListener('keydown', esc);
-  }, [sheet]);
-  useEffect(() => {
-    if (!menu) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menuRef.current?.contains(e.target as Node)) setMenu(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
-  }, [menu]);
-  const anchor = (id: string) => (e: React.MouseEvent) => { e.preventDefault(); scrollToId(id); };
-  const pickDesk = (id: string) => { setMenu(false); showDesk(id); };
+  useEffect(() => { setSheet(false); }, [location]);
+  const closeSheet = useCallback(() => setSheet(false), []);
+  // On the landing the section links scroll in place; elsewhere they go to the page.
+  const onLanding = !!onTour;
+  const anchor = (id: string) => (e: React.MouseEvent) => { if (!onLanding) return; e.preventDefault(); scrollToId(id); };
 
   return (
-    <header className={`lv2-nav${scrolled ? ' scrolled' : ''}`}>
+    <header className={`lv2-nav${scrolled ? ' scrolled' : ''}`} ref={headerRef}>
       <nav className="lv2-nav-in" aria-label="Main">
         <Link href="/" className="lv2-brand" aria-label="QuantEdge home">
           <span className="brand-mark" aria-hidden="true" />
           <span className="lv2-brand-name">QuantEdge</span>
         </Link>
         <div className="lv2-links">
-          <div className="lv2-menu" ref={menuRef}>
-            <button type="button" className="lv2-link" aria-expanded={menu} aria-controls="lv2-product-menu" onClick={() => setMenu((m) => !m)}>Product {CHEV}</button>
-            {menu && (
-              <ul className="lv2-menu-pop" id="lv2-product-menu">
-                {DESKS.map((d) => (
-                  <li key={d.id}><button type="button" onClick={() => pickDesk(d.id)}><b>{d.tab}</b><span>{d.title}</span></button></li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <a className="lv2-link" href="#sec-record" onClick={anchor('sec-record')}>Track record</a>
-          <a className="lv2-link" href="#pricing" onClick={anchor('pricing')}>Pricing</a>
-          <a className="lv2-link" href="#sec-faq" onClick={anchor('sec-faq')}>FAQ</a>
+          <ProductsMenu />
+          <a className="lv2-link" href={onLanding ? '#sec-record' : '/product/ledger'} onClick={anchor('sec-record')}>Track record</a>
+          <a className="lv2-link" href={onLanding ? '#pricing' : '/?section=pricing'} onClick={anchor('pricing')}>Pricing</a>
+          <Link className="lv2-link" href="/docs">Docs</Link>
         </div>
         <span className="lv2-spacer" />
-        <button type="button" className="lv2-search" onClick={onTour} aria-label="Tour the terminal (command palette)">
-          {SEARCH}<span className="lbl">Tour the terminal</span><kbd>{isMac() ? '⌘K' : 'Ctrl K'}</kbd>
-        </button>
+        {onTour && (
+          <button type="button" className="lv2-search" onClick={onTour} aria-label="Tour the terminal (command palette)">
+            {SEARCH}<span className="lbl">Tour the terminal</span><kbd>{isMac() ? '⌘K' : 'Ctrl K'}</kbd>
+          </button>
+        )}
         <ThemePicker compact className="lv2-theme" />
         <Link href="/login" className="lv2-btn ghost lv2-signin">Sign in</Link>
         <Link href="/signup" className="lv2-btn primary">Join beta</Link>
-        <button type="button" className="lv2-burger" aria-expanded={sheet} aria-controls="lv2-sheet" aria-label={sheet ? 'Close menu' : 'Open menu'} onClick={() => setSheet((v) => !v)}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">{sheet ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
+        <button type="button" className="lv2-burger" aria-expanded={sheet} aria-controls="lv2-sheet" aria-label="Open menu" onClick={() => setSheet(true)} data-testid="nav-burger">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
       </nav>
-      {sheet && (
-        <div className="lv2-sheet" id="lv2-sheet">
-          <p className="lv2-label">Desks</p>
-          <div className="lv2-sheet-desks">
-            {DESKS.map((d) => <button key={d.id} type="button" onClick={() => { setSheet(false); showDesk(d.id); }}>{d.tab}</button>)}
-          </div>
-          <a href="#sec-record" onClick={(e) => { setSheet(false); anchor('sec-record')(e); }}>Track record</a>
-          <a href="#pricing" onClick={(e) => { setSheet(false); anchor('pricing')(e); }}>Pricing</a>
-          <a href="#sec-faq" onClick={(e) => { setSheet(false); anchor('sec-faq')(e); }}>FAQ</a>
-          <Link href="/how-to">How to use it</Link>
-          <Link href="/docs">Docs</Link>
-          <div className="lv2-sheet-row"><span className="lv2-label">Colour mode</span><ThemePicker compact /></div>
-          <Link href="/login" className="lv2-btn ghost lg">Sign in</Link>
-        </div>
-      )}
+      <PhoneSheet open={sheet} onClose={closeSheet} anchor={headerRef.current} />
     </header>
   );
 }

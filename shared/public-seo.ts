@@ -8,6 +8,7 @@
  * research/check-seo.ts enforces both.
  */
 import { docRoutes } from './docs';
+import { PRODUCTS, PRODUCT_INDEX_META } from './product/catalog';
 
 export interface PublicPageMeta { title: string; description: string }
 
@@ -24,12 +25,8 @@ export const PUBLIC_PAGE_META = {
     title: 'Research Notes on Options and Markets | QuantEdge Labs',
     description: 'Research notes from QuantEdge Labs on options, dealer positioning, model validation, risk and trading-system design.',
   },
-  '/academy': {
-    title: 'QuantEdge Academy | Learn Options and Market Structure',
-    description: 'Learn to read market regimes, options flow, gamma exposure, risk and trade structure, and why a score is evidence, not certainty.',
-  },
   '/how-to': {
-    title: 'How to Use QuantEdge | Trading Terminal Guide',
+    title: 'QuantEdge Academy | How to Use the Terminal',
     description: 'A practical guide to the QuantEdge terminal: dealer positioning, options flow, ranked setups, the 0DTE desk, charts, the paper bot and your journal.',
   },
   '/updates': {
@@ -56,4 +53,10 @@ export const DOCS_PAGE_META: Record<string, PublicPageMeta & { updated?: string 
     updated: '2026-10-14',
   },
   ...Object.fromEntries(docRoutes().map(({ path, page }) => [path, { title: page.seoTitle, description: page.description, updated: page.updated }])),
+};
+
+/** /product and every product page (shared/product) — same length limits, same check. */
+export const PRODUCT_PAGE_META: Record<string, PublicPageMeta & { updated?: string }> = {
+  '/product': { title: PRODUCT_INDEX_META.title, description: PRODUCT_INDEX_META.description, updated: PRODUCT_INDEX_META.updated },
+  ...Object.fromEntries(PRODUCTS.map((p) => [`/product/${p.slug}`, { title: p.seoTitle, description: p.seoDescription, updated: p.updated }])),
 };

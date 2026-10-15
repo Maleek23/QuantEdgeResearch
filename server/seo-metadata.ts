@@ -10,7 +10,7 @@
  * research/check-seo.ts asserts both, plus route coverage against App.tsx.
  */
 import { LANDING_FAQ } from '@shared/landing-faq';
-import { PUBLIC_PAGE_META as M, DOCS_PAGE_META } from '@shared/public-seo';
+import { PUBLIC_PAGE_META as M, DOCS_PAGE_META, PRODUCT_PAGE_META } from '@shared/public-seo';
 import { PLANS } from '../shared/pricing';
 
 export { SITE_URL } from '@shared/site';
@@ -46,7 +46,7 @@ const organizationSchema = {
   email: SUPPORT_EMAIL,
   founder: { '@id': FOUNDER_ID },
   // TODO(operator): add the company's X/Twitter and LinkedIn page URLs when they exist.
-  sameAs: ['https://discord.gg/ppjjxVfsc'],
+  sameAs: ['https://discord.gg/uBNgRqqgmS'],
 };
 
 const founderSchema = {
@@ -138,11 +138,15 @@ export const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   '/': { ...M['/'], schema: [organizationSchema, websiteSchema, founderSchema, softwareSchema, faqSchema] },
   '/about': { ...M['/about'], schema: [organizationSchema, founderSchema, aboutPageSchema, breadcrumb('About', '/about')] },
   '/blog': { ...M['/blog'], schema: [breadcrumb('Blog', '/blog')] },
-  '/academy': { ...M['/academy'], schema: [breadcrumb('Academy', '/academy')] },
-  '/how-to': { ...M['/how-to'], schema: [breadcrumb('How to use QuantEdge', '/how-to')] },
+  // /academy redirects (client-side) to /how-to, the Academy — one indexable page.
+  '/how-to': { ...M['/how-to'], schema: [breadcrumb('Academy', '/how-to')] },
   '/updates': { ...M['/updates'], schema: [breadcrumb("What's new", '/updates')] },
   '/privacy': { ...M['/privacy'] },
   '/terms': { ...M['/terms'] },
+  // Public product pages (shared/product) — the index and one page per module.
+  ...Object.fromEntries(Object.entries(PRODUCT_PAGE_META).map(([path, { title, description }]) => [
+    path, { title, description, schema: [breadcrumb(path === '/product' ? 'Products' : title.replace(/ \| QuantEdge$/, ''), path)] },
+  ])),
   // Public docs (shared/docs) — one entry per page, generated from the registry.
   ...Object.fromEntries(Object.entries(DOCS_PAGE_META).map(([path, { title, description }]) => [
     path, { title, description, schema: [breadcrumb(path === '/docs' ? 'Docs' : title.replace(/ \| QuantEdge Docs$/, ''), path)] },
@@ -159,6 +163,7 @@ const APP_ROUTE_PATTERNS: RegExp[] = [
   /^\/trade-ideas\/[^/]+\/audit$/,
   /^\/admin$/, /^\/admin\/(users|invites|waitlist|roadmap|system|blog|audit|traders|learning)$/,
   /^\/docs\/[^/]+(\/[^/]+)?$/,
+  /^\/academy$/, /^\/product\/[^/]+$/,
   /^\/desk$/, /^\/desk\/[^/]+$/, /^\/setup$/, /^\/trader-setup$/, /^\/swings$/, /^\/ask$/, /^\/idea\/[^/]+$/,
 ];
 

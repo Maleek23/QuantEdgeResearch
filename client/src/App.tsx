@@ -77,7 +77,7 @@ const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 
-const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
+const ProductPage = lazyWithRetry(() => import("@/pages/product"), "product");
 const DocsPage = lazyWithRetry(() => import("@/pages/docs"), "docs");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 
@@ -302,7 +302,12 @@ function Router() {
             to the landing's Pricing section, /?section=pricing (2026-09-30). */}
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/blog"       component={Blog} />
-        <Route path="/academy"    component={Academy} />
+        {/* /academy and /how-to were two "learn" pages; the nav's Academy item is /how-to
+            (the product guide), so /academy redirects there client-side. */}
+        <Route path="/academy"><Redirect to="/how-to" /></Route>
+        {/* Public product pages — shared/product/catalog.ts, pages/product.tsx. */}
+        <Route path="/product/:slug" component={ProductPage} />
+        <Route path="/product"    component={ProductPage} />
         {/* Public docs — field guides per module (shared/docs, pages/docs.tsx). */}
         <Route path="/docs/:module/:page" component={DocsPage} />
         <Route path="/docs/:module" component={DocsPage} />
@@ -382,7 +387,7 @@ function App() {
     // door now. They remain reachable directly; they just no longer hijack the next visit.
     const skipPaths = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta',
                        '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
-    if (!skipPaths.includes(path) && !path.startsWith('/docs') && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
+    if (!skipPaths.includes(path) && !path.startsWith('/docs') && !path.startsWith('/product') && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }
   }, [location]);
@@ -398,7 +403,8 @@ function App() {
   const publicPages = ['/', '/w', '/login', '/signup', '/setup', '/trader-setup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/roadmap', '/admin/system', '/admin/blog', '/admin/traders', '/admin/audit', '/admin/learning', '/__harness', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isDocs = locationPath === '/docs' || locationPath.startsWith('/docs/');
-  const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/') || isDocs;
+  const isProduct = locationPath === '/product' || locationPath.startsWith('/product/');
+  const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/') || isDocs || isProduct;
   if (isPublicPage) {
     return (
       <QueryClientProvider client={queryClient}>

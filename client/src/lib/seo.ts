@@ -128,14 +128,6 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
       "automated chart analysis",
     ],
   },
-  academy: {
-    ...PUBLIC_PAGE_META["/academy"],
-    keywords: [
-      "quantitative trading tutorial",
-      "algorithmic trading course",
-      "quantitative trading education",
-    ],
-  },
   discover: {
     title: "Stock Discovery | QuantEdge Labs",
     description: "Discover high-potential stocks with quantitative scoring. Our scanners analyze thousands of stocks to find breakout candidates, momentum plays, and undervalued opportunities.",
