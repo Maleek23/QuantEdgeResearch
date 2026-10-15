@@ -12,12 +12,16 @@ import { onAskQuantinum, useAskQuantinumStatus, defaultPrompt } from '@/lib/ask-
 import { TOGGLE_EVENT } from '@/lib/quantinum-analyst';
 import { isToggleShortcut } from '@shared/quantinum-analyst';
 import type { AskTarget } from '@shared/quantinum-ai';
+import { clientFlag } from '@/lib/feature-flags';
+import { pageAskTarget } from '@shared/quantinum-panel';
 import './ask-quantinum.css';
 
 const AskQuantinumSheet = lazy(() => import('./ask-quantinum-sheet'));
 
-/** The ticker a page is about, when the URL says so (/r/:symbol). */
+/** The ticker a page is about, when the URL says so (/r/:symbol). With QUANTINUM_PANEL on,
+ *  every app page gives context: ?sym= / ?tab= (shared/quantinum-panel.ts pageAskTarget). */
 function pageTarget(location: string): AskTarget | null {
+  if (clientFlag('QUANTINUM_PANEL')) return pageAskTarget(location, window.location.search);
   const m = /^\/r\/([A-Za-z0-9.^-]{1,10})/.exec(location);
   if (!m) return null;
   const sym = decodeURIComponent(m[1]).toUpperCase();

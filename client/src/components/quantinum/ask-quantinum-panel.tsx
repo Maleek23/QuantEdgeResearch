@@ -14,7 +14,9 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, Send, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { MessageSquareWarning, RefreshCw, Send, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { clientFlag } from '@/lib/feature-flags';
+import { pushBackPrompt } from '@shared/quantinum-panel';
 import { LuxSegmented } from '@/components/lux/lux-segmented';
 import { ASK_STATUS_KEY, streamAsk, type AskStatus } from '@/lib/ask-quantinum';
 import { newMsgId, runCommand, useConversation, useHorizonPref, usePageContext } from '@/lib/quantinum-analyst';
@@ -150,6 +152,15 @@ export function AskQuantinumPanel({ target, seedPrompt, status, onClearTarget, v
     if (q && !busy) void sendQuestion(q, assistantId);
   };
 
+  // Push back (flag QUANTINUM_PANEL): a new turn that makes the server rebuild its context from fresh
+  // data and cite every figure; the answer's chips show the sources and their age.
+  const pushBackOn = clientFlag('QUANTINUM_PANEL');
+  const pushBack = (assistantId: string) => {
+    const i = msgs.findIndex((m) => m.id === assistantId);
+    const q = [...msgs.slice(0, i)].reverse().find((m) => m.role === 'user')?.content ?? null;
+    if (!busy) void sendQuestion(pushBackPrompt(q));
+  };
+
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestions.length) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => (s + 1) % suggestions.length); return; }
@@ -198,6 +209,7 @@ export function AskQuantinumPanel({ target, seedPrompt, status, onClearTarget, v
                     {(m.chips ?? []).map((c) => <SourceChip key={c.key} label={c.label} source={c.source} asOf={c.asOf} />)}
                     {(m.chips ?? []).length === 0 && <span className="aq-foot">no sourced figures cited — treat any number above as unverified</span>}
                     <button type="button" className="lx-btn aq-recheck" disabled={busy} onClick={() => recheckProse(m.id)} aria-label="Re-check: ask again on fresh data and show what changed"><RefreshCw aria-hidden size={12} />Re-check</button>
+                    {pushBackOn && <button type="button" className="lx-btn aq-recheck" disabled={busy || remaining === 0} onClick={() => pushBack(m.id)} aria-label="Push back: challenge this answer — re-fetch the data and cite a source for every figure"><MessageSquareWarning aria-hidden size={12} />Push back</button>}
                   </div>
                 )}
               </>

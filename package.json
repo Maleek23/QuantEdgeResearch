@@ -106,7 +106,8 @@
     "test:gex-trinity": "tsx scripts/test-gex-trinity.ts",
     "test:envelope-cone": "tsx scripts/test-envelope-cone.ts",
     "test:gravity-nodes": "tsx scripts/test-gravity-nodes.ts",
-    "test:tripwire-levels": "tsx scripts/test-tripwire-levels.ts"
+    "test:tripwire-levels": "tsx scripts/test-tripwire-levels.ts",
+    "test:quantinum-panel": "tsx scripts/test-quantinum-panel.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

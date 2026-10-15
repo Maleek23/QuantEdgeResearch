@@ -32,6 +32,7 @@ import tripwireRef from './pages/tripwire/reference';
 import tripwireLevels from './pages/tripwire/level-alerts';
 import quantinum from './pages/quantinum/index';
 import quantinumRef from './pages/quantinum/reference';
+import quantinumPanel from './pages/quantinum/side-panel';
 import bot from './pages/quantinum-bot/index';
 import botRef from './pages/quantinum-bot/reference';
 import academy from './pages/academy/index';
@@ -59,7 +60,7 @@ export const DOC_PAGES: DocPage[] = [
   platformIndex, platformData, platformGlossary,
   nexus, nexusRef, zero, zeroRef, gravity, gravityRef, gravityLabels, current, currentRef,
   trajectory, trajectoryRef, envelope, envelopeRef, envelopeCones, horizon, horizonRef,
-  ledger, ledgerRef, tripwire, tripwireRef, tripwireLevels, quantinum, quantinumRef,
+  ledger, ledgerRef, tripwire, tripwireRef, tripwireLevels, quantinum, quantinumRef, quantinumPanel,
   bot, botRef, academy, academyRef,
 ];
 
