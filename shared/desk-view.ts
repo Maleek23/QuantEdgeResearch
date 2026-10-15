@@ -21,6 +21,7 @@
  */
 import type { CallResult } from './call-accuracy';
 import { journalDayKey } from './journal-filters';
+import { oversizeForReview, OVERSIZE_REVIEW_MULTIPLE } from './journal-pnl-truth';
 import { DEFAULT_SIZING, MAX_RISK_DOLLARS, MIN_RISK_DOLLARS, riskSizedPnl, scaleUnitPnl, sizeForRisk, type RiskBasis, type SizingChoice } from './position-sizing';
 
 export type DeskView = 'recorded' | 'managed';
@@ -81,6 +82,8 @@ export interface DeskViewRow {
   /** Set by this transform: how the row is sized / which view priced it. */
   sizedAs?: DeskSizedAs | null;
   viewedAs?: DeskView;
+  /** P&L-truth label (server/journal-row-maps.ts DeskVerification); the oversize review rewrites it. */
+  verification?: { status: 'verified' | 'checked' | 'unverified'; truth?: string | null; reasons: { code: any; detail: string }[] } | null;
 }
 
 export interface DeskSizedAs {
@@ -96,6 +99,8 @@ export interface DeskSizedAs {
   capped: boolean;
   /** The risk-sized P&L before the cap (equals realizedPnL when not capped). */
   uncappedPnL: number | null;
+  /** Ledger audit 2026-10-15 fix 3: sized P&L > 2× budget — flagged for review, not counted. */
+  review?: boolean;
 }
 
 export interface DeskViewResult<T> {
@@ -105,6 +110,8 @@ export interface DeskViewResult<T> {
   /** Risk sizing: rows sized fractionally, and closed losses capped at the stop (with the $ the cap removed). */
   scaled: number;
   capped: { count: number; uncappedPnL: number; cappedPnL: number };
+  /** Closed rows whose sized P&L exceeds 2× the budget: flagged for review and left out of the headline. */
+  review: { count: number; pnl: number };
   view: DeskView;
   sizing: SizingChoice;
 }
@@ -128,6 +135,7 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
   const out: T[] = [];
   let scaled = 0;
   const capped = { count: 0, uncappedPnL: 0, cappedPnL: 0 };
+  const review = { count: 0, pnl: 0 };
   for (const row0 of rows) {
     let row: T = row0;
     // ── view ──
@@ -188,6 +196,17 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
         },
         ...(row.peak && row.peak.unitPnl != null ? { peak: { ...row.peak, unitPnl: scaleUnitPnl(row.peak.unitPnl, b.unitQty, sz) } } : {}),
       };
+      // Fix 3 (ledger audit 2026-10-15): a sized P&L above 2× the budget is flagged for
+      // review and never counted — it is listed outside the headline with its reason.
+      if (row.status === 'closed' && oversizeForReview(pnl, opts.sizing.riskDollars) && row.verification?.status !== 'unverified') {
+        review.count++; review.pnl = r2(review.pnl + (pnl ?? 0));
+        const detail = `sized P&L ${pnl! < 0 ? '−' : '+'}$${Math.abs(pnl!).toLocaleString('en-US', { maximumFractionDigits: 0 })} on ${sz.qty} contract${sz.qty === 1 ? '' : 's'} is above ${OVERSIZE_REVIEW_MULTIPLE}× the $${opts.sizing.riskDollars} budget — flagged for review, not counted`;
+        row = {
+          ...row,
+          sizedAs: { ...row.sizedAs!, review: true },
+          verification: { ...(row.verification ?? { reasons: [] }), status: 'unverified', truth: 'oversize_review', reasons: [{ code: 'oversize_review', detail }, ...(row.verification?.reasons ?? [])] },
+        } as T;
+      }
     }
     out.push(row);
   }
@@ -196,6 +215,7 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
     skipped: [...skipped.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
     scaled,
     capped,
+    review,
     view: opts.view,
     sizing: opts.sizing,
   };

@@ -56,11 +56,27 @@ export const RETRO_LEDGER_VERSION = 'retro-options-v1';
  */
 export const CORRECTABLE_BUG_CLASSES: ReadonlySet<string> = new Set([
   'exit_premium_not_traded', 'entry_premium_not_traded', 'entry_premium_at_publish_not_trigger', 'unexplained', 'exit_premium_pass',
+  // Ledger audit 2026-10-15 (research/verify-option-core.ts): entry re-priced from the first
+  // real print; expiry exit re-priced at settlement intrinsic with a traded entry.
+  'entry_repriced', 'settlement_repriced',
 ]);
+
+/**
+ * Ledger audit 2026-10-15 fix 3: a sized P&L above this multiple of the budget is
+ * flagged for review and NOT counted (SPX 7775P: +$6,090 at 14 contracts on $500).
+ */
+export const OVERSIZE_REVIEW_MULTIPLE = 2;
+
+/** Recorded outcome kind: hit_stop → stop, hit_target → target, else null (time / expiry exits). */
+function recordedBarrier(status: string | null | undefined): 'stop' | 'target' | null {
+  const s = String(status ?? '').toLowerCase();
+  return s === 'hit_stop' ? 'stop' : s === 'hit_target' ? 'target' : null;
+}
 
 export type TruthClass =
   | 'verified' | 'corrected' | 'retro'
-  | 'bar_pending' | 'bar_unverifiable' | 'bar_mismatch' | 'duplicate' | 'integrity_fail' | 'not_options' | 'crypto_excluded';
+  | 'bar_pending' | 'bar_unverifiable' | 'bar_mismatch' | 'duplicate' | 'integrity_fail' | 'not_options' | 'crypto_excluded'
+  | 'oversize_review';
 
 export const TRUTH_CLASS_LABEL: Record<TruthClass, string> = {
   verified: 'bar-verified — recorded P&L matched the contract\'s bars',
@@ -73,6 +89,7 @@ export const TRUTH_CLASS_LABEL: Record<TruthClass, string> = {
   integrity_fail: 'fails a row-level integrity check (impossible / off-scale / synthetic)',
   not_options: 'published as shares; no verified options view — outside the options headline',
   crypto_excluded: 'crypto — labelled, outside the options headline',
+  oversize_review: `sized P&L above ${OVERSIZE_REVIEW_MULTIPLE}× the budget — flagged for review, not counted until a person confirms the fill`,
 };
 
 export const HEADLINE_CLASSES: ReadonlySet<TruthClass> = new Set(['verified', 'corrected', 'retro']);
@@ -87,6 +104,10 @@ export interface TruthLedgerEntry {
   reason: string | null;
   /** Where the contract bars came from (massive:… / alpaca:… / yahoo-opr:…), when priced. */
   optionSource?: string | null;
+  /** The recorded outcome (hit_stop / hit_target / expired …) — a re-price never changes it. */
+  outcomeStatus?: string | null;
+  /** The first barrier the bars found from the trigger (research/verify-option-core.ts). */
+  recomputedOutcome?: 'stop' | 'target' | 'none' | null;
 }
 
 export interface ClassifyInput {
@@ -107,12 +128,35 @@ export interface Classified {
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
-/** True when a MISMATCH ledger entry carries a both-legs bar re-price we can count. */
+/**
+ * True when a MISMATCH ledger entry carries a both-legs bar re-price we can count.
+ * Ledger audit 2026-10-15 fix 3: a re-price NEVER rewrites a recorded stop / target
+ * into a different outcome — not when the bars found a different first barrier, not
+ * when a recorded stop would turn into a gain, not when a recorded target would turn
+ * into a loss (SPX 7775P 10-05: recorded stop → "+$435 corrected"). Those stay
+ * bar_mismatch, outside the headline.
+ */
 export function isCorrectable(e: TruthLedgerEntry | null | undefined): boolean {
   if (!e || e.verdict !== 'MISMATCH' || !e.bugClass || !CORRECTABLE_BUG_CLASSES.has(e.bugClass)) return false;
   if (!(fin(e.recomputedEntry) && e.recomputedEntry > 0 && fin(e.recomputedExit) && e.recomputedExit >= 0 && fin(e.recomputedPnL))) return false;
   const src = String(e.optionSource ?? '');
-  return src !== '' && src !== 'none';
+  if (src === '' || src === 'none') return false;
+  return !rewritesOutcome(e);
+}
+
+/** Would counting this re-price change the recorded stop / target outcome? Pure. */
+export function rewritesOutcome(e: Pick<TruthLedgerEntry, 'outcomeStatus' | 'recomputedOutcome' | 'recomputedPnL'>): boolean {
+  const rec = recordedBarrier(e.outcomeStatus);
+  if (!rec) return false;
+  if (e.recomputedOutcome && e.recomputedOutcome !== rec) return true;
+  if (rec === 'stop' && fin(e.recomputedPnL) && e.recomputedPnL > 0) return true;
+  if (rec === 'target' && fin(e.recomputedPnL) && e.recomputedPnL < 0) return true;
+  return false;
+}
+
+/** Fix 3: sized P&L above OVERSIZE_REVIEW_MULTIPLE × budget → review, not counted. Pure. */
+export function oversizeForReview(sizedPnl: number | null | undefined, budget: number): boolean {
+  return fin(sizedPnl) && budget > 0 && Math.abs(sizedPnl) > OVERSIZE_REVIEW_MULTIPLE * budget + 1e-9;
 }
 
 /** The one classification of a CLOSED desk row. Pure. */

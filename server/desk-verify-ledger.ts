@@ -41,6 +41,10 @@ export function ledgerEntryOf(t: any): DeskLedgerEntry | null {
     bugClass: typeof t.bugClass === 'string' ? t.bugClass : null,
     reason: typeof t.reason === 'string' ? t.reason : null,
     optionSource: typeof t.evidence?.optionSource === 'string' ? t.evidence.optionSource : null,
+    // Ledger audit 2026-10-15 fix 3: the recorded outcome and the bars' first barrier, so a
+    // re-price never rewrites a stop into a win (shared/journal-pnl-truth.ts isCorrectable).
+    outcomeStatus: typeof t.outcomeStatus === 'string' ? t.outcomeStatus : null,
+    recomputedOutcome: t.evidence?.recomputedOutcome === 'stop' || t.evidence?.recomputedOutcome === 'target' || t.evidence?.recomputedOutcome === 'none' ? t.evidence.recomputedOutcome : null,
   };
 }
 

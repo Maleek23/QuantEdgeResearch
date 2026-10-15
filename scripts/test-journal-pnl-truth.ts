@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import {
   CORRECTABLE_BUG_CLASSES, HEADLINE_CLASSES, RETRO_LEDGER_VERSION, classifyClosedRow, contractsForBudget, isCorrectable, pickRetroContract,
   readRetroLedger, retroExpiries, retroLine, retroMinDte, strikeGrid, summarizeTruth, wholeContractPnl, type RetroRecord,
+  rewritesOutcome, oversizeForReview, OVERSIZE_REVIEW_MULTIPLE,
 } from '../shared/journal-pnl-truth';
 import { bsDelta, bsPrice, impliedVol } from '../shared/iv-fill';
 import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
@@ -228,6 +229,42 @@ t('no shares anywhere: rows still stock leave the trade list for the excluded li
   assert.match(SHARES_IDEA_LABEL, /legacy, not in the options book/);
   const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
   assert.match(rd('server/journal-sources.ts'), /splitLegacySharesRows\(/, 'desk loader routes stock rows to the excluded list');
+});
+
+console.log('ledger audit 2026-10-15 — fix 3 (no outcome rewrite; oversize review)');
+t('SPX 7775P 10-05: a recorded STOP is never re-priced into a +$435 "corrected" win', () => {
+  // The prod ledger row as it stood (bugClass entry_premium_at_publish_not_trigger, recomputed +435).
+  const spx = { verdict: 'MISMATCH' as const, recordedPnL: -81, recomputedPnL: 435, recomputedEntry: 0.35, recomputedExit: 4.7, bugClass: 'entry_premium_at_publish_not_trigger', reason: 'x', optionSource: 'alpaca:SPXW261005P07775000:1Min', outcomeStatus: 'hit_stop' };
+  assert.equal(isCorrectable(spx), false);
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: spx }).cls, 'bar_mismatch');
+  // the same row re-priced by the fixed verifier: stop kept, small loss → correctable
+  assert.equal(isCorrectable({ ...spx, bugClass: 'entry_repriced', recomputedPnL: -3, recomputedExit: 0.32, recomputedOutcome: 'stop' }), true);
+});
+t('a different first barrier, a stop turned gain or a target turned loss is a rewrite', () => {
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'target', recomputedPnL: -10 }), true);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'none', recomputedPnL: -10 }), true, 'QQQ 746P style: nothing touched is not a stop');
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_target', recomputedOutcome: null, recomputedPnL: -5 }), true);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'stop', recomputedPnL: -40 }), false);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'expired', recomputedOutcome: 'none', recomputedPnL: 400 }), false, 'time/expiry exits carry no barrier to rewrite');
+  assert.ok(CORRECTABLE_BUG_CLASSES.has('entry_repriced') && CORRECTABLE_BUG_CLASSES.has('settlement_repriced'));
+  assert.ok(!CORRECTABLE_BUG_CLASSES.has('wrong_outcome_order') && !CORRECTABLE_BUG_CLASSES.has('barrier_order_disagrees'));
+});
+t('sized P&L > 2× budget is flagged for review and NOT counted (SPX 7775P +$6,090 at 14 contracts)', () => {
+  assert.equal(OVERSIZE_REVIEW_MULTIPLE, 2);
+  assert.equal(oversizeForReview(6090, 500), true);
+  assert.equal(oversizeForReview(1000, 500), false);
+  const row = {
+    id: 'desk:spx', status: 'closed', quantity: 1, entryPrice: 0.35, exitPrice: 4.7, entryTime: '2026-10-05T19:15:00Z', exitTime: '2026-10-05T19:55:00Z',
+    realizedPnL: 435, outcome: 'win', verification: { status: 'verified' as const, truth: 'corrected', reasons: [] },
+    riskBasis: { assetType: 'option' as const, direction: 'short' as const, entry: 6700, stop: 6710, unitQty: 1, entryPremium: 0.35, premiumStop: null, zeroDte: true },
+  };
+  const v = applyDeskView([row as unknown as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars: 500 } });
+  const r = v.rows[0];
+  assert.equal(r.quantity, 14);
+  assert.equal(r.realizedPnL, 6090);
+  assert.deepEqual([r.verification?.status, r.verification?.truth, r.sizedAs?.review], ['unverified', 'oversize_review', true]);
+  assert.deepEqual(v.review, { count: 1, pnl: 6090 });
+  assert.equal(summarizeTruth(v.rows as any).n, 0, 'not in the headline');
 });
 
 console.log(`\n${n} journal-pnl-truth checks passed`);
