@@ -59,6 +59,9 @@ export const CORRECTABLE_BUG_CLASSES: ReadonlySet<string> = new Set([
   // Ledger audit 2026-10-15 (research/verify-option-core.ts): entry re-priced from the first
   // real print; expiry exit re-priced at settlement intrinsic with a traded entry.
   'entry_repriced', 'settlement_repriced',
+  // Spot-check 2026-10-30: the recorded barrier IS the first one touched, only stamped early —
+  // the exit is re-priced at the real touch from the contract's bars.
+  'exit_time_misstamped',
 ]);
 
 /**

@@ -10,7 +10,7 @@ import path from 'node:path';
 import { readPlanSnapshot } from '../../shared/plan-snapshot';
 import { premiumPlanFor, readPremiumPlan } from '../../shared/premium-outcome';
 import {
-  entryCheck, exitCheck, exitPremiumAt, fillVerdict, firstBarrier, orderCheck, premiumGoverned,
+  entryCheck, exitCheck, exitPremiumAt, fillVerdict, firstBarrier, MISSTAMP_LOOKAHEAD_MS, orderCheck, orderWindow, premiumGoverned, recordedKindOf,
   type EntryCheck, type ExitCheck, type FillVerdict, type OBar, type OrderCheck,
 } from '../../research/verify-option-core';
 
@@ -62,20 +62,31 @@ export function runCase(c: FixtureCase): CaseRun {
   const day = String(i.expiry_date).slice(0, 10);
   const expiryCloseMs = nyWall(day, 960);
   const exitMs = Math.min(i.exit_date ? Date.parse(i.exit_date) : expiryCloseMs, expiryCloseMs);
-  const trigMs = i.trigger_observed_at ? Date.parse(i.trigger_observed_at) : pubMs;
+  const trigObserved = i.trigger_observed_at ? Date.parse(i.trigger_observed_at) : pubMs;
+  const win = orderWindow({ recordedStatus: i.outcome_status, trigMs: trigObserved, fallbackTrigMs: pubMs, exitMs, exitTimeSource: i.exit_time_source, capMs: expiryCloseMs });
+  const trigMs = win.fromMs;
   const bars = c.optionBars.filter((b) => b.t <= expiryCloseMs);
   const ub = c.underlyingBars.filter(rth);
   const recEntry = Number(i.entry_premium);
   const entry = entryCheck(bars, { pubMs, trigMs, exitMs, recorded: recEntry });
+  const planEntryPremium = recEntry;
   const stored = readPremiumPlan(cs);
   const governing = premiumGoverned({ hasStoredPremiumPlan: !!stored, resolutionReason: i.resolution_reason }) ? 'premium' : 'underlying';
   const plan = stored ?? (governing === 'premium'
-    ? premiumPlanFor({ assetType: 'option', direction: long ? 'long' : 'short', entryPrice: snap?.entryPrice ?? i.entry_price, targetPrice: snap?.targetPrice ?? i.target_price, stopLoss: snap?.stopLoss ?? i.stop_loss, entryPremium: recEntry, convergenceSignalsJson: cs }, { zeroDte: day === etParts(pubMs).day })
+    ? premiumPlanFor({ assetType: 'option', direction: long ? 'long' : 'short', entryPrice: snap?.entryPrice ?? i.entry_price, targetPrice: snap?.targetPrice ?? i.target_price, stopLoss: snap?.stopLoss ?? i.stop_loss, entryPremium: planEntryPremium, convergenceSignalsJson: cs }, { zeroDte: day === etParts(pubMs).day })
     : null);
-  const toMs = Math.min(expiryCloseMs, exitMs + (i.exit_time_source === 'live' ? 15 * 60_000 : 60_000));
+  const toMs = win.toMs;
   const u = ub.length ? firstBarrier(ub, { long, stop: snap?.stopLoss ?? i.stop_loss, target: snap?.targetPrice ?? i.target_price, fromMs: trigMs, toMs, basis: 'underlying' }) : null;
   const p = plan && bars.length ? firstBarrier(bars, { long: true, stop: plan.stop, target: plan.t1, fromMs: trigMs, toMs, basis: 'premium' }) : null;
-  const order = orderCheck({ recordedStatus: i.outcome_status, governing, underlying: u, premium: p });
+  const gov = governing === 'premium' ? p : u;
+  let late = null as ReturnType<typeof firstBarrier> | null;
+  if (recordedKindOf(i.outcome_status) !== 'none' && gov && gov.kind === 'none') {
+    const lateTo = Math.min(expiryCloseMs, toMs + MISSTAMP_LOOKAHEAD_MS);
+    late = governing === 'premium'
+      ? firstBarrier(bars, { long: true, stop: plan!.stop, target: plan!.t1, fromMs: toMs + 1, toMs: lateTo, basis: 'premium' })
+      : firstBarrier(ub, { long, stop: snap?.stopLoss ?? i.stop_loss, target: snap?.targetPrice ?? i.target_price, fromMs: toMs + 1, toMs: lateTo, basis: 'underlying' });
+  }
+  const order = orderCheck({ recordedStatus: i.outcome_status, governing, underlying: u, premium: p, late });
   let computed = order.first && order.first.kind !== 'none' ? exitPremiumAt(order.first, bars) : null;
   let settlement: number | null = null;
   if (!computed && Math.abs(exitMs - expiryCloseMs) < 3600_000) {

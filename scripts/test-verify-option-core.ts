@@ -8,7 +8,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  entryCheck, exitCheck, fillVerdict, firstBarrier, insideRange, orderCheck, premiumGoverned, tradedRange, type OBar,
+  entryCheck, exitCheck, fillVerdict, firstBarrier, insideRange, nextRthOpenMs, orderCheck, orderWindow, premiumGoverned, tradedRange, type OBar,
 } from '../research/verify-option-core';
 import { loadLedgerAuditFixture, runCase } from './lib/ledger-audit-cases';
 
@@ -119,6 +119,64 @@ t('CRDO 180P: premium plan stop ($2.04) printed first on 10-13; the underlying t
   assert.equal(r.order.governing, 'premium');
   assert.equal(r.order.first?.kind, 'stop');
   assert.equal(r.verdict.verdict, 'VERIFIED');
+});
+
+console.log('spot-check 2026-10-30 — order-window artifacts');
+t('a barrier stamp is a 5-min bucket start: the window runs to stamp + 5 min (QQQ 746P 10-08: stamped 19:20Z, stop printed 19:22Z)', () => {
+  const ex = Date.parse('2026-10-08T19:20:00Z');
+  const w = orderWindow({ recordedStatus: 'hit_stop', trigMs: ex, fallbackTrigMs: ex, exitMs: ex, exitTimeSource: 'bar_hit', capMs: ex + 86400_000 });
+  assert.equal(w.toMs, ex + 5 * 60_000);
+  const bars = [bar(0, 0.7, 0.81, 0.65, 0.7), bar(2, 0.61, 0.61, 0.35, 0.35)].map((b) => ({ ...b, t: b.t - T0 + ex }));
+  assert.equal(firstBarrier(bars, { long: true, stop: 0.44, target: 3.73, fromMs: ex, toMs: w.toMs, basis: 'premium' }).kind, 'stop');
+});
+t('a time exit never orders a touch inside its own exit minute (INTC 115C: stop and exit both in the 09:30 bar)', () => {
+  const ex = Date.parse('2026-10-07T13:30:00Z');
+  const w = orderWindow({ recordedStatus: 'expired', trigMs: ex - 86400_000, fallbackTrigMs: ex - 86400_000, exitMs: ex, capMs: ex + 86400_000 });
+  assert.equal(firstBarrier([{ t: ex, o: 9.2, h: 9.25, l: 8.75, c: 9.2 }], { long: true, stop: 8.87, target: 17.77, fromMs: w.fromMs, toMs: w.toMs, basis: 'premium' }).kind, 'none');
+});
+t('a trigger observed after the exit falls back (MU 1050C: observed 14:46Z, exit 14:15Z)', () => {
+  const w = orderWindow({ recordedStatus: 'hit_stop', trigMs: Date.parse('2026-10-01T14:46:00Z'), fallbackTrigMs: Date.parse('2026-10-01T13:59:00Z'), exitMs: Date.parse('2026-10-01T14:15:00Z'), capMs: Infinity });
+  assert.equal(w.trigClamped, true);
+  assert.equal(w.fromMs, Date.parse('2026-10-01T13:59:00Z'));
+});
+t('an extended-hours barrier stamp runs to the next RTH open + 5 min (WDC 420C stamped 04:15 ET)', () => {
+  assert.equal(nextRthOpenMs(Date.parse('2026-10-06T08:15:00Z')), Date.parse('2026-10-06T13:30:00Z'));
+  assert.equal(nextRthOpenMs(Date.parse('2026-10-09T21:00:00Z')), Date.parse('2026-10-12T13:30:00Z'), 'Friday after the close → Monday');
+  const w = orderWindow({ recordedStatus: 'hit_stop', trigMs: 0, fallbackTrigMs: 0, exitMs: Date.parse('2026-10-06T08:15:00Z'), exitTimeSource: 'bar_hit', capMs: Infinity });
+  assert.equal(w.toMs, Date.parse('2026-10-06T13:35:00Z'));
+});
+t('premium-governed with no contract bars is unverifiable, never judged on the underlying (ALAB 260C)', () => {
+  const tgt = { kind: 'target' as const, at: m(1), px: 1, sameBar: false, basis: 'underlying' as const };
+  const o = orderCheck({ recordedStatus: 'hit_stop', governing: 'premium', underlying: tgt, premium: null });
+  assert.equal(o.bug, null);
+  const e = entryCheck([], { pubMs: m(0), trigMs: m(0), exitMs: m(1), recorded: 1 });
+  assert.equal(fillVerdict(e, o, exitCheck([], { recorded: 1, eventMs: null, recordedExitMs: m(1), computed: null }), false).verdict, 'UNVERIFIABLE');
+});
+t('the recorded barrier touched only after the stamp → exit_time_misstamped (correctable), the opposite one → wrong_outcome_order', () => {
+  const none = { kind: 'none' as const, at: null, px: null, sameBar: false, basis: 'premium' as const };
+  const lateT = { kind: 'target' as const, at: m(36), px: 5.8, sameBar: false, basis: 'premium' as const };
+  const lateS = { ...lateT, kind: 'stop' as const };
+  assert.equal(orderCheck({ recordedStatus: 'hit_target', governing: 'premium', underlying: null, premium: none, late: lateT }).bug, 'exit_time_misstamped');
+  assert.equal(orderCheck({ recordedStatus: 'hit_target', governing: 'premium', underlying: null, premium: none, late: lateS }).bug, 'wrong_outcome_order');
+  const bars = [bar(0, 3.79, 3.8, 3.7, 3.79), bar(36, 5.7, 6, 5.6, 5.8)];
+  const e = entryCheck(bars, { pubMs: m(0), trigMs: m(0), exitMs: m(10), recorded: 3.79 });
+  const o = orderCheck({ recordedStatus: 'hit_target', governing: 'premium', underlying: null, premium: none, late: lateT });
+  const x = exitCheck(bars, { recorded: 5.8, eventMs: m(36), recordedExitMs: m(10), computed: 5.8 });
+  assert.deepEqual(fillVerdict(e, o, x, false), { verdict: 'MISMATCH', bugClass: 'exit_time_misstamped' });
+});
+t('off-hours range spans 30 min from the first print; a re-print > 60 min after the session open is no fill (CNC 70C, DASH 145C)', () => {
+  const pub = Date.parse('2026-10-07T22:52:00Z');
+  const open = Date.parse('2026-10-08T13:30:00Z');
+  const bars: OBar[] = [{ t: open + 10 * 60_000, o: 2.79, h: 2.79, l: 2.79, c: 2.79 }, { t: open + 3 * 3600_000, o: 2.4, h: 2.4, l: 2.4, c: 2.4 }, { t: open + 86400_000, o: 3.4, h: 3.4, l: 3.4, c: 3.4 }];
+  const e = entryCheck(bars, { pubMs: pub, trigMs: pub, exitMs: open + 3 * 86400_000, recorded: 3.03 });
+  assert.equal(e.range?.hi, 2.79, 'only the first print is inside 30 min of itself');
+  assert.equal(e.status, 'entry-repriced', 'the open print 10 min in is a fill');
+  const late = entryCheck([{ t: open + 8 * 86400_000, o: 48.17, h: 48.17, l: 48.17, c: 48.17 }], { pubMs: open, trigMs: open, exitMs: open + 9 * 86400_000, recorded: 52.3 });
+  assert.equal(late.status, 'no-print');
+});
+t('option_target_hit / option_stop_hit are premium-governed (QQQ 747C)', () => {
+  assert.equal(premiumGoverned({ hasStoredPremiumPlan: false, resolutionReason: 'option_target_hit' }), true);
+  assert.equal(premiumGoverned({ hasStoredPremiumPlan: false, resolutionReason: 'option_expiry_intrinsic' }), false);
 });
 
 console.log(`\n${n} verify-option-core checks passed`);

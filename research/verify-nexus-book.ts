@@ -77,7 +77,8 @@ import { optionSideOf } from '../shared/option-value-bounds';
 import { liquidityGateResult, liquidityBugClass } from '../shared/option-liquidity';
 import { readPlanSnapshot } from '../shared/plan-snapshot';
 import { premiumPlanFor, readPremiumPlan } from '../shared/premium-outcome';
-import { entryCheck, exitCheck, exitPremiumAt, fillVerdict, firstBarrier, orderCheck, premiumGoverned } from './verify-option-core';
+import { entryCheck, exitCheck, exitPremiumAt, fillVerdict, firstBarrier, MISSTAMP_LOOKAHEAD_MS, orderCheck, orderWindow, premiumGoverned, recordedKindOf } from './verify-option-core';
+import { shortDatedReason } from '../shared/short-dated-option';
 import {
   attemptsText, expirySettlement, incrementalIds, MASSIVE_BASE, MASSIVE_ENTITLEMENT_HINT, MassiveEntitlement, mergeRechecked, optionBarChain, parseYahoo,
   unverifiableIds, type ChainDeps, type ChainResult, type HttpResult, type MassiveEndpoint,
@@ -120,6 +121,7 @@ const SCRIPT_BUG_CLASSES = {
   entry_repriced: 'recorded entry premium was never inside the contract\'s traded range at publish / trigger — re-priced from the first real print at/after the trigger ("entry-repriced")',
   wrong_outcome_order: 'the recorded outcome is not the first barrier touched from the trigger (governing path: premium plan for premium-stop engines, else the underlying)',
   settlement_repriced: 'entry traded, but the recorded expiry exit is not settlement intrinsic (16:00 ET close) — exit re-priced at intrinsic',
+  exit_time_misstamped: 'the recorded barrier is the first one touched from the trigger, but later than the exit stamp — exit re-priced at the real touch',
   barrier_order_disagrees: 'the recorded outcome matches the governing path, but the other path (underlying vs premium plan) touched the opposite barrier first — needs review, never silently accepted',
 } as const;
 
@@ -317,6 +319,7 @@ const rth = (b: Bar) => { const m = et(b.t).min; return m >= 570 && m < 960; };
 interface IdeaRow extends DeskIdea {
   targetPrice: number | null; stopLoss: number | null; outcomeNotes: string | null; exitBy: string | null; holdingPeriod: string | null;
   triggerObservedAt: string | null; triggerObservedPrice: number | null; realizedPnLColumn: number | null; status: string | null;
+  optionDelta?: number | null; qualitySignals?: unknown; expiryTier?: string | null; optionDte?: number | null;
   /** Publish-time liquidity-gate snapshot (shared/option-liquidity.ts); null before the gate. */
   contractLiquidity: { ok?: boolean; action?: string | null; failures?: string[]; oi?: number | null; vol?: number | null; spreadPct?: number | null; source?: string; asOf?: string } | null;
 }
@@ -340,7 +343,8 @@ async function loadBook(): Promise<IdeaRow[]> {
              convergence_signals_json->'executionAudit'->>'triggerObservedPrice' AS trigger_observed_price,
              convergence_signals_json->'contractLiquidity' AS contract_liquidity,
              convergence_signals_json->'planSnapshot' AS plan_snapshot,
-             convergence_signals_json->'premiumPlan' AS premium_plan
+             convergence_signals_json->'premiumPlan' AS premium_plan,
+             option_delta, quality_signals, expiry_tier, option_dte
       FROM trade_ideas
       WHERE timestamp >= $1 AND status <> 'draft' AND (exclude_from_training = false OR exclude_from_training IS NULL)
       ORDER BY timestamp`, [SINCE]);
@@ -355,6 +359,8 @@ async function loadBook(): Promise<IdeaRow[]> {
       dataSourceUsed: x.data_source_used, sessionContext: x.session_context, outcomeNotes: x.outcome_notes, exitBy: x.exit_by,
       holdingPeriod: x.holding_period, triggerObservedAt: x.trigger_observed_at, triggerObservedPrice: num(x.trigger_observed_price),
       realizedPnLColumn: num(x.realized_pnl), status: x.status,
+      // What the tracker's premium plan is built from (shared/premium-outcome.ts premiumPlanFor).
+      optionDelta: num(x.option_delta), qualitySignals: x.quality_signals ?? null, expiryTier: x.expiry_tier ?? null, optionDte: num(x.option_dte),
       contractLiquidity: x.contract_liquidity && typeof x.contract_liquidity === 'object' ? x.contract_liquidity : null,
       // Immutable publish-time plan + the premium plan (fix 2: premium-stop engines are ordered on premium).
       convergenceSignalsJson: { planSnapshot: x.plan_snapshot ?? undefined, premiumPlan: x.premium_plan ?? undefined },
@@ -497,9 +503,18 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
     }
   }
   if (!fin(trigMs)) { trigMs = pubMs; trigBasis = 'publication (no underlying intraday bars)'; }
+  // A trigger observed AFTER the recorded exit is a stale observer stamp (MU 1050C, IWM 275P):
+  // order from the first underlying bar at entry, else publication.
+  let fallbackTrig = pubMs;
+  if (trigMs! > exitMs && ubars.length && !uDaily) {
+    const tb = firstTouch(ubars, planEntry, pubMs - 5 * 60_000, exitMs);
+    if (tb) fallbackTrig = Math.max(tb.t, pubMs);
+  }
+  const win = orderWindow({ recordedStatus: status, trigMs: trigMs!, fallbackTrigMs: fallbackTrig, exitMs, exitTimeSource: i.exitTimeSource, capMs: expiryCloseMs });
+  if (win.trigClamped) { trigBasis += ` (observed ${iso(trigMs)} after the exit → ${iso(win.fromMs)})`; trigMs = win.fromMs; }
   base.evidence.trigger = { at: iso(trigMs), basis: trigBasis };
-  // Cycle-stamped barrier exits ("hit time unknown"): the order window runs to the stamp + a cycle.
-  const orderToMs = Math.min(expiryCloseMs, exitMs + (i.exitTimeSource === 'live' ? 15 * 60_000 : 60_000));
+  const orderToMs = win.toMs;
+  base.evidence.orderWindow = { from: iso(win.fromMs), to: iso(orderToMs) };
 
   // The contract's own bars (Massive → Alpaca 1-min → Yahoo chain).
   let ob: ChainResult = { bars: [], source: 'none', attempts: [] };
@@ -527,14 +542,32 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
   // ── fix 2: barrier order from the trigger, underlying AND premium plan ──
   const storedPlan = readPremiumPlan(i.convergenceSignalsJson);
   const governing: 'premium' | 'underlying' = premiumGoverned({ hasStoredPremiumPlan: !!storedPlan, resolutionReason: i.resolutionReason }) ? 'premium' : 'underlying';
+  // The plan the TRACKER judged (performance-validation-service premiumVerdict): the idea's own
+  // delta / engine premium levels / short-dated stop (spot-check 2026-10-30: Δ0.50-assumed plans
+  // put T1 above every recorded target exit — ARM 270P, BBY 95C, MU 940P). Built from the
+  // RECORDED entry: the order question is whether the label matches the plan the tracker ran;
+  // an untraded entry is re-priced separately (entry_repriced) and P&L uses the real fill.
+  const planEntryPremium = row.entryPrice;
   const pplan = storedPlan ?? (governing === 'premium'
-    ? premiumPlanFor({ assetType: 'option', direction: long ? 'long' : 'short', entryPrice: planEntry, targetPrice: planTarget, stopLoss: planStop, entryPremium: row.entryPrice, convergenceSignalsJson: i.convergenceSignalsJson }, { zeroDte: day === et(pubMs).day })
+    ? premiumPlanFor({
+        assetType: 'option', direction: long ? 'long' : 'short', entryPrice: planEntry, targetPrice: planTarget, stopLoss: planStop, entryPremium: planEntryPremium,
+        optionDelta: i.optionDelta ?? null, qualitySignals: i.qualitySignals ?? null, source: i.source, convergenceSignalsJson: i.convergenceSignalsJson,
+      }, { zeroDte: !!shortDatedReason({ source: i.source, dataSourceUsed: i.dataSourceUsed, expiryDate: i.expiryDate, expiryTier: i.expiryTier ?? null, optionDte: i.optionDte ?? null }, exitMs) })
     : null);
   const uHit = ubars.length && !uDaily
     ? firstBarrier(ubars, { long, stop: planStop, target: planTarget, fromMs: trigMs!, toMs: orderToMs, basis: 'underlying' }) : null;
   const pHit = pplan && bars.length
     ? firstBarrier(bars, { long: true, stop: pplan.stop, target: pplan.t1, fromMs: trigMs!, toMs: orderToMs, basis: 'premium' }) : null;
-  const ord = orderCheck({ recordedStatus: status, governing, underlying: uHit, premium: pHit });
+  // Recorded barrier, nothing inside the window: the governing path's NEXT barrier (exit_time_misstamped).
+  let late = null as ReturnType<typeof firstBarrier> | null;
+  const govHit = governing === 'premium' ? pHit : uHit;
+  if (recordedKindOf(status) !== 'none' && govHit && govHit.kind === 'none') {
+    const lateTo = Math.min(expiryCloseMs, orderToMs + MISSTAMP_LOOKAHEAD_MS);
+    late = governing === 'premium'
+      ? firstBarrier(bars, { long: true, stop: pplan!.stop, target: pplan!.t1, fromMs: orderToMs + 1, toMs: lateTo, basis: 'premium' })
+      : firstBarrier(ubars, { long, stop: planStop, target: planTarget, fromMs: orderToMs + 1, toMs: lateTo, basis: 'underlying' });
+  }
+  const ord = orderCheck({ recordedStatus: status, governing, underlying: uHit, premium: pHit, late });
   base.evidence.orderCheck = { ...ord, premiumPlan: pplan ? { entry: pplan.entry, t1: pplan.t1, stop: pplan.stop, source: pplan.source } : null };
 
   // Exit premium on the governing path: barrier event, else time exit / expiry settlement.
@@ -574,6 +607,13 @@ async function verifyOption(i: IdeaRow, row: JournalWireRow, base: Omit<TradeRes
 }
 
 // ─── main ────────────────────────────────────────────────────
+/**
+ * The verdict rules' version, stamped on the ledger. An --incremental run over a ledger
+ * built under other rules re-judges every row. v2 = ledger audit 2026-10-15 fill truth;
+ * v3 = spot-check 2026-10-30 order window (stamp buckets, stale triggers, extended-hours
+ * stamps, the tracker's premium plan, exit_time_misstamped, fill-delay cap).
+ */
+export const VERIFIER_VERSION = 'verify-nexus-book-v3';
 const OVERRIDING = new Set(['premium_scale_ladder', 'synthetic_or_retroactive', 'impossible_exit_premium', 'impossible_entry_premium', 'fill_off_strike_scale', 'illiquid_contract']);
 
 async function main() {
@@ -591,6 +631,12 @@ async function main() {
     // Nightly: the prior ledger may not exist yet (first run) → a full run that seeds it.
     try { prior = JSON.parse(fs.readFileSync(INCREMENTAL, 'utf8')); } catch { prior = null; }
     if (prior && !Array.isArray(prior?.trades)) throw new Error(`${INCREMENTAL} has no trades[] — not a verify-nexus-book ledger`);
+    // Rules changed since the prior ledger → every row is re-judged (a full run), never a mix of old- and new-rule verdicts.
+    if (prior && prior.verifierVersion !== VERIFIER_VERSION) {
+      console.log(`[verify-nexus-book] --incremental: prior ledger rules ${prior.verifierVersion ?? 'unversioned'} ≠ ${VERIFIER_VERSION} — full run`);
+      if (!arg('--since') && typeof prior?.summary?.since === 'string') SINCE = prior.summary.since;
+      prior = null;
+    }
     if (prior && !arg('--since') && typeof prior?.summary?.since === 'string') SINCE = prior.summary.since;
     console.log(`[verify-nexus-book] --incremental ${INCREMENTAL}: ${prior ? `${prior.trades.length} prior rows (${prior.generatedAt})` : 'no prior ledger — full run'}`);
   }
@@ -750,6 +796,7 @@ async function main() {
   const ledger = {
     generatedAt: new Date().toISOString(),
     script: 'research/verify-nexus-book.ts',
+    verifierVersion: VERIFIER_VERSION,
     bugClasses: { ...DESK_BUG_CLASSES, ...SCRIPT_BUG_CLASSES },
     summary,
     top30,

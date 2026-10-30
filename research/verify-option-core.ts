@@ -38,6 +38,10 @@ export const ENTRY_WINDOW_MS = 5 * 60_000;
 export const EXIT_WINDOW_MS = 5 * 60_000;
 export const RANGE_SLACK = { abs: 0.01, rel: 0.03 } as const;
 export const SETTLEMENT_TOL = 0.05;
+/** Off-hours publish: the "first prints after publish" range only spans this long from the first print (CNC 70C, KORU 17P: 5 prints over 2 days). */
+export const OFFHOURS_RANGE_SPAN_MS = 30 * 60_000;
+/** A re-priced entry must print within this long of the trigger's session open; later is no fill (DASH 145C: first print 8 days on). */
+export const MAX_FILL_DELAY_MS = 60 * 60_000;
 
 const fin = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -82,13 +86,18 @@ export function entryCheck(bars: readonly OBar[], a: { pubMs: number; trigMs: nu
   let range = tradedRange(bars, [a.pubMs, a.trigMs], ENTRY_WINDOW_MS, '±5m of publish / trigger');
   if (!range) {
     // Off-hours publish: the first prints after publication are the market it met.
-    const nxt = bars.filter((b) => b.t >= a.pubMs).slice(0, 5);
+    const after = bars.filter((b) => b.t >= a.pubMs);
+    const nxt = after.filter((b) => b.t - after[0].t <= OFFHOURS_RANGE_SPAN_MS).slice(0, 5);
     if (nxt.length) range = { lo: Math.min(...nxt.map((b) => b.l)), hi: Math.max(...nxt.map((b) => b.h)), bars: nxt.length, basis: 'first 5 prints after publish' };
   }
   const fill0 = firstPrintFrom(bars, a.trigMs, Math.max(a.trigMs, a.exitMs));
+  const lateFill = fill0 != null && fill0.at - nextRthOpenMs(a.trigMs) > MAX_FILL_DELAY_MS;
   const fill = fill0 ? { px: fill0.px, at: iso(fill0.at)!, delayMin: Math.round(fill0.delayMs / 60_000) } : null;
   if (range && insideRange(a.recorded, range)) {
     return { status: 'verified', recorded: a.recorded, entry: a.recorded, range, fill, detail: `entry ${a.recorded} inside traded [${range.lo}, ${range.hi}] (${range.basis}, ${range.bars} bars)` };
+  }
+  if (fill && lateFill) {
+    return { status: 'no-print', recorded: a.recorded, entry: null, range, fill, detail: `entry ${a.recorded} ${range ? `outside traded [${range.lo}, ${range.hi}] (${range.basis})` : 'had no print near publish / trigger'}; the first print (${fill.px} at ${fill.at}) is more than ${MAX_FILL_DELAY_MS / 60_000}m after the trigger's session open — no fill to price` };
   }
   if (fill) {
     return {
@@ -125,9 +134,57 @@ export function recordedKindOf(status: string | null | undefined): RecordedKind 
   return s === 'hit_stop' ? 'stop' : s === 'hit_target' ? 'target' : 'none';
 }
 
-/** Premium-stop engine: a stored premium plan, or the tracker resolved it on premium. Pure. */
+/**
+ * Premium-stop engine: a stored premium plan, or the tracker resolved it on premium
+ * (premium_* — and the older option_target_hit / option_stop_hit labels). Pure.
+ */
 export function premiumGoverned(a: { hasStoredPremiumPlan: boolean; resolutionReason?: string | null }): boolean {
-  return a.hasStoredPremiumPlan || String(a.resolutionReason ?? '').startsWith('premium_');
+  const r = String(a.resolutionReason ?? '');
+  return a.hasStoredPremiumPlan || r.startsWith('premium_') || r === 'option_target_hit' || r === 'option_stop_hit';
+}
+
+// ─── the order window (spot-check 2026-10-30) ─────────────────
+/** Tracker stamps for barrier exits are 5-min bucket starts (refineExitTiming, 5-min bars). */
+export const BARRIER_STAMP_SLACK_MS = 5 * 60_000;
+/** A cycle-stamped ("live") barrier exit: the touch is somewhere in the cycle before the stamp + one cycle. */
+export const LIVE_STAMP_SLACK_MS = 15 * 60_000;
+/** Look-ahead for a barrier recorded EARLIER than any bar shows it (exit_time_misstamped). */
+export const MISSTAMP_LOOKAHEAD_MS = 24 * 3600_000;
+
+const etMin = (ms: number) => {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'short' }).formatToParts(new Date(ms));
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
+  return { min: Number(g('hour')) * 60 + Number(g('minute')), wd: g('weekday') };
+};
+/** 09:30 ET of the first weekday session at/after ms (ms itself when already inside RTH). Pure. */
+export function nextRthOpenMs(ms: number): number {
+  const { min, wd } = etMin(ms);
+  const weekend = wd === 'Sat' || wd === 'Sun';
+  if (!weekend && min >= 570 && min < 960) return ms;
+  let t = ms - (min * 60_000) + 570 * 60_000; // today 09:30 ET (DST-safe to within the day)
+  if (weekend || min >= 960) t += 86400_000;
+  for (let i = 0; i < 4 && ['Sat', 'Sun'].includes(etMin(t).wd); i++) t += 86400_000;
+  return t;
+}
+
+/**
+ * The window the first-barrier search runs over, from the trigger.
+ *   · barrier outcome (hit_stop / hit_target): to the stamp + its bucket (5 min; 15 min for a
+ *     cycle "live" stamp). A stamp outside RTH (extended-hours quote) runs to the next RTH
+ *     open + the bucket — the contract cannot trade before it.
+ *   · time / expiry exit: up to, NOT including, the exit minute — a touch inside the exit bar
+ *     cannot be ordered against the exit (the tracker judges [entry, exit) the same way).
+ * The trigger is clamped to the exit: a trigger observed AFTER the exit (stale observer stamp)
+ * falls back to `fallbackTrigMs`. Pure.
+ */
+export function orderWindow(a: { recordedStatus: string | null | undefined; trigMs: number; fallbackTrigMs: number; exitMs: number; exitTimeSource?: string | null; capMs: number }): { fromMs: number; toMs: number; trigClamped: boolean } {
+  const barrier = recordedKindOf(a.recordedStatus) !== 'none';
+  const trigClamped = a.trigMs > a.exitMs;
+  const fromMs = trigClamped ? Math.min(a.fallbackTrigMs, a.exitMs) : a.trigMs;
+  if (!barrier) return { fromMs, toMs: Math.min(a.capMs, a.exitMs - 1), trigClamped };
+  const slack = a.exitTimeSource === 'live' ? LIVE_STAMP_SLACK_MS : BARRIER_STAMP_SLACK_MS;
+  const base = nextRthOpenMs(a.exitMs);
+  return { fromMs, toMs: Math.min(a.capMs, Math.max(a.exitMs, base) + slack), trigClamped };
 }
 
 export interface OrderCheck {
@@ -136,22 +193,32 @@ export interface OrderCheck {
   first: BarrierHit | null;
   other: BarrierHit | null;
   recorded: RecordedKind;
-  bug: 'wrong_outcome_order' | 'barrier_order_disagrees' | null;
+  bug: 'wrong_outcome_order' | 'barrier_order_disagrees' | 'exit_time_misstamped' | null;
   detail: string;
 }
 
 const hitText = (h: BarrierHit | null) => !h ? 'no bars' : h.kind === 'none' ? 'nothing touched' : `${h.kind} first at ${iso(h.at)}${h.sameBar ? ' (same bar as target)' : ''}`;
 
-/** Fix 2: does the recorded outcome match the first barrier from the trigger? Pure. */
-export function orderCheck(a: { recordedStatus: string | null | undefined; governing: 'underlying' | 'premium'; underlying: BarrierHit | null; premium: BarrierHit | null }): OrderCheck {
+/**
+ * Fix 2: does the recorded outcome match the first barrier from the trigger? Pure.
+ * A premium-governed row with no contract bars is NOT judged on the underlying (the
+ * engine's barriers are premium levels) — it is unverifiable. `late` = the governing
+ * path's first barrier AFTER the order window: when nothing was touched inside the window
+ * but the recorded barrier is the next one touched, the outcome is right and only the
+ * stamp is early → exit_time_misstamped (the exit is re-priced at the real touch).
+ */
+export function orderCheck(a: { recordedStatus: string | null | undefined; governing: 'underlying' | 'premium'; underlying: BarrierHit | null; premium: BarrierHit | null; late?: BarrierHit | null }): OrderCheck {
   const recorded = recordedKindOf(a.recordedStatus);
   let gov = a.governing;
   let first = gov === 'premium' ? a.premium : a.underlying;
   let other = gov === 'premium' ? a.underlying : a.premium;
-  if (!first && other) { first = other; other = null; gov = gov === 'premium' ? 'underlying' : 'premium'; }
+  if (!first && other && gov === 'underlying') { first = other; other = null; gov = 'premium'; }
   const base = { governing: gov, first, other, recorded };
   const where = `${gov}: ${hitText(first)}${other ? `; ${other.basis}: ${hitText(other)}` : ''}`;
-  if (!first) return { ...base, bug: null, detail: 'no bars to order the barriers' };
+  if (!first) return { ...base, bug: null, detail: gov === 'premium' ? 'premium-governed but no contract bars to order the barriers' : 'no bars to order the barriers' };
+  if (first.kind === 'none' && recorded !== 'none' && a.late && a.late.kind === recorded) {
+    return { ...base, first: a.late, bug: 'exit_time_misstamped', detail: `recorded ${a.recordedStatus} is the first barrier, but touched later than stamped — ${gov}: ${hitText(a.late)}` };
+  }
   if (first.kind !== recorded) {
     return { ...base, bug: 'wrong_outcome_order', detail: `recorded ${a.recordedStatus ?? 'open'} but ${where}` };
   }
@@ -190,13 +257,15 @@ export function exitCheck(bars: readonly OBar[], a: { recorded: number | null; e
 
 export type FillVerdict =
   | { verdict: 'VERIFIED'; bugClass: null }
-  | { verdict: 'MISMATCH'; bugClass: 'entry_repriced' | 'exit_premium_not_traded' | 'settlement_repriced' | 'wrong_outcome_order' | 'barrier_order_disagrees' }
+  | { verdict: 'MISMATCH'; bugClass: 'entry_repriced' | 'exit_premium_not_traded' | 'settlement_repriced' | 'wrong_outcome_order' | 'barrier_order_disagrees' | 'exit_time_misstamped' }
   | { verdict: 'UNVERIFIABLE'; bugClass: 'bar_unverifiable' };
 
 /** The one verdict from the three checks. Order errors win (the outcome itself is wrong), then the legs. Pure. */
 export function fillVerdict(e: EntryCheck, o: OrderCheck, x: ExitCheck, expiry: boolean): FillVerdict {
-  if (o.bug) return { verdict: 'MISMATCH', bugClass: o.bug };
+  if (o.bug && o.bug !== 'exit_time_misstamped') return { verdict: 'MISMATCH', bugClass: o.bug };
   if (e.status === 'no-print' || x.status === 'no-print' || !o.first) return { verdict: 'UNVERIFIABLE', bugClass: 'bar_unverifiable' };
+  // Outcome right, stamp early: both legs priced from bars → a correctable mismatch.
+  if (o.bug === 'exit_time_misstamped') return { verdict: 'MISMATCH', bugClass: 'exit_time_misstamped' };
   if (e.status === 'entry-repriced') return { verdict: 'MISMATCH', bugClass: 'entry_repriced' };
   if (x.status === 'repriced') return { verdict: 'MISMATCH', bugClass: expiry ? 'settlement_repriced' : 'exit_premium_not_traded' };
   return { verdict: 'VERIFIED', bugClass: null };

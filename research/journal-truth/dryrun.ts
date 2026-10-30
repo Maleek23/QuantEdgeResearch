@@ -131,6 +131,11 @@ async function main() {
   const b500Rows = b500.rows as unknown as JournalWireRow[];
   const head = (rs: JournalWireRow[]) => agg(counted(rs));
   const closed = rows.filter((r) => r.status === 'closed');
+  // ── the last 10 sessions (ET exit days, weekdays up to TODAY) ──
+  const exitDay = (r: JournalWireRow) => (r.exitTime ? etDay(Date.parse(r.exitTime)) : null);
+  const weekday = (d: string) => { const w = new Date(`${d}T12:00:00Z`).getUTCDay(); return w !== 0 && w !== 6; };
+  const sessions = [...new Set(closed.map(exitDay).filter((d): d is string => !!d && d <= TODAY && weekday(d)))].sort().slice(-10);
+  const inLast10 = (rs: JournalWireRow[]) => counted(rs).filter((r) => { const d = exitDay(r); return d != null && sessions.includes(d); });
   const truthUnit = summarizeTruth(unitRows);
   const truth500 = summarizeTruth(b500Rows);
 
@@ -198,6 +203,12 @@ async function main() {
       zeroDteVsSwing: {
         unit: groupBy(counted(unitRows), (r) => (r.zeroDte ? '0DTE' : 'swing')),
         budget500: groupBy(counted(b500Rows), (r) => (r.zeroDte ? '0DTE' : 'swing')),
+      },
+      last10Sessions: {
+        sessions,
+        unit: agg(inLast10(unitRows)), budget500: agg(inLast10(b500Rows)),
+        zeroDteVsSwing: { unit: groupBy(inLast10(unitRows), (r) => (r.zeroDte ? '0DTE' : 'swing')), budget500: groupBy(inLast10(b500Rows), (r) => (r.zeroDte ? '0DTE' : 'swing')) },
+        byDay: { budget500: groupBy(inLast10(b500Rows), (r) => exitDay(r) ?? '?') },
       },
       byEngine: { unit: groupBy(counted(unitRows), (r) => r.setupType ?? 'unknown'), budget500: groupBy(counted(b500Rows), (r) => r.setupType ?? 'unknown') },
       excluded: Object.fromEntries([...excluded.entries()].sort((a, b) => b[1] - a[1])),
