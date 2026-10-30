@@ -94,7 +94,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   /** One line (book + n) that expands to the full basis — the fit-to-screen header uses this. */
   compact?: boolean;
   /** Rows in view — the Bot book names which runs they cover. */
-  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean; notes?: string | null; verification?: { status?: string; truth?: string } | null }[];
+  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean; notes?: string | null; verification?: { status?: string; truth?: string | null } | null }[];
 }) {
   if (!meta) return null;
   // Options with no closing fill, settled at intrinsic on expiry day (shared/journal-expiry.ts).

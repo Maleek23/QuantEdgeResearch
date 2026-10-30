@@ -37,14 +37,17 @@ const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
     const m = tradableContract({ symbol: 'JPM', assetType: 'option', optionType: 'call', strikePrice: 300, expiryDate: '2026-10-17', entryPremium: null }, 500);
     assert.ok(!m.ok && m.code === 'no_contract');
   });
-  await t('primary over budget → budget contract; neither → over_budget', () => {
+  await t('primary over budget → budget contract; neither → 1 contract labelled over budget (ledger audit fix 5: never dropped)', () => {
     const bc = { optionType: 'put' as const, strike: 415, expiry: '2026-10-17', entryPremium: 3.4, premiumStop: 1.7, premiumT1: 5.1, premiumT2: 6.8 };
     const tr = tradableContract({ symbol: 'TSLA', assetType: 'option', optionType: 'put', strikePrice: 430, expiryDate: '2026-10-17', entryPremium: 9.2, budgetContract: bc }, 500);
     assert.ok(tr.ok && tr.basis === 'budget' && tr.qty === 1 && tr.strike === 415 && tr.premiumStop === 1.7);
     const at1k = tradableContract({ symbol: 'TSLA', assetType: 'option', optionType: 'put', strikePrice: 430, expiryDate: '2026-10-17', entryPremium: 9.2, budgetContract: bc }, 1000);
     assert.ok(at1k.ok && at1k.basis === 'primary' && at1k.qty === 1, 'at $1,000 the primary fits again');
     const none = tradableContract({ symbol: 'TSLA', assetType: 'option', optionType: 'put', strikePrice: 430, expiryDate: '2026-10-17', entryPremium: 12 }, 1000);
-    assert.ok(!none.ok && none.code === 'over_budget');
+    assert.ok(none.ok && none.qty === 1 && none.overBudget === true && none.basis === 'primary');
+    // Realized: the PRIMARY (the contract the verifier checks), never the budget contract's tracked exit.
+    const real = tradableContract({ symbol: 'TSLA', assetType: 'option', optionType: 'put', strikePrice: 430, expiryDate: '2026-10-17', entryPremium: 9.2, budgetContract: bc }, 500, { realized: true });
+    assert.ok(real.ok && real.basis === 'primary' && real.qty === 1 && real.overBudget === true);
   });
   await t('contractKey normalizes', () => assert.equal(contractKey(' spy ', '2026-10-14T00:00Z', 'put', 660), 'O:SPY|2026-10-14|put|660'));
 
@@ -123,10 +126,51 @@ const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
     assert.deepEqual([s.best!.symbol, s.best!.pnl, s.worst!.symbol, s.worst!.pnl], ['AMD', 240, 'TSLA', -240]);
   });
 
+  console.log('NEXUS Today — the journal\'s truth rules (ledger audit 2026-10-15; "+$8,402 realized" not believable)');
+  await t('realized counts only bar-verified (or bar-corrected) triggered rows; the rest are "checking", recorded shown, never summed', () => {
+    const rec = { outcomeStatus: 'hit_target', exitPremium: 4.8, exitDate: new Date(NOW - 60_000).toISOString() };
+    const pick = { symbol: 'NVDA', assetType: 'option', optionType: 'call', strikePrice: 185, expiryDate: '2026-10-17', entryPremium: 2.4 };
+    const verified = pickPnl(pick, 500, null, { ...rec, verification: { status: 'verified', detail: 'ok', ledgerAsOf: 'x' } }, NOW);
+    assert.deepEqual([verified.pnl, verified.checking], [480, false]);
+    const pending = pickPnl(pick, 500, null, { ...rec, verification: { status: 'unverified', detail: 'not bar-checked yet (nightly verify 17:30 ET)', ledgerAsOf: 'x' } }, NOW);
+    assert.deepEqual([pending.pnl, pending.checking, pending.recordedPnl], [null, true, 480]);
+    assert.equal(pnlChip(pending, NOW).text, 'checking');
+    const corrected = pickPnl(pick, 500, null, { ...rec, verification: { status: 'corrected', detail: 'x', ledgerAsOf: 'x', entry: 3.1, exit: 4.0 } }, NOW);
+    assert.deepEqual([corrected.pnl, corrected.corrected, corrected.tradable?.qty, corrected.recordedPnl], [90, true, 1, 480], 'whole contracts re-sized at the bar entry');
+    const never = pickPnl(pick, 500, null, { ...rec, verification: { status: 'verified', detail: 'ok', ledgerAsOf: 'x' }, triggered: false }, NOW);
+    assert.deepEqual([never.status, never.pnl, never.neverTriggered], ['none', null, true]);
+    const legacy = pickPnl(pick, 500, null, rec, NOW);
+    assert.equal(legacy.pnl, 480, 'callers that pass no verification keep the recorded exit (labelled elsewhere)');
+    const over = pickPnl({ ...pick, entryPremium: 9 }, 500, null, { ...rec, exitPremium: 12, verification: { status: 'verified', detail: 'ok', ledgerAsOf: 'x' } }, NOW);
+    assert.deepEqual([over.pnl, over.tradable?.qty, over.tradable?.overBudget], [300, 1, true], 'over budget → 1 contract, labelled');
+    const s = summarizeDay([
+      { id: 'v', symbol: 'NVDA', pnl: verified }, { id: 'p', symbol: 'SMTC', pnl: pending }, { id: 'c', symbol: 'AMD', pnl: corrected },
+      { id: 'n', symbol: 'IONQ', pnl: never }, { id: 'o', symbol: 'TSLA', pnl: over },
+      { id: 'q', symbol: 'META', pnl: nexusPnl({ state: 'open', tradable: tradableContract(pick, 500), mark: null, nowMs: NOW }) },
+    ]);
+    assert.deepEqual([s.realized, s.wins, s.checking, s.checkingRecordedPnl, s.neverTriggered, s.overBudget, s.corrected, s.unmarked, s.unrealized],
+      [870, 3, 1, 480, 1, 1, 1, 1, 0]);
+    assert.equal(s.best?.symbol, 'NVDA', 'a not-yet-checked row can never be "best"');
+  });
+  await t('Today wiring: resolved-today + by-day carry the verdict and the trigger state; the strip names checking / unquoted (excluded) / sizing', () => {
+    const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    assert.match(rd('server/routes.ts'), /verification: ideaVerification\(r\.ideaId\), triggered: triggeredFromState\(state\)/);
+    assert.match(rd('server/journal-integrity-routes.ts'), /triggered: triggeredFromState\(/);
+    assert.match(rd('client/src/components/dashboard/tools/nexus/nexus-tools.tsx'), /verification: r\.verification \?\? null, triggered: r\.triggered \?\? null/);
+    const strip = rd('client/src/components/dashboard/tools/nexus/nexus-pnl.tsx');
+    assert.match(strip, /unquoted \(excluded\)/);
+    assert.match(strip, /checking \(recorded/);
+    assert.match(strip, /whole contracts ≤ \$\{budget\}/);
+  });
+
   console.log('verify-ledger chip');
   await t('verified / corrected / unverified', () => {
     assert.equal(verificationOf({ verdict: 'VERIFIED' }, '2026-10-13T21:30:00Z').status, 'verified');
-    assert.equal(verificationOf({ verdict: 'MISMATCH', recomputedEntry: 2, recomputedExit: 3 }, 'x').status, 'corrected');
+    // Corrected only under the journal's rule (both legs from bars, outcome not rewritten — ledger audit fix 3).
+    assert.equal(verificationOf({ verdict: 'MISMATCH', recomputedEntry: 2, recomputedExit: 3 }, 'x').status, 'unverified', 'no bug class / bar source → not a correction');
+    const corr = verificationOf({ verdict: 'MISMATCH', recomputedEntry: 2, recomputedExit: 3, recomputedPnL: 100, bugClass: 'entry_repriced', optionSource: 'alpaca:X:1Min', outcomeStatus: 'hit_target', recomputedOutcome: 'target' }, 'x');
+    assert.deepEqual([corr.status, corr.entry, corr.exit], ['corrected', 2, 3]);
+    assert.equal(verificationOf({ verdict: 'MISMATCH', recomputedEntry: 0.35, recomputedExit: 4.7, recomputedPnL: 435, bugClass: 'entry_premium_at_publish_not_trigger', optionSource: 'alpaca:SPXW:1Min', outcomeStatus: 'hit_stop' }, 'x').status, 'unverified', 'SPX 7775P: stop never re-priced into a win');
     assert.equal(verificationOf({ verdict: 'UNVERIFIABLE', reason: 'no bars' }, 'x').status, 'unverified');
     assert.equal(verificationOf(null, 'x').status, 'unverified');
     assert.match(verificationOf(null, null).detail, /not available/);

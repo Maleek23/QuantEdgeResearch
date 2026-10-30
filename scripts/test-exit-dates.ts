@@ -43,7 +43,7 @@ t('first bar after entry crossing the target is the exit time', () => {
   const p = planExitTiming(idea, { outcomeStatus: 'hit_target', exitPrice: 110 }, bars, NOW, { barInterval: '5m' });
   assert.equal(p.source, 'bar_hit');
   assert.equal(p.exitDate, formatExitDate(Date.parse('2026-09-16T15:30:00Z')));
-  assert.equal(p.exitDate, '2026-09-16T10:30:00-05:00'); // Chicago format kept
+  assert.equal(p.exitDate, '2026-09-16T15:30:00.000Z'); // UTC ISO (ledger audit 2026-10-15 fix 9; was Chicago -05:00)
   assert.equal(p.exitPrice, undefined); // level price is kept by the caller
   assert.equal(p.holdingMinutes, (Date.parse('2026-09-16T15:30:00Z') - Date.parse(ENTRY)) / 60_000);
 });
@@ -219,7 +219,7 @@ t('repair script: --fixture dry run prints the table and writes nothing', () => 
 });
 
 // ── E3: desk book maps exitDate → the ET calendar day ────────────────────
-t('desk row exitTime = exitDate and lands on its ET day', () => {
+t('desk row exitTime = exitDate (normalized to UTC ISO, ledger audit fix 9) and lands on its ET day', () => {
   const res = mapDeskIdea({
     id: 'd1', symbol: 'AAPL', assetType: 'stock', direction: 'long', entryPrice: 100, targetPrice: 110, stopLoss: 95, riskRewardRatio: 2,
     optionType: null, strikePrice: null, expiryDate: null, entryPremium: null, exitPremium: null, optionPercentGain: null,
@@ -227,7 +227,7 @@ t('desk row exitTime = exitDate and lands on its ET day', () => {
     exitDate: '2026-09-16T10:30:00-05:00', timestamp: ENTRY, source: 'quant', catalyst: null, genConvictionBand: null,
   });
   assert.ok('row' in res);
-  assert.equal((res as any).row.exitTime, '2026-09-16T10:30:00-05:00');
+  assert.equal((res as any).row.exitTime, '2026-09-16T15:30:00.000Z');
   assert.equal(journalDayKey((res as any).row.exitTime), '2026-09-16');
   // A late-evening Chicago stamp is still the ET day it happened on.
   assert.equal(journalDayKey('2026-09-16T22:30:00-05:00'), '2026-09-16');

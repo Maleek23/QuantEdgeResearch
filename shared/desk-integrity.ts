@@ -39,6 +39,8 @@ export const DESK_BUG_CLASSES = {
   bar_pending: 'closed, not yet bar-checked — the nightly verify (17:30 ET) has not reached it; not in the headline',
   not_options: 'published as shares; no verified rule-picked options view — outside the options headline',
   crypto_excluded: 'crypto — labelled, outside the options headline',
+  // Ledger audit 2026-10-15 fix 3 (shared/journal-pnl-truth.ts oversizeForReview).
+  oversize_review: 'sized P&L above 2× the budget — flagged for review, not counted until the fill is confirmed',
 } as const;
 
 export type DeskBugClass = keyof typeof DESK_BUG_CLASSES;

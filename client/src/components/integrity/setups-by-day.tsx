@@ -24,6 +24,7 @@ interface SetupRow {
     budgetContract: BudgetContractLike | null; peak: { premium: number; atMs: number } | null;
   };
   verification?: PnlVerification | null;
+  triggered?: boolean | null;
 }
 
 /** A HISTORY row's P&L: open = triggered with no outcome yet (marked live), resolved = realized. */
@@ -34,7 +35,7 @@ function rowPnl(r: SetupRow, budget: number, markOf: Parameters<typeof pickPnl>[
   return pickPnl(
     { symbol: r.symbol, assetType: x.assetType, optionType: x.optionType, strikePrice: x.strikePrice, expiryDate: x.expiryDate, entryPremium: x.entryPremium, budgetContract: x.budgetContract, lifecycleState: open ? 'pending_trigger' : null },
     budget, markOf,
-    { outcomeStatus: x.outcomeStatus, exitPremium: x.exitPremium, exitDate: x.exitDate, peak: x.peak },
+    { outcomeStatus: x.outcomeStatus, exitPremium: x.exitPremium, exitDate: x.exitDate, peak: x.peak, ...(open ? {} : { verification: r.verification ?? null, triggered: r.triggered ?? null }) },
     now,
   );
 }

@@ -72,8 +72,26 @@ async function main() {
     assert.equal(fresh.stamp?.action, 'repriced'); assert.equal(fresh.idea.entryPremium, 0.54);
     const none = await applyEntryPremiumGate(idea, late, { env: {}, fetchQuote: async () => null });
     assert.equal(none.stamp?.action, 'withheld');
-    const spx = await applyEntryPremiumGate({ ...idea, symbol: 'SPX', convergenceSignalsJson: {} }, late, { env: {}, fetchQuote: async () => null });
+    const spx = await applyEntryPremiumGate({ ...idea, symbol: 'SPX', convergenceSignalsJson: {} }, late, { env: {}, fetchQuote: async () => null, fetchBars: async () => [] });
     assert.equal(spx.stamp?.action, 'unverified'); assert.equal(spx.idea.entryPremium, 2.72);
+    // Ledger audit 2026-10-15 fix 7: SPX is priced from the SPXW contract's own Alpaca 1-min prints.
+    let asked = '';
+    const spxBars = await applyEntryPremiumGate({ ...idea, symbol: 'SPX', convergenceSignalsJson: {} }, late, {
+      env: {}, fetchQuote: async () => null,
+      fetchBars: async (occ) => { asked = occ; return [{ t: late - 3 * 60_000, o: 0.4, h: 0.45, l: 0.33, c: 0.35 }]; },
+    });
+    assert.match(asked, /^SPXW/);
+    assert.equal(spxBars.stamp?.action, 'repriced');
+    assert.equal(spxBars.idea.entryPremium, 0.35, 'SPX 7775P-style: claimed $2.72 vs prints at $0.35 → re-priced to the print');
+    assert.match(String(spxBars.stamp?.source), /alpaca_spxw_bars/);
+    const spxStale = await applyEntryPremiumGate({ ...idea, symbol: 'SPX', convergenceSignalsJson: {} }, late, {
+      env: {}, fetchQuote: async () => null, fetchBars: async () => [{ t: late - 20 * 60_000, o: 1, h: 1, l: 1, c: 1 }],
+    });
+    assert.equal(spxStale.stamp?.action, 'unverified', 'a print older than 5 min is not a publish-time price');
+    const spxOk = await applyEntryPremiumGate({ ...idea, symbol: 'SPX', convergenceSignalsJson: {} }, late, {
+      env: {}, fetchQuote: async () => null, fetchBars: async () => [{ t: late - 2 * 60_000, o: 2.6, h: 2.8, l: 2.55, c: 2.6 }],
+    });
+    assert.deepEqual([spxOk.stamp?.action, spxOk.idea.entryPremium], ['confirmed', 2.6]);
     const off = await applyEntryPremiumGate(idea, late, { env: { ENTRY_PREMIUM_TRUTH: 'off' } });
     assert.equal(off.stamp, null); assert.equal(off.idea.entryPremium, 2.72);
   });

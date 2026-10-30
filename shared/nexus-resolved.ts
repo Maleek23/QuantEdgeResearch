@@ -42,6 +42,16 @@ export interface ResolvedIdea {
   budgetContract?: import('./nexus-pnl').BudgetContractLike | null;
   peak?: { premium: number; atMs: number } | null;
   verification?: import('./nexus-pnl').PnlVerification;
+  /** Ledger audit 2026-10-15: false = the lifecycle never triggered (no P&L); null = no audit state. */
+  triggered?: boolean | null;
+}
+
+/** Lifecycle states in which a plan was actually entered (server/journal-row-maps.ts ENTERED_STATES). */
+const ENTERED = new Set(['triggered', 'executed', 'closed']);
+/** executionAudit.state → triggered? (null when the row carries no audit state). Pure. */
+export function triggeredFromState(state: string | null | undefined): boolean | null {
+  const s = String(state ?? '').trim();
+  return s ? ENTERED.has(s) : null;
 }
 
 export type OutcomeTone = 'win' | 'loss' | 'flat';

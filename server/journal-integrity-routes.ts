@@ -99,6 +99,7 @@ export function registerJournalIntegrityRoutes(app: Express, requireBetaAccess: 
       const { readBudgetContract } = await import('@shared/budget-contract');
       const { parsePeak } = await import('@shared/option-peak');
       const { ideaVerification } = await import('./idea-verification');
+      const { triggeredFromState } = await import('@shared/nexus-resolved');
       const setups = rows.filter((r) => !['manual', 'user'].includes(String(r.source ?? '').toLowerCase())).map((r) => {
         const x = r as IdeaRowLike & Record<string, any>;
         const pk = parsePeak(x.outcomeNotes);
@@ -111,6 +112,8 @@ export function registerJournalIntegrityRoutes(app: Express, requireBetaAccess: 
             budgetContract: readBudgetContract(x.convergenceSignalsJson), peak: pk ? { premium: pk.premium, atMs: pk.atMs } : null,
           },
           verification: resolved ? ideaVerification(String(x.id)) : null,
+          // Ledger audit 2026-10-15: never-triggered rows are no trade (same rule as the journal).
+          triggered: triggeredFromState((x.convergenceSignalsJson as any)?.executionAudit?.state ?? null),
         };
       });
       res.json({ date, asOf: new Date().toISOString(), setups, source: 'trade_ideas rows published that ET day; outcomes as recorded by the tracker' });

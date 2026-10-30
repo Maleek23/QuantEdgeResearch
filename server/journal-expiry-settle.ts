@@ -204,3 +204,32 @@ export async function planExpiryResettle(rows: ResettleRow[], fetcher: ExpiryBar
   };
   return { summary, changes };
 }
+
+// ─── NEXUS ideas book: expired-without-exit options (ledger audit 2026-10-15 fix 4) ───
+
+export interface DeskExpiryIdea { symbol: string; assetType: string; outcomeStatus: string | null; expiryDate: string | null }
+
+/**
+ * The underlying's expiry-day daily print for every desk option idea that expired
+ * without a measured exit — keyed `${settlementSymbol}|${day}` for
+ * server/journal-row-maps.ts mapDeskIdea (DeskMapContext.expiryPrint). Read-only
+ * (market data only; the database is never written). Bounded by `budgetMs` so the
+ * journal never waits on a slow feed: what did not arrive stays excluded, labelled.
+ */
+export async function fetchDeskExpiryPrints(ideas: DeskExpiryIdea[], fetcher: ExpiryBarFetcher = defaultExpiryBarFetcher, budgetMs = 4000): Promise<Map<string, ExpiryPrint>> {
+  const { deskSettlementRoot } = await import('./journal-row-maps');
+  const rows: IntrinsicInput[] = [];
+  const seen = new Set<string>();
+  for (const i of ideas) {
+    if (i.assetType !== 'option' || String(i.outcomeStatus ?? '').toLowerCase() !== 'expired') continue;
+    const day = String(i.expiryDate ?? '').slice(0, 10);
+    const root = deskSettlementRoot(i.symbol);
+    const k = `${root}|${day}`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || seen.has(k)) continue;
+    seen.add(k);
+    rows.push({ symbol: root, expiryDate: day } as IntrinsicInput);
+  }
+  if (!rows.length) return new Map();
+  const timeout = new Promise<Map<string, ExpiryPrint>>((r) => setTimeout(() => r(new Map()), budgetMs));
+  return Promise.race([fetchExpiryPrints(rows, fetcher), timeout]);
+}

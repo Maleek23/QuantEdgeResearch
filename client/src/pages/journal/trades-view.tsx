@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CALL_ACCURACY_DEFINITION } from '@shared/call-accuracy';
 import { ArrowDown, ArrowUp, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useJournal } from '@/components/journal/journal-context';
-import { Card, N, OutcomeChip, Pnl, SideChip, UnverifiedChip, useJournalPortalClass } from '@/components/journal/parts';
+import { Card, N, OutcomeChip, Pnl, RowPnl, SideChip, UnverifiedChip, useJournalPortalClass } from '@/components/journal/parts';
 import { OptionsSim } from '@/components/journal/options-sim';
 import { fmtDuration, fmtPrice, type JTrade } from '@/lib/journal/metrics';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
@@ -151,13 +151,13 @@ export default function TradesView() {
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>
                   <td><SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
-                  <td className="num">{t.quantity}{t.row.sizedAs?.scaled && <span className="jr-tag-scaled" title={`1 unit risks more than $${t.row.sizedAs.riskDollars} to its stop — sized fractionally; P&L = 1-unit P&L × ${t.quantity}`}>scaled</span>}</td>
+                  <td className="num">{t.quantity}{t.row.sizedAs?.scaled && <span className="jr-tag-scaled" title={`1 unit risks more than $${t.row.sizedAs.riskDollars} to its stop — sized fractionally; P&L = 1-unit P&L × ${t.quantity}`}>scaled</span>}{t.row.sizedAs?.label && <span className="jr-tag-scaled" title={t.row.sizedAs.overBudget ? `One contract costs more than the $${t.row.sizedAs.riskDollars} budget — shown at 1 contract, never dropped (ledger audit 2026-10-15)` : `Entry premium below $0.10 — whole contracts capped at what a $0.10 entry buys at $${t.row.sizedAs.riskDollars}`}>{t.row.sizedAs.label}</span>}</td>
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
                   <td className="num">{t.status === 'open'
                     // Open rows: live mark (Mine/trader) or the stored ledger mark (bot), always with its age — unrealized, not 0.
                     ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
-                    : <Pnl value={t.netPnl} />}</td>
+                    : <RowPnl row={t.row} value={t.netPnl} />}</td>
                   <td><OutcomeChip status={t.status} /> <UnverifiedChip row={t.row} />{t.row.sizedAs?.capped && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title={`Recorded exit was worse than the stop; capped at −$${t.row.sizedAs.riskToStop} (assumes the stop filled). Uncapped: ${t.row.sizedAs.uncappedPnL}`}>capped at stop</div>}{t.row.afterStop && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Hindsight inside the idea's hold window — the trade is still a loss">{t.row.afterStop}</div>}{t.row.runner && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="Runner policy: half sold at T1, the rest trailed — the P&L is the blended exit">{t.row.runner}</div>}{t.row.peakLine && <div className="jr-dim" style={{ fontSize: 11, marginTop: 2 }} title="The contract's best price after entry — hindsight beside the exit, not the P&L">{t.row.peakLine}</div>}</td>
                   {showCapture && <td className="num jr-dim">{t.status !== 'open' && t.row.captureRatio != null ? `${Math.round(t.row.captureRatio * 100)}%` : '—'}</td>}
                   {showPeak && <td className="num jr-dim" title={t.row.peak?.underlying ? `underlying ${t.row.peak.underlying.px} at ${t.row.peak.underlying.at}${t.row.peak.premium ? ` · premium ${t.row.peak.premium.px} at ${t.row.peak.premium.at}` : ''}` : undefined}>
@@ -188,7 +188,7 @@ export default function TradesView() {
           {shown.map((t) => (
             <button key={t.id} type="button" className="jr-row-card" onClick={() => openTrade(t.id, order)}>
               <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} /></span>
-              <span className="r">{t.status === 'open' ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} compact /> : <Pnl value={t.netPnl} />}</span>
+              <span className="r">{t.status === 'open' ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} compact /> : <RowPnl row={t.row} value={t.netPnl} />}</span>
               <span className="meta">
                 <OutcomeChip status={t.status} />
                 <UnverifiedChip row={t.row} />

@@ -66,6 +66,8 @@ export interface JournalTradeRow {
     reasons: { code: string; detail: string }[];
     recordedPnL: number | null;
     recomputedPnL: number | null;
+    /** The one P&L-truth class (shared/journal-pnl-truth.ts TruthClass): bar_pending → "checking" in lists. */
+    truth?: string | null;
   };
   /** Bot options only: outcome has or lacks reconcilable fill/settlement evidence. */
   measurementStatus?: 'pending' | 'verified' | 'unverified' | 'not_applicable';

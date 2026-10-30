@@ -128,8 +128,11 @@ export function NexusDayStrip({ s, budget, onBudget, label, loading, timingMs }:
         {s.best && <span>best <b className={toneCls(s.best.pnl)}>{s.best.symbol} {usd(s.best.pnl)}</b></span>}
         {s.worst && s.worst.id !== s.best?.id && <span>worst <b className={toneCls(s.worst.pnl)}>{s.worst.symbol} {usd(s.worst.pnl)}</b></span>}
         {(loading ?? 0) > 0 && <span className="nxpl-loading">loading {loading} mark{loading === 1 ? '' : 's'}…</span>}
-        {s.unmarked - (loading ?? 0) > 0 && <span title="open with no contract quote — not in unrealized">{s.unmarked - (loading ?? 0)} unquoted</span>}
+        {s.unmarked - (loading ?? 0) > 0 && <span title="open with no contract quote and no last trade — left OUT of unrealized, never counted as $0">{s.unmarked - (loading ?? 0)} unquoted (excluded)</span>}
+        {s.checking > 0 && <span title="closed today, not yet bar-verified against the contract's bars (nightly verify 17:30 ET) — the recorded number is shown here, NOT added to realized">{s.checking} checking (recorded {usd(s.checkingRecordedPnl)}, not counted)</span>}
+        {s.neverTriggered > 0 && <span title="the lifecycle never reached triggered — not a trade, no P&L">{s.neverTriggered} never triggered</span>}
         {s.unpriced > 0 && <span title="no tradable contract at this budget, or no exit premium recorded">{s.unpriced} unpriced</span>}
+        <span className="nxpl-sizing" title={`Realized = triggered, bar-verified option trades on the published contract: whole contracts within $${budget} (1 contract when one costs more — labelled), qty × (exit − entry) × 100. Same rules as the Journal.`}>whole contracts ≤ ${budget}{s.overBudget ? ` · ${s.overBudget} at 1 contract (over budget)` : ''}{s.corrected ? ` · ${s.corrected} bar-corrected` : ''}</span>
         <BudgetToggle budget={budget} onBudget={onBudget} />
         <Link href="/t?tab=journal&jtab=trades" className="nxpl-journal" title="The bar-verified book lives in the Journal (NEXUS ideas)">Verified book → Journal</Link>
         {timingMs != null && <span className="nxpl-timing" title="marks round trip">marks {timingMs} ms</span>}

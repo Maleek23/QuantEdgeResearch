@@ -501,6 +501,26 @@ export interface AlpacaOptionBar { t: number; o: number; h: number; l: number; c
  * the most recent 15 minutes, so `end` is capped 16 minutes before now.
  * Returns [] when unconfigured, cooling down or the contract has no prints.
  */
+/**
+ * The contract's most recent 1-minute bars up to NOW (no 16-minute history cap) —
+ * the entry-premium gate prices SPX / SPXW from these at publish (ledger audit
+ * 2026-10-15 fix 7). Empty when Alpaca is not configured or nothing printed.
+ */
+export async function getAlpacaOptionBarsRecent(occ: string, lookbackMs: number, nowMs = Date.now()): Promise<AlpacaOptionBar[]> {
+  if (!isAlpacaOptionsConfigured()) return [];
+  const sym = occ.toUpperCase().replace(/^O:/, '');
+  if (!parseOcc(sym)) return [];
+  const qs = new URLSearchParams({ symbols: sym, timeframe: '1Min', start: new Date(nowMs - lookbackMs).toISOString(), end: new Date(nowMs).toISOString(), limit: '1000' });
+  const { json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/bars?${qs}`, () => true);
+  const out: AlpacaOptionBar[] = [];
+  for (const b of json?.bars?.[sym] ?? []) {
+    const t = Date.parse(b?.t);
+    const o = num(b?.o), h = num(b?.h), l = num(b?.l), c = num(b?.c);
+    if (Number.isFinite(t) && o != null && h != null && l != null && c != null) out.push({ t, o, h, l, c, v: num(b?.v) ?? 0 });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
 export async function getAlpacaOptionBars(
   occ: string, fromMs: number, toMs: number, timeframe: '1Min' | '5Min' | '15Min' | '1Hour' = '5Min',
 ): Promise<AlpacaOptionBar[]> {

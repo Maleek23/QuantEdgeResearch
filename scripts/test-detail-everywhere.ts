@@ -32,15 +32,18 @@ const SPY770P = {
 };
 
 console.log('0DTE / index classification');
-t('the SPY 770P index scalp is an index scalp, a 0DTE play, 1 DTE at publish', () => {
+t('the SPY 770P index scalp is an index scalp, 1 DTE at publish — so NOT a 0DTE row (ledger audit 2026-10-15 fix 7)', () => {
   assert.equal(isIndexScalp(SPY770P), true);
   assert.equal(zeroDteFamilyOf(SPY770P), 'index_scalp');
   assert.equal(dteAtPublish(SPY770P.expiryDate, SPY770P.timestamp), 1);
-  assert.equal(isZeroDteJournalRow({ ...SPY770P, entryTime: SPY770P.timestamp }), true);
+  assert.equal(isZeroDteJournalRow({ ...SPY770P, entryTime: SPY770P.timestamp }), false);
+  assert.equal(isZeroDteJournalRow({ ...SPY770P, expiryDate: '2026-10-14', entryTime: '2026-10-14T15:00:00Z' }), true, 'same contract on its expiry day');
 });
-t('every 0DTE engine counts; a 30-DTE swing does not; a 0-1 DTE option from any engine does', () => {
+t('0DTE = 0 days to expiry only: a 1-DTE / 2-DTE contract from a 0DTE engine is not 0DTE; engine family decides only without contract terms', () => {
   for (const s of ['zero_dte_flow', 'zero_dte_desk', 'zero_dte_sniper', 'open_drive', 'spx_fast_move', 'spx_session']) {
     assert.equal(isZeroDteJournalRow({ source: s }), true, s);
+    assert.equal(isZeroDteJournalRow({ source: s, assetType: 'option', expiryDate: '2026-10-15', entryTime: '2026-10-14T15:00:00Z' }), false, `${s} 1DTE`);
+    assert.equal(isZeroDteJournalRow({ source: s, assetType: 'option', expiryDate: '2026-10-16', entryTime: '2026-10-14T15:00:00Z' }), false, `${s} 2DTE`);
   }
   assert.equal(isZeroDteJournalRow({ source: 'quant', assetType: 'option', expiryDate: '2026-11-13', entryTime: '2026-10-14T15:00:00Z' }), false);
   assert.equal(isZeroDteJournalRow({ setupType: 'flow', assetType: 'option', expiryDate: '2026-10-14', entryTime: '2026-10-14T15:00:00Z' }), true);
@@ -89,7 +92,7 @@ t('resolved and expired ideas still build a detail (lifecycle closed, status chi
   assert.equal((won.pick as any).lifecycleState, 'closed');
   assert.equal(won.record.exitPremium, 2.9);
   assert.equal(won.thesisLabel, 'SPX thesis · traded on SPY 770P');
-  assert.equal(won.zeroDte, true);
+  assert.equal(won.zeroDte, false, '1 DTE at publish is not 0DTE (ledger audit fix 7); the family still says index scalp');
   assert.equal(won.family, 'index_scalp');
   const exp = buildIdeaDetail({ ...SPY770P, outcomeStatus: 'expired' }, null, null);
   assert.equal(exp.status.label, 'Expired');
@@ -105,19 +108,20 @@ t('j0dte round-trips through the URL and counts as one filter', () => {
   assert.equal(countJournalFilters(f), 1);
   assert.equal(parseJournalFilters(() => null).zeroDte, undefined);
 });
-t('the chip keeps flagged rows, 0-1 DTE options and 0DTE engines; drops swings', () => {
+t('the chip keeps flagged rows, 0 DTE options and 0DTE engines without contract terms; drops 1 DTE and swings', () => {
   const base = { symbol: 'X', direction: 'long', assetType: 'option', entryTime: '2026-10-14T15:00:00Z', status: 'closed' };
   assert.equal(matchesJournalFilters({ ...base, zeroDte: true }, { zeroDte: true }), true);
   assert.equal(matchesJournalFilters({ ...base, setupType: 'zero_dte_flow' }, { zeroDte: true }), true);
-  assert.equal(matchesJournalFilters({ ...base, setupType: 'quant', expiryDate: '2026-10-15' }, { zeroDte: true }), true);
+  assert.equal(matchesJournalFilters({ ...base, setupType: 'quant', expiryDate: '2026-10-14' }, { zeroDte: true }), true);
+  assert.equal(matchesJournalFilters({ ...base, setupType: 'quant', expiryDate: '2026-10-15' }, { zeroDte: true }), false, '1 DTE is not 0DTE (ledger audit fix 7)');
   assert.equal(matchesJournalFilters({ ...base, setupType: 'quant', expiryDate: '2026-11-20' }, { zeroDte: true }), false);
   assert.equal(matchesJournalFilters({ ...base, setupType: 'quant', expiryDate: '2026-11-20' }, {}), true);
 });
-t('the NEXUS ideas row of the SPY 770P is flagged 0DTE and labelled as the SPX thesis', () => {
+t('the NEXUS ideas row of the SPY 770P (1 DTE) is labelled as the SPX thesis but NOT flagged 0DTE (fix 7)', () => {
   const res = mapDeskIdea({ ...SPY770P, executionState: 'triggered', convergenceSignalsJson: null } as unknown as DeskIdea);
   assert.ok('row' in res, `excluded: ${(res as any).excluded}`);
   const row = (res as any).row;
-  assert.equal(row.zeroDte, true);
+  assert.equal(row.zeroDte, undefined);
   assert.equal(row.thesisLabel, 'SPX thesis · traded on SPY 770P');
   assert.equal(row.id, `desk:${SPY770P.id}`);
 });

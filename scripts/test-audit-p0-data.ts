@@ -120,7 +120,7 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
 
 // ── #14 Journal NEXUS book: untriggered ≠ open trade ─────────────────────────
 {
-  const { mapDeskIdea, AWAITING_ENTRY_REASON } = await import('../server/journal-row-maps');
+  const { mapDeskIdea, AWAITING_ENTRY_REASON, NEVER_TRIGGERED_REASON } = await import('../server/journal-row-maps');
   const idea: any = {
     id: 'd1', symbol: 'AAPL', assetType: 'stock', direction: 'long', entryPrice: 100, targetPrice: 110, stopLoss: 95,
     riskRewardRatio: 2, optionType: null, strikePrice: null, expiryDate: null, entryPremium: null, exitPremium: null,
@@ -134,7 +134,10 @@ ok(risk.event?.title === 'CPI' && risk.side === 'LONG', 'event-risk row keeps it
   const trig = mapDeskIdea({ ...idea, executionState: 'triggered' });
   ok('row' in trig && trig.row.status === 'open', 'triggered idea is an open trade');
   const closed = mapDeskIdea({ ...idea, executionState: 'pending_trigger', outcomeStatus: 'hit_target', exitPrice: 110, exitDate: '2026-09-30T16:00:00Z' });
-  ok('row' in closed && closed.row.status === 'closed', 'resolved ideas are unaffected');
+  // Ledger audit 2026-10-15 fix 6: a CLOSED idea still pending_trigger was never a trade either.
+  ok('excluded' in closed && closed.excluded === NEVER_TRIGGERED_REASON, 'resolved but never triggered → excluded, no P&L');
+  const closedTrig = mapDeskIdea({ ...idea, executionState: 'triggered', outcomeStatus: 'hit_target', exitPrice: 110, exitDate: '2026-09-30T16:00:00Z' });
+  ok('row' in closedTrig && closedTrig.row.status === 'closed', 'resolved triggered ideas are scored');
 }
 
 // ── #17/#18/#75 Fabricated numbers ───────────────────────────────────────────

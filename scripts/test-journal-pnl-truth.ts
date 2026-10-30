@@ -8,9 +8,12 @@ import fs from 'node:fs';
 import {
   CORRECTABLE_BUG_CLASSES, HEADLINE_CLASSES, RETRO_LEDGER_VERSION, classifyClosedRow, contractsForBudget, isCorrectable, pickRetroContract,
   readRetroLedger, retroExpiries, retroLine, retroMinDte, strikeGrid, summarizeTruth, wholeContractPnl, type RetroRecord,
+  rewritesOutcome, oversizeForReview, OVERSIZE_REVIEW_MULTIPLE,
 } from '../shared/journal-pnl-truth';
 import { bsDelta, bsPrice, impliedVol } from '../shared/iv-fill';
-import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
+import { mapDeskIdea, verifyDeskRows, deskVerificationMeta, NEVER_TRIGGERED_REASON, UNMEASURED_EXPIRY_REASON, type DeskIdea, type DeskLedger } from '../server/journal-row-maps';
+import { loadLedgerAuditFixture, toDeskIdea } from './lib/ledger-audit-cases';
+import { fetchDeskExpiryPrints } from '../server/journal-expiry-settle';
 import { ledgerEntryOf } from '../server/desk-verify-ledger';
 import { incrementalIds } from '../research/verify-nexus-book-sources';
 import { isOptionIntendedWrite, instrumentLabel, splitLegacySharesRows, SHARES_IDEA_LABEL, CONVERTED_SHARES_LABEL } from '../shared/options-only';
@@ -228,6 +231,131 @@ t('no shares anywhere: rows still stock leave the trade list for the excluded li
   assert.match(SHARES_IDEA_LABEL, /legacy, not in the options book/);
   const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
   assert.match(rd('server/journal-sources.ts'), /splitLegacySharesRows\(/, 'desk loader routes stock rows to the excluded list');
+});
+
+console.log('ledger audit 2026-10-15 — fix 3 (no outcome rewrite; oversize review)');
+t('SPX 7775P 10-05: a recorded STOP is never re-priced into a +$435 "corrected" win', () => {
+  // The prod ledger row as it stood (bugClass entry_premium_at_publish_not_trigger, recomputed +435).
+  const spx = { verdict: 'MISMATCH' as const, recordedPnL: -81, recomputedPnL: 435, recomputedEntry: 0.35, recomputedExit: 4.7, bugClass: 'entry_premium_at_publish_not_trigger', reason: 'x', optionSource: 'alpaca:SPXW261005P07775000:1Min', outcomeStatus: 'hit_stop' };
+  assert.equal(isCorrectable(spx), false);
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: spx }).cls, 'bar_mismatch');
+  // the same row re-priced by the fixed verifier: stop kept, small loss → correctable
+  assert.equal(isCorrectable({ ...spx, bugClass: 'entry_repriced', recomputedPnL: -3, recomputedExit: 0.32, recomputedOutcome: 'stop' }), true);
+});
+t('a different first barrier, a stop turned gain or a target turned loss is a rewrite', () => {
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'target', recomputedPnL: -10 }), true);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'none', recomputedPnL: -10 }), true, 'QQQ 746P style: nothing touched is not a stop');
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_target', recomputedOutcome: null, recomputedPnL: -5 }), true);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'hit_stop', recomputedOutcome: 'stop', recomputedPnL: -40 }), false);
+  assert.equal(rewritesOutcome({ outcomeStatus: 'expired', recomputedOutcome: 'none', recomputedPnL: 400 }), false, 'time/expiry exits carry no barrier to rewrite');
+  assert.ok(CORRECTABLE_BUG_CLASSES.has('entry_repriced') && CORRECTABLE_BUG_CLASSES.has('settlement_repriced'));
+  assert.ok(!CORRECTABLE_BUG_CLASSES.has('wrong_outcome_order') && !CORRECTABLE_BUG_CLASSES.has('barrier_order_disagrees'));
+});
+t('sized P&L > 2× budget is flagged for review and NOT counted (SPX 7775P +$6,090 at 14 contracts)', () => {
+  assert.equal(OVERSIZE_REVIEW_MULTIPLE, 2);
+  assert.equal(oversizeForReview(6090, 500), true);
+  assert.equal(oversizeForReview(1000, 500), false);
+  const row = {
+    id: 'desk:spx', status: 'closed', quantity: 1, entryPrice: 0.35, exitPrice: 4.7, entryTime: '2026-10-05T19:15:00Z', exitTime: '2026-10-05T19:55:00Z',
+    realizedPnL: 435, outcome: 'win', verification: { status: 'verified' as const, truth: 'corrected', reasons: [] },
+    riskBasis: { assetType: 'option' as const, direction: 'short' as const, entry: 6700, stop: 6710, unitQty: 1, entryPremium: 0.35, premiumStop: null, zeroDte: true },
+  };
+  const v = applyDeskView([row as unknown as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars: 500 } });
+  const r = v.rows[0];
+  assert.equal(r.quantity, 14);
+  assert.equal(r.realizedPnL, 6090);
+  assert.deepEqual([r.verification?.status, r.verification?.truth, r.sizedAs?.review], ['unverified', 'oversize_review', true]);
+  assert.deepEqual(v.review, { count: 1, pnl: 6090 });
+  assert.equal(summarizeTruth(v.rows as any).n, 0, 'not in the headline');
+});
+
+console.log('ledger audit 2026-10-15 — fix 6 (closed rows must have triggered)');
+t('the never-triggered class: every closed prod row still pending_trigger / invalidated is excluded, never scored (IONQ "hit_target" while pending)', () => {
+  const fx = loadLedgerAuditFixture();
+  assert.ok(fx.neverTriggered.length >= 5);
+  for (const f of fx.neverTriggered) {
+    const m = mapDeskIdea(toDeskIdea(f));
+    assert.ok('excluded' in m && m.excluded === NEVER_TRIGGERED_REASON, `${f.symbol} ${f.outcome_status} (${f.execution_state}) must be excluded`);
+  }
+  const base = toDeskIdea(fx.cases.crdo_180p.idea);
+  assert.ok('row' in mapDeskIdea(base), 'a triggered stop is scored');
+  for (const st of ['invalidated', 'pending_trigger']) {
+    const m = mapDeskIdea({ ...base, executionState: st });
+    assert.ok('excluded' in m && m.excluded === NEVER_TRIGGERED_REASON, st);
+  }
+  assert.ok('row' in mapDeskIdea({ ...base, executionState: null }), 'legacy row without an audit state: the bar verifier decides (never_triggered → bar_mismatch)');
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: { verdict: 'MISMATCH', recordedPnL: -50, recomputedPnL: 0, bugClass: 'never_triggered', reason: 'x' } }).counted, false);
+});
+
+console.log('ledger audit 2026-10-15 — fix 4 (expired without exit → intrinsic at the 16:00 ET close, computed view)');
+await (async () => {
+  const fx = loadLedgerAuditFixture();
+  // SPY 780P 10-07 as an expired row with no measured exit (the 392-row class).
+  const base = { ...toDeskIdea(fx.cases.spy_780p.idea), exitPremium: null, optionPercentGain: null, exitDate: null, outcomeStatus: 'expired', resolutionReason: 'auto_expired' };
+  t('no print → still excluded (labelled), never a made-up 0', () => {
+    const m = mapDeskIdea(base);
+    assert.ok('excluded' in m && m.excluded === UNMEASURED_EXPIRY_REASON);
+  });
+  t('ITM put settles at strike − close; exit time = 16:00 ET of expiry in UTC; notes say computed view', () => {
+    const ctx = { expiryPrint: (sym: string, day: string) => (sym === 'SPY' && day === '2026-10-07' ? { open: 778, close: 776.5, source: 'yahoo' } : null), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    const m = mapDeskIdea(base, ctx);
+    assert.ok('row' in m);
+    assert.equal(m.row.exitPrice, 3.5);
+    assert.equal(m.row.exitTime, '2026-10-07T20:00:00.000Z');
+    assert.equal(m.row.realizedPnL, Math.round((3.5 - Number(base.entryPremium)) * 100 * 100) / 100);
+    assert.match(m.row.notes ?? '', /expiry settled at intrinsic \$3\.50 — SPY close 776\.5 on 2026-10-07 \(16:00 ET; yahoo\) — computed view, nothing written/);
+  });
+  t('OTM expires worthless (−premium); SPX settles on ^GSPC (PM, SPXW)', () => {
+    const ctx = { expiryPrint: (sym: string) => (sym === 'SPY' ? { open: 790, close: 790 } : sym === '^GSPC' ? { open: 7790, close: 7790 } : null), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    const m = mapDeskIdea(base, ctx);
+    assert.ok('row' in m && m.row.exitPrice === 0 && m.row.realizedPnL === -Math.round(Number(base.entryPremium) * 100));
+    const spx = { ...toDeskIdea(fx.cases.spx_7775p_1005.idea), exitPremium: null, optionPercentGain: null, exitDate: null, outcomeStatus: 'expired' };
+    const s2 = mapDeskIdea(spx, ctx);
+    assert.ok('row' in s2 && s2.row.exitPrice === 0, 'SPX 7775P vs ^GSPC 7790 close → worthless');
+  });
+  t('a time exit BEFORE expiry is not settled at expiry; an unexpired contract is not settled; never-triggered stays out', () => {
+    const ctx = { expiryPrint: () => ({ open: 770, close: 770 }), nowMs: Date.parse('2026-10-15T15:00:00Z') };
+    assert.ok('excluded' in mapDeskIdea({ ...base, exitDate: '2026-10-06T19:00:00Z' }, ctx), 'horizon exit a day before expiry');
+    assert.ok('excluded' in mapDeskIdea({ ...base, expiryDate: '2026-11-20' }, ctx), 'not yet expired');
+    const nt = mapDeskIdea({ ...base, executionState: 'invalidated' }, ctx);
+    assert.ok('excluded' in nt && nt.excluded === NEVER_TRIGGERED_REASON, 'fix 6 wins over fix 4');
+  });
+  const prints = await fetchDeskExpiryPrints([
+    { symbol: 'SPX', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-05' },
+    { symbol: 'SPY', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+    { symbol: 'SPY', assetType: 'option', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+    { symbol: 'AAPL', assetType: 'stock', outcomeStatus: 'expired', expiryDate: '2026-10-07' },
+  ], async (sym, _kind, days) => new Map(days.map((d) => [d, { open: 1, close: sym === '^GSPC' ? 7700 : 700, source: 'stub' }])));
+  t('the loader fetches one print per (settlement symbol, day); SPX → ^GSPC; stock rows ignored', () => {
+    assert.deepEqual([...prints.keys()].sort(), ['SPY|2026-10-07', '^GSPC|2026-10-05']);
+  });
+})();
+
+console.log('ledger audit 2026-10-15 — fix 10 (not-yet-bar-checked rows show "checking", never a P&L)');
+t('Journal list + mini list render RowPnl ("checking" for bar_pending); the recorded number only in the hover', () => {
+  const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  assert.match(rd('client/src/lib/journal/metrics.ts'), /row\.status === 'closed' && row\.verification\?\.truth === 'bar_pending'/);
+  const tv = rd('client/src/pages/journal/trades-view.tsx');
+  assert.equal((tv.match(/<RowPnl row=\{t\.row\} value=\{t\.netPnl\} \/>/g) ?? []).length, 2, 'table + card rows');
+  assert.doesNotMatch(tv, /: <Pnl value=\{t\.netPnl\} \/>/);
+  assert.match(rd('client/src/components/journal/trade-mini-list.tsx'), /<RowPnl row=\{t\.row\} value=\{t\.netPnl\} \/>/);
+  // the class itself is outside the headline
+  assert.equal(classifyClosedRow({ instrument: 'option', duplicateOf: null, integrityFail: false, ledger: null }).cls, 'bar_pending');
+});
+
+console.log('ledger audit 2026-10-15 — fix 8 (retro conversion produced 0 rows)');
+t('root cause fixed: selection reads the last print up to the trigger from the previous session(s); the fill is the first real print after it', () => {
+  const rd = (f: string) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const src = rd('scripts/retro-options-convert.ts');
+  assert.match(src, /const winFrom = Math\.min\(trigMs - 30 \* 60_000, sessionOpenMs\(trigMs\), trigMs - 4 \* 86_400_000\);/);
+  assert.match(src, /const after = chain\.bars\.find\(\(b\) => b\.t >= trigMs - 60_000 && b\.t < exitMs\);/, 'fill = first print after the trigger (any delay, labelled)');
+  assert.match(src, /upto = bars\.filter\(\(b\) => b\.t <= trigMs\)/, 'still nothing after the trigger for the pick');
+});
+t('a sub-$0.10 candidate is never the rule pick (ADSK 270C ×100 @ $0.05 was)', () => {
+  const bs = { price: (S: number, K: number, T: number, v: number, c: boolean) => bsPrice(S, K, T, v, c), delta: (S: number, K: number, T: number, v: number, c: boolean) => bsDelta(S, K, T, v, c), iv: (p: number, S: number, K: number, T: number, c: boolean) => impliedVol(p, S, K, T, c) };
+  const r = pickRetroContract({ direction: 'long', spot: 250, t1: 262, budget: 500, candidates: [{ type: 'call', strike: 270, expiry: '2026-09-04', dte: 4, price: 0.05, volume: 20, occ: 'ADSK260904C00270000' }] }, bs);
+  assert.equal(r.ok, false);
+  assert.match((r as any).reason, /1 subDime/);
 });
 
 console.log(`\n${n} journal-pnl-truth checks passed`);

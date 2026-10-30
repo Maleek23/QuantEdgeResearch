@@ -61,6 +61,12 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 const iso = (ms: number | null) => (ms == null ? null : new Date(ms).toISOString());
 const etFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
 const etDay = (ms: number) => etFmt.format(new Date(ms));
+/** 09:30 ET of the instant's New York day (DST-safe). */
+function sessionOpenMs(ms: number): number {
+  const day = etDay(ms);
+  for (const off of [4, 5]) { const t = Date.parse(`${day}T09:30:00Z`) + off * 3600_000; if (etDay(t) === day && new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' }) === '09:30') return t; }
+  return Date.parse(`${day}T13:30:00Z`);
+}
 
 // ── cached HTTP ──────────────────────────────────────────────
 fs.mkdirSync(CACHE, { recursive: true });
@@ -133,7 +139,7 @@ async function alpacaMulti(occs: string[], fromMs: number, toMs: number): Promis
   const j = await cachedJson(`aom_${occs[0]}_${occs.length}_${fromMs}_${end}`, `https://data.alpaca.markets/v1beta1/options/bars?${qs}`,
     { 'APCA-API-KEY-ID': ALPACA.id, 'APCA-API-SECRET-KEY': ALPACA.secret });
   for (const occ of occs) {
-    const bars = ((j?.bars?.[occ] ?? []) as any[]).map((b) => ({ t: Date.parse(b.t), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0 })).filter((b) => fin(b.t) && b.c > 0);
+    const bars = ((j?.bars?.[occ] ?? []) as any[]).map((b) => ({ t: Date.parse(b.t), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0, ...(fin(b.vw) ? { vw: b.vw } : {}) })).filter((b) => fin(b.t) && b.c > 0);
     if (bars.length) out.set(occ, bars.sort((a, b) => a.t - b.t));
   }
   return out;
@@ -217,7 +223,15 @@ async function convert(i: Idea): Promise<RetroRecord> {
   const holdDays = i.exitBy ? Math.max(0, (Date.parse(i.exitBy) - pubMs) / 86_400_000) : null;
   const trigDay = etDay(trigMs);
   const expiries = retroExpiries(trigDay, retroMinDte(i.holdingPeriod, holdDays));
-  const winFrom = trigMs - 30 * 60_000;
+  // Fix 8 (ledger audit 2026-10-15): the converter produced 0 rows. Root cause — single-name
+  // options print rarely, and the rule required a candidate print in the 30 minutes before
+  // the trigger: "no candidate contract had bars" for nearly every triggered idea (e.g. WAT
+  // 11-20 calls printed 1–2 times a DAY). Selection now uses each candidate's LAST print in
+  // the trigger's session (from 09:30 ET, at or before the trigger — still nothing after it);
+  // the FILL stays the first real print at/after the trigger, labelled with its delay.
+  // Off-hours triggers (most legacy shares ideas triggered after the close / pre-market, when
+  // options do not trade) select from the PREVIOUS session's prints; the fill is the next open's.
+  const winFrom = Math.min(trigMs - 30 * 60_000, sessionOpenMs(trigMs), trigMs - 4 * 86_400_000);
   const candidates: RetroCandidate[] = [];
   for (const exp of expiries) {
     const dte = Math.round((Date.parse(`${exp}T20:00:00Z`) - trigMs) / 86_400_000);
@@ -246,17 +260,21 @@ async function convert(i: Idea): Promise<RetroRecord> {
   const expiryEndMs = Date.parse(`${p.expiry}T20:00:00Z`);
   if (exitMs > expiryEndMs) return done('unverifiable', `idea exited ${iso(exitMs)} after the picked contract expired ${p.expiry}`, { contract, triggerAt: iso(trigMs) });
   const chain = await optionBarChain(p.occ, trigMs - 30 * 60_000, exitMs + 30 * 60_000, deps);
-  const after = chain.bars.find((b) => b.t >= trigMs - 60_000 && b.t - trigMs <= 15 * 60_000);
-  const before = [...chain.bars].reverse().find((b) => b.t <= exitMs && exitMs - b.t <= 30 * 60_000);
-  if (!after) return done('unverifiable', `no ${label} bar within 15m after the trigger (${chain.source})`, { contract, triggerAt: iso(trigMs) });
-  if (!before) return done('unverifiable', `no ${label} bar within 30m before the exit (${chain.source})`, { contract, triggerAt: iso(trigMs), entryPremium: r2(after.o) });
-  const entry = r2(after.o), exit = r2(before.c);
+  // Fill = the first real print at/after the trigger (before the exit); exit = the print nearest
+  // the recorded exit within ±30 min (last before it preferred).
+  const after = chain.bars.find((b) => b.t >= trigMs - 60_000 && b.t < exitMs);
+  const before = [...chain.bars].reverse().find((b) => b.t <= exitMs && exitMs - b.t <= 30 * 60_000)
+    ?? chain.bars.find((b) => b.t > exitMs && b.t - exitMs <= 30 * 60_000);
+  if (!after) return done('unverifiable', `no ${label} print between the trigger and the exit (${chain.source})`, { contract, triggerAt: iso(trigMs) });
+  if (!before || before.t < after.t) return done('unverifiable', `no ${label} print within 30m of the exit (${chain.source})`, { contract, triggerAt: iso(trigMs), entryPremium: r2(after.o) });
+  const entry = r2(after.vw ?? after.o), exit = r2(before.c);
+  const fillDelayMin = Math.round(Math.max(0, after.t - trigMs) / 60_000);
   if (!(entry > 0)) return done('unverifiable', 'entry bar priced at 0', { contract });
   const peak = r2(Math.max(...chain.bars.filter((b) => b.t >= after.t && b.t <= before.t).map((b) => b.h)));
   const sized = wholeContractPnl(entry, exit, BUDGET);
   const qty = sized?.qty ?? 0;
   if (!sized) return done('unverifiable', `fill $${entry} makes one contract over the $${BUDGET} budget`, { contract, triggerAt: iso(trigMs), entryPremium: entry, exitPremium: exit });
-  return done('verified', `rule pick of ${p.considered} ${type}s (Δ${p.delta}, IV ${Math.round(p.iv * 100)}%, ${p.dte} DTE); entry ${iso(after.t)} open, exit ${iso(before.t)} close`, {
+  return done('verified', `rule pick of ${p.considered} ${type}s (Δ${p.delta}, IV ${Math.round(p.iv * 100)}%, ${p.dte} DTE); entry = first print ${iso(after.t)}${fillDelayMin > 0 ? ` (${fillDelayMin}m after the trigger)` : ''}, exit ${iso(before.t)} close`, {
     contract: { ...contract, qty, debit: sized.debit }, triggerAt: iso(after.t), exitAt: iso(before.t), entryPremium: entry, exitPremium: exit, peakPremium: peak,
     unitPnL: r2((exit - entry) * 100), budgetPnL: sized.pnl, sources: { entry: chain.source, exit: chain.source },
   });

@@ -371,7 +371,9 @@ function resolvedIdeaPnl(r: ResolvedIdea, budget: number, now: number) {
   return pickPnl(
     { ideaId: r.ideaId, symbol: r.symbol, assetType: r.assetType, optionType: r.optionType, strikePrice: r.strikePrice, expiryDate: r.expiryDate, entryPremium: r.entryPremium, budgetContract: r.budgetContract ?? null },
     budget, null,
-    { outcomeStatus: r.outcomeStatus, resolutionReason: r.resolutionReason, exitPremium: r.exitPremium, exitDate: r.exitDate, optionPercentGain: r.optionPercentGain, peak: r.peak ?? null },
+    { outcomeStatus: r.outcomeStatus, resolutionReason: r.resolutionReason, exitPremium: r.exitPremium, exitDate: r.exitDate, optionPercentGain: r.optionPercentGain, peak: r.peak ?? null,
+      // Ledger audit 2026-10-15: realized counts only bar-verified / bar-corrected, triggered rows.
+      verification: r.verification ?? null, triggered: r.triggered ?? null },
     now,
   );
 }

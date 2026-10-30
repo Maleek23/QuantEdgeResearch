@@ -82,18 +82,30 @@ const idea = (over: Partial<DeskIdea>): DeskIdea => ({
 });
 const rowOf = (i: DeskIdea) => { const m = mapDeskIdea(i); assert.ok('row' in m, 'scored'); return m.row; };
 
-t('−$1,617 one-contract loss on a $25 contract: over a $500/$1,000 budget → not fractionalized, counted out', () => {
+t('−$1,617 one-contract loss on a $25 contract: over a $500/$1,000 budget → never fractionalized, never dropped: 1 contract (over budget)', () => {
   const row = rowOf(idea({}));
   assert.equal(row.realizedPnL, -1617);
   assert.ok(row.riskBasis && row.riskBasis.entryPremium === 25 && row.riskBasis.unitQty === 1);
   for (const riskDollars of [500, 1000]) {
     const v = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars } });
-    assert.equal(v.rows.length, 0);
-    assert.equal(v.skipped[0].reason, OVER_BUDGET_REASON);
+    // Ledger audit 2026-10-15 fix 5: the $500 view silently dropped 92 of 314 rows this way.
+    assert.equal(v.rows.length, 1);
+    assert.equal(v.skipped.length, 0);
+    assert.equal(v.overBudget, 1);
+    assert.deepEqual([v.rows[0].quantity, v.rows[0].realizedPnL, v.rows[0].sizedAs?.label], [1, -1617, '1 contract (over budget)']);
   }
+  assert.ok(OVER_BUDGET_REASON.length > 0);
   // Unit view keeps the recorded number untouched
   const u = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'unit', riskDollars: 0 } }).rows[0];
   assert.equal(u.realizedPnL, -1617);
+});
+t('entry below $0.10 is flagged and capped at what a $0.10 entry buys (50 at $500)', () => {
+  const row = rowOf(idea({ id: 'dime', entryPremium: 0.03, exitPremium: 0.30 }));
+  const v = applyDeskView([row as DeskViewRow], { view: 'recorded', sizing: { mode: 'risk', riskDollars: 500 } });
+  assert.equal(v.subDime, 1);
+  assert.equal(v.rows[0].quantity, 50, 'not 166 contracts');
+  assert.equal(v.rows[0].realizedPnL, 1350);
+  assert.match(String(v.rows[0].sizedAs?.label), /entry < \$0\.10/);
 });
 t('affordable contract: whole contracts; the verified exit is the fill (never capped, pnl-truth-v1)', () => {
   const row = rowOf(idea({ id: 'c', entryPremium: 4, exitPremium: 1 })); // unit −$300
@@ -119,11 +131,13 @@ t('no closed risk-sized trade loses more than its budget (property)', () => {
   }
   for (const budget of [500, 750, 1000]) {
     const v = applyDeskView(rows, { view: 'recorded', sizing: { mode: 'risk', riskDollars: budget } });
-    // Over-budget option rows are counted out (never fractionalized); everything else is sized.
-    const over = v.skipped.find((x) => x.reason === OVER_BUDGET_REASON)?.count ?? 0;
-    assert.equal(v.rows.length + over, rows.length);
+    // Fix 5: nothing is dropped — over-budget options stay at 1 contract (labelled), never fractionalized.
+    assert.equal(v.rows.length, rows.length);
     for (const r of v.rows) assert.ok(r.quantity === Math.floor(r.quantity) || r.riskBasis?.assetType !== 'option', `fractional contracts ${r.id}`);
-    for (const r of v.rows) assert.ok((r.realizedPnL ?? 0) >= -budget - 0.01, `${r.id} ${r.realizedPnL} at ${budget}`);
+    for (const r of v.rows) {
+      const floor = r.sizedAs?.overBudget ? -(r.riskBasis!.entryPremium! * 100) : -budget;
+      assert.ok((r.realizedPnL ?? 0) >= floor - 0.01, `${r.id} ${r.realizedPnL} at ${budget}`);
+    }
   }
 });
 t('risk sizing keeps the sign of every recorded result', () => {

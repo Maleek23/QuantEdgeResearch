@@ -21,6 +21,7 @@
  */
 import type { CallResult } from './call-accuracy';
 import { journalDayKey } from './journal-filters';
+import { oversizeForReview, OVERSIZE_REVIEW_MULTIPLE } from './journal-pnl-truth';
 import { DEFAULT_SIZING, MAX_RISK_DOLLARS, MIN_RISK_DOLLARS, riskSizedPnl, scaleUnitPnl, sizeForRisk, type RiskBasis, type SizingChoice } from './position-sizing';
 
 export type DeskView = 'recorded' | 'managed';
@@ -81,6 +82,8 @@ export interface DeskViewRow {
   /** Set by this transform: how the row is sized / which view priced it. */
   sizedAs?: DeskSizedAs | null;
   viewedAs?: DeskView;
+  /** P&L-truth label (server/journal-row-maps.ts DeskVerification); the oversize review rewrites it. */
+  verification?: { status: 'verified' | 'checked' | 'unverified'; truth?: string | null; reasons: { code: any; detail: string }[] } | null;
 }
 
 export interface DeskSizedAs {
@@ -96,6 +99,23 @@ export interface DeskSizedAs {
   capped: boolean;
   /** The risk-sized P&L before the cap (equals realizedPnL when not capped). */
   uncappedPnL: number | null;
+  /** Ledger audit 2026-10-15 fix 3: sized P&L > 2× budget — flagged for review, not counted. */
+  review?: boolean;
+  /** Fix 5: one contract costs more than the budget — shown at 1 contract, labelled, never dropped. */
+  overBudget?: boolean;
+  /** Fix 5: entry premium below $0.10 — size capped at what a $0.10 entry buys, flagged. */
+  subDime?: boolean;
+  /** Short label for the size cell ("1 contract (over budget)"). */
+  label?: string | null;
+}
+
+/** Fix 5 (ledger audit 2026-10-15): the label an over-budget option row carries at a budget. */
+export const OVER_BUDGET_LABEL = '1 contract (over budget)';
+/** Fix 5: entries below this premium are flagged and their whole-contract size capped. */
+export const SUB_DIME_PREMIUM = 0.10;
+/** Max contracts for a sub-$0.10 entry: what a $0.10 entry buys at the budget (50 at $500). */
+export function subDimeMaxQty(budget: number): number {
+  return Math.max(1, Math.floor(budget / (SUB_DIME_PREMIUM * 100) + 1e-9));
 }
 
 export interface DeskViewResult<T> {
@@ -105,6 +125,12 @@ export interface DeskViewResult<T> {
   /** Risk sizing: rows sized fractionally, and closed losses capped at the stop (with the $ the cap removed). */
   scaled: number;
   capped: { count: number; uncappedPnL: number; cappedPnL: number };
+  /** Closed rows whose sized P&L exceeds 2× the budget: flagged for review and left out of the headline. */
+  review: { count: number; pnl: number };
+  /** Fix 5: option rows whose single contract is over the budget — kept at 1 contract, labelled. */
+  overBudget: number;
+  /** Fix 5: option rows with an entry premium below $0.10 — size capped, flagged. */
+  subDime: number;
   view: DeskView;
   sizing: SizingChoice;
 }
@@ -128,6 +154,8 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
   const out: T[] = [];
   let scaled = 0;
   const capped = { count: 0, uncappedPnL: 0, cappedPnL: 0 };
+  const review = { count: 0, pnl: 0 };
+  let overBudget = 0, subDime = 0;
   for (const row0 of rows) {
     let row: T = row0;
     // ── view ──
@@ -164,8 +192,25 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
     if (opts.sizing.mode === 'risk') {
       const b = row.riskBasis;
       if (!b) { skip('no plan levels to size from'); continue; }
-      const sz = sizeForRisk(b, opts.sizing.riskDollars);
+      let sz = sizeForRisk(b, opts.sizing.riskDollars);
+      // Fix 5 (ledger audit 2026-10-15): an option whose ONE contract costs more than the budget
+      // was silently dropped from the $500 view (92 of 314 rows, +$6,322 at 1 lot). It stays, at
+      // 1 contract, labelled "1 contract (over budget)" — the headline keeps its true n.
+      let flagOver = false, flagSubDime = false;
+      if (!sz.ok && sz.overBudget && b.assetType === 'option' && (b.entryPremium ?? 0) > 0) {
+        flagOver = true;
+        const perContract = sz.riskPerUnit ?? 0;
+        sz = { ok: true, qty: 1, riskPerUnit: perContract, riskDollars: perContract, notional: (b.entryPremium ?? 0) * 100, premiumStop: null, premiumStopBasis: null, scaled: false };
+      }
       if (!sz.ok) { skip(sz.reason); continue; }
+      // Fix 5: a sub-$0.10 entry buys hundreds of contracts at $500 — cap at what $0.10 buys, flag it.
+      if (b.assetType === 'option' && (b.entryPremium ?? 0) > 0 && (b.entryPremium ?? 0) < SUB_DIME_PREMIUM) {
+        flagSubDime = true;
+        const cap = subDimeMaxQty(opts.sizing.riskDollars);
+        if (sz.qty > cap) sz = { ...sz, qty: cap, riskDollars: (sz.riskDollars / sz.qty) * cap, notional: (sz.notional / sz.qty) * cap };
+      }
+      if (flagOver) overBudget++;
+      if (flagSubDime) subDime++;
       // P&L truth (shared/journal-pnl-truth.ts): whole contracts at the budget, and a
       // bar-verified option exit is the fill — never capped at a premium stop it did not fill at.
       const rs = b.assetType === 'option'
@@ -185,9 +230,22 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
         sizedAs: {
           mode: 'risk', riskDollars: opts.sizing.riskDollars, qty: sz.qty, riskToStop: r2(sz.riskDollars), notional: r2(sz.notional),
           premiumStopBasis: sz.premiumStopBasis, scaled: sz.scaled, capped: rs.capped, uncappedPnL: rs.uncapped,
+          ...(flagOver ? { overBudget: true, label: OVER_BUDGET_LABEL } : {}),
+          ...(flagSubDime ? { subDime: true, label: `entry < $${SUB_DIME_PREMIUM.toFixed(2)} — capped at ${sz.qty}` } : {}),
         },
         ...(row.peak && row.peak.unitPnl != null ? { peak: { ...row.peak, unitPnl: scaleUnitPnl(row.peak.unitPnl, b.unitQty, sz) } } : {}),
       };
+      // Fix 3 (ledger audit 2026-10-15): a sized P&L above 2× the budget is flagged for
+      // review and never counted — it is listed outside the headline with its reason.
+      if (row.status === 'closed' && oversizeForReview(pnl, opts.sizing.riskDollars) && row.verification?.status !== 'unverified') {
+        review.count++; review.pnl = r2(review.pnl + (pnl ?? 0));
+        const detail = `sized P&L ${pnl! < 0 ? '−' : '+'}$${Math.abs(pnl!).toLocaleString('en-US', { maximumFractionDigits: 0 })} on ${sz.qty} contract${sz.qty === 1 ? '' : 's'} is above ${OVERSIZE_REVIEW_MULTIPLE}× the $${opts.sizing.riskDollars} budget — flagged for review, not counted`;
+        row = {
+          ...row,
+          sizedAs: { ...row.sizedAs!, review: true },
+          verification: { ...(row.verification ?? { reasons: [] }), status: 'unverified', truth: 'oversize_review', reasons: [{ code: 'oversize_review', detail }, ...(row.verification?.reasons ?? [])] },
+        } as T;
+      }
     }
     out.push(row);
   }
@@ -196,6 +254,9 @@ export function applyDeskView<T extends DeskViewRow>(rows: readonly T[], opts: {
     skipped: [...skipped.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
     scaled,
     capped,
+    review,
+    overBudget,
+    subDime,
     view: opts.view,
     sizing: opts.sizing,
   };

@@ -1,0 +1,1206 @@
+{
+ "generatedAt": "2026-10-30T07:16:01.512Z",
+ "readOnly": "one READ ONLY transaction (rolled back); market data from the fixed verifier output; nothing written to the database or prod ledger files",
+ "inputs": {
+  "ledger": "/tmp/journal-truth/reverify3.json",
+  "ledgerGeneratedAt": "2026-10-30T07:15:56.650Z",
+  "retro": "/tmp/journal-truth/retro-prod-copy.json",
+  "since": "2026-08-26",
+  "ideas": 2623
+ },
+ "verifier": {
+  "optionTrades": 1449,
+  "verdicts": {
+   "VERIFIED": 570,
+   "MISMATCH:fill_off_strike_scale": 17,
+   "MISMATCH:wrong_outcome_order": 189,
+   "UNVERIFIABLE": 284,
+   "MISMATCH:entry_repriced": 265,
+   "MISMATCH:exit_premium_not_traded": 37,
+   "MISMATCH:exit_time_misstamped": 21,
+   "MISMATCH:never_triggered": 6,
+   "MISMATCH:barrier_order_disagrees": 51,
+   "MISMATCH:premium_scale_ladder": 1,
+   "MISMATCH:settlement_repriced": 8
+  },
+  "summaryCounts": {
+   "verified": 940,
+   "mismatch": 684,
+   "unverifiable": 317,
+   "duplicates": 87
+  },
+  "mismatchByBugClass": {
+   "wrong_outcome_order": {
+    "n": 189,
+    "recorded": -13269,
+    "recomputed": -1393.5,
+    "label": "the recorded outcome is not the first barrier touched from the trigger (governing path: premium plan for premium-stop engines, else the underlying)"
+   },
+   "fill_off_strike_scale": {
+    "n": 17,
+    "recorded": -5401,
+    "recomputed": 2408,
+    "label": "recorded underlying exit is not on the strike's scale — any intrinsic floor applied to it is fabricated"
+   },
+   "entry_repriced": {
+    "n": 265,
+    "recorded": 5219.5,
+    "recomputed": 8795,
+    "label": "recorded entry premium was never inside the contract's traded range at publish / trigger — re-priced from the first real print at/after the trigger (\"entry-repriced\")"
+   },
+   "barrier_order_disagrees": {
+    "n": 51,
+    "recorded": -2490.5,
+    "recomputed": -3194,
+    "label": "the recorded outcome matches the governing path, but the other path (underlying vs premium plan) touched the opposite barrier first — needs review, never silently accepted"
+   },
+   "exit_time_misstamped": {
+    "n": 21,
+    "recorded": 1815,
+    "recomputed": 124,
+    "label": "the recorded barrier is the first one touched from the trigger, but later than the exit stamp — exit re-priced at the real touch"
+   },
+   "exit_premium_not_traded": {
+    "n": 37,
+    "recorded": -1477.5,
+    "recomputed": -3606.5,
+    "label": "the recorded exit premium is outside every print of the contract around the exit — not a price the contract traded at"
+   },
+   "never_triggered": {
+    "n": 46,
+    "recorded": -1280.19,
+    "recomputed": 0,
+    "label": "price never traded at the published entry between publication and the recorded exit — an open/untriggered idea was closed with P&L"
+   },
+   "exit_price_not_traded": {
+    "n": 38,
+    "recorded": -1063.92,
+    "recomputed": -823.54,
+    "label": "the recorded underlying exit did not trade at the recorded exit time (stale or wrong-instrument price)"
+   },
+   "barrier_never_touched": {
+    "n": 11,
+    "recorded": -326.06,
+    "recomputed": -146.17,
+    "label": "the recorded target/stop was never touched by the bars between trigger and exit"
+   },
+   "premium_scale_ladder": {
+    "n": 1,
+    "recorded": 252,
+    "recomputed": 0,
+    "label": "option ladder (entry/target/stop) is premium, not underlying (entry < 0.3× strike) — barriers were resolved against spot, so the outcome is an artifact"
+   },
+   "settlement_repriced": {
+    "n": 8,
+    "recorded": 149,
+    "recomputed": -172,
+    "label": "entry traded, but the recorded expiry exit is not settlement intrinsic (16:00 ET close) — exit re-priced at intrinsic"
+   }
+  }
+ },
+ "book": {
+  "scoredRows": 1999,
+  "closedRows": 1582,
+  "headline": {
+   "unit": {
+    "n": 838,
+    "pnl": 24123,
+    "wins": 325,
+    "losses": 497
+   },
+   "budget500": {
+    "n": 816,
+    "pnl": -15000,
+    "wins": 308,
+    "losses": 492
+   }
+  },
+  "truthUnit": {
+   "version": "pnl-truth-v1",
+   "n": 838,
+   "pnl": 24123,
+   "byClass": {
+    "corrected": {
+     "n": 308,
+     "pnl": -303
+    },
+    "verified": {
+     "n": 530,
+     "pnl": 24426
+    },
+    "bar_mismatch": {
+     "n": 264,
+     "pnl": -23840
+    },
+    "duplicate": {
+     "n": 87,
+     "pnl": 14728.5
+    },
+    "crypto_excluded": {
+     "n": 133,
+     "pnl": -584.06
+    },
+    "bar_unverifiable": {
+     "n": 260,
+     "pnl": 8695.5
+    }
+   },
+   "outside": {
+    "n": 744,
+    "pnl": -1000.06
+   }
+  },
+  "truth500": {
+   "version": "pnl-truth-v1",
+   "n": 816,
+   "pnl": -15000,
+   "byClass": {
+    "corrected": {
+     "n": 300,
+     "pnl": 1161
+    },
+    "verified": {
+     "n": 516,
+     "pnl": -16161
+    },
+    "oversize_review": {
+     "n": 22,
+     "pnl": 31298
+    },
+    "bar_mismatch": {
+     "n": 264,
+     "pnl": -35561.5
+    },
+    "duplicate": {
+     "n": 87,
+     "pnl": 14231.5
+    },
+    "crypto_excluded": {
+     "n": 133,
+     "pnl": -5523.5
+    },
+    "bar_unverifiable": {
+     "n": 260,
+     "pnl": 10924
+    }
+   },
+   "outside": {
+    "n": 766,
+    "pnl": 15368.5
+   }
+  },
+  "b500View": {
+   "overBudget": 549,
+   "subDime": 5,
+   "review": {
+    "count": 22,
+    "pnl": 31298
+   },
+   "skipped": []
+  },
+  "byCategory": {
+   "unit": {
+    "corrected": {
+     "n": 308,
+     "pnl": -303
+    },
+    "verified": {
+     "n": 530,
+     "pnl": 24426
+    },
+    "bar_mismatch": {
+     "n": 264,
+     "pnl": -23840
+    },
+    "duplicate": {
+     "n": 87,
+     "pnl": 14728.5
+    },
+    "crypto_excluded": {
+     "n": 133,
+     "pnl": -584.06
+    },
+    "bar_unverifiable": {
+     "n": 260,
+     "pnl": 8695.5
+    }
+   },
+   "budget500": {
+    "corrected": {
+     "n": 300,
+     "pnl": 1161
+    },
+    "verified": {
+     "n": 516,
+     "pnl": -16161
+    },
+    "oversize_review": {
+     "n": 22,
+     "pnl": 31298
+    },
+    "bar_mismatch": {
+     "n": 264,
+     "pnl": -35561.5
+    },
+    "duplicate": {
+     "n": 87,
+     "pnl": 14231.5
+    },
+    "crypto_excluded": {
+     "n": 133,
+     "pnl": -5523.5
+    },
+    "bar_unverifiable": {
+     "n": 260,
+     "pnl": 10924
+    }
+   }
+  },
+  "zeroDteVsSwing": {
+   "unit": {
+    "swing": {
+     "n": 650,
+     "pnl": 25489,
+     "wins": 274,
+     "losses": 363
+    },
+    "0DTE": {
+     "n": 188,
+     "pnl": -1366,
+     "wins": 51,
+     "losses": 134
+    }
+   },
+   "budget500": {
+    "swing": {
+     "n": 630,
+     "pnl": -9497,
+     "wins": 259,
+     "losses": 358
+    },
+    "0DTE": {
+     "n": 186,
+     "pnl": -5503,
+     "wins": 49,
+     "losses": 134
+    }
+   }
+  },
+  "last10Sessions": {
+   "sessions": [
+    "2026-10-16",
+    "2026-10-19",
+    "2026-10-20",
+    "2026-10-21",
+    "2026-10-22",
+    "2026-10-23",
+    "2026-10-26",
+    "2026-10-27",
+    "2026-10-28",
+    "2026-10-29"
+   ],
+   "unit": {
+    "n": 339,
+    "pnl": -5625,
+    "wins": 109,
+    "losses": 230
+   },
+   "budget500": {
+    "n": 334,
+    "pnl": -12335,
+    "wins": 105,
+    "losses": 229
+   },
+   "zeroDteVsSwing": {
+    "unit": {
+     "swing": {
+      "n": 249,
+      "pnl": -4008,
+      "wins": 86,
+      "losses": 163
+     },
+     "0DTE": {
+      "n": 90,
+      "pnl": -1617,
+      "wins": 23,
+      "losses": 67
+     }
+    },
+    "budget500": {
+     "swing": {
+      "n": 245,
+      "pnl": -7886,
+      "wins": 83,
+      "losses": 162
+     },
+     "0DTE": {
+      "n": 89,
+      "pnl": -4449,
+      "wins": 22,
+      "losses": 67
+     }
+    }
+   },
+   "byDay": {
+    "budget500": {
+     "2026-10-23": {
+      "n": 27,
+      "pnl": -3586,
+      "wins": 2,
+      "losses": 25
+     },
+     "2026-10-22": {
+      "n": 43,
+      "pnl": -3282,
+      "wins": 14,
+      "losses": 29
+     },
+     "2026-10-26": {
+      "n": 34,
+      "pnl": -2609,
+      "wins": 11,
+      "losses": 23
+     },
+     "2026-10-20": {
+      "n": 26,
+      "pnl": 1758,
+      "wins": 13,
+      "losses": 13
+     },
+     "2026-10-19": {
+      "n": 28,
+      "pnl": -1513,
+      "wins": 8,
+      "losses": 20
+     },
+     "2026-10-28": {
+      "n": 30,
+      "pnl": -1093,
+      "wins": 9,
+      "losses": 21
+     },
+     "2026-10-16": {
+      "n": 39,
+      "pnl": -1086,
+      "wins": 13,
+      "losses": 26
+     },
+     "2026-10-27": {
+      "n": 35,
+      "pnl": -967,
+      "wins": 12,
+      "losses": 23
+     },
+     "2026-10-21": {
+      "n": 40,
+      "pnl": 602,
+      "wins": 13,
+      "losses": 27
+     },
+     "2026-10-29": {
+      "n": 32,
+      "pnl": -559,
+      "wins": 10,
+      "losses": 22
+     }
+    }
+   }
+  },
+  "byEngine": {
+   "unit": {
+    "quant": {
+     "n": 145,
+     "pnl": 29231,
+     "wins": 62,
+     "losses": 81
+    },
+    "market_scanner": {
+     "n": 271,
+     "pnl": -6781,
+     "wins": 109,
+     "losses": 152
+    },
+    "sector_ignition": {
+     "n": 44,
+     "pnl": 4130,
+     "wins": 22,
+     "losses": 22
+    },
+    "zero_dte_flow": {
+     "n": 80,
+     "pnl": -2612,
+     "wins": 26,
+     "losses": 54
+    },
+    "gex_scanner": {
+     "n": 141,
+     "pnl": -573,
+     "wins": 46,
+     "losses": 94
+    },
+    "tradingview": {
+     "n": 1,
+     "pnl": 520,
+     "wins": 1,
+     "losses": 0
+    },
+    "gex_magnet": {
+     "n": 6,
+     "pnl": 380,
+     "wins": 2,
+     "losses": 4
+    },
+    "flow": {
+     "n": 110,
+     "pnl": -285,
+     "wins": 43,
+     "losses": 64
+    },
+    "zero_dte_desk": {
+     "n": 25,
+     "pnl": 139,
+     "wins": 8,
+     "losses": 17
+    },
+    "zero_dte_sniper": {
+     "n": 2,
+     "pnl": -53,
+     "wins": 0,
+     "losses": 2
+    },
+    "leaders": {
+     "n": 12,
+     "pnl": 17,
+     "wins": 5,
+     "losses": 7
+    },
+    "orb_scanner": {
+     "n": 1,
+     "pnl": 10,
+     "wins": 1,
+     "losses": 0
+    }
+   },
+   "budget500": {
+    "market_scanner": {
+     "n": 267,
+     "pnl": -7212,
+     "wins": 107,
+     "losses": 150
+    },
+    "gex_scanner": {
+     "n": 140,
+     "pnl": -3765,
+     "wins": 45,
+     "losses": 94
+    },
+    "zero_dte_flow": {
+     "n": 80,
+     "pnl": -3624,
+     "wins": 26,
+     "losses": 54
+    },
+    "sector_ignition": {
+     "n": 43,
+     "pnl": 2653,
+     "wins": 21,
+     "losses": 22
+    },
+    "flow": {
+     "n": 109,
+     "pnl": -2024,
+     "wins": 42,
+     "losses": 64
+    },
+    "zero_dte_desk": {
+     "n": 25,
+     "pnl": -748,
+     "wins": 8,
+     "losses": 17
+    },
+    "quant": {
+     "n": 133,
+     "pnl": 440,
+     "wins": 52,
+     "losses": 79
+    },
+    "gex_magnet": {
+     "n": 6,
+     "pnl": -394,
+     "wins": 2,
+     "losses": 4
+    },
+    "leaders": {
+     "n": 10,
+     "pnl": -220,
+     "wins": 4,
+     "losses": 6
+    },
+    "zero_dte_sniper": {
+     "n": 2,
+     "pnl": -206,
+     "wins": 0,
+     "losses": 2
+    },
+    "orb_scanner": {
+     "n": 1,
+     "pnl": 100,
+     "wins": 1,
+     "losses": 0
+    }
+   }
+  },
+  "excluded": {
+   "Shares idea (legacy, not in the options book)": 359,
+   "expired without a measured exit": 228,
+   "contract not recorded": 174,
+   "entry never triggered (missed entry window)": 168,
+   "resolved without a contract exit premium": 44,
+   "awaiting entry": 5,
+   "never triggered": 5
+  }
+ },
+ "retroOptionsView": {
+  "records": 448,
+  "verified": 24,
+  "inBook": {
+   "unit": {
+    "n": 19,
+    "pnl": -241,
+    "wins": 6,
+    "losses": 11
+   },
+   "budget500": {
+    "n": 19,
+    "pnl": -704,
+    "wins": 6,
+    "losses": 11
+   }
+  },
+  "note": "rule-picked options view of legacy shares ideas (dry run, not written) — NOT in the as-published headline above"
+ },
+ "today": {
+  "day": "2026-10-29",
+  "resolvedRows": 44,
+  "new500": {
+   "realized": -559,
+   "wins": 10,
+   "losses": 22,
+   "checking": 4,
+   "checkingRecordedPnl": 222,
+   "neverTriggered": 0,
+   "overBudget": 2,
+   "corrected": 7,
+   "unpriced": 1,
+   "best": {
+    "id": "018e023d-1455-4fdf-a473-1ec2ec4dc415",
+    "symbol": "NCLH",
+    "pnl": 565,
+    "kind": "realized"
+   },
+   "worst": {
+    "id": "59d20143-13ea-43af-baca-760f4f7a92e2",
+    "symbol": "SPY",
+    "pnl": -252,
+    "kind": "realized"
+   }
+  },
+  "rows": [
+   {
+    "id": "3c77fde2-6f5d-443e-b4a7-d04a7c9e0d2b",
+    "symbol": "Q",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "UNVERIFIABLE",
+    "bug": "bar_unverifiable"
+   },
+   {
+    "id": "a610bf22-d959-410e-872d-b50ef242bf47",
+    "symbol": "LIT",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "UNVERIFIABLE",
+    "bug": "bar_unverifiable"
+   },
+   {
+    "id": "6efcccbf-0508-4578-9f3b-aaa50d61aec3",
+    "symbol": "XRP",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "86ae7981-34f5-4815-ae37-afdba29ba0fd",
+    "symbol": "QQQ",
+    "pnl": -192,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 8,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "a914d7d4-c8b9-442f-8532-4b9b9fb2f420",
+    "symbol": "SPY",
+    "pnl": -192,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 12,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "429ce430-e6ec-4ed4-9eb3-d0f0f734b735",
+    "symbol": "SPY",
+    "pnl": 440,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 20,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "cd46cc33-1fa5-4ee9-9e1b-05e4a665cd2c",
+    "symbol": "SPY",
+    "pnl": null,
+    "checking": true,
+    "recorded": 357,
+    "neverTriggered": false,
+    "qty": 3,
+    "overBudget": false,
+    "reason": "checking — mismatch: wrong_outcome_order: entry 1.34 inside traded [1.22, 1.56] (±5m of publish / trigger, 11 bars); order: recorded expired but premium: target first at 2",
+    "verdict": "MISMATCH",
+    "bug": "wrong_outcome_order"
+   },
+   {
+    "id": "7397bbf0-922f-4910-a4d4-1b4d1dab1314",
+    "symbol": "SPY",
+    "pnl": 252,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 6,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "85fb8815-d582-4b67-a8ae-590d26fc6a50",
+    "symbol": "SPY",
+    "pnl": 136,
+    "checking": false,
+    "recorded": 204,
+    "neverTriggered": false,
+    "qty": 4,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "settlement_repriced"
+   },
+   {
+    "id": "59d20143-13ea-43af-baca-760f4f7a92e2",
+    "symbol": "SPY",
+    "pnl": -252,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 9,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "e861d819-f085-4748-998e-301d1a9e6d36",
+    "symbol": "AAPL",
+    "pnl": -131,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "a84edba2-9676-4d6f-8830-051ff42c1845",
+    "symbol": "NVAX",
+    "pnl": -156,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 26,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "86290f00-87ee-40f9-9f72-c7b7d3146596",
+    "symbol": "SPX",
+    "pnl": -168,
+    "checking": false,
+    "recorded": -169,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "exit_time_misstamped"
+   },
+   {
+    "id": "997fb66e-7151-4a3e-995c-fd5434312ca2",
+    "symbol": "SPX",
+    "pnl": -171,
+    "checking": false,
+    "recorded": -159,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "entry_repriced"
+   },
+   {
+    "id": "930019d9-43ef-42fe-9019-5e4de3107885",
+    "symbol": "QNT",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "fb680ecf-d393-4b0b-945f-78092e34d834",
+    "symbol": "PINS",
+    "pnl": null,
+    "checking": true,
+    "recorded": 204,
+    "neverTriggered": false,
+    "qty": 4,
+    "overBudget": false,
+    "reason": "checking — unverifiable: bar_unverifiable: entry 1.15 outside traded [1.11, 1.11] (first 5 prints after publish); the first print (1.11 at 2026-10-26T18:44:00.000Z) is mor",
+    "verdict": "UNVERIFIABLE",
+    "bug": "bar_unverifiable"
+   },
+   {
+    "id": "89035ba5-e338-40c4-90de-949a151f1671",
+    "symbol": "ETH",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "6149c374-569c-48c5-99e0-53124592e765",
+    "symbol": "QQQ",
+    "pnl": -176,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 8,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "43c2a99c-5ab5-4b99-b5a9-bcb789067cf6",
+    "symbol": "MSFT",
+    "pnl": null,
+    "checking": true,
+    "recorded": -144,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": "checking — mismatch: barrier_order_disagrees: entry 3.61 inside traded [2.24, 3.94] (±5m of publish / trigger, 21 bars); order: recorded hit_stop agrees with the premium p",
+    "verdict": "MISMATCH",
+    "bug": "barrier_order_disagrees"
+   },
+   {
+    "id": "8f1f32e4-c422-4d41-8bdb-618547274c86",
+    "symbol": "AKAM",
+    "pnl": -4,
+    "checking": false,
+    "recorded": -41,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": true,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "entry_repriced"
+   },
+   {
+    "id": "c8edbe82-b540-44fd-bf8d-dec0e43fa1b8",
+    "symbol": "IWM",
+    "pnl": -70,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "2183b8aa-c73f-4d3c-ae00-263acdc46553",
+    "symbol": "SMH",
+    "pnl": -104,
+    "checking": false,
+    "recorded": -142,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "entry_repriced"
+   },
+   {
+    "id": "96caac7a-c928-4edf-a5e2-56094a016392",
+    "symbol": "SPY",
+    "pnl": null,
+    "checking": true,
+    "recorded": -195,
+    "neverTriggered": false,
+    "qty": 15,
+    "overBudget": false,
+    "reason": "checking — mismatch: barrier_order_disagrees: entry 0.33 inside traded [0.28, 0.38] (±5m of publish / trigger, 11 bars); order: recorded hit_stop agrees with the premium p",
+    "verdict": "MISMATCH",
+    "bug": "barrier_order_disagrees"
+   },
+   {
+    "id": "1f7925b0-2eb6-4700-bf35-b517e65d55cd",
+    "symbol": "QQQ",
+    "pnl": -234,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 9,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "8016b5c1-f521-496e-84e8-b5ae891ece30",
+    "symbol": "META",
+    "pnl": 183,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "baa9dfcd-217f-41b1-83af-d60e0f96d98b",
+    "symbol": "DKNG",
+    "pnl": 46,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "5ee3d442-6f09-4696-8e02-ce36fbf5e750",
+    "symbol": "QQQ",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 3,
+    "overBudget": false,
+    "reason": "exit premium not recorded",
+    "verdict": "not in ledger",
+    "bug": null
+   },
+   {
+    "id": "048684de-adda-40c9-9a61-b9c17255ee76",
+    "symbol": "IWM",
+    "pnl": -234,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "46df3e0d-b387-4e98-9d0d-a9e9e405036e",
+    "symbol": "LINK",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "2115022c-0e0e-40ac-8dc1-99c1984ae58c",
+    "symbol": "SOL",
+    "pnl": null,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": null,
+    "overBudget": false,
+    "reason": "shares idea — not in the options book",
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "a3339285-c437-48d7-ac88-adcad1da68f7",
+    "symbol": "XLE",
+    "pnl": -18,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 18,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "8978239a-c260-4a26-ac90-980627e8b8cc",
+    "symbol": "SPY",
+    "pnl": -180,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 3,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "f47e638a-99d8-4540-bfb3-8995fd08b4d7",
+    "symbol": "VRT",
+    "pnl": 512,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "a72bd32c-ba14-4da4-89cc-8275b3428e17",
+    "symbol": "NVDA",
+    "pnl": -160,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "f850bee9-183c-4b22-a3b1-e3a97ac661dd",
+    "symbol": "TSLA",
+    "pnl": -175,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "2452bfe9-cd38-49ae-a4f1-fe763972140e",
+    "symbol": "V",
+    "pnl": 502,
+    "checking": false,
+    "recorded": 480,
+    "neverTriggered": false,
+    "qty": 2,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "entry_repriced"
+   },
+   {
+    "id": "d506e377-4252-41a2-9b7a-9f1460e72173",
+    "symbol": "AMZN",
+    "pnl": 144,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "94581287-fd4e-4eb5-9959-8941dc395e3c",
+    "symbol": "AMAT",
+    "pnl": -217,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": true,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "a422d8f2-e79c-48d5-b583-f05ed032f28b",
+    "symbol": "MO",
+    "pnl": 174,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 3,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "818390c2-4cae-4881-ae4b-28fe38e4da1b",
+    "symbol": "IGV",
+    "pnl": -188,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "333501ce-a3e6-4a48-b45d-9f09a99a46da",
+    "symbol": "CRM",
+    "pnl": -249,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "018e023d-1455-4fdf-a473-1ec2ec4dc415",
+    "symbol": "NCLH",
+    "pnl": 565,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 5,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "c86ee55c-e91d-40d6-8999-c60cfa7e31a4",
+    "symbol": "FLEX",
+    "pnl": -67,
+    "checking": false,
+    "recorded": null,
+    "neverTriggered": false,
+    "qty": 1,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "VERIFIED",
+    "bug": null
+   },
+   {
+    "id": "025e08cf-af14-4635-a770-e0437c43f780",
+    "symbol": "SNAP",
+    "pnl": -175,
+    "checking": false,
+    "recorded": -220,
+    "neverTriggered": false,
+    "qty": 25,
+    "overBudget": false,
+    "reason": null,
+    "verdict": "MISMATCH",
+    "bug": "entry_repriced"
+   }
+  ],
+  "new1000": {
+   "realized": -911,
+   "wins": 10,
+   "losses": 22,
+   "checking": 4,
+   "checkingRecordedPnl": 563,
+   "neverTriggered": 0,
+   "overBudget": 2,
+   "corrected": 7,
+   "unpriced": 1,
+   "best": {
+    "id": "018e023d-1455-4fdf-a473-1ec2ec4dc415",
+    "symbol": "NCLH",
+    "pnl": 1243,
+    "kind": "realized"
+   },
+   "worst": {
+    "id": "333501ce-a3e6-4a48-b45d-9f09a99a46da",
+    "symbol": "CRM",
+    "pnl": -747,
+    "kind": "realized"
+   }
+  }
+ }
+}
