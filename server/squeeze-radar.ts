@@ -39,7 +39,7 @@ import {
   type SqueezeRadarPayload, type SqueezeRadarResult, type SqueezeRadarRow, type SqueezeChainInputs,
 } from '@shared/squeeze-radar';
 import type { GexRankRow } from './gex-rankings';
-import { BoundedCache } from './lib/bounded-cache';
+import { BoundedCache, capDedupe } from './lib/bounded-cache';
 
 const DIR = path.join(process.cwd(), '.cache', 'squeeze-radar');
 const LOG_FILE = path.join(DIR, 'log.jsonl');
@@ -391,6 +391,7 @@ export async function runSqueezeRadarCycle(rows: GexRankRow[]): Promise<void> {
         if (loggedSlots.has(key)) continue;
         if (Date.now() - Date.parse(row.fetchedAt) > STALE_MS) continue; // only fresh chains are logged as today's read
         loggedSlots.add(key);
+        capDedupe(loggedSlots, 4000, (k) => !k.startsWith(`${today}|`)); // only today's slots dedupe a write
         const c = row.squeeze!;
         const line: LogLine = {
           date: today, slot, symbol: row.symbol, at: new Date().toISOString(),

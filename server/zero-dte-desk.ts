@@ -49,7 +49,7 @@ import {
   type IntradayRead, type RecordRow, type SessionPhase, type SwingPlan,
 } from './zero-dte-desk-core';
 import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type PolicyVerdict, type ZeroDteSetup } from './zero-dte-policies';
-import { BoundedCache } from './lib/bounded-cache';
+import { BoundedCache, capDedupe } from './lib/bounded-cache';
 import { autoZeroDteNames, type AutoName, type ActiveIdeaLike } from '@shared/zero-dte-names';
 import {
   capsFor, ENTRY_WINDOW_MIN, ideaStage, KIND_LABEL, kindForSetup, occSymbol, pickIdeaContract, sortIdeas, watchSetups, zeroDteEligibility,
@@ -107,7 +107,7 @@ export async function warmDeskChain(sym: string): Promise<{ ok: boolean; source:
 }
 
 // ─── realized vol (daily bars, cached 30 min) ────────────────────────────
-const volCache = new Map<string, { at: number; v: number | null }>();
+const volCache = new BoundedCache<string, { at: number; v: number | null }>({ name: '0dte.realizedVol', maxEntries: 200, ttlMs: 30 * 60_000, noSizing: true });
 async function sigmaDaily(sym: string): Promise<number | null> {
   const hit = volCache.get(sym);
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.v;
@@ -280,6 +280,11 @@ export async function readDeskName(symRaw: string): Promise<DeskRow> {
 interface EvalMemo { at: number; verdict: PolicyVerdict; withheld: string | null }
 const lastEval = new Map<string, EvalMemo>();
 const recentPublishes = new Map<string, number>();
+/** Record a publish; keys older than the longest dedupe window (20 h swings) are dropped past 500 keys. */
+function notePublish(key: string, nowMs: number): void {
+  recentPublishes.set(key, nowMs);
+  capDedupe(recentPublishes, 500, (k) => nowMs - (recentPublishes.get(k) ?? 0) > 20 * 3600_000);
+}
 
 // ─── the desk ────────────────────────────────────────────────────────────
 
@@ -984,10 +989,10 @@ export async function runZeroDteDeskScan(): Promise<{ evaluated: number; publish
               const { isDedupedResult } = await import('./lib/instrument-dedup');
               if (isDedupedResult(created)) {
                 // Same contract already open / published this session (server/lib/instrument-dedup.ts).
-                recentPublishes.set(key, nowMs);
+                notePublish(key, nowMs);
                 withheld = `same contract already on the book (idea ${(created as any)?.id})`;
               } else {
-              recentPublishes.set(key, nowMs); published++; ideasCache = null; deskCache = null;
+              notePublish(key, nowMs); published++; ideasCache = null; deskCache = null;
               logger.info(`[0DTE-DESK] ✅ TRIGGERED ${sym} ${KIND_LABEL[kind]} ${s.direction} → ${c.optionType} ${c.strike} ${c.expiry} @ $${c.mid.toFixed(2)}`);
               void notifyTriggered(
                 `0DTE TRIGGERED · ${sym} ${c.strike}${c.optionType === 'call' ? 'C' : 'P'} ${c.expiry.slice(5)} @ ~$${c.mid.toFixed(2)} · ${KIND_LABEL[kind]} · stop $${s.stop.toFixed(2)} → T1 $${s.target.toFixed(2)} · out by ${TIME_STOP_ET} ET (unvalidated)`,
@@ -1058,7 +1063,7 @@ export async function runShortSwingPublish(): Promise<number> {
         exitBy: p.exitByIso, holdingPeriod: 'swing', tradeType: 'swing', outcomeStatus: 'open', confidenceScore: 55,
         qualitySignals: ['desk:short_swing', 'validated:false', `hold_days:${p.holdDays}`, p.capped ? 'target_capped_1sigma' : '', `time_stop:${p.timeStopIso}`, `contract_dte:${c.dte}`, `vehicle:${v.symbol}`].filter(Boolean),
       } as any, { dedupWindowHours: 20 });
-      recentPublishes.set(key, nowMs); n++; ideasCache = null; deskCache = null;
+      notePublish(key, nowMs); n++; ideasCache = null; deskCache = null;
       logger.info(`[0DTE-DESK] ✅ swing ${v.symbol} ${p.direction} ${c.optionType} ${c.strike} ${c.expiry}`);
     } catch (e) {
       logger.info(`[0DTE-DESK] swing ${row.symbol} not written: ${(e as Error).message}`);

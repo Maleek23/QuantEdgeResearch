@@ -15,11 +15,13 @@ import {
   EXPIRED_NOTE_HEAD, intrinsicSettlement, parseExpiryMarker, replaceExpiryNote, resettleEligible, settlementUnderlying,
   type ExpiryPrint, type IntrinsicInput,
 } from '@shared/journal-expiry';
+import { BoundedCache } from './lib/bounded-cache';
 
 /** Daily bars of `symbol` on each of `days` (YYYY-MM-DD, New York). Missing day = no entry. */
 export type ExpiryBarFetcher = (symbol: string, kind: 'index' | 'equity', days: string[]) => Promise<Map<string, ExpiryPrint>>;
 
-const barCache = new Map<string, ExpiryPrint>();
+// Settled daily prints never change, but the key space (symbol × expiry day) only grows: cap it.
+const barCache = new BoundedCache<string, ExpiryPrint>({ name: 'expiry.dailyPrints', maxEntries: 3000, noSizing: true });
 
 function rangeFor(oldestDay: string): string {
   const age = (Date.now() - Date.parse(`${oldestDay}T00:00:00Z`)) / 86_400_000;

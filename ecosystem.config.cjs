@@ -16,7 +16,7 @@ const JEMALLOC = {
   // instead of letting glibc arenas fragment — what made RSS ratchet into the
   // pm2 restart line. Ubuntu: apt install libjemalloc2.
   LD_PRELOAD: '/usr/lib/x86_64-linux-gnu/libjemalloc.so.2',
-  MALLOC_CONF: 'background_thread:true,dirty_decay_ms:5000,muzzy_decay_ms:5000',
+  MALLOC_CONF: 'background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0', // = prod eco.config.cjs
 };
 
 module.exports = {
@@ -26,7 +26,8 @@ module.exports = {
       script: 'dist/web.js',
       cwd: __dirname,
       env: { NODE_ENV: 'production', PORT: 3000, ROLE: 'web', MEMORY_TRIM_RSS_MB: 550, ...JEMALLOC },
-      node_args: '--max-old-space-size=512',
+      // --expose-gc is load-bearing: server/lib/memory-guard.ts and the heavy-job gate collect with it.
+      node_args: '--max-old-space-size=512 --max-semi-space-size=8 --expose-gc',
       max_memory_restart: '700M',
       kill_timeout: 8000,
       autorestart: true,
@@ -37,7 +38,7 @@ module.exports = {
       script: 'dist/worker.js',
       cwd: __dirname,
       env: { NODE_ENV: 'production', ROLE: 'worker', MEMORY_TRIM_RSS_MB: 700, ...JEMALLOC },
-      node_args: '--max-old-space-size=768',
+      node_args: '--max-old-space-size=768 --max-semi-space-size=8 --expose-gc',
       max_memory_restart: '900M',
       // Lets SIGTERM release the scheduler lock before pm2 kills the process.
       kill_timeout: 15000,

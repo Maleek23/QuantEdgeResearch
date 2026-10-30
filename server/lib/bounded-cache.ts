@@ -269,3 +269,19 @@ export function registerCacheProbe(
     trimTo: (f) => (trim ? trim(f) : 0),
   });
 }
+
+/**
+ * Cap a dedupe Map/Set that must NOT be LRU-trimmed by the memory guard (dropping a
+ * live key would re-allow a publish). Once it holds more than `max` keys, delete the
+ * keys `isStale` marks (oldest-first insertion order), then — still over — the oldest
+ * insertions until it is back at `max`. Returns how many keys were removed.
+ */
+export function capDedupe<K>(m: Map<K, unknown> | Set<K>, max: number, isStale: (key: K) => boolean): number {
+  if (m.size <= max) return 0;
+  let removed = 0;
+  for (const k of [...m.keys()]) { if (isStale(k)) { m.delete(k); removed++; } }
+  if (m.size > max) {
+    for (const k of [...m.keys()]) { if (m.size <= max) break; m.delete(k); removed++; }
+  }
+  return removed;
+}
